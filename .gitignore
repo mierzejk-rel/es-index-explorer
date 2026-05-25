@@ -151,6 +151,8 @@ activemq-data/
 .env
 .envrc
 .venv
+config.toml
+.token_cache.json
 env/
 venv/
 ENV/

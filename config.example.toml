@@ -1,0 +1,17 @@
+[cid]
+sts_url = "https://sts-stage.api.r1.kcura.com/identity/connect/token"
+grant_type = "client_credentials"
+scope = "RelativityOneSharedService"
+client_id = "a58b432f-63ab-46dc-aa57-6875b738532d"
+client_secret = "FILL_IN_YOUR_SECRET"
+
+[token_cache]
+buffer_seconds = 120
+cache_file = ".token_cache.json"
+
+[retry]
+max_attempts = 2
+wait_seconds = 3
+
+[elasticsearch]
+hosts = "https://services.esus.reg.k8s.r1.kcura.com/search/search-ai/"
