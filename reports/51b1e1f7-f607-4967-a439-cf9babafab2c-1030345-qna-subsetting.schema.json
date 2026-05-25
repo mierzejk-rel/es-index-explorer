@@ -1,0 +1,1067 @@
+{
+  "info": {
+    "51b1e1f7-f607-4967-a439-cf9babafab2c-1030345-qna-subsetting": {
+      "aliases": {},
+      "mappings": {
+        "properties": {
+          "body": {
+            "type": "text"
+          },
+          "chunkId": {
+            "type": "integer"
+          },
+          "chunkSize": {
+            "type": "integer"
+          },
+          "controlNumber": {
+            "type": "keyword"
+          },
+          "createdAt": {
+            "type": "date"
+          },
+          "documentId": {
+            "type": "integer"
+          },
+          "documentModifyTime": {
+            "type": "date"
+          },
+          "embedding": {
+            "type": "dense_vector",
+            "dims": 384,
+            "index": true,
+            "similarity": "cosine",
+            "index_options": {
+              "type": "bbq_hnsw",
+              "m": 16,
+              "ef_construction": 100,
+              "rescore_vector": {
+                "oversample": 3.0
+              }
+            }
+          },
+          "subsetIds": {
+            "type": "keyword"
+          },
+          "title": {
+            "type": "text"
+          }
+        }
+      },
+      "settings": {
+        "index": {
+          "routing": {
+            "allocation": {
+              "include": {
+                "_tier_preference": "data_content"
+              }
+            }
+          },
+          "number_of_shards": "1",
+          "provided_name": "51b1e1f7-f607-4967-a439-cf9babafab2c-1030345-qna-subsetting",
+          "creation_date": "1773132070984",
+          "number_of_replicas": "1",
+          "uuid": "-hmUHsH1RZWmA1Q0VTDnfw",
+          "version": {
+            "created": "9039001"
+          }
+        }
+      }
+    }
+  },
+  "count": {
+    "count": 242,
+    "_shards": {
+      "total": 1,
+      "successful": 1,
+      "skipped": 0,
+      "failed": 0
+    }
+  },
+  "stats": {
+    "_shards": {
+      "total": 2,
+      "successful": 2,
+      "failed": 0
+    },
+    "_all": {
+      "primaries": {
+        "docs": {
+          "count": 242,
+          "deleted": 0,
+          "total_size_in_bytes": 722638
+        },
+        "shard_stats": {
+          "total_count": 1
+        },
+        "store": {
+          "size_in_bytes": 723476,
+          "total_data_set_size_in_bytes": 723476,
+          "reserved_in_bytes": 0
+        },
+        "indexing": {
+          "index_total": 0,
+          "index_time_in_millis": 0,
+          "index_current": 0,
+          "index_failed": 0,
+          "index_failed_due_to_version_conflict": 0,
+          "delete_total": 0,
+          "delete_time_in_millis": 0,
+          "delete_current": 0,
+          "noop_update_total": 0,
+          "is_throttled": false,
+          "throttle_time_in_millis": 0,
+          "write_load": 0.0,
+          "recent_write_load": 0.0,
+          "peak_write_load": 0.0
+        },
+        "get": {
+          "total": 1,
+          "time_in_millis": 0,
+          "exists_total": 0,
+          "exists_time_in_millis": 0,
+          "missing_total": 1,
+          "missing_time_in_millis": 0,
+          "current": 0
+        },
+        "search": {
+          "open_contexts": 0,
+          "query_total": 7,
+          "query_time_in_millis": 8,
+          "query_current": 0,
+          "query_failure": 0,
+          "fetch_total": 7,
+          "fetch_time_in_millis": 9,
+          "fetch_current": 0,
+          "fetch_failure": 0,
+          "scroll_total": 0,
+          "scroll_time_in_millis": 0,
+          "scroll_current": 0,
+          "suggest_total": 0,
+          "suggest_time_in_millis": 0,
+          "suggest_current": 0,
+          "recent_search_load": 9.809897538699086e-07
+        },
+        "merges": {
+          "current": 0,
+          "current_docs": 0,
+          "current_size_in_bytes": 0,
+          "total": 0,
+          "total_time_in_millis": 0,
+          "total_docs": 0,
+          "total_size_in_bytes": 0,
+          "total_stopped_time_in_millis": 0,
+          "total_throttled_time_in_millis": 0,
+          "total_auto_throttle_in_bytes": 5242880
+        },
+        "refresh": {
+          "total": 80,
+          "total_time_in_millis": 1,
+          "external_total": 27,
+          "external_total_time_in_millis": 1,
+          "listeners": 0
+        },
+        "flush": {
+          "total": 2,
+          "periodic": 2,
+          "total_time_in_millis": 122,
+          "total_time_excluding_waiting_on_lock_in_millis": 1467
+        },
+        "warmer": {
+          "current": 0,
+          "total": 26,
+          "total_time_in_millis": 0
+        },
+        "query_cache": {
+          "memory_size_in_bytes": 0,
+          "total_count": 0,
+          "hit_count": 0,
+          "miss_count": 0,
+          "cache_size": 0,
+          "cache_count": 0,
+          "evictions": 0
+        },
+        "fielddata": {
+          "memory_size_in_bytes": 0,
+          "evictions": 0,
+          "global_ordinals": {
+            "build_time_in_millis": 0
+          }
+        },
+        "completion": {
+          "size_in_bytes": 0
+        },
+        "segments": {
+          "count": 7,
+          "memory_in_bytes": 0,
+          "terms_memory_in_bytes": 0,
+          "stored_fields_memory_in_bytes": 0,
+          "term_vectors_memory_in_bytes": 0,
+          "norms_memory_in_bytes": 0,
+          "points_memory_in_bytes": 0,
+          "doc_values_memory_in_bytes": 0,
+          "index_writer_memory_in_bytes": 0,
+          "version_map_memory_in_bytes": 0,
+          "fixed_bit_set_memory_in_bytes": 0,
+          "max_unsafe_auto_id_timestamp": -1,
+          "file_sizes": {}
+        },
+        "translog": {
+          "operations": 0,
+          "size_in_bytes": 55,
+          "uncommitted_operations": 0,
+          "uncommitted_size_in_bytes": 55,
+          "earliest_last_modified_age": 338050667
+        },
+        "request_cache": {
+          "memory_size_in_bytes": 752,
+          "evictions": 0,
+          "hit_count": 1,
+          "miss_count": 1
+        },
+        "recovery": {
+          "current_as_source": 0,
+          "current_as_target": 0,
+          "throttle_time_in_millis": 0
+        },
+        "bulk": {
+          "total_operations": 0,
+          "total_time_in_millis": 0,
+          "total_size_in_bytes": 0,
+          "avg_time_in_millis": 0,
+          "avg_size_in_bytes": 0
+        },
+        "dense_vector": {
+          "value_count": 242,
+          "off_heap": {
+            "total_size_bytes": 388450,
+            "total_veb_size_bytes": 15004,
+            "total_vec_size_bytes": 371712,
+            "total_veq_size_bytes": 0,
+            "total_vex_size_bytes": 1734,
+            "total_cenivf_size_bytes": 0,
+            "total_clivf_size_bytes": 0
+          }
+        },
+        "sparse_vector": {
+          "value_count": 0
+        }
+      },
+      "total": {
+        "docs": {
+          "count": 484,
+          "deleted": 0,
+          "total_size_in_bytes": 1445276
+        },
+        "shard_stats": {
+          "total_count": 2
+        },
+        "store": {
+          "size_in_bytes": 1446952,
+          "total_data_set_size_in_bytes": 1446952,
+          "reserved_in_bytes": 0
+        },
+        "indexing": {
+          "index_total": 0,
+          "index_time_in_millis": 0,
+          "index_current": 0,
+          "index_failed": 0,
+          "index_failed_due_to_version_conflict": 0,
+          "delete_total": 0,
+          "delete_time_in_millis": 0,
+          "delete_current": 0,
+          "noop_update_total": 0,
+          "is_throttled": false,
+          "throttle_time_in_millis": 0,
+          "write_load": 0.0,
+          "recent_write_load": 0.0,
+          "peak_write_load": 0.0
+        },
+        "get": {
+          "total": 1,
+          "time_in_millis": 0,
+          "exists_total": 0,
+          "exists_time_in_millis": 0,
+          "missing_total": 1,
+          "missing_time_in_millis": 0,
+          "current": 0
+        },
+        "search": {
+          "open_contexts": 0,
+          "query_total": 25,
+          "query_time_in_millis": 23,
+          "query_current": 0,
+          "query_failure": 0,
+          "fetch_total": 25,
+          "fetch_time_in_millis": 27,
+          "fetch_current": 0,
+          "fetch_failure": 0,
+          "scroll_total": 0,
+          "scroll_time_in_millis": 0,
+          "scroll_current": 0,
+          "suggest_total": 0,
+          "suggest_time_in_millis": 0,
+          "suggest_current": 0,
+          "recent_search_load": 1.5743563922210535e-06
+        },
+        "merges": {
+          "current": 0,
+          "current_docs": 0,
+          "current_size_in_bytes": 0,
+          "total": 0,
+          "total_time_in_millis": 0,
+          "total_docs": 0,
+          "total_size_in_bytes": 0,
+          "total_stopped_time_in_millis": 0,
+          "total_throttled_time_in_millis": 0,
+          "total_auto_throttle_in_bytes": 10485760
+        },
+        "refresh": {
+          "total": 85,
+          "total_time_in_millis": 1,
+          "external_total": 30,
+          "external_total_time_in_millis": 1,
+          "listeners": 0
+        },
+        "flush": {
+          "total": 3,
+          "periodic": 3,
+          "total_time_in_millis": 164,
+          "total_time_excluding_waiting_on_lock_in_millis": 1509
+        },
+        "warmer": {
+          "current": 0,
+          "total": 28,
+          "total_time_in_millis": 0
+        },
+        "query_cache": {
+          "memory_size_in_bytes": 0,
+          "total_count": 0,
+          "hit_count": 0,
+          "miss_count": 0,
+          "cache_size": 0,
+          "cache_count": 0,
+          "evictions": 0
+        },
+        "fielddata": {
+          "memory_size_in_bytes": 0,
+          "evictions": 0,
+          "global_ordinals": {
+            "build_time_in_millis": 0
+          }
+        },
+        "completion": {
+          "size_in_bytes": 0
+        },
+        "segments": {
+          "count": 14,
+          "memory_in_bytes": 0,
+          "terms_memory_in_bytes": 0,
+          "stored_fields_memory_in_bytes": 0,
+          "term_vectors_memory_in_bytes": 0,
+          "norms_memory_in_bytes": 0,
+          "points_memory_in_bytes": 0,
+          "doc_values_memory_in_bytes": 0,
+          "index_writer_memory_in_bytes": 0,
+          "version_map_memory_in_bytes": 0,
+          "fixed_bit_set_memory_in_bytes": 0,
+          "max_unsafe_auto_id_timestamp": -1,
+          "file_sizes": {}
+        },
+        "translog": {
+          "operations": 0,
+          "size_in_bytes": 110,
+          "uncommitted_operations": 0,
+          "uncommitted_size_in_bytes": 110,
+          "earliest_last_modified_age": 151250526
+        },
+        "request_cache": {
+          "memory_size_in_bytes": 1496,
+          "evictions": 0,
+          "hit_count": 3,
+          "miss_count": 2
+        },
+        "recovery": {
+          "current_as_source": 0,
+          "current_as_target": 0,
+          "throttle_time_in_millis": 0
+        },
+        "bulk": {
+          "total_operations": 0,
+          "total_time_in_millis": 0,
+          "total_size_in_bytes": 0,
+          "avg_time_in_millis": 0,
+          "avg_size_in_bytes": 0
+        },
+        "dense_vector": {
+          "value_count": 484,
+          "off_heap": {
+            "total_size_bytes": 776900,
+            "total_veb_size_bytes": 30008,
+            "total_vec_size_bytes": 743424,
+            "total_veq_size_bytes": 0,
+            "total_vex_size_bytes": 3468,
+            "total_cenivf_size_bytes": 0,
+            "total_clivf_size_bytes": 0
+          }
+        },
+        "sparse_vector": {
+          "value_count": 0
+        }
+      }
+    },
+    "indices": {
+      "51b1e1f7-f607-4967-a439-cf9babafab2c-1030345-qna-subsetting": {
+        "uuid": "-hmUHsH1RZWmA1Q0VTDnfw",
+        "health": "green",
+        "status": "open",
+        "primaries": {
+          "docs": {
+            "count": 242,
+            "deleted": 0,
+            "total_size_in_bytes": 722638
+          },
+          "shard_stats": {
+            "total_count": 1
+          },
+          "store": {
+            "size_in_bytes": 723476,
+            "total_data_set_size_in_bytes": 723476,
+            "reserved_in_bytes": 0
+          },
+          "indexing": {
+            "index_total": 0,
+            "index_time_in_millis": 0,
+            "index_current": 0,
+            "index_failed": 0,
+            "index_failed_due_to_version_conflict": 0,
+            "delete_total": 0,
+            "delete_time_in_millis": 0,
+            "delete_current": 0,
+            "noop_update_total": 0,
+            "is_throttled": false,
+            "throttle_time_in_millis": 0,
+            "write_load": 0.0,
+            "recent_write_load": 0.0,
+            "peak_write_load": 0.0
+          },
+          "get": {
+            "total": 1,
+            "time_in_millis": 0,
+            "exists_total": 0,
+            "exists_time_in_millis": 0,
+            "missing_total": 1,
+            "missing_time_in_millis": 0,
+            "current": 0
+          },
+          "search": {
+            "open_contexts": 0,
+            "query_total": 7,
+            "query_time_in_millis": 8,
+            "query_current": 0,
+            "query_failure": 0,
+            "fetch_total": 7,
+            "fetch_time_in_millis": 9,
+            "fetch_current": 0,
+            "fetch_failure": 0,
+            "scroll_total": 0,
+            "scroll_time_in_millis": 0,
+            "scroll_current": 0,
+            "suggest_total": 0,
+            "suggest_time_in_millis": 0,
+            "suggest_current": 0,
+            "recent_search_load": 9.809897538699086e-07
+          },
+          "merges": {
+            "current": 0,
+            "current_docs": 0,
+            "current_size_in_bytes": 0,
+            "total": 0,
+            "total_time_in_millis": 0,
+            "total_docs": 0,
+            "total_size_in_bytes": 0,
+            "total_stopped_time_in_millis": 0,
+            "total_throttled_time_in_millis": 0,
+            "total_auto_throttle_in_bytes": 5242880
+          },
+          "refresh": {
+            "total": 80,
+            "total_time_in_millis": 1,
+            "external_total": 27,
+            "external_total_time_in_millis": 1,
+            "listeners": 0
+          },
+          "flush": {
+            "total": 2,
+            "periodic": 2,
+            "total_time_in_millis": 122,
+            "total_time_excluding_waiting_on_lock_in_millis": 1467
+          },
+          "warmer": {
+            "current": 0,
+            "total": 26,
+            "total_time_in_millis": 0
+          },
+          "query_cache": {
+            "memory_size_in_bytes": 0,
+            "total_count": 0,
+            "hit_count": 0,
+            "miss_count": 0,
+            "cache_size": 0,
+            "cache_count": 0,
+            "evictions": 0
+          },
+          "fielddata": {
+            "memory_size_in_bytes": 0,
+            "evictions": 0,
+            "global_ordinals": {
+              "build_time_in_millis": 0
+            }
+          },
+          "completion": {
+            "size_in_bytes": 0
+          },
+          "segments": {
+            "count": 7,
+            "memory_in_bytes": 0,
+            "terms_memory_in_bytes": 0,
+            "stored_fields_memory_in_bytes": 0,
+            "term_vectors_memory_in_bytes": 0,
+            "norms_memory_in_bytes": 0,
+            "points_memory_in_bytes": 0,
+            "doc_values_memory_in_bytes": 0,
+            "index_writer_memory_in_bytes": 0,
+            "version_map_memory_in_bytes": 0,
+            "fixed_bit_set_memory_in_bytes": 0,
+            "max_unsafe_auto_id_timestamp": -1,
+            "file_sizes": {}
+          },
+          "translog": {
+            "operations": 0,
+            "size_in_bytes": 55,
+            "uncommitted_operations": 0,
+            "uncommitted_size_in_bytes": 55,
+            "earliest_last_modified_age": 338050667
+          },
+          "request_cache": {
+            "memory_size_in_bytes": 752,
+            "evictions": 0,
+            "hit_count": 1,
+            "miss_count": 1
+          },
+          "recovery": {
+            "current_as_source": 0,
+            "current_as_target": 0,
+            "throttle_time_in_millis": 0
+          },
+          "bulk": {
+            "total_operations": 0,
+            "total_time_in_millis": 0,
+            "total_size_in_bytes": 0,
+            "avg_time_in_millis": 0,
+            "avg_size_in_bytes": 0
+          },
+          "dense_vector": {
+            "value_count": 242,
+            "off_heap": {
+              "total_size_bytes": 388450,
+              "total_veb_size_bytes": 15004,
+              "total_vec_size_bytes": 371712,
+              "total_veq_size_bytes": 0,
+              "total_vex_size_bytes": 1734,
+              "total_cenivf_size_bytes": 0,
+              "total_clivf_size_bytes": 0,
+              "fielddata": {
+                "embedding": {
+                  "veb_size_bytes": 15004,
+                  "vec_size_bytes": 371712,
+                  "vex_size_bytes": 1734
+                }
+              }
+            }
+          },
+          "sparse_vector": {
+            "value_count": 0
+          }
+        },
+        "total": {
+          "docs": {
+            "count": 484,
+            "deleted": 0,
+            "total_size_in_bytes": 1445276
+          },
+          "shard_stats": {
+            "total_count": 2
+          },
+          "store": {
+            "size_in_bytes": 1446952,
+            "total_data_set_size_in_bytes": 1446952,
+            "reserved_in_bytes": 0
+          },
+          "indexing": {
+            "index_total": 0,
+            "index_time_in_millis": 0,
+            "index_current": 0,
+            "index_failed": 0,
+            "index_failed_due_to_version_conflict": 0,
+            "delete_total": 0,
+            "delete_time_in_millis": 0,
+            "delete_current": 0,
+            "noop_update_total": 0,
+            "is_throttled": false,
+            "throttle_time_in_millis": 0,
+            "write_load": 0.0,
+            "recent_write_load": 0.0,
+            "peak_write_load": 0.0
+          },
+          "get": {
+            "total": 1,
+            "time_in_millis": 0,
+            "exists_total": 0,
+            "exists_time_in_millis": 0,
+            "missing_total": 1,
+            "missing_time_in_millis": 0,
+            "current": 0
+          },
+          "search": {
+            "open_contexts": 0,
+            "query_total": 25,
+            "query_time_in_millis": 23,
+            "query_current": 0,
+            "query_failure": 0,
+            "fetch_total": 25,
+            "fetch_time_in_millis": 27,
+            "fetch_current": 0,
+            "fetch_failure": 0,
+            "scroll_total": 0,
+            "scroll_time_in_millis": 0,
+            "scroll_current": 0,
+            "suggest_total": 0,
+            "suggest_time_in_millis": 0,
+            "suggest_current": 0,
+            "recent_search_load": 1.5743563922210535e-06
+          },
+          "merges": {
+            "current": 0,
+            "current_docs": 0,
+            "current_size_in_bytes": 0,
+            "total": 0,
+            "total_time_in_millis": 0,
+            "total_docs": 0,
+            "total_size_in_bytes": 0,
+            "total_stopped_time_in_millis": 0,
+            "total_throttled_time_in_millis": 0,
+            "total_auto_throttle_in_bytes": 10485760
+          },
+          "refresh": {
+            "total": 85,
+            "total_time_in_millis": 1,
+            "external_total": 30,
+            "external_total_time_in_millis": 1,
+            "listeners": 0
+          },
+          "flush": {
+            "total": 3,
+            "periodic": 3,
+            "total_time_in_millis": 164,
+            "total_time_excluding_waiting_on_lock_in_millis": 1509
+          },
+          "warmer": {
+            "current": 0,
+            "total": 28,
+            "total_time_in_millis": 0
+          },
+          "query_cache": {
+            "memory_size_in_bytes": 0,
+            "total_count": 0,
+            "hit_count": 0,
+            "miss_count": 0,
+            "cache_size": 0,
+            "cache_count": 0,
+            "evictions": 0
+          },
+          "fielddata": {
+            "memory_size_in_bytes": 0,
+            "evictions": 0,
+            "global_ordinals": {
+              "build_time_in_millis": 0
+            }
+          },
+          "completion": {
+            "size_in_bytes": 0
+          },
+          "segments": {
+            "count": 14,
+            "memory_in_bytes": 0,
+            "terms_memory_in_bytes": 0,
+            "stored_fields_memory_in_bytes": 0,
+            "term_vectors_memory_in_bytes": 0,
+            "norms_memory_in_bytes": 0,
+            "points_memory_in_bytes": 0,
+            "doc_values_memory_in_bytes": 0,
+            "index_writer_memory_in_bytes": 0,
+            "version_map_memory_in_bytes": 0,
+            "fixed_bit_set_memory_in_bytes": 0,
+            "max_unsafe_auto_id_timestamp": -1,
+            "file_sizes": {}
+          },
+          "translog": {
+            "operations": 0,
+            "size_in_bytes": 110,
+            "uncommitted_operations": 0,
+            "uncommitted_size_in_bytes": 110,
+            "earliest_last_modified_age": 151250526
+          },
+          "request_cache": {
+            "memory_size_in_bytes": 1496,
+            "evictions": 0,
+            "hit_count": 3,
+            "miss_count": 2
+          },
+          "recovery": {
+            "current_as_source": 0,
+            "current_as_target": 0,
+            "throttle_time_in_millis": 0
+          },
+          "bulk": {
+            "total_operations": 0,
+            "total_time_in_millis": 0,
+            "total_size_in_bytes": 0,
+            "avg_time_in_millis": 0,
+            "avg_size_in_bytes": 0
+          },
+          "dense_vector": {
+            "value_count": 484,
+            "off_heap": {
+              "total_size_bytes": 776900,
+              "total_veb_size_bytes": 30008,
+              "total_vec_size_bytes": 743424,
+              "total_veq_size_bytes": 0,
+              "total_vex_size_bytes": 3468,
+              "total_cenivf_size_bytes": 0,
+              "total_clivf_size_bytes": 0,
+              "fielddata": {
+                "embedding": {
+                  "veb_size_bytes": 30008,
+                  "vec_size_bytes": 743424,
+                  "vex_size_bytes": 3468
+                }
+              }
+            }
+          },
+          "sparse_vector": {
+            "value_count": 0
+          }
+        }
+      }
+    }
+  },
+  "field_usage": {
+    "_shards": {
+      "total": 2,
+      "successful": 2,
+      "failed": 0
+    },
+    "51b1e1f7-f607-4967-a439-cf9babafab2c-1030345-qna-subsetting": {
+      "shards": [
+        {
+          "tracking_id": "n9FQReseRzmzQFm7sgyIkA",
+          "tracking_started_at_millis": 1779370144037,
+          "routing": {
+            "state": "STARTED",
+            "primary": true,
+            "node": "AM5OuCw2RpCLn95-rghSzA",
+            "relocating_node": null
+          },
+          "stats": {
+            "all_fields": {
+              "any": 21,
+              "inverted_index": {
+                "terms": 7,
+                "postings": 6,
+                "term_frequencies": 3,
+                "positions": 0,
+                "offsets": 0,
+                "payloads": 0,
+                "proximity": 0
+              },
+              "stored_fields": 10,
+              "doc_values": 2,
+              "points": 4,
+              "norms": 3,
+              "term_vectors": 0,
+              "knn_vectors": 0
+            },
+            "fields": {
+              "_id": {
+                "any": 6,
+                "inverted_index": {
+                  "terms": 1,
+                  "postings": 0,
+                  "term_frequencies": 0,
+                  "positions": 0,
+                  "offsets": 0,
+                  "payloads": 0,
+                  "proximity": 0
+                },
+                "stored_fields": 5,
+                "doc_values": 0,
+                "points": 0,
+                "norms": 0,
+                "term_vectors": 0,
+                "knn_vectors": 0
+              },
+              "_source": {
+                "any": 5,
+                "inverted_index": {
+                  "terms": 0,
+                  "postings": 0,
+                  "term_frequencies": 0,
+                  "positions": 0,
+                  "offsets": 0,
+                  "payloads": 0,
+                  "proximity": 0
+                },
+                "stored_fields": 5,
+                "doc_values": 0,
+                "points": 0,
+                "norms": 0,
+                "term_vectors": 0,
+                "knn_vectors": 0
+              },
+              "body": {
+                "any": 3,
+                "inverted_index": {
+                  "terms": 3,
+                  "postings": 3,
+                  "term_frequencies": 3,
+                  "positions": 0,
+                  "offsets": 0,
+                  "payloads": 0,
+                  "proximity": 0
+                },
+                "stored_fields": 0,
+                "doc_values": 0,
+                "points": 0,
+                "norms": 3,
+                "term_vectors": 0,
+                "knn_vectors": 0
+              },
+              "chunkId": {
+                "any": 2,
+                "inverted_index": {
+                  "terms": 0,
+                  "postings": 0,
+                  "term_frequencies": 0,
+                  "positions": 0,
+                  "offsets": 0,
+                  "payloads": 0,
+                  "proximity": 0
+                },
+                "stored_fields": 0,
+                "doc_values": 2,
+                "points": 2,
+                "norms": 0,
+                "term_vectors": 0,
+                "knn_vectors": 0
+              },
+              "documentId": {
+                "any": 2,
+                "inverted_index": {
+                  "terms": 0,
+                  "postings": 0,
+                  "term_frequencies": 0,
+                  "positions": 0,
+                  "offsets": 0,
+                  "payloads": 0,
+                  "proximity": 0
+                },
+                "stored_fields": 0,
+                "doc_values": 0,
+                "points": 2,
+                "norms": 0,
+                "term_vectors": 0,
+                "knn_vectors": 0
+              },
+              "subsetIds": {
+                "any": 3,
+                "inverted_index": {
+                  "terms": 3,
+                  "postings": 3,
+                  "term_frequencies": 0,
+                  "positions": 0,
+                  "offsets": 0,
+                  "payloads": 0,
+                  "proximity": 0
+                },
+                "stored_fields": 0,
+                "doc_values": 0,
+                "points": 0,
+                "norms": 0,
+                "term_vectors": 0,
+                "knn_vectors": 0
+              }
+            }
+          }
+        },
+        {
+          "tracking_id": "21XSKdX4S9WeXG0dvT5grw",
+          "tracking_started_at_millis": 1779560273578,
+          "routing": {
+            "state": "STARTED",
+            "primary": false,
+            "node": "V97vD6xwSni7Hd4JpUaZmw",
+            "relocating_node": null
+          },
+          "stats": {
+            "all_fields": {
+              "any": 62,
+              "inverted_index": {
+                "terms": 15,
+                "postings": 15,
+                "term_frequencies": 7,
+                "positions": 0,
+                "offsets": 0,
+                "payloads": 0,
+                "proximity": 0
+              },
+              "stored_fields": 30,
+              "doc_values": 9,
+              "points": 16,
+              "norms": 7,
+              "term_vectors": 0,
+              "knn_vectors": 0
+            },
+            "fields": {
+              "_id": {
+                "any": 15,
+                "inverted_index": {
+                  "terms": 0,
+                  "postings": 0,
+                  "term_frequencies": 0,
+                  "positions": 0,
+                  "offsets": 0,
+                  "payloads": 0,
+                  "proximity": 0
+                },
+                "stored_fields": 15,
+                "doc_values": 0,
+                "points": 0,
+                "norms": 0,
+                "term_vectors": 0,
+                "knn_vectors": 0
+              },
+              "_source": {
+                "any": 15,
+                "inverted_index": {
+                  "terms": 0,
+                  "postings": 0,
+                  "term_frequencies": 0,
+                  "positions": 0,
+                  "offsets": 0,
+                  "payloads": 0,
+                  "proximity": 0
+                },
+                "stored_fields": 15,
+                "doc_values": 0,
+                "points": 0,
+                "norms": 0,
+                "term_vectors": 0,
+                "knn_vectors": 0
+              },
+              "body": {
+                "any": 7,
+                "inverted_index": {
+                  "terms": 7,
+                  "postings": 7,
+                  "term_frequencies": 7,
+                  "positions": 0,
+                  "offsets": 0,
+                  "payloads": 0,
+                  "proximity": 0
+                },
+                "stored_fields": 0,
+                "doc_values": 0,
+                "points": 0,
+                "norms": 7,
+                "term_vectors": 0,
+                "knn_vectors": 0
+              },
+              "chunkId": {
+                "any": 8,
+                "inverted_index": {
+                  "terms": 0,
+                  "postings": 0,
+                  "term_frequencies": 0,
+                  "positions": 0,
+                  "offsets": 0,
+                  "payloads": 0,
+                  "proximity": 0
+                },
+                "stored_fields": 0,
+                "doc_values": 8,
+                "points": 8,
+                "norms": 0,
+                "term_vectors": 0,
+                "knn_vectors": 0
+              },
+              "controlNumber": {
+                "any": 1,
+                "inverted_index": {
+                  "terms": 0,
+                  "postings": 0,
+                  "term_frequencies": 0,
+                  "positions": 0,
+                  "offsets": 0,
+                  "payloads": 0,
+                  "proximity": 0
+                },
+                "stored_fields": 0,
+                "doc_values": 1,
+                "points": 0,
+                "norms": 0,
+                "term_vectors": 0,
+                "knn_vectors": 0
+              },
+              "documentId": {
+                "any": 8,
+                "inverted_index": {
+                  "terms": 0,
+                  "postings": 0,
+                  "term_frequencies": 0,
+                  "positions": 0,
+                  "offsets": 0,
+                  "payloads": 0,
+                  "proximity": 0
+                },
+                "stored_fields": 0,
+                "doc_values": 0,
+                "points": 8,
+                "norms": 0,
+                "term_vectors": 0,
+                "knn_vectors": 0
+              },
+              "subsetIds": {
+                "any": 8,
+                "inverted_index": {
+                  "terms": 8,
+                  "postings": 8,
+                  "term_frequencies": 0,
+                  "positions": 0,
+                  "offsets": 0,
+                  "payloads": 0,
+                  "proximity": 0
+                },
+                "stored_fields": 0,
+                "doc_values": 0,
+                "points": 0,
+                "norms": 0,
+                "term_vectors": 0,
+                "knn_vectors": 0
+              }
+            }
+          }
+        }
+      ]
+    }
+  }
+}

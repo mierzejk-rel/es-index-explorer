@@ -8,6 +8,10 @@ from typing import Any
 from elasticsearch import Elasticsearch
 
 
+class IndexNotFoundError(Exception):
+    """Raised when the requested index does not exist or is not accessible."""
+
+
 # noinspection PyClassHasNoInit
 @dataclass(frozen=True)
 class FieldInfo:
@@ -132,13 +136,24 @@ def _collect_field_usage(stats: dict[str, Any]) -> dict[str, dict[str, int | Non
     return fields_usage
 
 
+def list_indices(client: Elasticsearch) -> list[str]:
+    """Return all index names accessible to the current credentials."""
+
+    aliases = client.indices.get_alias()
+    return sorted(aliases.body.keys())
+
+
 def inspect_index(client: Elasticsearch, index_name: str) -> dict[str, Any]:
     """Collect index structure and prepare a report."""
+
+    if not client.indices.exists(index=index_name):
+        raise IndexNotFoundError(
+            f"Index '{index_name}' does not exist or is not accessible with current credentials."
+        )
 
     info = client.indices.get(index=index_name)
     count = client.count(index=index_name)
     stats = client.indices.stats(index=index_name)
-    cat = client.cat.indices(index=index_name, format="json")
     field_usage = client.indices.field_usage_stats(index=index_name)
 
     index_info = info[index_name]
@@ -147,6 +162,10 @@ def inspect_index(client: Elasticsearch, index_name: str) -> dict[str, Any]:
     analysis = _extract_analysis(settings)
     properties = mappings.get("properties", {})
     fields = _flatten_properties(properties)
+
+    # shards/replicas come from settings; no cluster-level privilege needed
+    num_shards = settings.get("number_of_shards", "unknown")
+    num_replicas = settings.get("number_of_replicas", "unknown")
 
     stats_summary = _index_stats(stats, index_name)
     size_mb = stats_summary["size_in_bytes"] / 1_000_000
@@ -186,11 +205,9 @@ def inspect_index(client: Elasticsearch, index_name: str) -> dict[str, Any]:
 
     report_lines = [
         f"Index: {index_name}",
-        f"Health: {cat[0].get('health') if cat else 'unknown'}",
-        f"Status: {cat[0].get('status') if cat else 'unknown'}",
         f"Docs: {count.get('count', 0)}",
         f"Size (MB): {size_mb:.2f}",
-        f"Shards: {cat[0].get('pri') if cat else 'unknown'} primary / {cat[0].get('rep') if cat else 'unknown'} replica",
+        f"Shards: {num_shards} primary / {num_replicas} replica",
         "",
         "Retrieval summary:",
         f"- Text fields (BM25): {', '.join(retrieval['text_fields']) or 'none'}",
@@ -215,11 +232,9 @@ def inspect_index(client: Elasticsearch, index_name: str) -> dict[str, Any]:
             f"Generated: `{timestamp}`",
             "",
             "## Overview",
-            f"- Health: `{cat[0].get('health') if cat else 'unknown'}`",
-            f"- Status: `{cat[0].get('status') if cat else 'unknown'}`",
             f"- Documents: `{count.get('count', 0)}`",
             f"- Size (MB): `{size_mb:.2f}`",
-            f"- Shards: `{cat[0].get('pri') if cat else 'unknown'}` primary / `{cat[0].get('rep') if cat else 'unknown'}` replica",
+            f"- Shards: `{num_shards}` primary / `{num_replicas}` replica",
             "",
             "## Retrieval Hints",
             f"- Text fields (BM25): {', '.join(retrieval['text_fields']) or 'none'}",
@@ -241,11 +256,10 @@ def inspect_index(client: Elasticsearch, index_name: str) -> dict[str, Any]:
 
     return {
         "raw": {
-            "info": info,
-            "count": count,
-            "stats": stats,
-            "cat": cat,
-            "field_usage": field_usage,
+            "info": info.body,
+            "count": count.body,
+            "stats": stats.body,
+            "field_usage": field_usage.body,
         },
         "text": "\n".join(report_lines),
         "markdown": markdown,
