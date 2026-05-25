@@ -7,16 +7,6 @@ from typing import Any
 
 from elasticsearch import Elasticsearch
 
-QNA_EXPECTED_FIELDS = {
-    "body",
-    "title",
-    "documentId",
-    "controlNumber",
-    "chunkId",
-    "subsetIds",
-    "embedding",
-}
-
 
 # noinspection PyClassHasNoInit
 @dataclass(frozen=True)
@@ -31,6 +21,7 @@ class FieldInfo:
     store: bool | None
     dims: int | None
     similarity: str | None
+    index_options: dict[str, Any] | None
 
 
 def _flatten_properties(
@@ -53,6 +44,7 @@ def _flatten_properties(
                 store=info.get("store"),
                 dims=info.get("dims") or info.get("dimension"),
                 similarity=info.get("similarity"),
+                index_options=info.get("index_options"),
             )
         )
         for sub_name, sub_info in info.get("fields", {}).items():
@@ -66,6 +58,7 @@ def _flatten_properties(
                     store=sub_info.get("store"),
                     dims=sub_info.get("dims") or sub_info.get("dimension"),
                     similarity=sub_info.get("similarity"),
+                    index_options=sub_info.get("index_options"),
                 )
             )
     return fields
@@ -105,6 +98,40 @@ def _retrieval_hints(fields: list[FieldInfo]) -> dict[str, list[str]]:
     }
 
 
+def _add_counts(a: int | None, b: int | None) -> int | None:
+    """Merge two shard counts: None means 'not reported', int (including 0) means 'known value'."""
+    if a is None and b is None:
+        return None
+    return (0 if a is None else a) + (0 if b is None else b)
+
+
+def _maybe_int(value: Any) -> int | None:
+    return None if value is None else int(value)
+
+
+def _collect_field_usage(stats: dict[str, Any]) -> dict[str, dict[str, int | None]]:
+    """Aggregate field usage stats across shards.
+
+    A None value means the counter was never reported by ES for that field
+    (i.e. not applicable to that field type). An int value of 0 means
+    it was reported but not used.
+    """
+    fields_usage: dict[str, dict[str, int | None]] = {}
+    for shard in stats.get("shards", []):
+        for field_name, field_stats in shard.get("stats", {}).get("fields", {}).items():
+            usage = fields_usage.setdefault(field_name, {})
+            inverted = field_stats.get("inverted_index")
+
+            for key in ("any", "stored_fields", "doc_values", "points", "norms", "term_vectors", "knn_vectors"):
+                usage[key] = _add_counts(usage.get(key), _maybe_int(field_stats.get(key)))
+
+            for key in ("terms", "postings", "term_frequencies", "positions", "offsets", "payloads", "proximity"):
+                shard_val = _maybe_int(inverted.get(key)) if inverted is not None else None
+                usage[key] = _add_counts(usage.get(key), shard_val)
+
+    return fields_usage
+
+
 def inspect_index(client: Elasticsearch, index_name: str) -> dict[str, Any]:
     """Collect index structure and prepare a report."""
 
@@ -112,6 +139,7 @@ def inspect_index(client: Elasticsearch, index_name: str) -> dict[str, Any]:
     count = client.count(index=index_name)
     stats = client.indices.stats(index=index_name)
     cat = client.cat.indices(index=index_name, format="json")
+    field_usage = client.indices.field_usage_stats(index=index_name)
 
     index_info = info[index_name]
     mappings = index_info.get("mappings", {})
@@ -124,8 +152,7 @@ def inspect_index(client: Elasticsearch, index_name: str) -> dict[str, Any]:
     size_mb = stats_summary["size_in_bytes"] / 1_000_000
 
     retrieval = _retrieval_hints(fields)
-    present_qna_fields = sorted({f.name for f in fields if f.name in QNA_EXPECTED_FIELDS})
-    metadata_fields = sorted({f.name for f in fields if f.name.startswith("metadata.")})
+    index_usage = _collect_field_usage(field_usage.get(index_name, {}))
 
     field_details: list[str] = []
     for field in fields:
@@ -142,7 +169,20 @@ def inspect_index(client: Elasticsearch, index_name: str) -> dict[str, Any]:
             details.append(f"dims={field.dims}")
         if field.similarity:
             details.append(f"similarity={field.similarity}")
+        if field.index_options:
+            details.append(f"index_options={json.dumps(field.index_options)}")
         field_details.append(f"- {field.name}: {', '.join(details)}")
+
+    usage_lines: list[str] = []
+    for field_name, usage in sorted(index_usage.items()):
+        # Show counts that are known (not None); flag non-zero ones to highlight actual use.
+        known = {k: v for k, v in usage.items() if k != "any" and v is not None}
+        if not known:
+            continue
+        parts = []
+        for k, v in sorted(known.items()):
+            parts.append(f"{k}={v}" if v == 0 else f"{k}={v}*")
+        usage_lines.append(f"- {field_name}: {', '.join(parts)}")
 
     report_lines = [
         f"Index: {index_name}",
@@ -159,9 +199,8 @@ def inspect_index(client: Elasticsearch, index_name: str) -> dict[str, Any]:
         f"- Numeric fields: {', '.join(retrieval['numeric_fields']) or 'none'}",
         f"- Date fields: {', '.join(retrieval['date_fields']) or 'none'}",
         "",
-        "QnA schema alignment:",
-        f"- Matching fields: {', '.join(present_qna_fields) or 'none'}",
-        f"- Metadata fields: {', '.join(metadata_fields) or 'none'}",
+        "Field usage (non-zero counters):",
+        *(usage_lines or ["- none"]),
         "",
         "Field details:",
     ]
@@ -187,9 +226,8 @@ def inspect_index(client: Elasticsearch, index_name: str) -> dict[str, Any]:
             f"- Keyword fields (filters): {', '.join(retrieval['keyword_fields']) or 'none'}",
             f"- Vector fields (kNN): {', '.join(retrieval['vector_fields']) or 'none'}",
             "",
-            "## QnA Schema Alignment",
-            f"- Matching fields: {', '.join(present_qna_fields) or 'none'}",
-            f"- Metadata fields: {', '.join(metadata_fields) or 'none'}",
+            "## Field Usage",
+            "\n".join(usage_lines) if usage_lines else "No field usage stats reported.",
             "",
             "## Analysis Settings",
             "```json",
@@ -207,6 +245,7 @@ def inspect_index(client: Elasticsearch, index_name: str) -> dict[str, Any]:
             "count": count,
             "stats": stats,
             "cat": cat,
+            "field_usage": field_usage,
         },
         "text": "\n".join(report_lines),
         "markdown": markdown,
