@@ -151,13 +151,53 @@ schema registry.
 > activity has not been invoked for it. The description below documents the capability as it
 > exists in the code.
 
-Workspace-specific Relativity fields can be mapped to ES metadata fields via the
-`MetadataMappingController` API. These are added to the index via `PUT /{index}/_mapping` —
-**after** the base index is created. See
-[`ElasticsearchClientWrapper.EnsureMetadataFieldMappingsAsync()`](../../embedding-service/Source/Relativity.Embedding.Infrastructure/Elasticsearch/ElasticsearchClientWrapper.cs)
-(lines 159–207).
+### 4.2.1 Metadata Field Registry
 
-The mapping from Relativity field type to ES property type:
+The set of supported metadata keys is **hardcoded** in embedding-service as a static registry.
+These are NOT extracted from document text. They are explicitly configured per workspace by an
+administrator who maps each metadata key to a specific Relativity workspace field by its
+`FieldArtifactId`.
+
+Source: [`MetadataFieldDefinitionProvider.cs`](../../embedding-service/Source/Relativity.Embedding.Application/Services/MetadataFieldDefinitionProvider.cs),
+[`MetadataFieldKeys.cs`](../../embedding-service/Source/Relativity.Embedding.Domain/Constants/MetadataFieldKeys.cs)
+
+**Complete metadata field registry:**
+
+| Metadata Key | Display Name | Required | Compatible R1 Field Types | ES Mapping Type | ES Field Path | Purpose |
+|---|---|---|---|---|---|---|
+| `primaryDateTime` | Primary Date/Time | Yes | `Date` | `date` | `metadata.primaryDateTime` | Date range filtering |
+| `emailFrom` | Email From | Yes | `FixedLengthText`, `LongText` | `keyword` | `metadata.emailFrom` | Email sender filtering |
+| `emailTo` | Email To | Yes | `FixedLengthText`, `LongText` | `keyword` | `metadata.emailTo` | Email recipient filtering |
+| `emailCc` | Email CC | No | `FixedLengthText`, `LongText` | `keyword` | `metadata.emailCc` | Email CC filtering |
+| `emailBcc` | Email BCC | No | `FixedLengthText`, `LongText` | `keyword` | `metadata.emailBcc` | Email BCC filtering |
+| `documentName` | Document Name | No | `FixedLengthText`, `LongText` | `keyword` | `metadata.documentName` | Claire UI display (gated by LaunchDarkly) |
+
+"Required" means the field must be mapped before indexing can proceed for that workspace.
+
+### 4.2.2 Metadata Lifecycle
+
+The metadata fields are added to the ES index **after** the base index is created, via a separate
+`PUT /{index}/_mapping` call. The full lifecycle:
+
+1. **Configuration** — Admin calls `POST /workspaces/{id}/metadata-mappings` on embedding-service
+   with entries like `[{metadataMappingKey: "emailFrom", fieldArtifactId: 12345}, ...]`. The
+   `FieldArtifactId` is the Relativity workspace field ID to read from.
+   Source: [`MetadataMappingEntry.cs`](../../embedding-service/Source/Relativity.Embedding.Application/Models/MetadataMapping/MetadataMappingEntry.cs)
+2. **Validation** — embedding-service checks that the R1 field type is compatible with the
+   metadata key (e.g., `emailFrom` requires `FixedLengthText` or `LongText`).
+   Source: [`MetadataFieldKey.EnsureCompatibleWith()`](../../embedding-service/Source/Relativity.Embedding.Domain/ValueObjects/MetadataFieldKey.cs)
+3. **Storage** — Mapping saved to Postgres (survives across indexing runs).
+4. **ES schema update** — On the next indexing run, `ApplyMetadataFieldSchemaToIndexAsync` calls
+   `EnsureMetadataFieldMappingsAsync()` which issues `PUT /{index}/_mapping` to add the
+   `metadata.*` fields to the ES index.
+   Source: [`ElasticsearchClientWrapper.EnsureMetadataFieldMappingsAsync()`](../../embedding-service/Source/Relativity.Embedding.Infrastructure/Elasticsearch/ElasticsearchClientWrapper.cs) (lines 159–207)
+5. **Population** — During indexing, Object Manager is queried for those R1 fields per document.
+   Values are stored under `metadata.*` on every chunk of each document.
+
+If no metadata mappings are configured for a workspace, no `metadata.*` fields exist in the ES
+index and no `PUT /_mapping` is issued.
+
+### 4.2.3 Relativity Field Type to ES Property Type Mapping
 
 ```csharp
 return parsed switch
@@ -176,13 +216,45 @@ return parsed switch
 ```
 
 All metadata fields are nested under a top-level `metadata` object:
-`metadata.{relativity_field_key}`. The `ElasticDocument` model stores them as
+`metadata.{metadata_key}`. The `ElasticDocument` model stores them as
 `Dictionary<string, object?> Metadata` — see
 [`ElasticDocument.cs`](../../embedding-service/Source/Relativity.Embedding.Application/Models/Elasticsearch/ElasticDocument.cs).
 
-Metadata fields are used for **post-retrieval filtering** in qna-service's
-`DocumentProviderV2`, constructed by
+### 4.2.4 Multi-Value and Null Handling
+
+Metadata values are stored per document (all chunks share the same values). The value handling:
+
+| Condition | ES Value | Example |
+|---|---|---|
+| Single value | Scalar string | `"metadata": {"emailFrom": "alice@example.com"}` |
+| Multiple values | JSON array of strings | `"metadata": {"emailTo": ["alice@example.com", "bob@example.com"]}` |
+| Field configured but no value for this document | `null` | `"metadata": {"emailFrom": null}` |
+| Field not configured for this workspace | Key absent entirely | No `metadata` object in document |
+
+Source: [`IndexingDocument.BuildElasticMetadata()`](../../embedding-service/Source/Relativity.Embedding.Application/Temporalio/Models/IndexingDocument.cs)
+(lines 276–298)
+
+For email fields (`emailFrom`, `emailTo`, `emailCc`, `emailBcc`), multiple values come from the
+Relativity field value — they arrive as separate list entries from Object Manager, not as a
+semicolon-delimited string. Each array element is independently queryable by ES `keyword`
+`term` or `wildcard` queries. A `null` value means the document is not an email (or the field
+has no value) — ES `wildcard` queries will not match `null`, so non-email documents are
+naturally excluded from email-participant filter results.
+
+### 4.2.5 Agent Awareness of Metadata Fields
+
+The agent does NOT know whether metadata fields exist for a given workspace index. The
+`GetRelevantDocumentsWithMetadataFilter` tool is always available (when the `UseMetadata`
+capability header is enabled). If the agent sends email participant filters for a workspace with
+no metadata mappings, qna-service queries ES targeting `metadata.emailFrom` etc. — which don't
+exist in the index — and gets zero matches. The agent's fallback logic then converts the failed
+metadata search into a keyword-only search. See
+[`tool_definitions.py` `to_keyword_search_args()`](../../air-assist-agent/packages/air_assist_core/src/air_assist_core/registry/graphs/v3/tool_definitions.py)
+(lines 257–287).
+
+Metadata fields are used for **filtering** in qna-service's `DocumentProviderV2`, constructed by
 [`ElasticMetadataFilterBuilder.cs`](../../repos/qna-service/Source/Relativity.QnA.Infrastructure/ElasticSearch/Filters/ElasticMetadataFilterBuilder.cs).
+See `retrieval-strategies.md` §4 for query-level details.
 
 ---
 
