@@ -241,14 +241,48 @@ semicolon-delimited string. Each array element is independently queryable by ES 
 has no value) — ES `wildcard` queries will not match `null`, so non-email documents are
 naturally excluded from email-participant filter results.
 
-### 4.2.5 Agent Awareness of Metadata Fields
+### 4.2.5 Agent Awareness and Graceful Degradation
 
 The agent does NOT know whether metadata fields exist for a given workspace index. The
 `GetRelevantDocumentsWithMetadataFilter` tool is always available (when the `UseMetadata`
-capability header is enabled). If the agent sends email participant filters for a workspace with
-no metadata mappings, qna-service queries ES targeting `metadata.emailFrom` etc. — which don't
-exist in the index — and gets zero matches. The agent's fallback logic then converts the failed
-metadata search into a keyword-only search. See
+capability header is enabled). The LLM may send email participant filters for any workspace.
+
+However, qna-service does **not** blindly send metadata filter queries to Elasticsearch. It
+resolves each requested filter against the workspace's metadata mapping (stored in
+embedding-service Postgres) via
+[`SearchSpecification.Create()`](../../repos/qna-service/Source/Relativity.QnA.Domain/Models/SearchSpecification.cs).
+The resolution logic:
+
+1. Each MCP filter key (e.g., `emailFrom`) is looked up in the workspace's `metadataFieldMap`
+2. If the key has **no mapping** for this workspace → it goes into `SkippedFilters`, no ES query
+   clause is generated for it
+3. For email participants, each of the four email roles (`From`, `To`, `CC`, `BCC`) is resolved
+   independently — unmapped roles produce `null` in `ResolvedEmailFields`, and the query builder
+   omits clauses for `null` fields
+4. If `HasSkippedFilters` is `true`, qna-service forces the **Object Manager fallback path**
+   instead of ES-native filtering
+
+**Fallback path selection** depends on the LaunchDarkly flag
+`qna-service.metadata-filtering.use-elasticsearch` AND whether any filters were skipped:
+
+- **LD flag enabled + no skipped filters** → ES-native path: metadata filters are embedded
+  directly in the RRF/BM25 ES query
+- **LD flag enabled + some filters skipped** (unmapped fields) → Object Manager fallback:
+  qna-service calls Relativity Object Manager with the user's credentials to resolve matching
+  document IDs via OM's own filtering, then passes those IDs to ES as an `IncludedDocumentList`
+  for the text/vector search
+- **LD flag disabled** (regardless of skipped filters) → Object Manager fallback (always)
+
+The **Object Manager fallback path** means qna-service delegates the metadata filtering to
+Relativity's Object Manager API instead of Elasticsearch. OM queries the workspace database
+directly using the user's permissions, returns the set of matching document artifact IDs, and
+qna-service then passes those IDs to Elasticsearch as an inclusion filter for the actual
+text/vector search. This is slower (two round-trips) but works even when ES metadata mappings
+are absent. See `retrieval-strategies.md` §4.3 for the full routing table.
+
+The net effect: no ES query is ever generated referencing `metadata.*` fields that don't exist
+in the index. If qna-service returns zero results from the metadata path, the agent's own
+fallback logic converts the failed metadata search into a keyword-only search. See
 [`tool_definitions.py` `to_keyword_search_args()`](../../air-assist-agent/packages/air_assist_core/src/air_assist_core/registry/graphs/v3/tool_definitions.py)
 (lines 257–287).
 

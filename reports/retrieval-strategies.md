@@ -285,6 +285,12 @@ Implemented in
 | Date `LessThanOrEqual` | `range` (lte) | `metadata.{fieldKey}` |
 | Email participants | Compound `bool` with `wildcard` queries | `metadata.emailFrom`, `emailTo`, `emailCc`, `emailBcc` |
 
+For email fields, ES `wildcard` queries match against each element of a multi-valued `keyword`
+array independently (e.g., `metadata.emailTo: ["alice@example.com", "bob@example.com"]` — a
+wildcard for `*alice*` matches). Documents where the field is `null` (non-email documents) are
+naturally excluded. See `air-assist-elasticsearch-index.md` §4.2.4 for the full registry of
+metadata fields, multi-value semantics, and null handling.
+
 ### 4.2 Subset Filter (always applied)
 
 Every search scopes to a subset via a `term` filter on `subsetIds`:
@@ -319,9 +325,83 @@ After ES returns ranked chunks, qna-service applies these steps in order:
 | 1. Capture `retrievedDocumentIds` | All unique doc IDs from ES result (pre-filter) | `RetrievalService` |
 | 2. Security trim | Object Manager `GetUserDocumentArtifactIds` — keep only docs the user can access | [`DocumentProviderV2.cs`](../../repos/qna-service/Source/Relativity.QnA.Application/Services/DocumentProviderV2.cs) lines 120–151 |
 | 3. Top-K trim | `.Take(config.ResultsSentToGpt)` (default 25 chunks) | Same file, lines 153–155 |
-| 4. First-chunk fetch | Separate ES query for `chunkId == 0` per document (document header/context) | `GetFirstChunksForDocumentsAsync` |
-| 5. Group by document | Chunks grouped by `documentId`, sorted by first appearance in ES results; within group sorted by `chunkId` | `GroupChunksByDocument()` lines 305–329 |
+| 4. First-chunk fetch | Separate ES query for chunk 0 per document — see §5.1 below | `GetFirstChunksByDocumentId()` line 428 |
+| 5. Group by document | Chunks grouped by `documentId`, sorted by first appearance in ES results; within group sorted by `chunkId`. First chunk attached as a separate property. | `GroupChunksByDocument()` lines 305–329 |
 | 6. Return | `GroupedDocumentSearchResult { Documents, RetrievedDocumentIds }` | MCP response |
+
+### 5.1 First-Chunk Injection
+
+The first chunk (chunk 0) of each document is **not part of the ranked search results**. It is
+fetched via a **separate ES query** and attached as a distinct `FirstChunk` property on each
+document group. This ensures the LLM always has the opening context of every returned document,
+even when only middle or later chunks matched the search query.
+
+**How it works:**
+
+1. After top-K trim, `GetFirstChunksByDocumentId()` (line 428 of `DocumentProviderV2.cs`)
+   collects all unique `documentId` values from the surviving chunks.
+2. It calls `ElasticsearchClientWrapper.GetFirstChunksForDocumentsAsync()` — this queries ES
+   for documents matching those IDs where `chunkId == 0 OR chunkId does not exist` (the
+   "does not exist" clause handles legacy documents that predate the `chunkId` field).
+3. Returns `Dictionary<int, string>` mapping each `documentId` to the body text of chunk 0.
+4. `GroupChunksByDocument()` (line 305) assembles the final `GroupedDocumentChunks`:
+   - `FirstChunk` = chunk 0 body text from the dictionary (line 324)
+   - `RetrievedChunks` = the ranked chunks that actually matched the search, sorted by `chunkId`
+
+**Result structure per document:**
+
+```json
+{
+    "docId": 1045678,
+    "controlNumber": "DOC-001",
+    "firstChunk": "Opening paragraph of the document...",
+    "retrievedChunks": [
+        {"id": 3, "documentId": 1045678, "controlNumber": "DOC-001", "content": "...matched chunk 3..."},
+        {"id": 7, "documentId": 1045678, "controlNumber": "DOC-001", "content": "...matched chunk 7..."}
+    ]
+}
+```
+
+**`FirstChunk` and `RetrievedChunks` are independent — chunk 0 is _always_ fetched separately
+regardless of whether it was already in the search results. There is no deduplication at the
+qna-service level.** If chunk 0 also matched the search, the same text appears in both places.
+
+**What this means for the LLM:** When chunk 0 matched the search, the agent sends the same
+content twice in the XML — once under `<first_chunk>` (context) and once under
+`<retrieved_chunks>` with `<chunk_id>0</chunk_id>` (citable evidence):
+
+```xml
+<grouped_chunks>
+    <doc_id>1045678</doc_id>
+    <first_chunk>Opening paragraph...</first_chunk>
+    <retrieved_chunks>
+        <retrieved_chunk>
+            <chunk_id>0</chunk_id>
+            <content>Opening paragraph...</content>   <!-- same text as first_chunk -->
+        </retrieved_chunk>
+        <retrieved_chunk>
+            <chunk_id>3</chunk_id>
+            <content>Another matched chunk...</content>
+        </retrieved_chunk>
+    </retrieved_chunks>
+</grouped_chunks>
+```
+
+The duplication is intentional. The system prompt instructs the LLM that `first_chunk` provides
+context but is **not a candidate for citation**: *"The passage provided in the first_chunk is not
+a candidate for being referenced in the final response"* (TOML config). The LLM should only cite
+from `retrieved_chunks`. However, if the LLM does cite `[doc_id:0]`, the citation validation
+system resolves it against `first_chunk` content (when non-empty). Source:
+[`citation_validation.py`](../../air-assist-agent/packages/air_assist_core/src/air_assist_core/registry/graphs/v3/citation_validation.py) lines 377–379,
+[`question_answer_v3.py`](../../air-assist-agent/packages/air_assist_core/src/air_assist_core/registry/schemas/question_answer_v3.py) lines 144–151.
+
+If the ES lookup for first chunks fails, the operation degrades gracefully — `FirstChunk` is set
+to an empty string and the document group is still returned with its matched chunks.
+
+Source: [`DocumentProviderV2.cs`](../../repos/qna-service/Source/Relativity.QnA.Application/Services/DocumentProviderV2.cs)
+lines 157, 284, 324, 428–455;
+[`ElasticsearchClientWrapper.GetFirstChunksForDocumentsAsync()`](../../repos/qna-service/Source/Relativity.QnA.Infrastructure/ElasticSearch/ElasticsearchClientWrapper.cs)
+lines 156–231
 
 **Telemetry logged:**
 - `ChunksRetrievedCount` — from ES before any filtering

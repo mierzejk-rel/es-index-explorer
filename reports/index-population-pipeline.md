@@ -104,6 +104,8 @@ For replicating this in Python, the
 [`r1-api-client`](../../gpt-candidate-experiments/packages/r1_api_client/) package provides the
 same Object Manager access patterns:
 
+**Core fields** (always needed):
+
 ```python
 # Fluent API — saved search export with Extracted Text + Control Number
 documents = (
@@ -138,6 +140,39 @@ full_text = om_client.stream_long_text_field(
     field_id=extracted_text_field_artifact_id
 )
 ```
+
+**Metadata fields** (optional, per workspace configuration):
+
+To replicate the production metadata behavior in Python, read the additional R1 fields that
+correspond to the metadata registry (see `air-assist-elasticsearch-index.md` §4.2.1 for the
+full registry). The workspace admin provides the R1 `FieldArtifactId` for each metadata key.
+Include them in the same export call:
+
+```python
+# Example: workspace has emailFrom mapped to R1 field 1234567,
+# emailTo to 1234568, primaryDateTime to 1234569
+METADATA_FIELD_MAP = {
+    "emailFrom": 1234567,       # R1 FixedLengthText or LongText field
+    "emailTo": 1234568,         # R1 FixedLengthText or LongText field
+    "primaryDateTime": 1234569, # R1 Date field
+}
+
+all_field_ids = [CONTROL_NUMBER_FIELD_ID, EXTRACTED_TEXT_FIELD_ID] + list(METADATA_FIELD_MAP.values())
+all_field_names = ["control_num", "extracted_text"] + list(METADATA_FIELD_MAP.keys())
+
+documents = om_client.export_saved_search_polars(
+    field_ids=all_field_ids,
+    saved_search_id=saved_search_id,
+    field_names=all_field_names,
+)
+```
+
+Metadata values are document-level (shared across all chunks). For multi-valued fields (e.g.,
+multiple email recipients), the R1 Object Manager returns them as separate list entries. Store
+as a JSON array in ES. For documents where a metadata field has no value (e.g., non-email
+documents), store `null` — this ensures the ES field key is present but non-email documents are
+excluded from email-participant filter queries. See `air-assist-elasticsearch-index.md` §4.2.4
+for the full value handling rules.
 
 Key files in `gpt-candidate-experiments`:
 - Client: [`r1_api_client/relone_client.py`](../../gpt-candidate-experiments/packages/r1_api_client/src/r1_api_client/relone_client.py)
