@@ -60,7 +60,7 @@ def main() -> None:
         return inspect_index(client, args.index_name)
 
     try:
-        result = with_auth_retry(config, _run)
+        result = cast(dict[str, str], with_auth_retry(config, _run))
     except IndexNotFoundError as exc:
         print(f"Error: {exc}")
         raise SystemExit(1)
