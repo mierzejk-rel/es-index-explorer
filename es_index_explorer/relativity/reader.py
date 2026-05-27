@@ -3,11 +3,16 @@
 from __future__ import annotations
 
 from collections.abc import Iterable
+import logging
+
+from pydantic import ValidationError
 
 from ..config import Config, RelativityFieldSelector, is_field_configured
 from .auth import get_authenticated_session
 from .client import RelativityClient
-from .models import RelativityDocument
+from .models import FailedDocument, ReadResult, RelativityDocument
+
+logger = logging.getLogger(__name__)
 
 
 class DocumentReadError(RuntimeError):
@@ -28,6 +33,13 @@ def _normalize_str_list(value: object | None) -> list[str] | None:
     return [str(value)]
 
 
+def _normalize_datetime_str(value: object | None) -> str | None:
+    if value is None:
+        return None
+    text = str(value).strip()
+    return text or None
+
+
 def _ensure_required_field(value: str | None, field_name: str) -> str:
     if value is None:
         raise DocumentReadError(f"Missing required field '{field_name}'.")
@@ -40,7 +52,7 @@ def _iter_fields(
     return ((key, value) for key, value in fields.items() if is_field_configured(value))
 
 
-def read_documents(config: Config, *, limit: int | None = None) -> list[RelativityDocument]:
+def read_documents(config: Config, *, limit: int | None = None) -> ReadResult:
     """Read RelativityOne documents using the Object Manager export API."""
 
     auth = get_authenticated_session(config)
@@ -67,6 +79,7 @@ def read_documents(config: Config, *, limit: int | None = None) -> list[Relativi
         builder = builder.from_saved_search(config.relativity.saved_search_id)
 
     documents: list[RelativityDocument] = []
+    failures: list[FailedDocument] = []
     field_names = [key for key, value in _iter_fields(field_map)]
     for row in builder.export(field_names=field_names):
         extracted_text = _ensure_required_field(
@@ -75,20 +88,37 @@ def read_documents(config: Config, *, limit: int | None = None) -> list[Relativi
         control_number = _ensure_required_field(
             _normalize_str(row.get("control_number")), "control_number"
         )
-        doc = RelativityDocument(
-            artifact_id=int(row["artifact_id"]),
-            control_number=control_number,
-            extracted_text=extracted_text,
-            primary_date_time=_normalize_str(row.get("primary_date_time")),
-            email_from=_normalize_str(row.get("email_from")),
-            email_to=_normalize_str_list(row.get("email_to")),
-            email_cc=_normalize_str_list(row.get("email_cc")),
-            email_bcc=_normalize_str_list(row.get("email_bcc")),
-            summary=_normalize_str(row.get("summary")),
-            topic=_normalize_str(row.get("topic")),
-        )
-        documents.append(doc)
+        try:
+            doc = RelativityDocument(
+                artifact_id=int(row["artifact_id"]),
+                control_number=control_number,
+                extracted_text=extracted_text,
+                primary_date_time=_normalize_datetime_str(row.get("primary_date_time")),
+                email_from=_normalize_str(row.get("email_from")),
+                email_to=_normalize_str_list(row.get("email_to")),
+                email_cc=_normalize_str_list(row.get("email_cc")),
+                email_bcc=_normalize_str_list(row.get("email_bcc")),
+                summary=_normalize_str(row.get("summary")),
+                topic=_normalize_str(row.get("topic")),
+            )
+            documents.append(doc)
+        except (ValidationError, ValueError, KeyError) as exc:
+            artifact_value = row.get("artifact_id")
+            artifact_id = None
+            if artifact_value is not None:
+                try:
+                    artifact_id = int(artifact_value)
+                except (TypeError, ValueError):
+                    artifact_id = None
+            logger.warning("Skipping artifact %s: %s", artifact_id, exc)
+            failures.append(
+                FailedDocument(
+                    artifact_id=artifact_id,
+                    raw_row=dict(row),
+                    error=str(exc),
+                )
+            )
         if limit is not None and len(documents) >= limit:
             break
 
-    return documents
+    return ReadResult(documents=documents, failures=failures)

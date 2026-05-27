@@ -24,20 +24,42 @@ def parse_args() -> argparse.Namespace:
 def main() -> None:
     args = parse_args()
     config = load_config(args.config)
-    documents = read_documents(config, limit=args.limit)
+    result = read_documents(config, limit=args.limit)
 
-    print(f"Retrieved {len(documents)} documents.")
-    if documents:
-        preview = ", ".join(doc.control_number for doc in documents[:5])
+    print(f"Retrieved {len(result.documents)} documents.")
+    if result.documents:
+        preview = ", ".join(doc.control_number for doc in result.documents[:5])
         print(f"First control numbers: {preview}")
+    if result.failures:
+        print(f"Skipped {len(result.failures)} documents due to validation errors.")
 
     if args.save:
         output_dir = Path(args.output_dir).expanduser().resolve()
         output_dir.mkdir(parents=True, exist_ok=True)
         path = output_dir / "documents.json"
         with path.open("w", encoding="utf-8") as handle:
-            json.dump([doc.model_dump() for doc in documents], handle, indent=2)
+            json.dump(
+                [doc.model_dump(mode="json") for doc in result.documents],
+                handle,
+                indent=2,
+            )
         print(f"Wrote {path}")
+        if result.failures:
+            failures_path = output_dir / "documents_failed.json"
+            with failures_path.open("w", encoding="utf-8") as handle:
+                json.dump(
+                    [
+                        {
+                            "artifact_id": failure.artifact_id,
+                            "error": failure.error,
+                            "raw_row": failure.raw_row,
+                        }
+                        for failure in result.failures
+                    ],
+                    handle,
+                    indent=2,
+                )
+            print(f"Wrote {failures_path}")
 
 
 if __name__ == "__main__":
