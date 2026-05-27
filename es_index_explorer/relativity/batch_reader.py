@@ -157,10 +157,10 @@ class BatchImporter:
     def _execute_page(self, builder: "QueryBuilder", *, start: int) -> QuerySlimResponse:
         return builder.page(start, self._config.relativity.batch_size).execute_raw()
 
+    @staticmethod
     def _long_text_columns(
-        self,
-        response: QuerySlimResponse,
-        field_names: list[str],
+            response: QuerySlimResponse,
+            field_names: list[str],
     ) -> list[tuple[int, int, str]]:
         if len(response.Fields) != len(field_names):
             raise ValueError("QuerySlim field count does not match selected field names.")
