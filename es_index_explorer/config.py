@@ -104,10 +104,39 @@ class RelativityConfig(BaseModel):
     host: str
     tenant_id: str
     workspace_id: int
-    saved_search_id: int
+    saved_search_id: int | None = None
     subset_id: str
+    batch_size: int = 50
+    max_text_length: int = 100_000
     auth: RelativityAuthConfig
     fields: RelativityFieldMappingConfig
+
+    @field_validator("saved_search_id", mode="before")
+    @classmethod
+    def normalize_saved_search_id(cls, value: object | None) -> int | None:
+        if value is None:
+            return None
+        if isinstance(value, str):
+            if not value.strip():
+                return None
+            return int(value)
+        if isinstance(value, int):
+            return value
+        raise ValueError("saved_search_id must be an int or empty.")
+
+    @field_validator("batch_size")
+    @classmethod
+    def validate_batch_size(cls, value: int) -> int:
+        if value <= 0:
+            raise ValueError("batch_size must be a positive integer.")
+        return value
+
+    @field_validator("max_text_length")
+    @classmethod
+    def validate_max_text_length(cls, value: int) -> int:
+        if value <= 0:
+            raise ValueError("max_text_length must be a positive integer.")
+        return value
 
 
 class Config(BaseModel):

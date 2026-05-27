@@ -26,6 +26,10 @@ RelativityOne workspace documents so the data can be mapped into new indices.
   control_number = "Control Number"   # display name
   ```
 
+- `saved_search_id` (in `[relativity]`) — empty means read all documents. Any integer (including 0) uses that saved search ID.
+- `batch_size` (in `[relativity]`) — QuerySlim page size for batch import (default 50).
+- `max_text_length` (in `[relativity]`) — `MaxCharactersForLongTextValues` for QuerySlim (default 100000).
+
 ## Authentication
 RelativityOne Object Manager supports three options, configured in
 `[relativity.auth]`.
@@ -78,6 +82,32 @@ Read documents:
 ```bash
 python read_documents.py --config config.toml --limit 10 --save --output-dir reports/
 ```
+
+## Batch Import (QuerySlim, resumable)
+
+For large workspaces use the batch importer. It supports server-side sort by Artifact ID,
+resume after interruptions, and retry of failed documents. Progress is tracked in a JSONL
+file keyed by `{host}_{workspace_id}_{saved_search_id_or_all}`.
+
+```bash
+python import_documents.py --config config.toml --output-dir ./logs
+```
+
+Retry failures:
+
+```bash
+python import_documents.py --config config.toml --output-dir ./logs --retry
+```
+
+Start from scratch (discard existing state):
+
+```bash
+python import_documents.py --config config.toml --output-dir ./logs --fresh
+```
+
+Notes:
+- Export-based `read_documents.py` is still available for one-shot reads, but it does not support resume.
+- `saved_search_id = ""` reads all documents; any integer uses that saved search ID.
 
 ## Reports
 Generated reports are stored in the `reports/` directory.

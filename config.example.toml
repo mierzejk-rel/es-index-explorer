@@ -20,8 +20,11 @@ hosts = "https://services.esus.reg.k8s.r1.kcura.com/search/search-ai/"
 host = "esus019064-t035.r1.kcura.com"
 tenant_id = "51b1e1f7-f607-4967-a439-cf9babafab2c"
 workspace_id = 1030345
-saved_search_id = 0
+# Empty = read all documents. Any integer (including 0) uses that saved search ID.
+saved_search_id = ""
 subset_id = ""
+batch_size = 50
+max_text_length = 100000
 
 [relativity.auth]
 method = "basic"

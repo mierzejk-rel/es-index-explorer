@@ -47,6 +47,24 @@ class Field:
     def eq(self, value: int | str | bool) -> Cond:
         return Cond(f"{self._q} == {_format_scalar(value)}")
 
+    def ne(self, value: int | str | bool) -> Cond:
+        return Cond(f"{self._q} <> {_format_scalar(value)}")
+
+    def gt(self, value: int | str) -> Cond:
+        return Cond(f"{self._q} > {_format_scalar(value)}")
+
+    def gte(self, value: int | str) -> Cond:
+        return Cond(f"{self._q} >= {_format_scalar(value)}")
+
+    def lt(self, value: int | str) -> Cond:
+        return Cond(f"{self._q} < {_format_scalar(value)}")
+
+    def lte(self, value: int | str) -> Cond:
+        return Cond(f"{self._q} <= {_format_scalar(value)}")
+
+    def between(self, low: int, high: int) -> Cond:
+        return Cond(f"{self._q} BETWEEN {_format_scalar(low)} AND {_format_scalar(high)}")
+
     def in_(self, values: Iterable[int | str]) -> Cond:
         return Cond(f"{self._q} IN {_format_list(values)}")
 

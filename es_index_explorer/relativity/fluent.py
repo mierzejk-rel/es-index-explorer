@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from typing import Generator, Literal
+from typing import Generator, Literal, Required, TypedDict, cast
 from uuid import UUID
 
 from .conditions import Cond, field
@@ -19,6 +19,9 @@ from .object_manager_models import (
 )
 
 
+ARTIFACT_ID_KEY: str = "artifact_id"
+
+
 class QueryResult:
     """QuerySlim response adapter."""
 
@@ -30,7 +33,7 @@ class QueryResult:
         data: list[dict[str, RelativityScalar | list[RelativityScalar]]] = []
         for obj in self._resp.Objects:
             row: dict[str, RelativityScalar | list[RelativityScalar]] = {
-                "artifact_id": obj.ArtifactID
+                ARTIFACT_ID_KEY: obj.ArtifactID
             }
             for f, v in zip(self._resp.Fields, obj.Values):
                 key = self._rename.get(str(f.ArtifactID), f.Name)
@@ -46,7 +49,14 @@ class QueryResult:
         values = self._resp.Objects[0].Values
         if len(values) != 1 or isinstance(values[0], list):
             raise ValueError("to_scalar requires exactly one selected scalar field")
-        return values[0]
+        value = values[0]
+        if isinstance(value, list):
+            raise ValueError("to_scalar requires exactly one selected scalar field")
+        return value
+
+
+class ExportRow(TypedDict, total=False):
+    artifact_id: Required[int]
 
 
 class QueryBuilder:
@@ -62,6 +72,7 @@ class QueryBuilder:
         self._start: int = 0
         self._length: int = 100
         self._long_text_behavior: str = "Tokenized"
+        self._max_text_length: int = 100_000
 
     def object_type_id(self, artifact_type_id: int) -> "QueryBuilder":
         self._object_type = {"ArtifactTypeID": artifact_type_id}
@@ -101,7 +112,7 @@ class QueryBuilder:
 
     def sort_by(
         self,
-        *field_ids_or_guids: UUID | int,
+        *field_identifiers: UUID | int | str,
         direction: Literal["Ascending", "Descending"] = "Ascending",
     ) -> "QueryBuilder":
         self._sorts = [
@@ -114,7 +125,7 @@ class QueryBuilder:
                 "Order": 0,
                 "Direction": direction,
             }
-            for fid in field_ids_or_guids
+            for fid in field_identifiers
         ]
         return self
 
@@ -129,13 +140,17 @@ class QueryBuilder:
         self._long_text_behavior = behavior
         return self
 
+    def max_text_length(self, length: int) -> "QueryBuilder":
+        self._max_text_length = length
+        return self
+
     def build(self) -> dict[str, object]:
         fields = [v.model_dump(exclude_none=True, by_alias=True) for v in self._fields]
         request: dict[str, object] = {
             "request": {
                 "ObjectType": self._object_type,
                 "fields": fields,
-                "MaxCharactersForLongTextValues": 100_000,
+                "MaxCharactersForLongTextValues": self._max_text_length,
                 "LongTextBehavior": self._long_text_behavior,
             },
             "start": self._start,
@@ -157,9 +172,12 @@ class QueryBuilder:
                 rename[str(f.ArtifactID)] = name
         return QueryResult(response, rename)
 
+    def execute_raw(self) -> QuerySlimResponse:
+        return self.api.query_slim(self.build())
+
     def export(
         self, *, batch_size: int = 100, field_names: list[str] | None = None
-    ) -> Generator[dict[str, RelativityScalar], None, None]:
+    ) -> Generator[ExportRow, None, None]:
         object_type = (
             ObjectType(**self._object_type)
             if self._object_type
@@ -177,18 +195,18 @@ class QueryBuilder:
         init = self.api.export_initialize(qr)
 
         if field_names is None:
-            field_names = [str(field.name) for field in init.field_data]
+            field_names = [str(fd.name) for fd in init.field_data]
         elif len(field_names) != len(init.field_data):
             raise ValueError(
                 "Number of field names must match the export session field list."
             )
 
         r1_schema: dict[str, tuple[int, RelativityType]] = {
-            "artifact_id": (0, "WholeNumber")
+            ARTIFACT_ID_KEY: (0, "WholeNumber")
         }
         r1_schema |= {
-            key: (field.artifact_id, field.field_type)
-            for key, field in zip(field_names, init.field_data)
+            key: (fd.artifact_id, fd.field_type)
+            for key, fd in zip(field_names, init.field_data)
         }
 
         should_continue = True
@@ -197,12 +215,17 @@ class QueryBuilder:
             if not block:
                 should_continue = False
                 continue
-            values: list[dict[str, RelativityScalar]] = [
-                dict(zip(r1_schema.keys(), [line["ArtifactID"]] + line["Values"]))
+            rows: list[dict[str, RelativityScalar]] = [
+                dict(
+                    zip(
+                        r1_schema.keys(),
+                        [line["ArtifactID"]] + cast(list[object], line["Values"]),
+                    )
+                )
                 for line in block
             ]
 
-            for row in values:
+            for row in rows:
                 for key, value in row.items():
                     if (
                         isinstance(value, str)
@@ -210,6 +233,6 @@ class QueryBuilder:
                     ):
                         field_id = r1_schema[key][0]
                         row[key] = self.api.stream_long_text(
-                            int(row["artifact_id"]), field_id
-                        )
-                yield row
+                            cast(int, row[ARTIFACT_ID_KEY]),
+                            field_id)
+                yield cast(ExportRow, cast(object, row))

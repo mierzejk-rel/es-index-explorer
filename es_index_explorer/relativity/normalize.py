@@ -1,0 +1,47 @@
+"""Normalization helpers for Relativity document fields."""
+
+class DocumentReadError(RuntimeError):
+    """Raised when required document fields are missing."""
+
+
+_POOR_QUALITY_TOPIC = "Poor Quality Extracted Text"
+
+
+def normalize_str(value: object | None) -> str | None:
+    if value is None:
+        return None
+    text = str(value).strip()
+    return text or None
+
+
+def normalize_str_list(value: object | None) -> list[str] | None:
+    if value is None:
+        return None
+    items = value if isinstance(value, list) else [value]
+    normalized = []
+    for item in items:
+        if item is None:
+            continue
+        text = str(item).strip()
+        if text:
+            normalized.append(text)
+    return normalized or None
+
+
+def normalize_summary_topic(
+    raw_summary: object | None,
+    raw_topic: object | None,
+) -> tuple[str | None, str | None]:
+    summary = normalize_str(raw_summary)
+    topic = normalize_str(raw_topic)
+    if summary is None and topic is None:
+        return None, None
+    if topic == _POOR_QUALITY_TOPIC and summary is None:
+        return "", ""
+    return summary, topic
+
+
+def ensure_required_field(value: str | None, field_name: str) -> str:
+    if value is None:
+        raise DocumentReadError(f"Missing required field '{field_name}'.")
+    return value

@@ -2,8 +2,16 @@
 
 from dataclasses import dataclass
 from datetime import datetime
+from typing import Annotated
 
-from pydantic import BaseModel
+from pydantic import BaseModel, BeforeValidator
+
+
+def _prep_datetime(value: object | None) -> str | None:
+    if value is None:
+        return None
+    text = str(value).strip()
+    return text or None
 
 
 class RelativityDocument(BaseModel):
@@ -12,7 +20,7 @@ class RelativityDocument(BaseModel):
     artifact_id: int
     control_number: str
     extracted_text: str
-    primary_date_time: datetime | None = None
+    primary_date_time: Annotated[datetime | None, BeforeValidator(_prep_datetime)] = None
     email_from: str | None = None
     email_to: list[str] | None = None
     email_cc: list[str] | None = None

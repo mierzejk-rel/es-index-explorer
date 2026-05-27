@@ -101,6 +101,7 @@ def _fetch_token(config: Config) -> tuple[str, int]:
     return str(access_token), int(expires_in)
 
 
+# noinspection PyTypeChecker
 def _fetch_token_with_retry(config: Config) -> tuple[str, int]:
     attempts = 0
     while True:

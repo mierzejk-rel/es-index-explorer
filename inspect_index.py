@@ -2,6 +2,7 @@
 
 import argparse
 import json
+from typing import cast
 from pathlib import Path
 
 from es_index_explorer.client import with_auth_retry
@@ -48,7 +49,7 @@ def main() -> None:
         def _list(client):
             return list_indices(client)
 
-        indices = with_auth_retry(config, _list)
+        indices = cast(list[str], with_auth_retry(config, _list))
         print("\n".join(indices))
         return
 

@@ -6,7 +6,7 @@ from enum import Enum
 from typing import Annotated, Any, Literal
 from uuid import UUID
 
-from pydantic import Field, ValidationInfo, field_serializer, model_validator
+from pydantic import Field, field_serializer, model_validator
 from pydantic.functional_validators import AfterValidator
 
 from .base_models import HiddenInputBaseModel
@@ -91,10 +91,7 @@ class RelativityIdentifier(HiddenInputBaseModel):
 
     @model_validator(mode="before")
     @classmethod
-    def convert_scalar_inputs(
-        cls, value: Any, info: ValidationInfo
-    ) -> Any:  # pragma: no cover - pydantic hook
-        del info
+    def convert_scalar_inputs(cls, value: Any) -> Any:  # pragma: no cover - pydantic hook
         match value:
             # bool is a subclass of int; do not map it to ArtifactID
             case int(artifact_id) if not isinstance(artifact_id, bool):
