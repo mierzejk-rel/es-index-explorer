@@ -49,6 +49,7 @@ def main() -> None:
         def _list(client):
             return list_indices(client)
 
+        # with_auth_retry returns object; list_indices actually returns list[str].
         indices = cast(list[str], with_auth_retry(config, _list))
         print("\n".join(indices))
         return
@@ -60,6 +61,7 @@ def main() -> None:
         return inspect_index(client, args.index_name)
 
     try:
+        # with_auth_retry returns object; inspect_index actually returns dict[str, Any] with str values.
         result = cast(dict[str, str], with_auth_retry(config, _run))
     except IndexNotFoundError as exc:
         print(f"Error: {exc}")

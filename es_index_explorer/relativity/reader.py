@@ -3,13 +3,16 @@
 from __future__ import annotations
 
 from collections.abc import Iterable
+from datetime import datetime
 import logging
+from typing import cast
 
 from pydantic import ValidationError
 
 from ..config import Config, RelativityFieldSelector, is_field_configured
 from .auth import get_authenticated_session
 from .client import RelativityClient
+from .fluent import ARTIFACT_ID_KEY
 from .models import FailedDocument, ReadResult, RelativityDocument
 from .normalize import (
     ensure_required_field,
@@ -69,10 +72,12 @@ def read_documents(config: Config, *, limit: int | None = None) -> ReadResult:
                 row.get("topic"),
             )
             doc = RelativityDocument(
-                artifact_id=row["artifact_id"],
+                # ARTIFACT_ID_KEY is always an int (set from obj.ArtifactID); typed as RelativityScalar because row is dict[str, RelativityScalar].
+                artifact_id=cast(int, row[ARTIFACT_ID_KEY]),
                 control_number=control_number,
                 extracted_text=extracted_text,
-                primary_date_time=row.get("primary_date_time"),
+                # OM returns str (ISO date) or None; cast to datetime | None so Pydantic's BeforeValidator (_prep_datetime) coerces at runtime.
+                primary_date_time=cast(datetime | None, row.get("primary_date_time")),
                 email_from=normalize_str(row.get("email_from")),
                 email_to=normalize_str_list(row.get("email_to")),
                 email_cc=normalize_str_list(row.get("email_cc")),
@@ -82,7 +87,8 @@ def read_documents(config: Config, *, limit: int | None = None) -> ReadResult:
             )
             documents.append(doc)
         except (ValidationError, ValueError, KeyError) as exc:
-            artifact_id: int = row["artifact_id"]
+            # ARTIFACT_ID_KEY is always int; typed as RelativityScalar | None from .get() on dict[str, RelativityScalar].
+            artifact_id = cast(int, row.get(ARTIFACT_ID_KEY))
             logger.warning("Skipping artifact %s: %s", artifact_id, exc)
             failures.append(
                 FailedDocument(

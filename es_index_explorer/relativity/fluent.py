@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from typing import Generator, Literal, Required, TypedDict, cast
+from typing import Generator, Literal, cast
 from uuid import UUID
 
 from .conditions import Cond, field
@@ -53,10 +53,6 @@ class QueryResult:
         if isinstance(value, list):
             raise ValueError("to_scalar requires exactly one selected scalar field")
         return value
-
-
-class ExportRow(TypedDict, total=False):
-    artifact_id: Required[int]
 
 
 class QueryBuilder:
@@ -178,7 +174,7 @@ class QueryBuilder:
 
     def export(
         self, *, batch_size: int = 100, field_names: list[str] | None = None
-    ) -> Generator[ExportRow, None, None]:
+    ) -> Generator[dict[str, RelativityScalar], None, None]:
         object_type = (
             ObjectType(**self._object_type)
             if self._object_type
@@ -220,6 +216,7 @@ class QueryBuilder:
                 dict(
                     zip(
                         r1_schema.keys(),
+                        # line["Values"] is list at runtime; typed as object because export_retrieve_next returns dict[str, object].
                         [line["ArtifactID"]] + cast(list[object], line["Values"]),
                     )
                 )
@@ -234,6 +231,7 @@ class QueryBuilder:
                     ):
                         field_id = r1_schema[key][0]
                         row[key] = self.api.stream_long_text(
+                            # ARTIFACT_ID_KEY is always an int set from obj.ArtifactID; typed as RelativityScalar because row is dict[str, RelativityScalar].
                             cast(int, row[ARTIFACT_ID_KEY]),
                             field_id)
-                yield cast(ExportRow, cast(object, row))
+                yield row
