@@ -3,6 +3,8 @@
 import tomllib
 from pathlib import Path
 
+from typing import Literal
+
 from pydantic import BaseModel
 
 
@@ -36,6 +38,41 @@ class ElasticsearchConfig(BaseModel):
     hosts: str | list[str]
 
 
+class RelativityAuthConfig(BaseModel):
+    """RelativityOne authentication settings."""
+
+    method: Literal["basic", "oauth", "cid"]
+    basic_auth: str = ""
+    oauth_client_id: str = ""
+    oauth_client_secret: str = ""
+
+
+class RelativityFieldMappingConfig(BaseModel):
+    """Relativity field mapping settings."""
+
+    extracted_text: str
+    control_number: str
+    primary_date_time: str = ""
+    email_from: str = ""
+    email_to: str = ""
+    email_cc: str = ""
+    email_bcc: str = ""
+    summary: str = ""
+    topic: str = ""
+
+
+class RelativityConfig(BaseModel):
+    """RelativityOne connection settings."""
+
+    host: str
+    tenant_id: str
+    workspace_id: int
+    saved_search_id: int
+    subset_id: str
+    auth: RelativityAuthConfig
+    fields: RelativityFieldMappingConfig
+
+
 class Config(BaseModel):
     """Full application configuration."""
 
@@ -43,6 +80,7 @@ class Config(BaseModel):
     token_cache: TokenCacheConfig
     retry: RetryConfig
     elasticsearch: ElasticsearchConfig
+    relativity: RelativityConfig
 
 
 def _default_config_path() -> Path:

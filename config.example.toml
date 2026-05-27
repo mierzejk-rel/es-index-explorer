@@ -15,3 +15,27 @@ wait_seconds = 3
 
 [elasticsearch]
 hosts = "https://services.esus.reg.k8s.r1.kcura.com/search/search-ai/"
+
+[relativity]
+host = "esus019064-t035.r1.kcura.com"
+tenant_id = "51b1e1f7-f607-4967-a439-cf9babafab2c"
+workspace_id = 1030345
+saved_search_id = 0
+subset_id = ""
+
+[relativity.auth]
+method = "basic"
+basic_auth = ""
+oauth_client_id = ""
+oauth_client_secret = ""
+
+[relativity.fields]
+extracted_text = "Extracted Text"
+control_number = "Control Number"
+primary_date_time = "Email Date Sent"
+email_from = "Email From"
+email_to = "Email To"
+email_cc = "Email CC"
+email_bcc = "Email BCC"
+summary = ""
+topic = ""
