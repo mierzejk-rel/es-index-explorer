@@ -118,7 +118,7 @@ class RelativityIdentifier(HiddenInputBaseModel):
             case str(name):
                 return RelativityIdentifier(Name=name)
             case _:
-                raise TypeError(f"Invalid identifier type: {type(identifier)}")
+                raise TypeError(f"Invalid identifier type: {type(identifier).__name__}")
 
     model_config = {"populate_by_name": True}
 
