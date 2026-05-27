@@ -2,7 +2,7 @@
 
 **Purpose:** Detailed reference for engineers and AI agents on how RelativityOne workspace
 documents are read, transformed into chunks, enriched with embeddings, and written to the
-Elasticsearch index analyzed in `air-assist-elasticsearch-index.md`. Intended to provide enough
+Elasticsearch index analyzed in `01-air-assist-elasticsearch-index.md`. Intended to provide enough
 detail to replicate the pipeline in Python using `es-index-explorer`.
 
 ---
@@ -144,7 +144,7 @@ full_text = om_client.stream_long_text_field(
 **Metadata fields** (optional, per workspace configuration):
 
 To replicate the production metadata behavior in Python, read the additional R1 fields that
-correspond to the metadata registry (see `air-assist-elasticsearch-index.md` §4.2.1 for the
+correspond to the metadata registry (see `01-air-assist-elasticsearch-index.md` §4.2.1 for the
 full registry). The workspace admin provides the R1 `FieldArtifactId` for each metadata key.
 Include them in the same export call:
 
@@ -171,7 +171,7 @@ Metadata values are document-level (shared across all chunks). For multi-valued 
 multiple email recipients), the R1 Object Manager returns them as separate list entries. Store
 as a JSON array in ES. For documents where a metadata field has no value (e.g., non-email
 documents), store `null` — this ensures the ES field key is present but non-email documents are
-excluded from email-participant filter queries. See `air-assist-elasticsearch-index.md` §4.2.4
+excluded from email-participant filter queries. See `01-air-assist-elasticsearch-index.md` §4.2.4
 for the full value handling rules.
 
 Key files in `gpt-candidate-experiments`:
@@ -382,7 +382,7 @@ and [`IndexingDocument.SetElasticMetadata()`](../../embedding-service/Source/Rel
 | `documentModifyTime` | date | ADLS | File metadata → last modified timestamp | None (direct passthrough) | `ToElasticDocuments()` |
 | `title` | text | — | — | **Never populated.** Mapped in ES but not set in `ToElasticDocuments()`. | — |
 | `createdAt` | date | — | — | **Never populated.** Mapped in ES but not assigned. Defaults to `DateTime` zero. | — |
-| `metadata.*` | varies | RelativityOne | Object Manager → workspace metadata fields | Typed conversion per Relativity field type (see index report §4.2) | `BuildElasticMetadata()` in `ToElasticDocuments()` |
+| `metadata.*` | varies | RelativityOne | Object Manager → workspace metadata fields | Typed conversion per Relativity field type (see `01-air-assist-elasticsearch-index.md` §4.2) | `BuildElasticMetadata()` in `ToElasticDocuments()` |
 | ES `_id` | string | Computed | `documentId` + `chunkId` | `"{documentId}_{chunkId}"` | `ElasticDocument.GetElasticDocumentId()` |
 
 ---

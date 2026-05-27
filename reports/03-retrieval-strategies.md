@@ -288,7 +288,7 @@ Implemented in
 For email fields, ES `wildcard` queries match against each element of a multi-valued `keyword`
 array independently (e.g., `metadata.emailTo: ["alice@example.com", "bob@example.com"]` — a
 wildcard for `*alice*` matches). Documents where the field is `null` (non-email documents) are
-naturally excluded. See `air-assist-elasticsearch-index.md` §4.2.4 for the full registry of
+naturally excluded. See `01-air-assist-elasticsearch-index.md` §4.2 for the full registry of
 metadata fields, multi-value semantics, and null handling.
 
 ### 4.2 Subset Filter (always applied)

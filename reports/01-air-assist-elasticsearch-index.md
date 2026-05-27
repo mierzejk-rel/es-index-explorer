@@ -278,7 +278,7 @@ Relativity's Object Manager API instead of Elasticsearch. OM queries the workspa
 directly using the user's permissions, returns the set of matching document artifact IDs, and
 qna-service then passes those IDs to Elasticsearch as an inclusion filter for the actual
 text/vector search. This is slower (two round-trips) but works even when ES metadata mappings
-are absent. See `retrieval-strategies.md` §4.3 for the full routing table.
+are absent. See `03-retrieval-strategies.md` §4.3 for the full routing table.
 
 The net effect: no ES query is ever generated referencing `metadata.*` fields that don't exist
 in the index. If qna-service returns zero results from the metadata path, the agent's own
@@ -288,7 +288,7 @@ fallback logic converts the failed metadata search into a keyword-only search. S
 
 Metadata fields are used for **filtering** in qna-service's `DocumentProviderV2`, constructed by
 [`ElasticMetadataFilterBuilder.cs`](../../repos/qna-service/Source/Relativity.QnA.Infrastructure/ElasticSearch/Filters/ElasticMetadataFilterBuilder.cs).
-See `retrieval-strategies.md` §4 for query-level details.
+See `03-retrieval-strategies.md` §4 for query-level details.
 
 ---
 
@@ -361,95 +361,7 @@ From live index inspection:
 
 ---
 
-## 7. How Search Works Against This Index
-
-### 7.1 Retrieval strategies in qna-service
-
-The retrieval strategies are defined in
-[`qna-service/Source/Relativity.QnA.Infrastructure/ElasticSearch/Strategies/`](../../repos/qna-service/Source/Relativity.QnA.Infrastructure/ElasticSearch/Strategies/).
-
-**RRF (Reciprocal Rank Fusion) — primary strategy:**
-
-```json
-{
-  "rank_window_size": 100,
-  "retrievers": [
-    {
-      "standard": {
-        "query": { "multi_match": { "fields": ["body", "title"], "query": "%QUERY%" } }
-      }
-    },
-    {
-      "knn": {
-        "field": "embedding",
-        "k": 100,
-        "num_candidates": 250,
-        "query_vector": [/* 384-dim float array */]
-      }
-    }
-  ]
-}
-```
-
-Source: [`RetrievalStrategyDefaults.cs`](../../repos/qna-service/Source/Relativity.QnA.Application/Models/ElasticSearch/RetrievalStrategyDefaults.cs)
-
-**BM25-only strategy:** Uses `multi_match` on `["body", "title"]` without vector search.
-
-**Subset scope filter (always applied):**
-
-Every query is scoped to a specific subset via a `terms` filter on `subsetIds`:
-
-```csharp
-QueryDescriptor<ElasticDocument> subsetFilter = new QueryDescriptor<ElasticDocument>()
-    .Term(t => t.Field("subsetIds").Value(subsetId));
-```
-
-Source: [`ElasticsearchClientWrapper.cs` in qna-service](../../repos/qna-service/Source/Relativity.QnA.Infrastructure/ElasticSearch/ElasticsearchClientWrapper.cs)
-
-**Document collapse:** Results are collapsed by `documentId` to deduplicate chunks from the same
-document.
-
-### 7.2 Metadata filtering
-
-When the user provides metadata filters (e.g. `ControlNumber = "DOC-001"`), qna-service builds
-ES bool `filter` clauses from `metadata.*` fields. See
-[`ElasticMetadataFilterBuilder.cs`](../../repos/qna-service/Source/Relativity.QnA.Infrastructure/ElasticSearch/Filters/ElasticMetadataFilterBuilder.cs).
-These are keyword equality/range filters — not full-text search.
-
----
-
-## 8. Document Shape Indexed
-
-Each chunk written to the index is an instance of
-[`ElasticDocument`](../../embedding-service/Source/Relativity.Embedding.Application/Models/Elasticsearch/ElasticDocument.cs).
-The document ID in Elasticsearch is `{documentId}_{chunkId}` (e.g. `1055572_0`,
-`1055572_1`). This means multiple ES documents exist per Relativity document — one per chunk.
-
-The populated fields at write time (from
-[`IndexingDocument.ToElasticDocuments()`](../../embedding-service/Source/Relativity.Embedding.Application/Temporalio/Models/IndexingDocument.cs)):
-
-```csharp
-yield return new ElasticDocument
-{
-    DocumentId      = DocumentId,
-    Body            = chunkText,
-    ChunkId         = _chunks[i].Index,                    // 0-based
-    ChunkSize       = Encoding.UTF8.GetByteCount(chunkText) * 2,  // UTF-16 approx
-    Embedding       = _embeddings?[i],                     // null if embedding failed
-    ControlNumber   = ControlNumber ?? string.Empty,
-    SubsetIds       = /* existing subsets + current */,
-    DocumentModifyTime = ModifyTime,
-    Metadata        = /* workspace metadata fields */,
-    // NOTE: Title and CreatedAt are NOT set here — always default/empty
-};
-```
-
-**Chunking:** HuggingFace BPE tokenizer (`intfloat/multilingual-e5-small`), max 500 tokens per
-chunk, 100-token overlap.
-
----
-
-## 9. Field Usage in Practice (from live `_field_usage_stats`)
+## 7. Field Usage in Practice (from live `_field_usage_stats`)
 
 From the aggregated field usage statistics on the inspected index:
 
@@ -469,7 +381,7 @@ field not being used — RRF hybrid search is the primary retrieval strategy in 
 
 ---
 
-## 10. Known Gaps and Caveats
+## 8. Known Gaps and Caveats
 
 | Topic | Status |
 |-------|--------|
@@ -482,7 +394,7 @@ field not being used — RRF hybrid search is the primary retrieval strategy in 
 
 ---
 
-## 11. Key Source Code References
+## 9. Key Source Code References
 
 | Topic | File |
 |-------|------|
@@ -490,12 +402,13 @@ field not being used — RRF hybrid search is the primary retrieval strategy in 
 | Base mapping (hardcoded) | [`embedding-service/.../Elasticsearch/ElasticsearchClientWrapper.cs`](../../embedding-service/Source/Relativity.Embedding.Infrastructure/Elasticsearch/ElasticsearchClientWrapper.cs) (L105–157) |
 | Metadata field mapping | Same file, L159–229 (`EnsureMetadataFieldMappingsAsync`) |
 | Relativity → ES type mapping | Same file, L209–229 (`MapRelativityFieldTypeToEsProperty`) |
+| Metadata field registry | [`embedding-service/.../Services/MetadataFieldDefinitionProvider.cs`](../../embedding-service/Source/Relativity.Embedding.Application/Services/MetadataFieldDefinitionProvider.cs) |
+| Metadata field keys | [`embedding-service/.../Constants/MetadataFieldKeys.cs`](../../embedding-service/Source/Relativity.Embedding.Domain/Constants/MetadataFieldKeys.cs) |
 | Index lifecycle (create-if-missing) | [`embedding-service/.../Elasticsearch/IndexManagementService.cs`](../../embedding-service/Source/Relativity.Embedding.Infrastructure/Elasticsearch/IndexManagementService.cs) |
 | Document model | [`embedding-service/.../Models/Elasticsearch/ElasticDocument.cs`](../../embedding-service/Source/Relativity.Embedding.Application/Models/Elasticsearch/ElasticDocument.cs) |
-| Document construction (what gets populated) | [`embedding-service/.../Temporalio/Models/IndexingDocument.cs`](../../embedding-service/Source/Relativity.Embedding.Application/Temporalio/Models/IndexingDocument.cs) (`ToElasticDocuments()`) |
-| RRF query template | [`qna-service/.../ElasticSearch/RetrievalStrategyDefaults.cs`](../../repos/qna-service/Source/Relativity.QnA.Application/Models/ElasticSearch/RetrievalStrategyDefaults.cs) |
-| Subset scope filter | [`qna-service/.../ElasticSearch/ElasticsearchClientWrapper.cs`](../../repos/qna-service/Source/Relativity.QnA.Infrastructure/ElasticSearch/ElasticsearchClientWrapper.cs) |
-| Metadata filter building | [`qna-service/.../ElasticSearch/Filters/ElasticMetadataFilterBuilder.cs`](../../repos/qna-service/Source/Relativity.QnA.Infrastructure/ElasticSearch/Filters/ElasticMetadataFilterBuilder.cs) |
 | Architecture overview | [`air-assist-hub/architecture/embedding-service.md`](../../air-assist-hub/architecture/embedding-service.md) |
 | ES cluster management | [`elasticsearch-infra/helm/eck-stack/`](../../elasticsearch-infra/helm/eck-stack/) |
 | Test index mapping (minimal, no embedding) | [`qna-service/.../ElasticTestDataManager.cs`](../../repos/qna-service/Source/Relativity.QnA.API.NUnit.Integration/TestsInfrastructure/ElasticTestDataManager.cs) |
+
+For document population and field-by-field write details, see `02-index-population-pipeline.md` §5 and §7.
+For retrieval strategies, query shapes, and post-search processing, see `03-retrieval-strategies.md` §3–§6.
