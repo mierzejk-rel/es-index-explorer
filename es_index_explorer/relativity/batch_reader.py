@@ -63,6 +63,10 @@ class BatchImporter:
 
         response = self._execute_page(builder, start=0)
         total = state.ok_count + len(state.failed) + response.TotalCount
+
+        if response.TotalCount == 0:
+            return self._progress_log.load()
+
         long_text_columns = self._long_text_columns(response, field_names)
 
         processed = state.ok_count + len(state.failed)
