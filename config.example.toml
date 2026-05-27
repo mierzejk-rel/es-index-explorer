@@ -32,7 +32,7 @@ oauth_client_secret = ""
 [relativity.fields]
 extracted_text = "Extracted Text"
 control_number = "Control Number"
-primary_date_time = "Email Date Sent"
+primary_date_time = "Primary Date/Time"
 email_from = "Email From"
 email_to = "Email To"
 email_cc = "Email CC"
