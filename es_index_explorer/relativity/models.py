@@ -7,11 +7,14 @@ from typing import Annotated
 from pydantic import BaseModel, BeforeValidator
 
 
-def _prep_datetime(value: object | None) -> str | None:
-    if value is None:
-        return None
-    text = str(value).strip()
-    return text or None
+def _prep_datetime(value: object | None) -> str | datetime | None:
+    match value:
+        case datetime() as dt:
+            return dt
+        case str(text):
+            return text.strip() or None
+        case _:  # case None:
+            return None
 
 
 class RelativityDocument(BaseModel):
