@@ -7,6 +7,7 @@ from .object_manager import ObjectManagerAPI
 from .transport import Transport
 
 
+# noinspection HttpUrlsUsage
 class RelativityClient:
     """Compose Relativity Object Manager APIs with a session."""
 

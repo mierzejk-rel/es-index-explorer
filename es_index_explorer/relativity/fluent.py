@@ -146,22 +146,23 @@ class QueryBuilder:
 
     def build(self) -> dict[str, object]:
         fields = [v.model_dump(exclude_none=True, by_alias=True) for v in self._fields]
+        inner: dict[str, object] = {
+            "ObjectType": self._object_type,
+            "fields": fields,
+            "MaxCharactersForLongTextValues": self._max_text_length,
+            "LongTextBehavior": self._long_text_behavior,
+        }
         request: dict[str, object] = {
-            "request": {
-                "ObjectType": self._object_type,
-                "fields": fields,
-                "MaxCharactersForLongTextValues": self._max_text_length,
-                "LongTextBehavior": self._long_text_behavior,
-            },
+            "request": inner,
             "start": self._start,
             "length": self._length,
         }
         if isinstance(self._condition, dict):
-            request["request"].update(self._condition)
+            inner.update(self._condition)
         elif isinstance(self._condition, str):
-            request["request"]["condition"] = self._condition
+            inner["condition"] = self._condition
         if self._sorts:
-            request["request"]["Sorts"] = self._sorts
+            inner["Sorts"] = self._sorts
         return request
 
     def execute(self) -> QueryResult:
