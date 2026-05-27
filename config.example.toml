@@ -29,8 +29,9 @@ basic_auth = ""
 oauth_client_id = ""
 oauth_client_secret = ""
 
+# Integer = field Artifact ID; string = field display name (use IDs when names collide).
 [relativity.fields]
-extracted_text = "Extracted Text"
+extracted_text = 1003668
 control_number = "Control Number"
 primary_date_time = "Primary Date/Time"
 email_from = "Email From"

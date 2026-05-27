@@ -5,7 +5,10 @@ from pathlib import Path
 
 from typing import Literal
 
-from pydantic import BaseModel
+from pydantic import BaseModel, field_validator, model_validator
+
+# int = Relativity field ArtifactID; str = field display Name
+RelativityFieldSelector = int | str
 
 
 class CidConfig(BaseModel):
@@ -50,15 +53,49 @@ class RelativityAuthConfig(BaseModel):
 class RelativityFieldMappingConfig(BaseModel):
     """Relativity field mapping settings."""
 
-    extracted_text: str
-    control_number: str
-    primary_date_time: str = ""
-    email_from: str = ""
-    email_to: str = ""
-    email_cc: str = ""
-    email_bcc: str = ""
-    summary: str = ""
-    topic: str = ""
+    extracted_text: RelativityFieldSelector
+    control_number: RelativityFieldSelector
+    primary_date_time: RelativityFieldSelector = ""
+    email_from: RelativityFieldSelector = ""
+    email_to: RelativityFieldSelector = ""
+    email_cc: RelativityFieldSelector = ""
+    email_bcc: RelativityFieldSelector = ""
+    summary: RelativityFieldSelector = ""
+    topic: RelativityFieldSelector = ""
+
+    @field_validator(
+        "extracted_text",
+        "control_number",
+        "primary_date_time",
+        "email_from",
+        "email_to",
+        "email_cc",
+        "email_bcc",
+        "summary",
+        "topic",
+    )
+    @classmethod
+    def validate_field_selector(cls, value: RelativityFieldSelector) -> RelativityFieldSelector:
+        if isinstance(value, int):
+            if value <= 0:
+                raise ValueError("Field Artifact ID must be a positive integer.")
+            return value
+        if not value.strip():
+            return ""
+        return value
+
+    @model_validator(mode="after")
+    def validate_required_fields(self) -> "RelativityFieldMappingConfig":
+        for name in ("extracted_text", "control_number"):
+            if not is_field_configured(getattr(self, name)):
+                raise ValueError(f"relativity.fields.{name} is required.")
+        return self
+
+
+def is_field_configured(value: RelativityFieldSelector) -> bool:
+    if isinstance(value, int):
+        return value > 0
+    return bool(value.strip())
 
 
 class RelativityConfig(BaseModel):

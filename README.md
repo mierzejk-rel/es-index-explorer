@@ -17,7 +17,14 @@ RelativityOne workspace documents so the data can be mapped into new indices.
 - `[elasticsearch]` Elasticsearch host list.
 - `[relativity]` Relativity tenant/workspace identifiers.
 - `[relativity.auth]` Relativity authentication method and credentials.
-- `[relativity.fields]` Workspace field names to export.
+- `[relativity.fields]` Workspace fields to export — each value is either a field
+  **Artifact ID** (integer) or a field **display name** (string). Use IDs when
+  multiple fields share the same name.
+
+  ```toml
+  extracted_text = 1003668              # Artifact ID
+  control_number = "Control Number"   # display name
+  ```
 
 ## Authentication
 RelativityOne Object Manager supports three options, configured in

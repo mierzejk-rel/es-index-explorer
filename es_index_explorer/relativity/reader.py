@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from collections.abc import Iterable
 
-from ..config import Config
+from ..config import Config, RelativityFieldSelector, is_field_configured
 from .auth import get_authenticated_session
 from .client import RelativityClient
 from .models import RelativityDocument
@@ -34,8 +34,10 @@ def _ensure_required_field(value: str | None, field_name: str) -> str:
     return value
 
 
-def _iter_fields(fields: dict[str, str]) -> Iterable[tuple[str, str]]:
-    return ((key, value) for key, value in fields.items() if value)
+def _iter_fields(
+    fields: dict[str, RelativityFieldSelector],
+) -> Iterable[tuple[str, RelativityFieldSelector]]:
+    return ((key, value) for key, value in fields.items() if is_field_configured(value))
 
 
 def read_documents(config: Config, *, limit: int | None = None) -> list[RelativityDocument]:
@@ -56,16 +58,6 @@ def read_documents(config: Config, *, limit: int | None = None) -> list[Relativi
         "summary": fields.summary,
         "topic": fields.topic,
     }
-
-    required = {
-        "extracted_text": fields.extracted_text,
-        "control_number": fields.control_number,
-    }
-    for key, value in required.items():
-        if not value:
-            raise DocumentReadError(
-                f"relativity.fields.{key} is required but not configured."
-            )
 
     builder = client.query_object_manager().from_documents().select(
         **{key: value for key, value in _iter_fields(field_map)}
