@@ -95,13 +95,16 @@ class RelativityIdentifier(HiddenInputBaseModel):
         cls, value: Any, info: ValidationInfo
     ) -> Any:  # pragma: no cover - pydantic hook
         del info
-        if isinstance(value, int):
-            return {"ArtifactID": value}
-        if isinstance(value, UUID):
-            return {"Guid": value}
-        if isinstance(value, str):
-            return {"Name": value}
-        return value
+        match value:
+            # bool is a subclass of int; do not map it to ArtifactID
+            case int(artifact_id) if not isinstance(artifact_id, bool):
+                return {"ArtifactID": artifact_id}
+            case UUID() as guid:
+                return {"Guid": guid}
+            case str(name):
+                return {"Name": name}
+            case _:
+                return value
 
     @field_serializer("guid")
     def serialize_guid(self, value: UUID | None) -> str | None:
@@ -109,13 +112,16 @@ class RelativityIdentifier(HiddenInputBaseModel):
 
     @staticmethod
     def build_identifier(identifier: int | UUID | str) -> "RelativityIdentifier":
-        if isinstance(identifier, int):
-            return RelativityIdentifier(ArtifactID=identifier)
-        if isinstance(identifier, UUID):
-            return RelativityIdentifier(Guid=identifier)
-        if isinstance(identifier, str):
-            return RelativityIdentifier(Name=identifier)
-        raise TypeError(f"Invalid identifier type: {type(identifier)}")
+        match identifier:
+            # Guard against bool being matched by int pattern
+            case int(artifact_id) if not isinstance(artifact_id, bool):
+                return RelativityIdentifier(ArtifactID=artifact_id)
+            case UUID() as guid:
+                return RelativityIdentifier(Guid=guid)
+            case str(name):
+                return RelativityIdentifier(Name=name)
+            case _:
+                raise TypeError(f"Invalid identifier type: {type(identifier)}")
 
     model_config = {"populate_by_name": True}
 
