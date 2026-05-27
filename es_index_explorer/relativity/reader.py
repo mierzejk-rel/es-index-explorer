@@ -22,15 +22,22 @@ class DocumentReadError(RuntimeError):
 def _normalize_str(value: object | None) -> str | None:
     if value is None:
         return None
-    return str(value)
+    text = str(value).strip()
+    return text or None
 
 
 def _normalize_str_list(value: object | None) -> list[str] | None:
     if value is None:
         return None
-    if isinstance(value, list):
-        return [str(item) for item in value if item is not None]
-    return [str(value)]
+    items = value if isinstance(value, list) else [value]
+    normalized = []
+    for item in items:
+        if item is None:
+            continue
+        text = str(item).strip()
+        if text:
+            normalized.append(text)
+    return normalized or None
 
 
 def _normalize_datetime_str(value: object | None) -> str | None:
@@ -38,6 +45,22 @@ def _normalize_datetime_str(value: object | None) -> str | None:
         return None
     text = str(value).strip()
     return text or None
+
+
+_POOR_QUALITY_TOPIC = "Poor Quality Extracted Text"
+
+
+def _normalize_summary_topic(
+    raw_summary: object | None,
+    raw_topic: object | None,
+) -> tuple[str | None, str | None]:
+    summary = _normalize_str(raw_summary)
+    topic = _normalize_str(raw_topic)
+    if summary is None and topic is None:
+        return None, None
+    if topic == _POOR_QUALITY_TOPIC and summary is None:
+        return "", ""
+    return summary, topic
 
 
 def _ensure_required_field(value: str | None, field_name: str) -> str:
@@ -89,6 +112,10 @@ def read_documents(config: Config, *, limit: int | None = None) -> ReadResult:
             _normalize_str(row.get("control_number")), "control_number"
         )
         try:
+            summary, topic = _normalize_summary_topic(
+                row.get("summary"),
+                row.get("topic"),
+            )
             doc = RelativityDocument(
                 artifact_id=int(row["artifact_id"]),
                 control_number=control_number,
@@ -98,8 +125,8 @@ def read_documents(config: Config, *, limit: int | None = None) -> ReadResult:
                 email_to=_normalize_str_list(row.get("email_to")),
                 email_cc=_normalize_str_list(row.get("email_cc")),
                 email_bcc=_normalize_str_list(row.get("email_bcc")),
-                summary=_normalize_str(row.get("summary")),
-                topic=_normalize_str(row.get("topic")),
+                summary=summary,
+                topic=topic,
             )
             documents.append(doc)
         except (ValidationError, ValueError, KeyError) as exc:
