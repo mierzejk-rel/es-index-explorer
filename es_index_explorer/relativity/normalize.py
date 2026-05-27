@@ -8,10 +8,11 @@ _POOR_QUALITY_TOPIC = "Poor Quality Extracted Text"
 
 
 def normalize_str(value: object | None) -> str | None:
-    if value is None:
-        return None
-    text = str(value).strip()
-    return text or None
+    match value:
+        case str(text):
+            return text.strip() or None
+        case _:
+            return None
 
 
 def normalize_str_list(value: object | None) -> list[str] | None:
@@ -20,9 +21,9 @@ def normalize_str_list(value: object | None) -> list[str] | None:
     items = value if isinstance(value, list) else [value]
     normalized = []
     for item in items:
-        if item is None:
+        if not isinstance(item, str):
             continue
-        text = str(item).strip()
+        text = item.strip()
         if text:
             normalized.append(text)
     return normalized or None
