@@ -63,7 +63,10 @@ class BatchImporter:
         processed = 0
         ok_count = 0
         failed_count = 0
-        current_start = 0
+        # OM QuerySlim uses 1-based start; the initial fetch used start=0 which OM treats as start=1
+        # (positions 1..batch_size). The next page must begin at position batch_size+1, so we seed
+        # current_start=1 so the first loop increment yields 1+batch_size=batch_size+1.
+        current_start = 1
         batch_size = self._config.relativity.batch_size
 
         while response.Objects:
