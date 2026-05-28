@@ -32,6 +32,14 @@ class ProgressView:
             last_error=None,
         )
 
+    def mark_complete(self) -> None:
+        self._progress.update(
+            self._task_id,
+            description="Up to date",
+            completed=0,
+            total=0,
+        )
+
     def update(self, snapshot: ProgressSnapshot) -> None:
         self._snapshot = snapshot
         self._progress.update(
@@ -116,16 +124,13 @@ def main() -> None:
             live.update(view.render())
 
         view = ProgressView(total=None)
-        already_up_to_date = False
         with Live(view.render(), refresh_per_second=10) as live:
             importer = BatchImporter(config, progress_log, on_progress=_on_progress)
             importer.run(resume_after=state.last_processed_id, state=state)
             if first_snapshot is None:
-                already_up_to_date = True
-                live.stop()
-            else:
-                live.update(view.render())
-        if already_up_to_date:
+                view.mark_complete()
+            live.update(view.render())
+        if first_snapshot is None:
             print("Already up to date — no pending documents.")
             progress_log.close()
             return
