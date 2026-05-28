@@ -5,7 +5,7 @@ from __future__ import annotations
 from collections.abc import Iterable
 from datetime import datetime
 import logging
-from typing import cast
+from typing import Callable, cast
 
 from pydantic import ValidationError
 
@@ -15,11 +15,13 @@ from .client import RelativityClient
 from .fluent import ARTIFACT_ID_KEY
 from .models import FailedDocument, ReadResult, RelativityDocument
 from .normalize import (
+    DocumentReadError,
     ensure_required_field,
     normalize_str,
     normalize_str_list,
     normalize_summary_topic,
 )
+from .tui import ProgressSnapshot
 
 logger = logging.getLogger(__name__)
 
@@ -30,7 +32,12 @@ def _iter_fields(
     return ((key, value) for key, value in fields.items() if is_field_configured(value))
 
 
-def read_documents(config: Config, *, limit: int | None = None) -> ReadResult:
+def read_documents(
+    config: Config,
+    *,
+    limit: int | None = None,
+    on_progress: Callable[[ProgressSnapshot], None] | None = None,
+) -> ReadResult:
     """Read RelativityOne documents using the Object Manager export API."""
 
     auth = get_authenticated_session(config)
@@ -59,21 +66,41 @@ def read_documents(config: Config, *, limit: int | None = None) -> ReadResult:
     documents: list[RelativityDocument] = []
     failures: list[FailedDocument] = []
     field_names = [key for key, value in _iter_fields(field_map)]
-    for row in builder.export(field_names=field_names):
-        extracted_text = ensure_required_field(
-            normalize_str(row.get("extracted_text")), "extracted_text"
+    total, rows = builder.export_with_total(field_names=field_names)
+    processed = 0
+    ok_count = 0
+    failed_count = 0
+    last_error: str | None = None
+    if on_progress is not None and total == 0:
+        on_progress(
+            ProgressSnapshot(
+                processed=0,
+                total=0,
+                ok_count=0,
+                failed_count=0,
+                last_artifact_id=None,
+                last_error=None,
+            )
         )
-        control_number = ensure_required_field(
-            normalize_str(row.get("control_number")), "control_number"
-        )
+
+    for row in rows:
+        processed += 1
+        # ARTIFACT_ID_KEY is always int in export rows; typed as RelativityScalar from dict[str, RelativityScalar].
+        artifact_id = cast(int, row.get(ARTIFACT_ID_KEY))
         try:
+            extracted_text = ensure_required_field(
+                normalize_str(row.get("extracted_text")), "extracted_text"
+            )
+            control_number = ensure_required_field(
+                normalize_str(row.get("control_number")), "control_number"
+            )
             summary, topic = normalize_summary_topic(
                 row.get("summary"),
                 row.get("topic"),
             )
             doc = RelativityDocument(
                 # ARTIFACT_ID_KEY is always an int (set from obj.ArtifactID); typed as RelativityScalar because row is dict[str, RelativityScalar].
-                artifact_id=cast(int, row[ARTIFACT_ID_KEY]),
+                artifact_id=artifact_id,
                 control_number=control_number,
                 extracted_text=extracted_text,
                 # OM returns str (ISO date) or None; cast to datetime | None so Pydantic's BeforeValidator (_prep_datetime) coerces at runtime.
@@ -86,15 +113,27 @@ def read_documents(config: Config, *, limit: int | None = None) -> ReadResult:
                 topic=topic,
             )
             documents.append(doc)
-        except (ValidationError, ValueError, KeyError) as exc:
-            # ARTIFACT_ID_KEY is always int; typed as RelativityScalar | None from .get() on dict[str, RelativityScalar].
-            artifact_id = cast(int, row.get(ARTIFACT_ID_KEY))
+            ok_count += 1
+        except (ValidationError, ValueError, KeyError, DocumentReadError) as exc:
+            last_error = str(exc)
             logger.warning("Skipping artifact %s: %s", artifact_id, exc)
             failures.append(
                 FailedDocument(
                     artifact_id=artifact_id,
                     raw_row=dict(row),
-                    error=str(exc),
+                    error=last_error,
+                )
+            )
+            failed_count += 1
+        if on_progress is not None:
+            on_progress(
+                ProgressSnapshot(
+                    processed=processed,
+                    total=total,
+                    ok_count=ok_count,
+                    failed_count=failed_count,
+                    last_artifact_id=artifact_id,
+                    last_error=last_error,
                 )
             )
         if limit is not None and len(documents) >= limit:

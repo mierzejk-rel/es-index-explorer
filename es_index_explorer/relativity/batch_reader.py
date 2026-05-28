@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass
 from datetime import datetime
 from typing import Callable, Iterable, cast
 
@@ -26,15 +25,7 @@ from .object_manager_models import (
     R1_OBJECT_MANAGER_TRUNCATE_TOKEN,
 )
 from .progress import ImportState, ProgressLog
-
-@dataclass
-class ProgressSnapshot:
-    processed: int
-    total: int
-    ok_count: int
-    failed_count: int
-    last_artifact_id: int | None
-    last_error: str | None
+from .tui import ProgressSnapshot
 
 
 class BatchImporter:

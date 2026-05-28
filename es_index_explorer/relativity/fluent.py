@@ -175,6 +175,20 @@ class QueryBuilder:
     def export(
         self, *, batch_size: int = 100, field_names: list[str] | None = None
     ) -> Generator[dict[str, RelativityScalar], None, None]:
+        _, rows = self.export_with_total(batch_size=batch_size, field_names=field_names)
+        return rows
+
+    def export_with_total(
+        self, *, batch_size: int = 100, field_names: list[str] | None = None
+    ) -> tuple[int, Generator[dict[str, RelativityScalar], None, None]]:
+        run_id, total_count, r1_schema = self._initialize_export(field_names)
+        return total_count, self._export_rows(
+            run_id=run_id, batch_size=batch_size, r1_schema=r1_schema
+        )
+
+    def _initialize_export(
+        self, field_names: list[str] | None
+    ) -> tuple[UUID, int, dict[str, tuple[int, RelativityType]]]:
         object_type = (
             ObjectType(**self._object_type)
             if self._object_type
@@ -192,23 +206,33 @@ class QueryBuilder:
         init = self.api.export_initialize(qr)
 
         if field_names is None:
-            field_names = [str(fd.name) for fd in init.field_data]
+            resolved_field_names = [str(fd.name) for fd in init.field_data]
         elif len(field_names) != len(init.field_data):
             raise ValueError(
                 "Number of field names must match the export session field list."
             )
+        else:
+            resolved_field_names = field_names
 
         r1_schema: dict[str, tuple[int, RelativityType]] = {
             ARTIFACT_ID_KEY: (0, "WholeNumber")
         }
         r1_schema |= {
             key: (fd.artifact_id, fd.field_type)
-            for key, fd in zip(field_names, init.field_data)
+            for key, fd in zip(resolved_field_names, init.field_data)
         }
+        return init.run_id, init.record_count, r1_schema
 
+    def _export_rows(
+        self,
+        *,
+        run_id: UUID,
+        batch_size: int,
+        r1_schema: dict[str, tuple[int, RelativityType]],
+    ) -> Generator[dict[str, RelativityScalar], None, None]:
         should_continue = True
         while should_continue:
-            block = self.api.export_retrieve_next(init.run_id, batch_size)
+            block = self.api.export_retrieve_next(run_id, batch_size)
             if not block:
                 should_continue = False
                 continue

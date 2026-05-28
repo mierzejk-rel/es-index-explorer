@@ -4,8 +4,11 @@ import argparse
 import json
 from pathlib import Path
 
+from rich.live import Live
+
 from es_index_explorer.config import load_config
 from es_index_explorer.relativity.reader import read_documents
+from es_index_explorer.relativity.tui import ProgressSnapshot, ProgressView
 
 
 def parse_args() -> argparse.Namespace:
@@ -31,7 +34,15 @@ def parse_args() -> argparse.Namespace:
 def main() -> None:
     args = parse_args()
     config = load_config(args.config)
-    result = read_documents(config, limit=args.limit)
+
+    view = ProgressView(total=None, description="Reading")
+    with Live(view.render(), refresh_per_second=10) as live:
+        def _on_progress(snapshot: ProgressSnapshot) -> None:
+            view.update(snapshot)
+            live.update(view.render())
+
+        result = read_documents(config, limit=args.limit, on_progress=_on_progress)
+        live.update(view.render())
 
     print(f"Retrieved {len(result.documents)} documents.")
     if result.documents:

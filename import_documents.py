@@ -3,63 +3,12 @@
 import argparse
 from pathlib import Path
 
-from rich.console import Group
 from rich.live import Live
-from rich.progress import BarColumn, Progress, TaskProgressColumn, TextColumn
-from rich.table import Table
 
 from es_index_explorer.config import load_config
-from es_index_explorer.relativity.batch_reader import BatchImporter, ProgressSnapshot
+from es_index_explorer.relativity.batch_reader import BatchImporter
 from es_index_explorer.relativity.progress import ProgressLog
-
-
-class ProgressView:
-    def __init__(self, total: int | None) -> None:
-        self._progress = Progress(
-            TextColumn("{task.description}"),
-            BarColumn(),
-            TaskProgressColumn(),
-            TextColumn("{task.completed}/{task.total}"),
-        )
-        self._task_id = self._progress.add_task("Importing", total=total)
-        total_value = total or 0
-        self._snapshot = ProgressSnapshot(
-            processed=0,
-            total=total_value,
-            ok_count=0,
-            failed_count=0,
-            last_artifact_id=None,
-            last_error=None,
-        )
-
-    def mark_complete(self) -> None:
-        self._progress.update(
-            self._task_id,
-            description="Up to date",
-            completed=0,
-            total=0,
-        )
-
-    def update(self, snapshot: ProgressSnapshot) -> None:
-        self._snapshot = snapshot
-        self._progress.update(
-            self._task_id,
-            completed=snapshot.processed,
-            total=max(snapshot.total, 1),
-        )
-
-    def render(self) -> Group:
-        table = Table.grid(padding=(0, 2))
-        table.add_row(
-            f"OK: {self._snapshot.ok_count}",
-            f"Failed: {self._snapshot.failed_count}",
-            f"Last ID: {self._snapshot.last_artifact_id or '-'}",
-        )
-        table.add_row(
-            "Last error:",
-            self._snapshot.last_error or "-",
-        )
-        return Group(self._progress, table)
+from es_index_explorer.relativity.tui import ProgressSnapshot, ProgressView
 
 
 def parse_args() -> argparse.Namespace:
