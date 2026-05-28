@@ -14,7 +14,7 @@ from es_index_explorer.relativity.progress import ProgressLog
 
 
 class ProgressView:
-    def __init__(self, total: int) -> None:
+    def __init__(self, total: int | None) -> None:
         self._progress = Progress(
             TextColumn("{task.description}"),
             BarColumn(),
@@ -22,9 +22,10 @@ class ProgressView:
             TextColumn("{task.completed}/{task.total}"),
         )
         self._task_id = self._progress.add_task("Importing", total=total)
+        total_value = total or 0
         self._snapshot = ProgressSnapshot(
             processed=0,
-            total=total,
+            total=total_value,
             ok_count=0,
             failed_count=0,
             last_artifact_id=None,
@@ -105,15 +106,29 @@ def main() -> None:
             importer.retry_failed(failed_ids)
             live.update(view.render())
     else:
-        view = ProgressView(total=max(state.ok_count + len(state.failed), 1))
-        with Live(view.render(), refresh_per_second=10) as live:
-            def _on_progress(snapshot: ProgressSnapshot) -> None:
-                view.update(snapshot)
-                live.update(view.render())
+        first_snapshot: ProgressSnapshot | None = None
 
+        def _on_progress(snapshot: ProgressSnapshot) -> None:
+            nonlocal first_snapshot
+            if first_snapshot is None:
+                first_snapshot = snapshot
+            view.update(snapshot)
+            live.update(view.render())
+
+        view = ProgressView(total=None)
+        already_up_to_date = False
+        with Live(view.render(), refresh_per_second=10) as live:
             importer = BatchImporter(config, progress_log, on_progress=_on_progress)
             importer.run(resume_after=state.last_processed_id, state=state)
-            live.update(view.render())
+            if first_snapshot is None:
+                already_up_to_date = True
+                live.stop()
+            else:
+                live.update(view.render())
+        if already_up_to_date:
+            print("Already up to date — no pending documents.")
+            progress_log.close()
+            return
 
     progress_log.close()
 

@@ -62,16 +62,16 @@ class BatchImporter:
         builder = builder.max_text_length(self._config.relativity.max_text_length)
 
         response = self._execute_page(builder, start=0)
-        total = state.ok_count + len(state.failed) + response.TotalCount
+        total = response.TotalCount
 
         if response.TotalCount == 0:
             return self._progress_log.load()
 
         long_text_columns = self._long_text_columns(response, field_names)
 
-        processed = state.ok_count + len(state.failed)
-        ok_count = state.ok_count
-        failed_count = len(state.failed)
+        processed = 0
+        ok_count = 0
+        failed_count = 0
         current_start = 0
         batch_size = self._config.relativity.batch_size
 
