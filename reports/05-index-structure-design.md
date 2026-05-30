@@ -718,7 +718,7 @@ Approach A or B) each signal produces its **own** per-signal list that ranks chu
 overlaps only **partially**, so to assemble a reliable fused top ~25 each signal must contribute a
 **deeper** candidate list than the target. This is the documented Elasticsearch principle for fusion
 depth: `rank_window_size` "determines the size of the individual result sets per query [and] a higher
-value will improve result relevance at the cost of performance[;] the final ranked result set is pruned
+value will improve result relevance at the cost of performance. The final ranked result set is pruned
 down to the search request's `size`" ([RRF retriever](https://www.elastic.co/docs/reference/elasticsearch/rest-apis/retrievers/rrf-retriever);
 it must be ≥ `size`). We already apply it at the **document** level (`rank_window_size = 100` >
 `size = 25`); `inner_hits.size = 50` > 25 transfers the **same** principle to our client-side **chunk**
