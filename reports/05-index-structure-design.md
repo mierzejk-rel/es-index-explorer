@@ -236,9 +236,9 @@ PUT as-air-assist-<workspace>-nested
       "document_artifact_id": { "type": "long" },
       "control_number":       { "type": "keyword" },
 
-      "title":   { "type": "text", "fields": { "kw": { "type": "keyword", "ignore_above": 1024 } } },
+      "title":   { "type": "text" },
       "summary": { "type": "text" },
-      "topic":   { "type": "text", "fields": { "kw": { "type": "keyword", "ignore_above": 1024 } } },
+      "topic":   { "type": "text" },
 
       "primary_date_time": { "type": "date" },
       "email_from": { "type": "keyword" },
@@ -289,9 +289,9 @@ PUT as-air-assist-<workspace>-nested
 |---|---|---|---|
 | `document_artifact_id` | `long` | Relativity ArtifactId; numeric. | Exact filter, security-trim join key, document identity. |
 | `control_number` | `keyword` | Exact, non-tokenized. | Display/citation, exact filter, sort/agg via doc_values. |
-| `title` | `text` + `.kw` keyword | BM25 on text; keyword sub-field for exact/agg. | BM25 (R7 lexical-on-title), exact filter. Unpopulated today (§11). |
+| `title` | `text` | BM25 full-text only (no keyword sub-field: exact-match/sort/agg on title not needed). | BM25 (R7 lexical-on-title). Unpopulated today (§11). |
 | `summary` | `text` | BM25 full-text. | BM25 (R7 lexical-on-summary). |
-| `topic` | `text` + `.kw` keyword | BM25 + exact/facet. | BM25 (R7 lexical-on-topic), facet. |
+| `topic` | `text` | BM25 full-text only (LLM-generated sentence, not categorical → no keyword sub-field). | BM25 (R7 lexical-on-topic). |
 | `primary_date_time` | `date` | Range queries. | Date range filter (parity with `metadata.primaryDateTime`). |
 | `email_from/to/cc/bcc` | `keyword` (multi-valued) | Exact + wildcard per element. | Email participant filters (parity with `metadata.email*`). |
 | `byte_size` | `long` | Byte count. | 5 MB include/exclude (R12; §6). |
