@@ -101,7 +101,7 @@ The `es-index-explorer` reader produces `RelativityDocument`
 
 Four viable patterns were considered. Each is assessed against R1–R13.
 
-### 3.1 Pattern A — Nested objects (RECOMMENDED)
+### 3.1 Pattern A — Nested objects (recommended default — document-centric; to be confirmed by evaluation)
 
 One ES document per Relativity document; chunks stored as a `nested` array (`chunks`). Parent
 metadata is stored once at the top level.
@@ -125,8 +125,8 @@ metadata is stored once at the top level.
 - **Ranking unit changes from chunk to document.** A nested `knn`/`nested` query ranks **parent
   documents** — `k`/`size` counts documents, each scored by its best passage (`score_mode: max`) —
   and the matching chunks are returned via `inner_hits`. Chunks remain fully scored and retrievable;
-  what changes is that the top-level result enumerates documents, not chunks. See §3.1.1 for how to
-  reproduce today's global chunk ranking on the nested index.
+  what changes is that the top-level result enumerates documents, not chunks. See §3.1.1 for the
+  paradigm framing and §7.5–§7.6 for how to obtain a chunk-level ranking on the nested index.
 - Changing one chunk requires reindexing the parent document (acceptable per R4).
 - Each nested chunk is stored as its own hidden Lucene document beneath the parent. These child
   documents are fully searchable (`nested`/`knn` queries) and returnable (`inner_hits`); they are
@@ -134,41 +134,28 @@ metadata is stored once at the top level.
   matching chunks attached. They still count toward Lucene's internal `docs.count`, which is relevant
   for shard sizing and the `nested_objects` limit.
 
-#### 3.1.1 Ranking unit: chunk vs document (and how to keep the current behaviour)
+#### 3.1.1 Ranking unit: chunk vs document
 
-This is the one property where nested and flat genuinely differ, so it is called out explicitly to
+This is the one property where the two paradigms genuinely differ, so it is called out explicitly to
 avoid ambiguity.
 
-- **Flat (today):** the chunk *is* the document, so a query produces a **global ranking of chunks**
-  (`size: 100` → up to 100 chunks, possibly several from the same document). qna-service then trims
-  to the top 25 chunks and groups them by document for display (`03-retrieval-strategies.md` §5).
-- **Nested:** a query produces a ranking of **documents**, each scored by its best passage; the
-  matching chunks come back under `inner_hits`. The top-level `size`/`k` counts documents, not chunks.
+- **Flat / chunk-centric (today):** the chunk *is* the document, so a query produces a **global
+  ranking of chunks** (`size: 100` → up to 100 chunks, possibly several from the same document).
+  qna-service then trims to the top 25 chunks and groups them by document for display
+  (`03-retrieval-strategies.md` §5).
+- **Nested / document-centric:** a query produces a ranking of **documents**, each scored by its best
+  passage; the matching chunks come back under `inner_hits`. The top-level `size`/`k` counts
+  documents, not chunks. Chunks remain fully scored and retrievable — nothing is all-or-nothing per
+  document — but the unit the top-level result enumerates is the document.
 
-**Reproducing the current global-chunk-ranking behaviour on the nested index (the documented
-"client-side flatten"):**
-1. Request enough parents (e.g. `k`/`size` = 100, matching today's `results_from_rrf`) and a large
-   enough `inner_hits.size` (at least the largest expected number of relevant chunks in any one
-   document).
-2. Read every chunk from every parent's `inner_hits`; each carries its own `_score`.
-3. Flatten all those chunks into a single list, sort by `_score`, and take the top N (e.g. 25). This
-   yields "top-N chunks, possibly several per document" — the same shape qna-service feeds the LLM
-   today.
+Neither unit is inherently better for RAG: chunk-centric ranking is the current behaviour, while
+document-centric ranking adds grouping, parent pre-filters, and de-duplicated metadata. The nested
+index can still produce a chunk-level ranking via a small **client-side flatten**, and a hybrid
+(RRF/linear) chunk ranking via two documented approaches. The scoring mechanics, the flatten
+procedure, completeness conditions, and the hybrid options all live in §7.5–§7.6; the empirical
+choice between paradigms is deferred to evaluation.
 
-**What is preserved vs. what differs:**
-- Preserved: chunks are individually scored, individually retrievable, and never all-or-nothing per
-  document; multiple chunks from one document can appear in the final top-N.
-- Differs: the native candidate pool is "best chunks of the top-k documents" rather than "the top-k
-  chunks globally". With `score_mode: max`, a strongly-matching document still surfaces as a
-  top-ranked parent and exposes its strong chunks via `inner_hits`, so in the common case the two
-  coincide closely — but they are not byte-identical. If exact flat semantics are ever required for a
-  specific experiment, the flat layout (Pattern B) reproduces them natively.
-
-This client-side flatten is a small, well-defined post-processing step. It is the basis for the
-nested-primary approach: it adds chunk-level ranking *on top of* nested's document grouping, parent
-pre-filters, and de-duplicated metadata, rather than removing any existing capability.
-
-### 3.2 Pattern B — Flat denormalization (current production model; documented fallback)
+### 3.2 Pattern B — Flat denormalization (current production model — chunk-centric paradigm)
 
 One ES document per chunk; parent fields copied onto every chunk (today's model —
 `02-index-population-pipeline.md` §5).
@@ -179,9 +166,10 @@ One ES document per chunk; parent fields copied onto every chunk (today's model 
   the parent and fetching the "first chunk" need extra queries or `collapse` (today qna-service issues
   a *separate* first-chunk query — `03-retrieval-strategies.md` §5.1); parent-level filters are
   evaluated per chunk.
-- **Verdict:** Kept as a **documented secondary option** for chunk-centric experiments and as the
-  guaranteed-parity baseline. Not the primary recommendation because it does not model R1/R2/R3 as
-  cleanly and reintroduces the duplication R10 wants to avoid.
+- **Verdict:** A different, **chunk-centric paradigm** with its own strengths (native global chunk
+  ranking, trivial sharding, guaranteed R11 parity) — chosen when chunk-level ranking is the priority.
+  Not inferior to nested; it simply optimizes for a different unit of retrieval. Which paradigm serves
+  the RAG better is an evaluation question (see §3.1.1).
 
 ### 3.3 Pattern C — Separate parent and child indices (application-side join)
 
@@ -209,13 +197,16 @@ A single index with a `join` field and `has_child`/`has_parent` queries.
 
 | Rank | Pattern | R3 child-query + parent-filter | Parent-context / no fragmentation | Hybrid (dense+sparse+BM25+RRF) in one query (R7) | Single-call (R8) | Update/lifecycle fit (R4/R5) | Scales to large corpora | Overall |
 |---|---|---|---|---|---|---|---|---|
-| **1** | **Nested (A)** | Excellent (9.2 GA mixed pre-filters) | Excellent (one doc, no dup) | Excellent (nested knn/BM25 + parent sparse via retrievers) | Excellent (`inner_hits`) | Excellent (immutable children) | Good (per-parent block; fine at <few dozen chunks) | **Recommended** |
-| 2 | Flat (B) | Good (filters per chunk) | Weak (dup metadata; extra first-chunk query) | Good (chunk-only) | Good | Good | Excellent | Fallback / parity baseline |
+| **1** | **Nested (A)** | Excellent (9.2 GA mixed pre-filters) | Excellent (one doc, no dup) | Excellent (nested knn/BM25 + parent sparse via retrievers) | Excellent (`inner_hits`) | Excellent (immutable children) | Good (per-parent block; fine at <few dozen chunks) | **Recommended default (document-centric)** |
+| 2 | Flat (B) | Good (filters per chunk) | Weak (dup metadata; extra first-chunk query) | Good (chunk-only) | Good | Good | Excellent | Alternative paradigm (chunk-centric); evaluate |
 | 3 | Separate indices (C) | Partial (two queries) | Manual join | No (multi round-trip) | No | Excellent | Excellent | Niche multi-step only |
 | 4 | `join` field (D) | Poor (slow has_child) | OK | No (doesn't compose with knn/RRF) | Limited | OK (independent child updates we don't need) | Poor (single-shard constraint) | Rejected |
 
-**Decision:** Adopt **nested objects (A)** as the primary design; keep **flat (B)** documented for
-chunk-centric experiments and as the explicit R11 parity baseline.
+**Decision:** Start with **nested objects (A)** as the recommended default, because of its
+metadata/filtering/grouping/de-duplication benefits and single-query parent-pre-filtered hybrid
+search. Treat **flat (B)** as a first-class alternative paradigm whose native chunk-level ranking may
+prove better for this RAG. This is an evaluation question, not a verdict of inferiority — both are
+legitimate, and the document-centric vs chunk-centric choice will be settled empirically.
 
 ---
 
@@ -556,7 +547,99 @@ This mirrors production's default RRF (`03-...md` §3.1) but over the nested str
 combination with `minmax`/`l2_norm` normalization is preferred over reciprocal-rank fusion (e.g.
 "weight kNN 5× BM25").
 
-### 7.5 Reranking roadmap (R7 future)
+### 7.5 Ranking semantics and chunk-level results
+
+Because chunk strategies (§7.1–§7.2, §7.4) run over the `nested` `chunks` field, they rank **parent
+documents**; the matching chunks come back under `inner_hits`. This section is the single home for the
+scoring mechanics needed to turn that into a chunk-level ranking.
+
+**`score_mode` (how child scores roll up to the parent).** A [`nested` query](https://www.elastic.co/docs/reference/query-languages/query-dsl/query-dsl-nested-query)
+supports `avg` (default), `max`, `sum`, `min`, and `none`. A nested [`knn` query](https://www.elastic.co/docs/reference/query-languages/query-dsl/query-dsl-knn-query)
+supports **only `score_mode: max`** — the document is scored by its single nearest passage. Use `max`
+for any strategy you intend to flatten to chunks (see completeness below).
+
+**Cross-document chunk comparability.** For a single-signal query, every `inner_hits` chunk `_score`
+comes from the same scoring function, so chunk scores are comparable across documents and a global
+chunk ranking by `_score` is valid. With `number_of_shards: 1` (our design) BM25 IDF (Inverse Document
+Frequency) statistics are global, so chunk scores are directly comparable. The only caveat is
+**multi-shard lexical/BM25**: each shard then computes IDF from its own local stats, so identical text
+can score differently per shard; if the index is ever sharded, query with `dfs_query_then_fetch`
+(DFS, Distributed Frequency Search) to compute global IDF. kNN/cosine carries no corpus statistics and
+is unaffected, so dense scores are always comparable.
+
+> Note — *single-signal* vs *hybrid*: a **single-signal** query ranks with exactly one retrieval
+> signal (lexical BM25, dense kNN, or sparse alone), so every chunk `_score` comes from one scoring
+> function and is directly comparable. A query that combines two or more signals and fuses them
+> (e.g. dense + BM25 via RRF/`linear`) is termed **hybrid** in this report (equivalently
+> *multi-signal*); its per-signal scores live on different scales and are not directly comparable, so
+> a chunk ranking requires explicit fusion — see §7.6. "Hybrid" is preferred here for consistency with
+> §7.4/§7.6; "multi-signal" is its literal structural antonym.
+
+**Client-side flatten (single-signal global chunk ranking).**
+1. Request enough parents (e.g. `k`/`size` = 100, matching today's `results_from_rrf`) and a large
+   enough `inner_hits.size` (at least the largest expected number of relevant chunks in any one
+   document).
+2. Read every chunk from every parent's `inner_hits`; each carries its own `_score`.
+3. Flatten into a single list, sort by `_score`, take the top N (e.g. 25) → "top-N chunks, possibly
+   several per document", the shape qna-service feeds the LLM today.
+
+**Completeness.** With `score_mode: max` the flatten is provably complete: any chunk in the global
+top-N lives in a document whose max ≥ that chunk, and there are at most N such documents, so the
+top-`k` documents by max (with `k ≥ N`) contain every document holding a top-N chunk — provided
+`inner_hits.size` is large enough to surface them. The guarantee breaks for `avg`/`sum` (a document
+with one strong chunk can rank low), which is the second reason to use `max` when flattening. Worked
+example: doc A {0.6, 0.45, 0.4} (max 0.6) and doc B {0.55, 0.5, 0.33} (max 0.55) → documents rank
+A > B, but the global top-3 *chunks* are 0.6 (A), 0.55 (B), 0.5 (B), which the flatten recovers as long
+as `inner_hits.size ≥ 2`.
+
+**`inner_hits` limits.** `size` defaults to 3; only *matching* chunks are returned; the global cap
+`index.max_inner_result_window` (default 100) bounds `from + size`.
+
+**`inner_hits` options** — per [Retrieve inner hits](https://www.elastic.co/docs/reference/elasticsearch/rest-apis/retrieve-inner-hits#inner-hits-options):
+- `from` — offset of the first chunk to fetch per `inner_hits`.
+- `size` — maximum chunks returned per `inner_hits` (default 3).
+- `sort` — how chunks are sorted per `inner_hits` (default: by `_score`).
+- `name` — the key for this inner-hit set in the response (default: the nested path); give each a
+  unique name when multiple inner_hits are present.
+
+Inner hits also support per-document features: highlighting, explain, search fields, source filtering,
+script fields, doc value fields, versions, and sequence/primary numbers. Performance tip: for nested
+inner hits, disabling `_source` and reading `docvalue_fields` instead avoids the relatively expensive
+per-hit source extraction.
+
+Reranking (§7.7) consumes whatever this stage emits — documents, or the flattened chunks above — so it
+is out of scope here.
+
+### 7.6 Hybrid global chunk ranking: two approaches
+
+A hybrid (RRF/`linear`) query fuses at the **document** level; there is no native fused per-chunk
+score. To obtain a global *chunk* ranking under hybrid, use one of two approaches.
+
+**Approach A — single fused call with propagated `inner_hits`.** Give each sub-retriever's nested query
+a uniquely-named `inner_hits`; the compound retriever propagates them, computed after fusion on the
+final top documents ([RRF inner hits](https://www.elastic.co/docs/reference/elasticsearch/rest-apis/reciprocal-rank-fusion);
+[retrievers examples](https://www.elastic.co/docs/reference/elasticsearch/rest-apis/retrievers/retrievers-examples)).
+The client then reads both named sets (one per signal) and fuses per chunk.
+- Properties: one round-trip; reuses ES's document fusion; returns document grouping for free.
+- Limits / trade-offs: a chunk carries **up to two** scores — it appears in a signal's set only if its
+  document made the top set *and* the chunk was within that signal's `inner_hits.size`; fuse on
+  **ranks** for RRF (BM25 and cosine scales differ) or on min-max-normalized scores for `linear`; the
+  chunk candidate pool is bounded by `rank_window_size` and each signal's `inner_hits.size`.
+
+**Approach B — two single-signal queries + client-side RRF of chunk rankings.** Issue one nested `knn`
+query and one nested BM25 query, each with `inner_hits`; flatten each to a per-signal chunk ranking
+(comparable within a signal, §7.5), then RRF the two **chunk** rankings client-side.
+- Properties: full control over per-signal candidate depth; a clean, well-defined global fused chunk
+  ranking; no dependence on the post-fusion top-document set.
+- Trade-offs: two round-trips; it is a concrete instance of the §9 multi-step pattern.
+
+**Relation to the current approach.** Today's flat RRF ranks chunks natively in a single query. Both A
+and B reproduce a chunk-level fused ranking on the document-centric index with the trade-offs above:
+pick **A** for one-call, document-grouped hybrid retrieval; pick **B** for an exact global fused chunk
+ranking. Neither makes the document-centric index inferior — they are the documented options for
+recovering chunk-level hybrid ranking on top of nested's grouping and parent pre-filters.
+
+### 7.7 Reranking roadmap (R7 future)
 
 | Method | ES 9.2 mechanism | Fields needed | Status |
 |---|---|---|---|
@@ -565,7 +648,7 @@ combination with `minmax`/`l2_norm` normalization is preferred over reciprocal-r
 | Late-interaction (ColBERT-style) | `rank_vectors` field + `maxSimDotProduct` script in a `rescore`/`script_score` second phase. | optional `chunks.late_interaction` (`rank_vectors`) | Experimental in 9.2; reserve field if pursuing. |
 | LLM-based rerank | Application/agent-side over returned chunks. | returned `chunks.text` | Available now. |
 
-### 7.6 Coverage matrix — proof of parity-or-better (R11)
+### 7.8 Coverage matrix — proof of parity-or-better (R11)
 
 | Capability | Current index | New nested index | Parity? |
 |---|---|---|---|
@@ -580,7 +663,8 @@ combination with `minmax`/`l2_norm` normalization is preferred over reciprocal-r
 | Subset scoping | `subsetIds` | `subset_ids` | = |
 | Date range filter | `metadata.primaryDateTime` | `primary_date_time` | = |
 | Email participant filter | `metadata.email*` | `email_from/to/cc/bcc` | = |
-| Global chunk-level ranking (top-N chunks) | native (chunks are documents) | via `inner_hits` + client-side flatten/re-rank (§3.1.1); native in flat Pattern B | = (flat) / ≈ via flatten (nested) |
+| Global chunk-level ranking (single-signal) | native (chunks are documents) | via `inner_hits` + client-side flatten, provably complete with `score_mode: max` (§7.5) | = (flatten) |
+| Global chunk-level ranking (hybrid RRF/linear) | native (chunks are documents) | client-side chunk fusion — Approach A or B (§7.6) | = (client fusion) |
 | Doc grouping | `documentId` + collapse + separate first-chunk | native (one doc + `inner_hits`) | ≥ (simpler) |
 | 5 MB exclusion | ADLS file size at ingest | `byte_size` ingest + query-time | ≥ (also query-time) |
 | Chunk concatenation (overlap-dedup) | not available | `leading_overlap_chars` + retrieval merge (optional ES-side script) | + new |
@@ -635,11 +719,12 @@ for chunk in series[1:]:
 
 **Fact-based analysis:**
 - **ES|QL:** not possible. Nested fields are unsupported in ES|QL and are not returned at all, so
-  ES|QL cannot iterate chunks to concatenate them.
+  ES|QL cannot iterate chunks to concatenate them ([ES|QL limitations](https://www.elastic.co/docs/reference/query-languages/esql/limitations)).
 - **`script_fields` (Painless):** partially possible. A search-time script can read
   `params._source.chunks`, sort by `chunk_index`, and concatenate `text` while stripping
   `leading_overlap_chars`. This works only for the **“all chunks of the document”** case and requires
-  loading/parsing `_source` (documented by Elastic as **very slow** per hit).
+  loading/parsing `_source` (documented by Elastic as **very slow** per hit —
+  [retrieve selected fields](https://www.elastic.co/docs/reference/elasticsearch/rest-apis/retrieve-selected-fields)).
 - **Arbitrary contiguous runs (e.g., only the inner_hits matched by a query):** not supported out of
   the box. ES does not know which run to merge — that comes from `inner_hits` — and static script
   parameters cannot express per-document dynamic runs in a single query.
@@ -669,9 +754,10 @@ The same index supports both interaction styles with no remapping:
 - *Denormalized chunks-with-metadata:* the client flattens parent metadata onto each returned chunk
   before handing to the LLM. This is a response-assembly choice, not an index change.
 
-**Flat fallback (Pattern B):** when an experiment needs a **global chunk ranking** (top-k individual
-chunks across the whole corpus regardless of parent), use a flat per-chunk index and `collapse` on
-`document_artifact_id` to group. Documented so both centric models are available.
+**Chunk-centric alternative (Pattern B):** when an experiment wants a **native global chunk ranking**
+(top-k individual chunks across the whole corpus regardless of parent) without the client-side flatten
+of §7.6, use the flat per-chunk index and `collapse` on `document_artifact_id` to group. Both paradigms
+are available; the choice is an evaluation question (§3.1.1), not a fallback.
 
 ---
 
@@ -717,10 +803,19 @@ These are intentionally left open; they do not block the structural design:
 9. **ES-side full-document reconstruction.** Whether to provide a `script_fields` helper that
    concatenates all chunks server-side (uses `_source`, slow) vs always concatenating in the
    retrieval module (recommended default).
+10. **Default hybrid chunk-fusion path.** Approach A (single fused call + propagated `inner_hits`) vs
+    Approach B (two single-signal queries + client-side RRF of chunk rankings) from §7.6 — to settle
+    during retrieval-module work.
+11. **Retrieval paradigm.** Document-centric (nested) vs chunk-centric (flat) is the recommended
+    default vs the alternative; the final choice for this RAG is an evaluation outcome (§3.1.1), not a
+    structural decision blocked here.
 
-Settled decisions (recorded for traceability): nested objects as primary pattern; flat as fallback;
-first chunk = `chunks[chunk_index == 0]` with no denormalized copy; `byte_size = len(text.encode("utf-8"))`
-with a 5,242,880-byte threshold; include `token_count` and `chunk_count`; R14 satisfied via
+Settled decisions (recorded for traceability): nested objects (document-centric) as the recommended
+default, with flat (chunk-centric) retained as a first-class alternative to be chosen by evaluation
+(not a fallback); a chunk-level ranking on the nested index is obtained via the client-side flatten
+(single-signal, §7.5) and via Approach A or B for hybrid (§7.6), both accepted; first chunk =
+`chunks[chunk_index == 0]` with no denormalized copy; `byte_size = len(text.encode("utf-8"))` with a
+5,242,880-byte threshold; include `token_count` and `chunk_count`; R14 satisfied via
 `leading_overlap_chars` + retrieval-side concatenation.
 
 ---
@@ -742,6 +837,10 @@ with a 5,242,880-byte threshold; include `token_count` and `chunk_count`; R14 sa
 **Elasticsearch 9.2 documentation (consulted):**
 - kNN search — nested kNN, `inner_hits`, mixed top-level + nested pre-filters (GA 9.2): https://www.elastic.co/docs/solutions/search/vector/knn
 - `knn` query (inside `nested`, `score_mode=max`): https://www.elastic.co/docs/reference/query-languages/query-dsl/query-dsl-knn-query
+- `nested` query (`score_mode` options): https://www.elastic.co/docs/reference/query-languages/query-dsl/query-dsl-nested-query
+- Retrieve inner hits (`inner_hits` options, limits, features): https://www.elastic.co/docs/reference/elasticsearch/rest-apis/retrieve-inner-hits
+- Reciprocal rank fusion (inner hits in RRF): https://www.elastic.co/docs/reference/elasticsearch/rest-apis/reciprocal-rank-fusion
+- Retrievers examples (computing inner hits from sub-retrievers): https://www.elastic.co/docs/reference/elasticsearch/rest-apis/retrievers/retrievers-examples
 - `dense_vector` mapping (bbq_hnsw / bbq_disk / int8_hnsw, `_source` exclusion default): https://www.elastic.co/docs/reference/elasticsearch/mapping-reference/dense-vector.md
 - Better Binary Quantization & DiskBBQ (`bbq_disk`, 9.2): https://www.elastic.co/docs/reference/elasticsearch/mapping-reference/bbq
 - `sparse_vector` field & query (ELSER): https://www.elastic.co/docs/reference/query-languages/query-dsl/query-dsl-sparse-vector-query
