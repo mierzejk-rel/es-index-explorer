@@ -79,13 +79,6 @@ The `es-index-explorer` reader produces `RelativityDocument`
 - **`title`** — kept. It exists in the current ES mapping and in qna-service's BM25 `multi_match`
   field list, although it is **never populated today** (`01-air-assist-elasticsearch-index.md` §4.1,
   §8). Its RelativityOne source field is not yet read by `RelativityDocument` (see §10).
-- **`author` / authorship** — **out of scope.** A codebase audit found no document-author field
-  anywhere relevant: not in `embedding-service` (ingestion or base mapping), not in the metadata
-  registry, not in `RelativityDocument`, not in qna-service document/search models, and not in the
-  agent's tool definitions/schemas. The only `Author` in the code is the conversation
-  `Message.Author` (chat sender role) in qna-service, which is unrelated to document authorship. It
-  was an illustrative example and is removed to avoid scope creep. It can be added later as an
-  optional parent `keyword` if a Relativity source field is identified.
 - **`metadata.*` dynamic fields** — the production index supports admin-configured dynamic metadata
   under a `metadata` object (`01-...index.md` §4.2). For our experimental index we promote the
   *known* metadata (emails, date, topic, summary, title) to first-class typed parent fields. An
@@ -619,7 +612,7 @@ These are intentionally left open; they do not block the structural design:
 
 Settled decisions (recorded for traceability): nested objects as primary pattern; flat as fallback;
 first chunk = `chunks[chunk_index == 0]` with no denormalized copy; `byte_size = len(text.encode("utf-8"))`
-with a 5,242,880-byte threshold; include `token_count` and `chunk_count`; `author` out of scope.
+with a 5,242,880-byte threshold; include `token_count` and `chunk_count`.
 
 ---
 
