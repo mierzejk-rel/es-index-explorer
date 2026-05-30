@@ -41,7 +41,7 @@ The design is evaluated against these explicit requirements:
 | R9 | Be ready to return either separate document/chunk objects (joined agent-side) or denormalized chunks-with-metadata. | User |
 | R10 | Decide whether the first chunk is a parent field or a child element; avoid redundant data. | User |
 | R11 | Not inferior to the current index: every field/search capability present today must be available here, plus more. | User |
-| R12 | Derived field `byte_size` to exclude documents (and their chunks) whose content exceeds 5 MB, computed as faithfully as possible to today's behavior. | User |
+| R12 | Derived field `byte_size` enabling an **optional query-time** filter on documents (and their chunks) whose content exceeds 5 MB (size computed faithfully to today's behavior). Applied at query time, not as an ingest-time exclusion — every document is indexed. | User |
 | R13 | Index-setup code must set all important parameters explicitly — no reliance on cluster-template defaults (unlike today, where vector params come from an external template). | User |
 | R14 | Retrieval must be able to concatenate a contiguous series of sibling chunks into one larger chunk, de-duplicating the dynamic per-boundary overlap so the shared text appears once (not naive `str + str`). | User |
 
@@ -117,7 +117,7 @@ metadata is stored once at the top level.
 - **Lifecycle fit (R4, R5).** Nested's main cost — reindexing the whole parent when any child
   changes — is irrelevant here: children are immutable and parents rarely change. With <10 (max a
   few dozen) children, nested stays well within healthy limits (`index.mapping.nested_objects.limit`
-  default 10,000).
+  set to 25,000; the Elasticsearch default is 10,000).
 - **Deletion/filtering semantics (R12).** Excluding a parent (e.g. `byte_size > 5MB`) excludes all
   its chunks automatically — they are the same document.
 
@@ -224,7 +224,7 @@ PUT as-air-assist-<workspace>-nested
       "number_of_replicas": 1,
       "refresh_interval": "1s",
       "mapping": {
-        "nested_objects": { "limit": 10000 },
+        "nested_objects": { "limit": 25000 },
         "total_fields": { "limit": 2000 }
       }
     }
@@ -294,7 +294,7 @@ PUT as-air-assist-<workspace>-nested
 | `topic` | `text` | BM25 full-text only (LLM-generated sentence, not categorical → no keyword sub-field). | BM25 (R7 lexical-on-topic). |
 | `primary_date_time` | `date` | Range queries. | Date range filter (parity with `metadata.primaryDateTime`). |
 | `email_from/to/cc/bcc` | `keyword` (multi-valued) | Exact + wildcard per element. | Email participant filters (parity with `metadata.email*`). |
-| `byte_size` | `long` | Byte count. | 5 MB include/exclude (R12; §6). |
+| `byte_size` | `long` | Byte count. | Optional query-time 5 MB filter (R12; §6). |
 | `token_count` | `integer` | Token count of full doc. | Analytics, filtering, cost estimation (§6). |
 | `char_count` | `integer` | Character count of full doc (`len(extracted_text)`, Unicode code points). | Encoding- and tokenizer-independent length for filtering/analytics (§6). |
 | `chunk_count` | `integer` | Number of chunks. | Cross-index filter/sort/agg convenience (§6). |
@@ -393,10 +393,11 @@ inside the document, as a normal chunk.
 
 ## 6. Derived Parent-Level Fields
 
-### 6.1 `byte_size` — the 5 MB content filter (R12)
+### 6.1 `byte_size` — optional query-time size filter (R12)
 
-**Goal:** replicate production's `TooLarge` exclusion as closely as possible. That filter keys off the
-**raw ADLS file byte size** (`FileSize > 5,242,880` bytes — `02-...md` §2.2, §8), *not* the per-chunk
+**Goal:** reproduce production's `TooLarge` size *measure* faithfully, but apply it as an **optional,
+query-time** filter rather than an ingest-time exclusion. Production keys its filter off the **raw ADLS
+file byte size** (`FileSize > 5,242,880` bytes — `02-...md` §2.2, §8), *not* the per-chunk
 `chunkSize = UTF8.GetByteCount(chunk) * 2` statistic (which has no retrieval role and over-estimates
 non-ASCII by 2–3×).
 
@@ -405,7 +406,8 @@ reproduction of the raw file size is the **actual UTF-8 byte length** of the tex
 
 ```python
 byte_size = len(extracted_text.encode("utf-8"))
-EXCLUDE if byte_size > 5_242_880   # 5 * 1024 * 1024
+# stored on every document; the 5 MB threshold (5_242_880 = 5 * 1024 * 1024) is applied
+# optionally at query time, never to exclude at ingest
 ```
 
 - **Why UTF-8 actual:** text files on ADLS are, by the .NET default and common practice, UTF-8;
@@ -420,11 +422,17 @@ EXCLUDE if byte_size > 5_242_880   # 5 * 1024 * 1024
   (~2× for ASCII); UTF-8-actual remains the best approximation obtainable from text alone. BOM and
   encoding deltas are negligible against a 5 MB threshold.
 
-**Enforcement is two-layer:**
-1. **Ingest-time:** skip oversized documents entirely (they and their chunks never enter the index).
-2. **Query-time (defensive):** every retrieval may add `"range": { "byte_size": { "lte": 5242880 } }`
-   so even if an oversized document slipped in, it (and its nested chunks) is excluded. Because chunks
-   are nested in the parent, excluding the parent excludes its chunks automatically.
+**Enforcement — optional, query-time only:** unlike production (which drops >5 MB documents at ingest
+as `TooLarge`), this index **stores every document** and applies the 5 MB rule only when a query opts
+in, by adding `"range": { "byte_size": { "lte": 5242880 } }`. Because chunks are nested in the parent,
+filtering out the parent removes its chunks automatically. Indexing everything lets us test whether
+intentionally skipping large documents costs retrieval/eval parity, and the filter can be toggled (or
+re-thresholded) per query.
+
+**Implicit size ceiling:** indexing is still bounded by the maximum permitted number of nested chunks
+per document (`index.mapping.nested_objects.limit`, §3.1) — a document that produces more chunks than
+the limit is rejected in full and is absent from the index. That cap is effectively a *derived* upper
+bound on document size, independent of (and not toggleable like) the optional `byte_size` filter.
 
 ### 6.2 `token_count` — full-document tokens (recommended)
 
@@ -681,7 +689,7 @@ recovering chunk-level hybrid ranking on top of nested's grouping and parent pre
 | Global chunk-level ranking (single-signal) | native (chunks are documents) | via `inner_hits` + client-side flatten, provably complete with `score_mode: max` (§7.5) | = (flatten) |
 | Global chunk-level ranking (hybrid RRF/linear) | native (chunks are documents) | client-side chunk fusion — Approach A or B (§7.6) | = (client fusion) |
 | Doc grouping | `documentId` + collapse + separate first-chunk | native (one doc + `inner_hits`) | ≥ (simpler) |
-| 5 MB exclusion | ADLS file size at ingest | `byte_size` ingest + query-time | ≥ (also query-time) |
+| 5 MB size filter | ADLS file size, mandatory at ingest | `byte_size`, optional query-time filter (index everything) | reframed (opt-in) |
 | Chunk concatenation (overlap-dedup) | not available | `leading_overlap_chars` + retrieval merge (optional ES-side script) | + new |
 
 No current capability is lost; several are added.
@@ -830,7 +838,8 @@ default, with flat (chunk-centric) retained as a first-class alternative to be c
 (not a fallback); a chunk-level ranking on the nested index is obtained via the client-side flatten
 (single-signal, §7.5) and via Approach A or B for hybrid (§7.6), both accepted; first chunk =
 `chunks[chunk_index == 0]` with no denormalized copy; `byte_size = len(text.encode("utf-8"))` with a
-5,242,880-byte threshold; include `token_count`, `char_count` (doc-level, `len(str)` code points), and
+5,242,880-byte threshold, applied as an optional query-time filter (not an ingest-time exclusion —
+every document is indexed); include `token_count`, `char_count` (doc-level, `len(str)` code points), and
 `chunk_count`; R14 satisfied via
 `leading_overlap_chars` + retrieval-side concatenation.
 
