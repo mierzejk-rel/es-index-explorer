@@ -70,7 +70,7 @@ The `es-index-explorer` reader produces `RelativityDocument`
 ### 2.2 Parent vs child mapping of these fields
 
 - **Parent (document)** carries all of the above *except* `extracted_text`, plus derived metrics
-  (§6): `byte_size`, `token_count`, `chunk_count`, and the multi-tenancy `subset_ids`.
+  (§6): `byte_size`, `token_count`, `char_count`, `chunk_count`, and the multi-tenancy `subset_ids`.
 - **Child (chunk)** carries only what is derived from `extracted_text`: `chunk_index`, `text`,
   `embedding`, `token_count`, `leading_overlap_chars`. Per R6, the chunk schema is intentionally
   agnostic to *how* the text was split.
@@ -248,6 +248,7 @@ PUT as-air-assist-<workspace>-nested
 
       "byte_size":   { "type": "long" },
       "token_count": { "type": "integer" },
+      "char_count":  { "type": "integer" },
       "chunk_count": { "type": "integer" },
 
       "subset_ids": { "type": "keyword" },
@@ -295,6 +296,7 @@ PUT as-air-assist-<workspace>-nested
 | `email_from/to/cc/bcc` | `keyword` (multi-valued) | Exact + wildcard per element. | Email participant filters (parity with `metadata.email*`). |
 | `byte_size` | `long` | Byte count. | 5 MB include/exclude (R12; §6). |
 | `token_count` | `integer` | Token count of full doc. | Analytics, filtering, cost estimation (§6). |
+| `char_count` | `integer` | Character count of full doc (`len(extracted_text)`, Unicode code points). | Encoding- and tokenizer-independent length for filtering/analytics (§6). |
 | `chunk_count` | `integer` | Number of chunks. | Cross-index filter/sort/agg convenience (§6). |
 | `subset_ids` | `keyword` (multi-valued) | Multi-tenancy scoping. | `term` filter parity with production's always-on subset filter (`03-...md` §4.2). |
 | `title_sparse` / `summary_sparse` / `topic_sparse` | `sparse_vector` | Stores ELSER token-weight pairs. | Sparse (ELSER) retrieval on parent metadata (R7 sparse). |
@@ -437,6 +439,19 @@ A single integer derived at index time. For a single returned document it is als
 `len(_source.chunks)`, but a stored field enables efficient **cross-index** filter/sort/aggregation
 (e.g. "documents with 0 chunks", "documents with > N chunks") without nested aggregations. It is a
 scalar, not duplicated text, so it does not constitute problematic redundancy. **Include it.**
+
+### 6.4 `char_count` — full-document characters (optional)
+
+Character count of the **entire** `extracted_text`, defined as **`len(extracted_text)`** — i.e.
+Python `str` length, which counts Unicode code points (not bytes, not UTF-16 code units, not grapheme
+clusters). Like `token_count` it is **not derivable from the chunks** (overlap double-counts boundary
+characters) and **not retrievable for free** from Elasticsearch (the parent stores no full-text field,
+and `_source` scripting would be slow), so it is computed once at ingest — a single tokenizer-free
+integer. It is a *distinct* length lens: it equals `byte_size` only for pure ASCII and diverges for
+multi-byte (non-ASCII) content, and is unrelated to the token scale. Useful as an encoding- and
+tokenizer-independent document length for filtering and analytics. Chunk-level character count is
+deliberately **not** stored: when a chunk is returned its text is already present, so `len(text)` is a
+zero-cost client-side computation.
 
 ---
 
@@ -815,7 +830,8 @@ default, with flat (chunk-centric) retained as a first-class alternative to be c
 (not a fallback); a chunk-level ranking on the nested index is obtained via the client-side flatten
 (single-signal, §7.5) and via Approach A or B for hybrid (§7.6), both accepted; first chunk =
 `chunks[chunk_index == 0]` with no denormalized copy; `byte_size = len(text.encode("utf-8"))` with a
-5,242,880-byte threshold; include `token_count` and `chunk_count`; R14 satisfied via
+5,242,880-byte threshold; include `token_count`, `char_count` (doc-level, `len(str)` code points), and
+`chunk_count`; R14 satisfied via
 `leading_overlap_chars` + retrieval-side concatenation.
 
 ---
