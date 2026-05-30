@@ -20,7 +20,7 @@ to current behavior cite `01-air-assist-elasticsearch-index.md` (current mapping
 
 **Scope:** Index *structure and configuration* only. Chunking algorithm, ingestion batching, and the
 client/setup code are out of scope here and will be designed separately. Decisions deliberately left
-open for implementation time are collected in §10.
+open for implementation time are collected in §11.
 
 ---
 
@@ -43,6 +43,7 @@ The design is evaluated against these explicit requirements:
 | R11 | Not inferior to the current index: every field/search capability present today must be available here, plus more. | User |
 | R12 | Derived field `byte_size` to exclude documents (and their chunks) whose content exceeds 5 MB, computed as faithfully as possible to today's behavior. | User |
 | R13 | Index-setup code must set all important parameters explicitly — no reliance on cluster-template defaults (unlike today, where vector params come from an external template). | User |
+| R14 | Retrieval must be able to concatenate a contiguous series of sibling chunks into one larger chunk, de-duplicating the dynamic per-boundary overlap so the shared text appears once (not naive `str + str`). | User |
 
 ---
 
@@ -71,14 +72,14 @@ The `es-index-explorer` reader produces `RelativityDocument`
 - **Parent (document)** carries all of the above *except* `extracted_text`, plus derived metrics
   (§6): `byte_size`, `token_count`, `chunk_count`, and the multi-tenancy `subset_ids`.
 - **Child (chunk)** carries only what is derived from `extracted_text`: `chunk_index`, `text`,
-  `embedding`, `token_count`. Per R6, the chunk schema is intentionally agnostic to *how* the text
-  was split.
+  `embedding`, `token_count`, `leading_overlap_chars`. Per R6, the chunk schema is intentionally
+  agnostic to *how* the text was split.
 
 ### 2.3 Fields explicitly in/out of scope
 
 - **`title`** — kept. It exists in the current ES mapping and in qna-service's BM25 `multi_match`
   field list, although it is **never populated today** (`01-air-assist-elasticsearch-index.md` §4.1,
-  §8). Its RelativityOne source field is not yet read by `RelativityDocument` (see §10).
+  §8). Its RelativityOne source field is not yet read by `RelativityDocument` (see §11).
 - **`metadata.*` dynamic fields** — the production index supports admin-configured dynamic metadata
   under a `metadata` object (`01-...index.md` §4.2). For our experimental index we promote the
   *known* metadata (emails, date, topic, summary, title) to first-class typed parent fields. An
@@ -124,7 +125,7 @@ metadata is stored once at the top level.
 - Nested kNN/BM25 returns **k top-level documents** (each scored by its best passage via
   `inner_hits`), **not** a global ranking of individual chunks. For document-grouped RAG this is
   exactly what we want; for pure *chunk-centric* global ranking experiments, use the flat fallback
-  (Pattern B) — see §8.
+  (Pattern B) — see §9.
 - Changing one chunk requires reindexing the parent document (acceptable per R4).
 - Each nested chunk is internally a hidden Lucene document; this is invisible to queries but counts
   toward segment doc counts.
@@ -232,6 +233,7 @@ PUT as-air-assist-<workspace>-nested
           "chunk_index": { "type": "integer" },
           "text":        { "type": "text" },
           "token_count": { "type": "integer" },
+          "leading_overlap_chars": { "type": "integer" },
           "embedding": {
             "type": "dense_vector",
             "dims": 384,
@@ -257,7 +259,7 @@ PUT as-air-assist-<workspace>-nested
 |---|---|---|---|
 | `document_artifact_id` | `long` | Relativity ArtifactId; numeric. | Exact filter, security-trim join key, document identity. |
 | `control_number` | `keyword` | Exact, non-tokenized. | Display/citation, exact filter, sort/agg via doc_values. |
-| `title` | `text` + `.kw` keyword | BM25 on text; keyword sub-field for exact/agg. | BM25 (R7 lexical-on-title), exact filter. Unpopulated today (§10). |
+| `title` | `text` + `.kw` keyword | BM25 on text; keyword sub-field for exact/agg. | BM25 (R7 lexical-on-title), exact filter. Unpopulated today (§11). |
 | `summary` | `text` | BM25 full-text. | BM25 (R7 lexical-on-summary). |
 | `topic` | `text` + `.kw` keyword | BM25 + exact/facet. | BM25 (R7 lexical-on-topic), facet. |
 | `primary_date_time` | `date` | Range queries. | Date range filter (parity with `metadata.primaryDateTime`). |
@@ -271,6 +273,7 @@ PUT as-air-assist-<workspace>-nested
 | `chunks.chunk_index` | `integer` | 0-based order. | First-chunk selection (`== 0`), ordering within doc. |
 | `chunks.text` | `text` | BM25 on chunk text. | Lexical chunk retrieval (R7 BM25-on-chunks). |
 | `chunks.token_count` | `integer` | Per-chunk tokens. | Diagnostics; not summable to document tokens (§6). |
+| `chunks.leading_overlap_chars` | `integer` | Leading characters duplicated from previous chunk; chunk 0 = 0. | Tokenizer-free de-duplication for contiguous chunk concatenation (R14). |
 | `chunks.embedding` | `dense_vector` (384, cosine, `bbq_hnsw`) | Dense ANN per chunk. | Dense/kNN chunk retrieval (R7 dense-on-chunks). |
 
 ### 4.2 Parity mapping to the current (flat) index
@@ -286,12 +289,12 @@ Confirms R11 — nothing today is lost:
 | `chunkSize` (UTF-8×2 per chunk) | superseded by `byte_size` (doc-level, §6) + optional `chunks.token_count` | The per-chunk byte stat had no retrieval role; replaced by a faithful doc-level size. |
 | `controlNumber` | `control_number` | Same. |
 | `subsetIds` | `subset_ids` | Same multi-tenancy role. |
-| `title` | `title` | Same (still optional/unpopulated; §10). |
+| `title` | `title` | Same (still optional/unpopulated; §11). |
 | `documentModifyTime` | (optional add) | Not in `RelativityDocument` today; add as parent `date` if a source is wired. |
 | `createdAt` | dropped | Never populated in production (`01-...md` §8). Add only if needed. |
 | `metadata.primaryDateTime` | `primary_date_time` | Promoted to first-class typed field. |
 | `metadata.emailFrom/To/Cc/Bcc` | `email_from/to/cc/bcc` | Promoted to first-class. |
-| `metadata.documentName` | `title` or optional `document_name` | Map to whichever R1 field is chosen (§10). |
+| `metadata.documentName` | `title` or optional `document_name` | Map to whichever R1 field is chosen (§11). |
 
 ### 4.3 Vector index choice for `chunks.embedding`
 
@@ -325,7 +328,7 @@ populate them:
 At query time, the `sparse_vector` query expands the query text with the same ELSER `inference_id`
 (ELSER may be served via a standard ML deployment or, in 9.2, via **ELSER on EIS**). The choice of
 deployment does not change the mapping. (If desired later, these three could instead be modeled as
-`semantic_text` fields so ES manages inference end-to-end — see §10.)
+`semantic_text` fields so ES manages inference end-to-end — see §11.)
 
 ---
 
@@ -480,7 +483,7 @@ choice — §3.1). Returns k documents, each with its best passages via `inner_h
 }
 ```
 Repeat / combine across `title_sparse`, `summary_sparse`, `topic_sparse`. (A per-chunk
-`chunks.text_sparse` can be added later for sparse-on-chunks — §10.)
+`chunks.text_sparse` can be added later for sparse-on-chunks — §11.)
 
 ### 7.4 Hybrid — RRF and linear retrievers
 
@@ -541,12 +544,74 @@ combination with `minmax`/`l2_norm` normalization is preferred over reciprocal-r
 | Email participant filter | `metadata.email*` | `email_from/to/cc/bcc` | = |
 | Doc grouping | `documentId` + collapse + separate first-chunk | native (one doc + `inner_hits`) | ≥ (simpler) |
 | 5 MB exclusion | ADLS file size at ingest | `byte_size` ingest + query-time | ≥ (also query-time) |
+| Chunk concatenation (overlap-dedup) | not available | `leading_overlap_chars` + retrieval merge (optional ES-side script) | + new |
 
 No current capability is lost; several are added.
 
 ---
 
-## 8. Read / Return Patterns (R8, R9)
+## 8. Chunk Concatenation (Contiguous-Series Merging) — R14
+
+**Requirement recap:** retrieval must be able to concatenate a contiguous series of sibling chunks
+into one larger chunk while **de-duplicating overlap** so the shared text appears once, not twice.
+Overlap can be fixed or dynamic (token/character count, or semantic/structure-aware), and the
+retrieval layer should **not** depend on a tokenizer.
+
+### 8.1 Field materialization: `chunks.leading_overlap_chars`
+
+We store a chunk-local, tokenizer-free overlap value:
+
+```json
+"leading_overlap_chars": { "type": "integer" }
+```
+
+**Definition:** the number of **leading characters** of this chunk that are identical to the
+**trailing characters of the previous sibling** (`chunk_index - 1`). Chunk 0 = `0`.
+
+This value is computed by the chunker at ingest time. It works for any overlap policy (fixed or
+semantic) as long as the overlap is a shared substring between adjacent chunks. If a chunking
+strategy ever produces non-identical overlaps, it must set this value to `0` (no dedup), which is
+safe and explicit.
+
+### 8.2 Concatenation algorithm (retrieval-side, tokenizer-free)
+
+Given a **contiguous** series of chunks (no gaps in `chunk_index`), ascending by `chunk_index`:
+
+```python
+text = series[0].text
+for chunk in series[1:]:
+    text += chunk.text[chunk.leading_overlap_chars:]
+```
+
+**Rules:**
+- Only **consecutive** `chunk_index` values are merged. Any gap breaks the series into a new
+  concatenation segment.
+- The first chunk of the series is kept whole.
+- The caller assigns a **concatenated chunk id** (e.g., `"3-6"` or the explicit list `[3,4,5,6]`).
+  This is an output-layer concern; no index changes are needed for it.
+
+### 8.3 Can Elasticsearch do this concatenation?
+
+**Short answer:** not out of the box for arbitrary runs; best handled in the retrieval module.
+
+**Fact-based analysis:**
+- **ES|QL:** not possible. Nested fields are unsupported in ES|QL and are not returned at all, so
+  ES|QL cannot iterate chunks to concatenate them.
+- **`script_fields` (Painless):** partially possible. A search-time script can read
+  `params._source.chunks`, sort by `chunk_index`, and concatenate `text` while stripping
+  `leading_overlap_chars`. This works only for the **“all chunks of the document”** case and requires
+  loading/parsing `_source` (documented by Elastic as **very slow** per hit).
+- **Arbitrary contiguous runs (e.g., only the inner_hits matched by a query):** not supported out of
+  the box. ES does not know which run to merge — that comes from `inner_hits` — and static script
+  parameters cannot express per-document dynamic runs in a single query.
+
+**Recommendation:** implement concatenation in the retrieval layer (simple, tokenizer-free, handles
+dynamic overlap and gaps). Optionally add a Painless `script_fields` helper for full-document
+reconstruction, with the `_source` performance caveat.
+
+---
+
+## 9. Read / Return Patterns (R8, R9)
 
 The same index supports both interaction styles with no remapping:
 
@@ -571,23 +636,24 @@ chunks across the whole corpus regardless of parent), use a flat per-chunk index
 
 ---
 
-## 9. Chunking-Agnostic Guarantees (R6)
+## 10. Chunking-Agnostic Guarantees (R6)
 
-The chunk schema stores only `chunk_index`, `text`, `token_count`, `embedding`. None of these assume a
-particular splitting method. Therefore all of the following work **without any index change**:
+The chunk schema stores only `chunk_index`, `text`, `token_count`, `leading_overlap_chars`, and
+`embedding`. None of these assume a particular splitting method. Therefore all of the following work
+**without any index change**:
 - fixed token window **with** overlap (current production: 500 tokens / 100 overlap — `02-...md` §3),
 - fixed token window **without** overlap,
 - sentence-/separator-boundary or semantic chunking, with or without overlap.
 
-Only the *values* of `chunk_index`/`text`/`token_count`/`embedding` differ between strategies. The
-sole field that must not be derived by summing chunks is the document-level `token_count` (§6.2),
-precisely because overlap makes chunk token counts non-additive. (A future per-chunk
-`chunks.text_sparse` or `chunks.late_interaction` can be added later without disturbing existing data —
-§10.)
+Only the *values* of `chunk_index`/`text`/`token_count`/`leading_overlap_chars`/`embedding` differ
+between strategies. The sole field that must not be derived by summing chunks is the document-level
+`token_count` (§6.2), precisely because overlap makes chunk token counts non-additive. (A future
+per-chunk `chunks.text_sparse` or `chunks.late_interaction` can be added later without disturbing
+existing data — §11.)
 
 ---
 
-## 10. Open Decisions (to finalize at implementation time)
+## 11. Open Decisions (to finalize at implementation time)
 
 These are intentionally left open; they do not block the structural design:
 
@@ -609,14 +675,18 @@ These are intentionally left open; they do not block the structural design:
    pipeline. Trade-off: less control vs less plumbing.
 8. **`documentModifyTime`.** Add a parent `date` if a Relativity source is wired (present in the
    current mapping, absent from `RelativityDocument`).
+9. **ES-side full-document reconstruction.** Whether to provide a `script_fields` helper that
+   concatenates all chunks server-side (uses `_source`, slow) vs always concatenating in the
+   retrieval module (recommended default).
 
 Settled decisions (recorded for traceability): nested objects as primary pattern; flat as fallback;
 first chunk = `chunks[chunk_index == 0]` with no denormalized copy; `byte_size = len(text.encode("utf-8"))`
-with a 5,242,880-byte threshold; include `token_count` and `chunk_count`.
+with a 5,242,880-byte threshold; include `token_count` and `chunk_count`; R14 satisfied via
+`leading_overlap_chars` + retrieval-side concatenation.
 
 ---
 
-## 11. Source References
+## 12. Source References
 
 **This folder:**
 - `00-...qna-subsetting.report.md` — original subsetting context.
@@ -642,3 +712,6 @@ with a 5,242,880-byte threshold; include `token_count` and `chunk_count`.
 - `rank_vectors` / late-interaction MaxSim: https://github.com/elastic/elasticsearch/pull/118804 and https://www.elastic.co/search-labs/blog/late-interaction-model-colpali-scale
 - `join` field type & limitations: https://www.elastic.co/docs/reference/elasticsearch/mapping-reference/parent-join
 - What's new in Elastic 9.2 (DiskBBQ, ELSER on EIS): https://www.elastic.co/blog/whats-new-elastic-9-2-0
+- ES|QL limitations (nested unsupported): https://www.elastic.co/docs/reference/query-languages/esql/limitations
+- Retrieve selected fields / `script_fields` + `_source` performance: https://www.elastic.co/docs/reference/elasticsearch/rest-apis/retrieve-selected-fields
+- Painless field API / scripting: https://www.elastic.co/docs/explore-analyze/scripting/script-fields-api
