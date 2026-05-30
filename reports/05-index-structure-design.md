@@ -122,13 +122,51 @@ metadata is stored once at the top level.
   its chunks automatically — they are the same document.
 
 **Trade-offs / caveats (documented honestly):**
-- Nested kNN/BM25 returns **k top-level documents** (each scored by its best passage via
-  `inner_hits`), **not** a global ranking of individual chunks. For document-grouped RAG this is
-  exactly what we want; for pure *chunk-centric* global ranking experiments, use the flat fallback
-  (Pattern B) — see §9.
+- **Ranking unit changes from chunk to document.** A nested `knn`/`nested` query ranks **parent
+  documents** — `k`/`size` counts documents, each scored by its best passage (`score_mode: max`) —
+  and the matching chunks are returned via `inner_hits`. Chunks remain fully scored and retrievable;
+  what changes is that the top-level result enumerates documents, not chunks. See §3.1.1 for how to
+  reproduce today's global chunk ranking on the nested index.
 - Changing one chunk requires reindexing the parent document (acceptable per R4).
-- Each nested chunk is internally a hidden Lucene document; this is invisible to queries but counts
-  toward segment doc counts.
+- Each nested chunk is stored as its own hidden Lucene document beneath the parent. These child
+  documents are fully searchable (`nested`/`knn` queries) and returnable (`inner_hits`); they are
+  simply **not addressable as standalone top-level hits** — a search returns the parent with its
+  matching chunks attached. They still count toward Lucene's internal `docs.count`, which is relevant
+  for shard sizing and the `nested_objects` limit.
+
+#### 3.1.1 Ranking unit: chunk vs document (and how to keep the current behaviour)
+
+This is the one property where nested and flat genuinely differ, so it is called out explicitly to
+avoid ambiguity.
+
+- **Flat (today):** the chunk *is* the document, so a query produces a **global ranking of chunks**
+  (`size: 100` → up to 100 chunks, possibly several from the same document). qna-service then trims
+  to the top 25 chunks and groups them by document for display (`03-retrieval-strategies.md` §5).
+- **Nested:** a query produces a ranking of **documents**, each scored by its best passage; the
+  matching chunks come back under `inner_hits`. The top-level `size`/`k` counts documents, not chunks.
+
+**Reproducing the current global-chunk-ranking behaviour on the nested index (the documented
+"client-side flatten"):**
+1. Request enough parents (e.g. `k`/`size` = 100, matching today's `results_from_rrf`) and a large
+   enough `inner_hits.size` (at least the largest expected number of relevant chunks in any one
+   document).
+2. Read every chunk from every parent's `inner_hits`; each carries its own `_score`.
+3. Flatten all those chunks into a single list, sort by `_score`, and take the top N (e.g. 25). This
+   yields "top-N chunks, possibly several per document" — the same shape qna-service feeds the LLM
+   today.
+
+**What is preserved vs. what differs:**
+- Preserved: chunks are individually scored, individually retrievable, and never all-or-nothing per
+  document; multiple chunks from one document can appear in the final top-N.
+- Differs: the native candidate pool is "best chunks of the top-k documents" rather than "the top-k
+  chunks globally". With `score_mode: max`, a strongly-matching document still surfaces as a
+  top-ranked parent and exposes its strong chunks via `inner_hits`, so in the common case the two
+  coincide closely — but they are not byte-identical. If exact flat semantics are ever required for a
+  specific experiment, the flat layout (Pattern B) reproduces them natively.
+
+This client-side flatten is a small, well-defined post-processing step. It is the basis for the
+nested-primary approach: it adds chunk-level ranking *on top of* nested's document grouping, parent
+pre-filters, and de-duplicated metadata, rather than removing any existing capability.
 
 ### 3.2 Pattern B — Flat denormalization (current production model; documented fallback)
 
@@ -542,6 +580,7 @@ combination with `minmax`/`l2_norm` normalization is preferred over reciprocal-r
 | Subset scoping | `subsetIds` | `subset_ids` | = |
 | Date range filter | `metadata.primaryDateTime` | `primary_date_time` | = |
 | Email participant filter | `metadata.email*` | `email_from/to/cc/bcc` | = |
+| Global chunk-level ranking (top-N chunks) | native (chunks are documents) | via `inner_hits` + client-side flatten/re-rank (§3.1.1); native in flat Pattern B | = (flat) / ≈ via flatten (nested) |
 | Doc grouping | `documentId` + collapse + separate first-chunk | native (one doc + `inner_hits`) | ≥ (simpler) |
 | 5 MB exclusion | ADLS file size at ingest | `byte_size` ingest + query-time | ≥ (also query-time) |
 | Chunk concatenation (overlap-dedup) | not available | `leading_overlap_chars` + retrieval merge (optional ES-side script) | + new |
