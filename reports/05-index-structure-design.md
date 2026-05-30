@@ -223,6 +223,7 @@ PUT as-air-assist-<workspace>-nested
       "number_of_shards": 1,
       "number_of_replicas": 1,
       "refresh_interval": "1s",
+      "max_inner_result_window": 100,
       "mapping": {
         "nested_objects": { "limit": 25000 },
         "total_fields": { "limit": 2000 }
@@ -282,6 +283,9 @@ PUT as-air-assist-<workspace>-nested
   }
 }
 ```
+
+`max_inner_result_window` is Elasticsearch's default (100), set explicitly per R13; it caps each
+document's `inner_hits` `from + size` — full behavior in §7.5.
 
 ### 4.1 Field-by-field rationale
 
@@ -472,16 +476,19 @@ All query shapes below target ES 9.2 and run against the single nested index. Th
 **On chunk text (nested):**
 ```json
 {
+  "size": 25,                  /* documents (§3.1.1); current chunk-centric solution oversamples to 100 chunks -> security trim -> 25 chunks to LLM (report 03 §5/§10) */
   "query": {
     "nested": {
       "path": "chunks",
       "query": { "match": { "chunks.text": "<query>" } },
       "score_mode": "max",
-      "inner_hits": { "size": 5, "name": "matched_chunks" }
+      "inner_hits": { "size": 25, "from": 0, "name": "matched_chunks" }
     }
   }
 }
 ```
+Top-level `min_score` may be added to drop low-scoring documents. (Parameter values, settable status,
+and defaults-when-omitted are summarized in §7.5.)
 
 **On parent metadata (title/topic/summary):**
 ```json
@@ -495,6 +502,7 @@ These two cover today's `multi_match` on `body`/`title` (`03-...md` §3.2) and e
 
 ```json
 {
+  "size": 25,                  /* final documents returned (§3.1.1) */
   "query": {
     "nested": {
       "path": "chunks",
@@ -502,16 +510,18 @@ These two cover today's `multi_match` on `body`/`title` (`03-...md` §3.2) and e
         "knn": {
           "field": "chunks.embedding",
           "query_vector": [/* 384-dim, multilingual-e5-small, "query:" prefix */],
-          "num_candidates": 250,
+          "k": 100,            /* kNN retrieval depth; current-solution hybrid uses k=100 (report 03 §3.1); security trimming is applied later on merged results, not per-signal */
+          "num_candidates": 250,  /* current-solution value (report 03 §10) */
           "filter": [
             { "term":  { "subset_ids": "<subset>" } },
             { "range": { "byte_size": { "lte": 5242880 } } },
             { "range": { "primary_date_time": { "gte": "2024-01-01" } } }
           ]
+          /* optional: "similarity": <min cosine> to require a per-passage floor */
         }
       },
       "score_mode": "max",
-      "inner_hits": { "size": 3, "name": "matched_chunks" }
+      "inner_hits": { "size": 25, "from": 0, "name": "matched_chunks" }
     }
   }
 }
@@ -542,28 +552,37 @@ Repeat / combine across `title_sparse`, `summary_sparse`, `topic_sparse`. (A per
 **Dense + BM25 on chunks (RRF):**
 ```json
 {
+  "size": 25,                      /* final documents returned (§3.1.1) */
   "retriever": {
     "rrf": {
-      "rank_window_size": 100,
+      "rank_window_size": 100,     /* fusion depth; copied from current solution (report 03 §10) */
       "retrievers": [
         { "standard": { "query": { "nested": {
             "path": "chunks",
             "query": { "match": { "chunks.text": "<query>" } },
             "score_mode": "max",
-            "inner_hits": { "name": "bm25_chunks" }
+            "inner_hits": { "size": 50, "from": 0, "name": "bm25_chunks" }
         } } } },
         { "knn": {
             "field": "chunks.embedding",
             "query_vector": [/* 384-dim */],
-            "k": 100, "num_candidates": 250,
-            "inner_hits": { "name": "knn_chunks" }
+            "k": 100, "num_candidates": 250,   /* copied from current solution (report 03 §3.1/§10) */
+            "inner_hits": { "size": 50, "from": 0, "name": "knn_chunks" }
         } }
       ]
     }
   }
 }
 ```
-This mirrors production's default RRF (`03-...md` §3.1) but over the nested structure.
+This mirrors production's default RRF (`03-...md` §3.1) but over the nested structure. In short, this
+hybrid query returns **up to 25 documents (the top-level `size`), each carrying two separate per-signal
+chunk lists of up to 50** (`bm25_chunks` and `knn_chunks`): each sub-retriever's named `inner_hits` is
+computed after fusion on the final top documents, the two lists can overlap or differ, and
+Elasticsearch returns them as **separate arrays — it does not union/dedup them** (that is the
+client-side fusion of §7.6). This is per-document chunk count, not a document count. The **50 per
+signal is intentionally larger than the 25 used for single-signal** — see the fusion-headroom note in
+§7.6. `min_score` may be added at the search level; `similarity` inside the `knn` sub-retriever.
+Parameter values, settable status, and defaults are summarized in §7.5.
 
 **Sparse (ELSER) + BM25 on parent metadata (RRF or linear):** swap in `standard` retrievers wrapping a
 `sparse_vector` query and a `multi_match`. The **`linear`** retriever is available when weighted
@@ -615,8 +634,19 @@ example: doc A {0.6, 0.45, 0.4} (max 0.6) and doc B {0.55, 0.5, 0.33} (max 0.55)
 A > B, but the global top-3 *chunks* are 0.6 (A), 0.55 (B), 0.5 (B), which the flatten recovers as long
 as `inner_hits.size ≥ 2`.
 
-**`inner_hits` limits.** `size` defaults to 3; only *matching* chunks are returned; the global cap
-`index.max_inner_result_window` (default 100) bounds `from + size`.
+**`inner_hits` limits.** `size` defaults to 3; only *matching* chunks are returned; the cap
+`index.max_inner_result_window` — **set explicitly to 100 in our index** (also the Elasticsearch
+default) — bounds `from + size` per document.
+
+**`max_inner_result_window` and inner_hits paging.** This index sets `index.max_inner_result_window`
+explicitly to **100** (the Elasticsearch default). It caps the **sum** `inner_hits.from +
+inner_hits.size ≤ 100` per document. If `from + size` exceeds 100, Elasticsearch **rejects the search
+request with an error** — the inner-hits analogue of the `max_result_window` error (*"Result window is
+too large, from + size must be less than or equal to [100]"*) — it does **not** silently return
+`100 − from` hits. Like top-level paging, `from` is pagination, not magic skipping: chunks are always
+ranked from the most relevant, and `from` skips that many before returning the next `size`. Our
+examples (`inner_hits.size` ≤ 50, `from = 0`) stay well within the limit; only deep per-document paging
+where `from + size > 100` would hit it (then raise the setting or lower `size`).
 
 **`inner_hits` options** — per [Retrieve inner hits](https://www.elastic.co/docs/reference/elasticsearch/rest-apis/retrieve-inner-hits#inner-hits-options):
 - `from` — offset of the first chunk to fetch per `inner_hits`.
@@ -629,6 +659,31 @@ Inner hits also support per-document features: highlighting, explain, search fie
 script fields, doc value fields, versions, and sequence/primary numbers. Performance tip: for nested
 inner hits, disabling `_source` and reading `docvalue_fields` instead avoids the relatively expensive
 per-hit source extraction.
+
+**Result-count parameters: settable, our values, and defaults when unset.** Every result-count
+parameter below is **explicitly settable by the client**; the listed default applies **only when the
+parameter is omitted**. Our examples set all count/tuning parameters explicitly; the two optional
+thresholds (`similarity`, `min_score`) are deliberately left unset and noted only at their use sites.
+
+| Parameter | Set by | Our value | Default if omitted |
+|---|---|---|---|
+| `size` | client / query-time | 25 (documents, §3.1.1) | 10 |
+| `from` | client / query-time | 0 | 0 |
+| `k` (kNN query/retriever) | client / query-time | 100 | `size` |
+| `num_candidates` (kNN) | client / query-time | 250 | `min(1.5 × k, 10000)` (i.e. `1.5 × size` if `k` omitted); cap 10000 |
+| `rank_window_size` (rrf/linear) | client / query-time | 100 (follows the §7.6 fusion-depth guidance) | 10 for the RRF retriever (linear defaults to `size`); must be ≥ `size` |
+| `inner_hits.size` | client / query-time | 25 (single-signal) / 50 per signal (hybrid, §7.6) | 3; bounded by `max_inner_result_window` |
+| `inner_hits.from` | client / query-time | 0 | 0 |
+| `similarity` (kNN) | client / query-time | unset (intentional) | none / no floor (optional per-passage min-cosine threshold) |
+| `min_score` (search) | client / query-time | unset (intentional) | none (optional document score floor) |
+| `index.max_inner_result_window` | **index setting** (not query-time) | 100, set explicitly | 100 (ES default); bounds `inner_hits` `from + size` |
+
+`k`, `num_candidates`, and `similarity` are all settable on the `knn` query and the `knn` retriever
+(including inside RRF); the "`k` defaults to `size` / `num_candidates` defaults to `1.5 × k`" behavior
+is a **fallback when omitted, not a constraint** — we override it by setting the values. `similarity`
+is a relevance *threshold*, not a count/size knob. This table is the single in-report reference for
+this data; the "client / query-time" vs "index setting" tag preserves the client-vs-Elasticsearch
+distinction.
 
 Reranking (§7.7) consumes whatever this stage emits — documents, or the flattened chunks above — so it
 is out of scope here.
@@ -650,11 +705,29 @@ The client then reads both named sets (one per signal) and fuses per chunk.
   chunk candidate pool is bounded by `rank_window_size` and each signal's `inner_hits.size`.
 
 **Approach B — two single-signal queries + client-side RRF of chunk rankings.** Issue one nested `knn`
-query and one nested BM25 query, each with `inner_hits`; flatten each to a per-signal chunk ranking
-(comparable within a signal, §7.5), then RRF the two **chunk** rankings client-side.
+query and one nested BM25 query, each with `inner_hits.size = 50` per signal (consistent with Approach
+A, not 25); flatten each to a per-signal chunk ranking (comparable within a signal, §7.5), then RRF the
+two **chunk** rankings client-side.
 - Properties: full control over per-signal candidate depth; a clean, well-defined global fused chunk
   ranking; no dependence on the post-fusion top-document set.
 - Trade-offs: two round-trips; it is a concrete instance of the §9 multi-step pattern.
+
+**Why 50 per signal (vs 25 single-signal) — grounded in the `rank_window_size` rationale.** A
+single-signal query's `inner_hits.size = 25` *is* the final target (no fusion). In hybrid (RRF/linear,
+Approach A or B) each signal produces its **own** per-signal list that ranks chunks **differently** and
+overlaps only **partially**, so to assemble a reliable fused top ~25 each signal must contribute a
+**deeper** candidate list than the target. This is the documented Elasticsearch principle for fusion
+depth: `rank_window_size` "determines the size of the individual result sets per query [and] a higher
+value will improve result relevance at the cost of performance[;] the final ranked result set is pruned
+down to the search request's `size`" ([RRF retriever](https://www.elastic.co/docs/reference/elasticsearch/rest-apis/retrievers/rrf-retriever);
+it must be ≥ `size`). We already apply it at the **document** level (`rank_window_size = 100` >
+`size = 25`); `inner_hits.size = 50` > 25 transfers the **same** principle to our client-side **chunk**
+fusion — ES documents the depth knob for *document* fusion via `rank_window_size`, and we mirror it for
+chunks because ES does not fuse chunks for us. Figure corroboration: ES notes that for a kNN leg, if
+`k` < `rank_window_size` only `k` results contribute and if `k` > `rank_window_size` they are truncated
+to it, so we keep `k = 100 = rank_window_size` to fill the fusion window. (This concerns
+union/coverage and differing ranks across the deeper lists — not their expected-to-be-small
+intersection.)
 
 **Relation to the current approach.** Today's flat RRF ranks chunks natively in a single query. Both A
 and B reproduce a chunk-level fused ranking on the document-centric index with the trade-offs above:
@@ -865,6 +938,7 @@ every document is indexed); include `token_count`, `char_count` (doc-level, `len
 - `nested` query (`score_mode` options): https://www.elastic.co/docs/reference/query-languages/query-dsl/query-dsl-nested-query
 - Retrieve inner hits (`inner_hits` options, limits, features): https://www.elastic.co/docs/reference/elasticsearch/rest-apis/retrieve-inner-hits
 - Reciprocal rank fusion (inner hits in RRF): https://www.elastic.co/docs/reference/elasticsearch/rest-apis/reciprocal-rank-fusion
+- RRF retriever (`rank_window_size` fusion-depth guidance): https://www.elastic.co/docs/reference/elasticsearch/rest-apis/retrievers/rrf-retriever
 - Retrievers examples (computing inner hits from sub-retrievers): https://www.elastic.co/docs/reference/elasticsearch/rest-apis/retrievers/retrievers-examples
 - `dense_vector` mapping (bbq_hnsw / bbq_disk / int8_hnsw, `_source` exclusion default): https://www.elastic.co/docs/reference/elasticsearch/mapping-reference/dense-vector.md
 - Better Binary Quantization & DiskBBQ (`bbq_disk`, 9.2): https://www.elastic.co/docs/reference/elasticsearch/mapping-reference/bbq
