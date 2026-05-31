@@ -3,7 +3,7 @@ name = "es-index-explorer"
 version = "0.1.0"
 requires-python = "==3.12.*"
 dependencies = [
-    "elasticsearch~=8.14.0",
+    "elasticsearch~=9.2",
     "requests>=2.33.0",
     "pydantic>=2.0",
     "rich>=13.7.0",
