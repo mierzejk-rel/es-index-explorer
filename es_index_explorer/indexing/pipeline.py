@@ -23,13 +23,15 @@ from .writer import bulk_index, disabled_refresh
 class IndexingPipeline:
     """Chunk -> embed -> build nested source -> bulk write. Loads models once."""
 
-    def __init__(self, config: Config, *, overwrite: bool = False) -> None:
-        index_name = config.elasticsearch.index_name
-        if not index_name:
-            raise ValueError("elasticsearch.index_name must be set to index documents.")
+    def __init__(self, config: Config, *, overwrite: bool = False, index_name: str | None = None) -> None:
+        resolved_index = (index_name or config.elasticsearch.index_name or "").strip()
+        if not resolved_index:
+            raise ValueError(
+                "Index name must be set via --index-name or elasticsearch.index_name to index documents."
+            )
 
         self._config = config
-        self._index_name = index_name
+        self._index_name = resolved_index
         self._overwrite = overwrite
         self._client: Elasticsearch = get_client(config)
 

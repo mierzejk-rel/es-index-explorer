@@ -153,7 +153,8 @@ Prerequisites:
   ```
 - Set `[elasticsearch].index_name` and `[relativity.fields].title = "Unified Title"` in `config.toml`
   (see `config.example.toml`). The `[indexing]` block is optional; defaults match report 06
-  (e.g. `sat_model = "sat-12l-sm"`).
+  (e.g. `sat_model = "sat-12l-sm"`). The target index must already exist (create it with
+  `setup_index.py`); the indexing pipeline never creates or changes the index mapping.
 
 Batch index (resumable, the main path):
 ```bash
@@ -163,6 +164,13 @@ python import_documents.py --config config.toml --output-dir ./logs
 One-shot index a small read (no resume):
 ```bash
 python read_documents.py --config config.toml --limit 50 --index
+```
+
+Target index: by default the index comes from `[elasticsearch].index_name`. Override it per run with
+`--index-name` (handy for indexing the same workspace into different indexes without editing config):
+```bash
+python import_documents.py --config config.toml --output-dir ./logs --index-name as-my-other-index
+python read_documents.py --config config.toml --limit 50 --index --index-name as-my-other-index
 ```
 
 Overwrite policy: by default a document whose id already exists is **not** overwritten — it is

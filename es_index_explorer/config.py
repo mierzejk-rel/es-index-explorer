@@ -108,11 +108,17 @@ class RelativityConfig(BaseModel):
     tenant_id: str
     workspace_id: int
     saved_search_id: int | None = None
-    subset_id: str
+    subset_id: str = ""
     batch_size: int = 50
     max_text_length: int = 100_000
     auth: RelativityAuthConfig
     fields: RelativityFieldMappingConfig
+
+    @field_validator("subset_id")
+    @classmethod
+    def normalize_subset_id(cls, value: str) -> str:
+        # Treat missing / empty / whitespace-only as "no subset scoping".
+        return value.strip()
 
     @field_validator("saved_search_id", mode="before")
     @classmethod

@@ -37,18 +37,23 @@ def parse_args() -> argparse.Namespace:
         action="store_true",
         help="With --index, replace documents that already exist (default: conflicts are reported).",
     )
+    parser.add_argument(
+        "--index-name",
+        default=None,
+        help="With --index, target Elasticsearch index (overrides elasticsearch.index_name from config).",
+    )
     parser.add_argument("--output-dir", default=".", help="Directory for output files.")
     return parser.parse_args()
 
 
-def _index_documents(config, documents, *, overwrite: bool) -> None:
+def _index_documents(config, documents, *, overwrite: bool, index_name: str | None) -> None:
     """Index already-read documents using the shared pipeline (one-shot)."""
 
     from collections import Counter
 
     from es_index_explorer.indexing.pipeline import IndexingPipeline
 
-    pipeline = IndexingPipeline(config, overwrite=overwrite)
+    pipeline = IndexingPipeline(config, overwrite=overwrite, index_name=index_name)
     with pipeline.refresh_disabled():
         results = pipeline.index_documents(documents)
 
@@ -81,7 +86,7 @@ def main() -> None:
         print(f"Skipped {len(result.failures)} documents due to validation errors.")
 
     if args.index and result.documents:
-        _index_documents(config, result.documents, overwrite=args.overwrite)
+        _index_documents(config, result.documents, overwrite=args.overwrite, index_name=args.index_name)
 
     if args.save:
         output_dir = Path(args.output_dir).expanduser().resolve()

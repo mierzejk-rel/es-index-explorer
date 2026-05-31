@@ -7,6 +7,10 @@ dependencies = [
     "requests>=2.33.0",
     "pydantic>=2.0",
     "rich>=13.7.0",
+    # torch is declared directly (and pinned to the CPU-only index below) so the CUDA/nvidia-*
+    # runtime is not pulled in for this CPU-only deployment. It is otherwise a transitive dep of
+    # sentence-transformers / wtpsplit.
+    "torch>=2.2",
     "sentence-transformers>=3.0",
     "wtpsplit>=2.1",
     "spacy>=3.7",
@@ -41,3 +45,14 @@ branch = true
 name = "ai-pypi-anthology"
 url = "https://relativityone.jfrog.io/artifactory/api/pypi/ai-pypi-anthology/simple"
 default = true
+
+# CPU-only PyTorch: resolve torch from PyTorch's CPU wheel index so no CUDA/nvidia-* packages
+# are pulled in (this deployment has no GPU/MPS/NPU). 'explicit' means this index is used only
+# for packages mapped to it via [tool.uv.sources].
+[[tool.uv.index]]
+name = "pytorch-cpu"
+url = "https://download.pytorch.org/whl/cpu"
+explicit = true
+
+[tool.uv.sources]
+torch = [{ index = "pytorch-cpu" }]

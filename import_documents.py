@@ -28,6 +28,11 @@ def parse_args() -> argparse.Namespace:
         action="store_true",
         help="Replace documents that already exist in the index (default: existing ids are reported as conflicts).",
     )
+    parser.add_argument(
+        "--index-name",
+        default=None,
+        help="Target Elasticsearch index (overrides elasticsearch.index_name from config).",
+    )
     return parser.parse_args()
 
 
@@ -48,7 +53,7 @@ def main() -> None:
     state = progress_log.load()
 
     # Loads the embedding + segmentation models once; the indexer is the batch sink.
-    pipeline = IndexingPipeline(config, overwrite=args.overwrite)
+    pipeline = IndexingPipeline(config, overwrite=args.overwrite, index_name=args.index_name)
 
     if args.retry:
         failed_ids = list(state.failed.keys())
