@@ -133,8 +133,59 @@ python import_documents.py --config config.toml --output-dir ./logs --fresh
 ```
 
 Notes:
+- `import_documents.py` now **indexes** each batch into Elasticsearch (chunk -> embed -> bulk write); see "Index documents" below.
 - Export-based `read_documents.py` is still available for one-shot reads, but it does not support resume.
 - `saved_search_id = ""` reads all documents; any integer uses that saved search ID.
+
+## Index Documents
+
+Documents are chunked (sentence-first; SaT sentence boundaries with a spaCy clause
+fallback for over-long sentences), embedded with `intfloat/multilingual-e5-small`
+(`passage:` prefix, L2-normalized), and written as one nested document per RelativityOne
+document to `elasticsearch.index_name`. See
+[`reports/06-document-indexing-and-semantic-chunking.md`](reports/06-document-indexing-and-semantic-chunking.md).
+
+Prerequisites:
+- Install dependencies: `uv sync` (pulls `sentence-transformers`/`torch`, `wtpsplit`, `spacy`).
+- Download the spaCy English model used by the clause engine:
+  ```bash
+  uv run python -m spacy download en_core_web_sm
+  ```
+- Set `[elasticsearch].index_name` and `[relativity.fields].title = "Unified Title"` in `config.toml`
+  (see `config.example.toml`). The `[indexing]` block is optional; defaults match report 06
+  (e.g. `sat_model = "sat-12l-sm"`).
+
+Batch index (resumable, the main path):
+```bash
+python import_documents.py --config config.toml --output-dir ./logs
+```
+
+One-shot index a small read (no resume):
+```bash
+python read_documents.py --config config.toml --limit 50 --index
+```
+
+Overwrite policy: by default a document whose id already exists is **not** overwritten — it is
+reported as a `conflict` error (terminal "last error" + progress log) and is retryable. To replace
+existing documents, pass `--overwrite` (logged as an `overwritten` outcome):
+```bash
+python import_documents.py --config config.toml --output-dir ./logs --overwrite
+python read_documents.py --config config.toml --limit 50 --index --overwrite
+```
+
+Resume and retry behave as for reading: successfully indexed ids advance the resume point; read
+failures (`stage=read`) and index failures/conflicts (`stage=index`) are recorded with their error
+type and message, and `--retry` re-attempts them.
+
+During a run the index `refresh_interval` is set to `-1` and restored afterwards (with a final
+refresh) for bulk-indexing throughput.
+
+## Testing
+
+The chunker has a dependency-free unit suite (hand-written fakes; no SaT/spaCy/torch):
+```bash
+uv run pytest tests/unit
+```
 
 ## Reports
 Generated reports are stored in the `reports/` directory.

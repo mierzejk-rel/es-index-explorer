@@ -15,6 +15,8 @@ wait_seconds = 3
 
 [elasticsearch]
 hosts = "https://services.esus.reg.k8s.r1.kcura.com/search/search-ai/"
+# Target nested index for the indexing pipeline (read_documents.py --index / import_documents.py).
+index_name = "as-..."
 
 [relativity]
 host = "esus019064-t035.r1.kcura.com"
@@ -36,6 +38,7 @@ oauth_client_secret = ""
 [relativity.fields]
 extracted_text = 1003668
 control_number = "Control Number"
+title = "Unified Title"
 primary_date_time = "Primary Date/Time"
 email_from = "Email From"
 email_to = "Email To"
@@ -43,3 +46,26 @@ email_cc = "Email CC"
 email_bcc = "Email BCC"
 summary = ""
 topic = ""
+
+# Indexing pipeline (chunking + embedding + ES write). All values shown are defaults.
+[indexing]
+bulk_docs_per_request = 200
+bulk_max_retries = 3
+embedding_model = "intfloat/multilingual-e5-small"
+embedding_batch_size = 96
+passage_prefix = "passage: "
+model_path = ""          # local model directory; empty = download from the HuggingFace Hub
+offline = false          # true sets HF_HUB_OFFLINE for air-gapped runs
+device = "cpu"           # CPU-only deployment (no GPU/MPS/NPU available)
+chunk_unique_target = 400
+chunk_unique_floor = 360
+overlap_target = 80
+overlap_min = 40
+overlap_max = 120
+# max_content_tokens = 505  # omit/null to compute from the tokenizer at runtime
+sentence_engine = "sat"  # sat | blingfire | sentencex | pysbd
+sat_model = "sat-12l-sm"
+clause_engine = "spacy"  # spacy | punctuation
+spacy_model = "en_core_web_sm"
+fallback_window = 500
+fallback_overlap = 100

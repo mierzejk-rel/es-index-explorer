@@ -718,9 +718,16 @@ production agent image).
 
 ## 9. Open Decisions and Assumptions
 
-1. **SaT model size / runtime:** `sat-3l-sm` (~96.5, faster) vs `sat-12l-sm` (~97.4, slower); `wtpsplit`
-   (torch) vs `wtpsplit-lite` (ONNX). To be benchmarked on representative e-discovery text in the code
-   phase.
+1. **SaT model + device (decided): `sat-12l-sm` on CPU.** `sat-12l-sm` is chosen for the best English
+   score (~97.4, §6.5). The deployment is **CPU-only** — no GPU/CUDA, Apple MPS, or other NPU is
+   available — so `[indexing].device` is set explicitly to `"cpu"` (avoiding accelerator
+   auto-selection). Accelerated devices (a CUDA GPU, or Apple MPS) would be a **faster option** for both
+   SaT and the e5 embedder, but are not available here. On CPU, `sat-12l-sm` is the accuracy-but-slowest
+   combination and is expected to be the indexing throughput bottleneck. Faster CPU options, if ever
+   needed (a quality/speed trade-off, no code change — only `[indexing]` settings): switch the sentence
+   engine to `sat-3l-sm` (~96.5), and/or set **`clause_engine = "punctuation"` to skip loading spaCy
+   entirely** (the clause path is only the rare over-long-sentence fallback, §6.4 Tier A). `wtpsplit-lite`
+   (ONNX) is an alternative SaT runtime to benchmark.
 2. **Sentence-first chunk geometry is tunable and mostly soft.** `chunk_unique_target` (~400),
    `chunk_unique_floor` (~360, overlap-adjusted), `overlap_target` (~80) and the `[40, 120]` overlap
    band are soft; only `overlap + unique <= max_content_tokens` is hard. The exact selection internals

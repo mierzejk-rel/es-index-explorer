@@ -23,6 +23,7 @@ class RelativityDocument(BaseModel):
     artifact_id: int
     control_number: str
     extracted_text: str
+    title: str | None = None
     primary_date_time: Annotated[datetime | None, BeforeValidator(_prep_datetime)] = None
     email_from: str | None = None
     email_to: list[str] | None = None

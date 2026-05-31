@@ -2,30 +2,27 @@
 
 from __future__ import annotations
 
-from datetime import datetime
-from typing import Callable, Iterable, cast
+from typing import Callable, Iterable
 
 from pydantic import ValidationError
 
-from ..config import Config, RelativityFieldSelector, is_field_configured
+from ..config import Config, RelativityFieldSelector
+from ..indexing.document_builder import DocumentResult
 from .auth import get_authenticated_session
 from .client import RelativityClient
 from .conditions import Cond, field
+from .document_factory import build_relativity_document, relativity_field_map
 from .fluent import ARTIFACT_ID_KEY, QueryBuilder
 from .models import RelativityDocument
-from .normalize import (
-    DocumentReadError,
-    ensure_required_field,
-    normalize_str,
-    normalize_str_list,
-    normalize_summary_topic,
-)
+from .normalize import DocumentReadError
 from .object_manager_models import (
     QuerySlimResponse,
     R1_OBJECT_MANAGER_TRUNCATE_TOKEN,
 )
 from .progress import ImportState, ProgressLog
 from .tui import ProgressSnapshot
+
+DocumentSink = Callable[[list[RelativityDocument]], list[DocumentResult]]
 
 
 class BatchImporter:
@@ -35,6 +32,7 @@ class BatchImporter:
         progress_log: ProgressLog,
         *,
         on_progress: Callable[[ProgressSnapshot], None] | None = None,
+        sink: DocumentSink | None = None,
     ) -> None:
         self._config = config
         self._progress_log = progress_log
@@ -42,6 +40,7 @@ class BatchImporter:
             config.relativity.host, config.relativity.workspace_id, progress_log_session(config)
         )
         self._on_progress = on_progress or (lambda _: None)
+        self._sink = sink
         self._last_error: str | None = None
 
     def run(self, *, resume_after: int, state: ImportState) -> ImportState:
@@ -120,19 +119,7 @@ class BatchImporter:
         return builder, list(field_map.keys())
 
     def _field_map(self) -> dict[str, RelativityFieldSelector]:
-        fields = self._config.relativity.fields
-        field_map = {
-            "extracted_text": fields.extracted_text,
-            "control_number": fields.control_number,
-            "primary_date_time": fields.primary_date_time,
-            "email_from": fields.email_from,
-            "email_to": fields.email_to,
-            "email_cc": fields.email_cc,
-            "email_bcc": fields.email_bcc,
-            "summary": fields.summary,
-            "topic": fields.topic,
-        }
-        return {key: value for key, value in field_map.items() if is_field_configured(value)}
+        return relativity_field_map(self._config.relativity.fields)
 
     def _compose_condition(self, resume_after: int) -> Cond | None:
         saved_search_id = self._config.relativity.saved_search_id
@@ -181,6 +168,7 @@ class BatchImporter:
         *,
         phase: str = "run",
     ) -> tuple[int, int, int]:
+        pending: list[RelativityDocument] = []
         for obj in response.Objects:
             row: dict[str, object] = {ARTIFACT_ID_KEY: obj.ArtifactID}
             for name, value in zip(field_names, obj.Values):
@@ -194,39 +182,52 @@ class BatchImporter:
                     row=row,
                     long_text_columns=long_text_columns,
                 )
-                extracted_text = ensure_required_field(
-                    normalize_str(row.get("extracted_text")), "extracted_text"
-                )
-                control_number = ensure_required_field(
-                    normalize_str(row.get("control_number")), "control_number"
-                )
-                summary, topic = normalize_summary_topic(
-                    row.get("summary"),
-                    row.get("topic"),
-                )
-                # noinspection PyTypeChecker
-                RelativityDocument(
-                    artifact_id=last_artifact_id,
-                    control_number=control_number,
-                    extracted_text=extracted_text,
-                    # OM returns str (ISO date) or None; cast to datetime | None so Pydantic's BeforeValidator (_prep_datetime) coerces at runtime.
-                    primary_date_time=cast(datetime | None, row.get("primary_date_time")),
-                    email_from=normalize_str(row.get("email_from")),
-                    email_to=normalize_str_list(row.get("email_to")),
-                    email_cc=normalize_str_list(row.get("email_cc")),
-                    email_bcc=normalize_str_list(row.get("email_bcc")),
-                    summary=summary,
-                    topic=topic,
-                )
-                self._progress_log.record_ok(last_artifact_id, phase=phase)
-                ok_count += 1
+                doc = build_relativity_document(artifact_id=last_artifact_id, row=row)
             except (ValidationError, ValueError, KeyError, DocumentReadError) as exc:
-                error = str(exc)
-                self._last_error = error
-                self._progress_log.record_error(last_artifact_id, error, phase=phase)
+                self._last_error = str(exc)
+                self._progress_log.record_error(
+                    last_artifact_id, self._last_error, phase=phase, stage="read",
+                    error_type=type(exc).__name__,
+                )
                 failed_count += 1
+                self._emit(processed, total, ok_count, failed_count, last_artifact_id)
+                continue
 
-            snapshot = ProgressSnapshot(
+            if self._sink is None:
+                # Read-only mode (no indexing): a successful read counts as ok.
+                self._progress_log.record_ok(last_artifact_id, phase=phase, outcome="read")
+                ok_count += 1
+                self._emit(processed, total, ok_count, failed_count, last_artifact_id)
+            else:
+                pending.append(doc)
+
+        if self._sink is not None and pending:
+            for result in self._sink(pending):
+                ok_count, failed_count = self._record_index_result(result, phase, ok_count, failed_count)
+                self._emit(processed, total, ok_count, failed_count, result.artifact_id)
+
+        return processed, ok_count, failed_count
+
+    def _record_index_result(
+        self, result: DocumentResult, phase: str, ok_count: int, failed_count: int
+    ) -> tuple[int, int]:
+        if result.artifact_id is None:
+            return ok_count, failed_count
+        if result.outcome in ("created", "overwritten"):
+            self._progress_log.record_ok(result.artifact_id, phase=phase, outcome=result.outcome)
+            return ok_count + 1, failed_count
+        self._last_error = result.error_message or result.outcome
+        self._progress_log.record_error(
+            result.artifact_id, self._last_error, phase=phase,
+            stage=result.stage or "index", error_type=result.error_type,
+        )
+        return ok_count, failed_count + 1
+
+    def _emit(
+        self, processed: int, total: int, ok_count: int, failed_count: int, last_artifact_id: int | None
+    ) -> None:
+        self._on_progress(
+            ProgressSnapshot(
                 processed=processed,
                 total=total,
                 ok_count=ok_count,
@@ -234,10 +235,7 @@ class BatchImporter:
                 last_artifact_id=last_artifact_id,
                 last_error=self._last_error,
             )
-            self._on_progress(snapshot)
-
-        # TODO: preprocess batch documents and save to ES index.
-        return processed, ok_count, failed_count
+        )
 
     def _resolve_long_text(
         self,

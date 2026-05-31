@@ -60,13 +60,31 @@ class ProgressLog:
         ok_count = sum(1 for status in status_by_id.values() if status == "ok")
         return ImportState(last_processed_id, ok_count, error_by_id)
 
-    def record_ok(self, artifact_id: int, *, phase: str = "run") -> None:
-        self._append({"artifact_id": artifact_id, "status": "ok", "phase": phase})
-
-    def record_error(self, artifact_id: int, error: str, *, phase: str = "run") -> None:
+    def record_ok(self, artifact_id: int, *, phase: str = "run", outcome: str = "created") -> None:
         self._append(
-            {"artifact_id": artifact_id, "status": "error", "error": error, "phase": phase}
+            {"artifact_id": artifact_id, "status": "ok", "phase": phase, "outcome": outcome}
         )
+
+    def record_error(
+        self,
+        artifact_id: int,
+        error: str,
+        *,
+        phase: str = "run",
+        stage: str | None = None,
+        error_type: str | None = None,
+    ) -> None:
+        record: dict[str, object] = {
+            "artifact_id": artifact_id,
+            "status": "error",
+            "error": error,
+            "phase": phase,
+        }
+        if stage is not None:
+            record["stage"] = stage
+        if error_type is not None:
+            record["error_type"] = error_type
+        self._append(record)
 
     def close(self) -> None:
         if self._handle is not None:

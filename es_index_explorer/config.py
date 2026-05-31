@@ -39,6 +39,7 @@ class ElasticsearchConfig(BaseModel):
     """Elasticsearch connection settings."""
 
     hosts: str | list[str]
+    index_name: str = ""
 
 
 class RelativityAuthConfig(BaseModel):
@@ -55,6 +56,7 @@ class RelativityFieldMappingConfig(BaseModel):
 
     extracted_text: RelativityFieldSelector
     control_number: RelativityFieldSelector
+    title: RelativityFieldSelector = ""
     primary_date_time: RelativityFieldSelector = ""
     email_from: RelativityFieldSelector = ""
     email_to: RelativityFieldSelector = ""
@@ -66,6 +68,7 @@ class RelativityFieldMappingConfig(BaseModel):
     @field_validator(
         "extracted_text",
         "control_number",
+        "title",
         "primary_date_time",
         "email_from",
         "email_to",
@@ -139,6 +142,67 @@ class RelativityConfig(BaseModel):
         return value
 
 
+class IndexingConfig(BaseModel):
+    """Settings for the document-indexing pipeline (chunking, embedding, ES write)."""
+
+    # Elasticsearch bulk write
+    bulk_docs_per_request: int = 200
+    bulk_max_retries: int = 3
+
+    # Embedding model (HuggingFace, no company dependencies)
+    embedding_model: str = "intfloat/multilingual-e5-small"
+    embedding_batch_size: int = 96
+    passage_prefix: str = "passage: "
+    model_path: str = ""  # local model directory; empty = use the hub id
+    offline: bool = False  # set HF_HUB_OFFLINE for air-gapped runs
+    device: str = "cpu"  # CPU-only deployment (no GPU/MPS/NPU available)
+
+    # Chunk geometry (e5 subword tokens). All SOFT except max_content_tokens.
+    chunk_unique_target: int = 400
+    chunk_unique_floor: int = 360
+    overlap_target: int = 80
+    overlap_min: int = 40
+    overlap_max: int = 120
+    max_content_tokens: int | None = None  # None = compute from the tokenizer at runtime
+
+    # Sentence engine (priority 5)
+    sentence_engine: Literal["sat", "blingfire", "sentencex", "pysbd"] = "sat"
+    sat_model: str = "sat-12l-sm"
+
+    # Clause engine (Tier-A fallback, priorities 4-2)
+    clause_engine: Literal["spacy", "punctuation"] = "spacy"
+    spacy_model: str = "en_core_web_sm"
+
+    # Tier-B fallback (no sentence structure): legacy non-semantic sliding window
+    fallback_window: int = 500
+    fallback_overlap: int = 100
+
+    @field_validator(
+        "bulk_docs_per_request",
+        "embedding_batch_size",
+        "chunk_unique_target",
+        "chunk_unique_floor",
+        "overlap_target",
+        "overlap_min",
+        "overlap_max",
+        "fallback_window",
+        "fallback_overlap",
+    )
+    @classmethod
+    def validate_positive(cls, value: int) -> int:
+        if value <= 0:
+            raise ValueError("indexing numeric settings must be positive integers.")
+        return value
+
+    @model_validator(mode="after")
+    def validate_geometry(self) -> "IndexingConfig":
+        if not self.overlap_min <= self.overlap_target <= self.overlap_max:
+            raise ValueError("Require overlap_min <= overlap_target <= overlap_max.")
+        if self.max_content_tokens is not None and self.max_content_tokens <= 0:
+            raise ValueError("max_content_tokens must be a positive integer or null.")
+        return self
+
+
 class Config(BaseModel):
     """Full application configuration."""
 
@@ -147,6 +211,7 @@ class Config(BaseModel):
     retry: RetryConfig
     elasticsearch: ElasticsearchConfig
     relativity: RelativityConfig
+    indexing: IndexingConfig = IndexingConfig()
 
 
 def _default_config_path() -> Path:
