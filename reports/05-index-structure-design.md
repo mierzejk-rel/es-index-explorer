@@ -8,11 +8,20 @@ inferior to the current production index for any data that can be stored, search
 while unlocking additional retrieval strategies (dense, sparse/ELSER, hybrid/RRF, reranking).
 
 **Target stack (confirmed):**
-- Elasticsearch **9.2**, **Platinum/Enterprise** license.
+- Elasticsearch **9.4** (deployment **9.4.0**, client **9.4.1**), **Platinum/Enterprise** license.
 - Sparse/semantic retrieval via **ELSER** through `semantic_text` fields (pinned `inference_id: .elser-2-elasticsearch`), queried with the `semantic` query.
 - Dense chunk embeddings via **`intfloat/multilingual-e5-small`** (384 dims, cosine) — same model as production.
 - New index lives under the **`as-*`** prefix (Applied Science / research grant), per
   `01-air-assist-elasticsearch-index.md` §1.
+
+> **Note on Elasticsearch version.** This design was originally written assuming **Elasticsearch 9.2**;
+> the live deployment is **9.4.0** (client **9.4.1**). Given the requirements (R1–R14) and the
+> quantitative assessment of the corpus (typically <10 chunks/document per R5, with <1% of documents at
+> 10–20 MB ⇒ roughly **5–15M chunk vectors total**, which fits in **~1–2 GB RAM** and leaves the
+> single-shard / global-IDF assumptions of §7.5 intact), the design **holds unchanged on 9.4**:
+> `bbq_hnsw` is retained for dense chunks (recall-first; see §4.3), and the only 9.4 default newly
+> adopted is **sparse token-pruning**, pinned explicitly (§4.5). The 9.3/9.4 changes to dense and
+> `semantic_text` defaults do not affect us because every relevant parameter is pinned (R13).
 
 **Reads from:** `00`–`04` reports in this folder and the `es-index-explorer` codebase. Cross-references
 to current behavior cite `01-air-assist-elasticsearch-index.md` (current mapping),
@@ -254,9 +263,36 @@ PUT as-air-assist-<workspace>-nested
 
       "subset_ids": { "type": "keyword" },
 
-      "title_semantic":   { "type": "semantic_text", "inference_id": ".elser-2-elasticsearch" },
-      "summary_semantic": { "type": "semantic_text", "inference_id": ".elser-2-elasticsearch" },
-      "topic_semantic":   { "type": "semantic_text", "inference_id": ".elser-2-elasticsearch" },
+      "title_semantic": {
+        "type": "semantic_text",
+        "inference_id": ".elser-2-elasticsearch",
+        "index_options": {
+          "sparse_vector": {
+            "prune": true,
+            "pruning_config": { "tokens_freq_ratio_threshold": 5, "tokens_weight_threshold": 0.4 }
+          }
+        }
+      },
+      "summary_semantic": {
+        "type": "semantic_text",
+        "inference_id": ".elser-2-elasticsearch",
+        "index_options": {
+          "sparse_vector": {
+            "prune": true,
+            "pruning_config": { "tokens_freq_ratio_threshold": 5, "tokens_weight_threshold": 0.4 }
+          }
+        }
+      },
+      "topic_semantic": {
+        "type": "semantic_text",
+        "inference_id": ".elser-2-elasticsearch",
+        "index_options": {
+          "sparse_vector": {
+            "prune": true,
+            "pruning_config": { "tokens_freq_ratio_threshold": 5, "tokens_weight_threshold": 0.4 }
+          }
+        }
+      },
 
       "chunks": {
         "type": "nested",
@@ -382,6 +418,25 @@ processor (`inference_id` = ELSER) writing to the field, or precompute the token
 client and index it directly; (3) **query** — replace the `semantic` query with the `sparse_vector`
 query (`field` + `inference_id` + `query`), and in hybrid swap the `semantic` `standard` sub-retriever
 for a `sparse_vector` one. The BM25 `text` fields, retrieval shapes, and everything else are unchanged.
+
+**Token pruning (pinned to the 9.4 default, made explicit).** On ES 9.4, any newly created
+`sparse_vector` field — including the ones backing `semantic_text` — defaults to **token pruning on**
+(`prune: true`, `tokens_freq_ratio_threshold: 5`, `tokens_weight_threshold: 0.4`; thresholds tuned for
+ELSER v2). Per R13 ("set every important parameter explicitly") we pin these exact values via
+`index_options.sparse_vector` on `title_semantic`/`summary_semantic`/`topic_semantic` (§4), so the
+behavior is recorded in the mapping rather than inherited silently. The values equal the 9.4 default —
+this is the only 9.4 default we newly adopt — and pruning omits non-significant tokens (very frequent
+*and* low-weight) from the query to improve performance; query-side `sparse_vector` pruning options, if
+ever set, still override these field defaults.
+
+**Default-model flip (why the pin matters), and what does not apply.** The default `semantic_text`
+model changed across versions: in-cluster sparse ELSER `.elser-2-elasticsearch` (9.0–9.2) →
+`.elser-2-elastic` on EIS (9.3) → **dense** `.jina-embeddings-v5-text-small` on EIS (9.4). Because we
+pin `inference_id` to `.elser-2-elasticsearch`, these fields stay **sparse and in-cluster** on 9.4 —
+unaffected by the flip. Consequently, the 9.3/9.4 **dense** `semantic_text` defaults — `element_type:
+bfloat16` and `index_options.dense_vector.type: bbq_disk` — are **dense-only and do not apply** to our
+sparse ELSER fields (they have no `dense_vector` representation to quantize). They are noted here only
+so the omission is intentional, not an oversight.
 
 ---
 
@@ -772,7 +827,7 @@ recovering chunk-level hybrid ranking on top of nested's grouping and parent pre
 
 | Method | ES 9.2 mechanism | Fields needed | Status |
 |---|---|---|---|
-| MMR (diversity) | Application-side (as today, `03-...md` §3.3): fetch candidates + chunk vectors, greedy MMR. | `chunks.embedding` (or re-embed) | Available now. |
+| MMR (diversity) | Application-side (as today, `03-...md` §3.3): fetch candidates + chunk vectors, greedy MMR. A native **MMR Result Diversification Retriever** also exists since **9.3** (supports `semantic_text`), but we deliberately stay client-side. | `chunks.embedding` (or re-embed) | Available now (client-side by choice). |
 | Cross-encoder rerank | `text_similarity_reranker` retriever (Elastic Rerank `.rerank-v1-elasticsearch` or custom `rerank` inference endpoint). | text field to rerank on (`chunks.text` via inner_hits, or `summary`) | Native, Platinum. |
 | Late-interaction (ColBERT-style) | `rank_vectors` field + `maxSimDotProduct` script in a `rescore`/`script_score` second phase. | optional `chunks.late_interaction` (`rank_vectors`) | Experimental in 9.2; reserve field if pursuing. |
 | LLM-based rerank | Application/agent-side over returned chunks. | returned `chunks.text` | Available now. |
@@ -933,10 +988,15 @@ default, with flat (chunk-centric) retained as a first-class alternative to be c
 every document is indexed); include `token_count`, `char_count` (doc-level, `len(str)` code points), and
 `chunk_count`; R14 satisfied via `leading_overlap_chars` + retrieval-side concatenation;
 **parent-metadata sparse uses `semantic_text`** (pinned `inference_id: .elser-2-elasticsearch`,
-populated via `copy_to`, default chunking; explicit `sparse_vector` documented as the switch-back
-option in §4.5); **dense `chunks.embedding` uses `bbq_hnsw`** + production params (`bbq_disk` as the
-scale escalation); **no** sparse-on-chunks (`chunks.text_sparse`), **no** late-interaction
+populated via `copy_to`, default chunking; **`index_options.sparse_vector` token-pruning pinned to the
+9.4 default** — `prune: true`, `tokens_freq_ratio_threshold: 5`, `tokens_weight_threshold: 0.4`, §4.5;
+explicit `sparse_vector` documented as the switch-back option in §4.5); **dense `chunks.embedding` uses
+`bbq_hnsw`** + production params (`bbq_disk`, now the ES 9.4 default, as the scale escalation — §4.3);
+**no** sparse-on-chunks (`chunks.text_sparse`), **no** late-interaction
 (`chunks.late_interaction`), **no** dense-on-parent, **no** `documentModifyTime`; **keep** `subset_ids`.
+The design targets the confirmed **ES 9.4.0** deployment (originally written assuming 9.2) and holds
+unchanged given the corpus quantitative assessment (header note); the only 9.4 default newly adopted is
+the pinned sparse token-pruning above.
 
 ---
 
