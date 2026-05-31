@@ -1,0 +1,123 @@
+{
+  "settings": {
+    "index": {
+      "number_of_shards": 1,
+      "number_of_replicas": 1,
+      "refresh_interval": "60s",
+      "max_inner_result_window": 100,
+      "mapping": {
+        "nested_objects": {
+          "limit": 25000
+        },
+        "total_fields": {
+          "limit": 2000
+        }
+      }
+    }
+  },
+  "mappings": {
+    "_source": {
+      "enabled": true,
+      "excludes": [
+        "chunks.embedding",
+        "title_semantic.inference.*",
+        "summary_semantic.inference.*",
+        "topic_semantic.inference.*"
+      ]
+    },
+    "dynamic": "strict",
+    "properties": {
+      "document_artifact_id": {
+        "type": "long"
+      },
+      "control_number": {
+        "type": "keyword"
+      },
+      "title": {
+        "type": "text",
+        "copy_to": "title_semantic"
+      },
+      "summary": {
+        "type": "text",
+        "copy_to": "summary_semantic"
+      },
+      "topic": {
+        "type": "text",
+        "copy_to": "topic_semantic"
+      },
+      "primary_date_time": {
+        "type": "date"
+      },
+      "email_from": {
+        "type": "keyword"
+      },
+      "email_to": {
+        "type": "keyword"
+      },
+      "email_cc": {
+        "type": "keyword"
+      },
+      "email_bcc": {
+        "type": "keyword"
+      },
+      "byte_size": {
+        "type": "long"
+      },
+      "token_count": {
+        "type": "integer"
+      },
+      "char_count": {
+        "type": "integer"
+      },
+      "chunk_count": {
+        "type": "integer"
+      },
+      "subset_ids": {
+        "type": "keyword"
+      },
+      "title_semantic": {
+        "type": "semantic_text",
+        "inference_id": ".elser-2-elasticsearch"
+      },
+      "summary_semantic": {
+        "type": "semantic_text",
+        "inference_id": ".elser-2-elasticsearch"
+      },
+      "topic_semantic": {
+        "type": "semantic_text",
+        "inference_id": ".elser-2-elasticsearch"
+      },
+      "chunks": {
+        "type": "nested",
+        "properties": {
+          "chunk_index": {
+            "type": "integer"
+          },
+          "text": {
+            "type": "text"
+          },
+          "token_count": {
+            "type": "integer"
+          },
+          "leading_overlap_chars": {
+            "type": "integer"
+          },
+          "embedding": {
+            "type": "dense_vector",
+            "dims": 384,
+            "index": true,
+            "similarity": "cosine",
+            "index_options": {
+              "type": "bbq_hnsw",
+              "m": 16,
+              "ef_construction": 100,
+              "rescore_vector": {
+                "oversample": 3.0
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}

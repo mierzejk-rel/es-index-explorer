@@ -78,6 +78,33 @@ Inspect an index:
 python inspect_index.py 51b1e1f7-f607-4967-a439-cf9babafab2c-1030345-qna-subsetting
 ```
 
+Set up an index from the declarative definition:
+```bash
+python setup_index.py as-air-assist-my-workspace-nested --config config.toml
+```
+
+Use a different definition file:
+```bash
+python setup_index.py as-air-assist-my-workspace-nested \
+  --config config.toml \
+  --index-structure es_index_explorer/index_definitions/air_assist_nested.json
+```
+
+Update an existing index in place (additive mappings + dynamic settings only):
+```bash
+python setup_index.py as-air-assist-my-workspace-nested --config config.toml --update
+```
+
+Allow delete-and-recreate for breaking/static changes (destructive):
+```bash
+python setup_index.py as-air-assist-my-workspace-nested --config config.toml --recreate
+```
+
+Skip recreate confirmation prompt:
+```bash
+python setup_index.py as-air-assist-my-workspace-nested --config config.toml --recreate --yes
+```
+
 Read documents:
 ```bash
 python read_documents.py --config config.toml --limit 10 --save --output-dir reports/
