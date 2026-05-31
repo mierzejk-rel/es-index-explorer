@@ -405,7 +405,6 @@ def _is_breaking_field_change(existing: dict[str, Any], desired: dict[str, Any])
         "similarity",
         "analyzer",
         "search_analyzer",
-        "copy_to",
         "inference_id",
     }
     for key in tracked_keys:
@@ -413,7 +412,22 @@ def _is_breaking_field_change(existing: dict[str, Any], desired: dict[str, Any])
         desired_value = desired.get(key)
         if _normalize_setting_value(existing_value) != _normalize_setting_value(desired_value):
             return True
+    # Elasticsearch always returns copy_to as a list, even when set as a scalar.
+    if _normalize_copy_to(existing.get("copy_to")) != _normalize_copy_to(desired.get("copy_to")):
+        return True
     return False
+
+
+def _normalize_copy_to(value: Any) -> list[str]:
+    """Coerce a copy_to value into a sorted list for stable comparison."""
+
+    if value is None:
+        return []
+    if isinstance(value, str):
+        return [value]
+    if isinstance(value, list):
+        return sorted(str(item) for item in value)
+    return [str(value)]
 
 
 def _build_additive_mapping_payload(
