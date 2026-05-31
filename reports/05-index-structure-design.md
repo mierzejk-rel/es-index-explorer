@@ -9,7 +9,7 @@ while unlocking additional retrieval strategies (dense, sparse/ELSER, hybrid/RRF
 
 **Target stack (confirmed):**
 - Elasticsearch **9.2**, **Platinum/Enterprise** license.
-- Sparse retrieval via **ELSER** deployed in-cluster (`sparse_vector` + `sparse_vector` query).
+- Sparse/semantic retrieval via **ELSER** through `semantic_text` fields (pinned `inference_id: .elser-2-elasticsearch`), queried with the `semantic` query.
 - Dense chunk embeddings via **`intfloat/multilingual-e5-small`** (384 dims, cosine) — same model as production.
 - New index lives under the **`as-*`** prefix (Applied Science / research grant), per
   `01-air-assist-elasticsearch-index.md` §1.
@@ -237,9 +237,9 @@ PUT as-air-assist-<workspace>-nested
       "document_artifact_id": { "type": "long" },
       "control_number":       { "type": "keyword" },
 
-      "title":   { "type": "text" },
-      "summary": { "type": "text" },
-      "topic":   { "type": "text" },
+      "title":   { "type": "text", "copy_to": "title_semantic" },
+      "summary": { "type": "text", "copy_to": "summary_semantic" },
+      "topic":   { "type": "text", "copy_to": "topic_semantic" },
 
       "primary_date_time": { "type": "date" },
       "email_from": { "type": "keyword" },
@@ -254,9 +254,9 @@ PUT as-air-assist-<workspace>-nested
 
       "subset_ids": { "type": "keyword" },
 
-      "title_sparse":   { "type": "sparse_vector" },
-      "summary_sparse": { "type": "sparse_vector" },
-      "topic_sparse":   { "type": "sparse_vector" },
+      "title_semantic":   { "type": "semantic_text", "inference_id": ".elser-2-elasticsearch" },
+      "summary_semantic": { "type": "semantic_text", "inference_id": ".elser-2-elasticsearch" },
+      "topic_semantic":   { "type": "semantic_text", "inference_id": ".elser-2-elasticsearch" },
 
       "chunks": {
         "type": "nested",
@@ -293,9 +293,9 @@ document's `inner_hits` `from + size` — full behavior in §7.5.
 |---|---|---|---|
 | `document_artifact_id` | `long` | Relativity ArtifactId; numeric. | Exact filter, security-trim join key, document identity. |
 | `control_number` | `keyword` | Exact, non-tokenized. | Display/citation, exact filter, sort/agg via doc_values. |
-| `title` | `text` | BM25 full-text only (no keyword sub-field: exact-match/sort/agg on title not needed). | BM25 (R7 lexical-on-title). Unpopulated today (§11). |
-| `summary` | `text` | BM25 full-text. | BM25 (R7 lexical-on-summary). |
-| `topic` | `text` | BM25 full-text only (LLM-generated sentence, not categorical → no keyword sub-field). | BM25 (R7 lexical-on-topic). |
+| `title` | `text` (+ `copy_to: title_semantic`) | BM25 full-text only (no keyword sub-field needed); value also copied to its `semantic_text` twin. | BM25 (R7 lexical-on-title). Unpopulated today (§11). |
+| `summary` | `text` (+ `copy_to: summary_semantic`) | BM25 full-text; value also copied to its `semantic_text` twin. | BM25 (R7 lexical-on-summary). |
+| `topic` | `text` (+ `copy_to: topic_semantic`) | BM25 full-text only (LLM-generated sentence, not categorical → no keyword sub-field); value also copied to its `semantic_text` twin. | BM25 (R7 lexical-on-topic). |
 | `primary_date_time` | `date` | Range queries. | Date range filter (parity with `metadata.primaryDateTime`). |
 | `email_from/to/cc/bcc` | `keyword` (multi-valued) | Exact + wildcard per element. | Email participant filters (parity with `metadata.email*`). |
 | `byte_size` | `long` | Byte count. | Optional query-time 5 MB filter (R12; §6). |
@@ -303,7 +303,7 @@ document's `inner_hits` `from + size` — full behavior in §7.5.
 | `char_count` | `integer` | Character count of full doc (`len(extracted_text)`, Unicode code points). | Encoding- and tokenizer-independent length for filtering/analytics (§6). |
 | `chunk_count` | `integer` | Number of chunks. | Cross-index filter/sort/agg convenience (§6). |
 | `subset_ids` | `keyword` (multi-valued) | Multi-tenancy scoping. | `term` filter parity with production's always-on subset filter (`03-...md` §4.2). |
-| `title_sparse` / `summary_sparse` / `topic_sparse` | `sparse_vector` | Stores ELSER token-weight pairs. | Sparse (ELSER) retrieval on parent metadata (R7 sparse). |
+| `title_semantic` / `summary_semantic` / `topic_semantic` | `semantic_text` (ELSER, `inference_id: .elser-2-elasticsearch`) | ES-managed ELSER inference at index + query; populated via `copy_to` from the text fields (§4.5). | Sparse/semantic (ELSER) retrieval on parent metadata via the `semantic` query (R7 sparse). |
 | `chunks` | `nested` | Preserves chunk independence for nested kNN/BM25 with parent pre-filters. | Container for child chunks (R1). |
 | `chunks.chunk_index` | `integer` | 0-based order. | First-chunk selection (`== 0`), ordering within doc. |
 | `chunks.text` | `text` | BM25 on chunk text. | Lexical chunk retrieval (R7 BM25-on-chunks). |
@@ -345,25 +345,43 @@ explicitly here. Two documented alternatives:
 All three keep `dims: 384`, `similarity: cosine`. Switching requires a reindex (vector
 `index_options` is fixed at field creation).
 
-### 4.4 ES 9.2 `_source` behavior for dense vectors
+### 4.4 ES 9.2 `_source` behavior for generated vectors
 
 In ES 9.2, newly created indices **exclude `dense_vector` fields from `_source` by default** (storage
 and indexing-throughput win). We do not need raw chunk vectors echoed in results, so the default is
 desirable. If a future strategy needs vectors returned (e.g. client-side MaxSim), override via
-explicit `_source` includes or synthetic source. This is documented so the behavior is intentional,
-not surprising.
+explicit `_source` includes or synthetic source. Likewise, the **`semantic_text` inference output**
+(the ELSER token weights generated for the `*_semantic` fields, §4.5) is not needed in results — add
+it to the `_source` `excludes` so the generated tokens are not echoed. This is documented so the
+behavior is intentional, not surprising.
 
-### 4.5 ELSER inference for the `sparse_vector` fields
+### 4.5 ELSER semantic search for parent metadata (`semantic_text`)
 
-`title_sparse`/`summary_sparse`/`topic_sparse` store ELSER output (token-weight pairs). Two ways to
-populate them:
-- **Ingest/inference pipeline** in ES (ELSER inference endpoint) writes the sparse vector, or
-- **Precompute in Python** and index the token-weight map directly into the `sparse_vector` field.
+`title_semantic`/`summary_semantic`/`topic_semantic` are **`semantic_text`** fields that hold the ELSER
+representation of `title`/`summary`/`topic`. They are populated automatically via **`copy_to`** from the
+corresponding `text` fields — one source value feeds both BM25 (the `text` field) and semantic search
+(the `semantic_text` field). Elasticsearch runs ELSER inference **at index time and at query time**;
+the `inference_id` is pinned to **`.elser-2-elasticsearch`**. Default chunking is used (no
+`chunking_settings` override) — short parent fields produce a single inference chunk; longer summaries
+are chunked by the endpoint's default rather than truncated. At query time, use the `semantic` query
+(§7.3); for hybrid, fuse a `match` on the `text` field with a `semantic` query on the `*_semantic` field
+via an `rrf` retriever (§7.4).
 
-At query time, the `sparse_vector` query expands the query text with the same ELSER `inference_id`
-(ELSER may be served via a standard ML deployment or, in 9.2, via **ELSER on EIS**). The choice of
-deployment does not change the mapping. (If desired later, these three could instead be modeled as
-`semantic_text` fields so ES manages inference end-to-end — see §11.)
+**Why `semantic_text` over `sparse_vector` (and how to switch back).** We chose `semantic_text` because
+it is the least-setup, closest-to-default path: on ES 9.2 the default inference endpoint *is* ELSER
+(`.elser-2-elasticsearch`), ES manages inference at both index and query time (no ingest pipeline or
+manual token generation), and it is Elastic's recommended approach. Pinning `inference_id` to
+`.elser-2-elasticsearch` keeps it identical to the 9.2 default while preventing the default from
+flipping to a non-ELSER model on 9.3+/9.4 upgrades. Explicit **`sparse_vector` remains a viable
+alternative** if finer control is ever wanted (manual or pipeline token generation, `index_options`
+token pruning, and no coupling of the mapping to an inference endpoint). To switch a field (any or all)
+back to `sparse_vector`: (1) **mapping** — change `*_semantic` from `semantic_text` to
+`{ "type": "sparse_vector" }` and drop the `copy_to` on the text field; (2) **population** — ES no
+longer auto-infers, so generate ELSER tokens yourself via an ingest pipeline with an inference
+processor (`inference_id` = ELSER) writing to the field, or precompute the token-weight map in the
+client and index it directly; (3) **query** — replace the `semantic` query with the `sparse_vector`
+query (`field` + `inference_id` + `query`), and in hybrid swap the `semantic` `standard` sub-retriever
+for a `sparse_vector` one. The BM25 `text` fields, retrieval shapes, and everything else are unchanged.
 
 ---
 
@@ -531,21 +549,22 @@ In 9.2 the `filter` may mix **top-level (parent) metadata** (subset, size, date,
 (chunk) metadata** as pre-filters in one `knn` query (the capability that makes nested the right
 choice — §3.1). Returns k documents, each with its best passages via `inner_hits`.
 
-### 7.3 Sparse — ELSER on parent metadata
+### 7.3 Sparse — ELSER on parent metadata (`semantic_text`)
 
 ```json
 {
   "query": {
-    "sparse_vector": {
-      "field": "summary_sparse",
-      "inference_id": "<elser-endpoint>",
+    "semantic": {
+      "field": "summary_semantic",
       "query": "<query>"
     }
   }
 }
 ```
-Repeat / combine across `title_sparse`, `summary_sparse`, `topic_sparse`. (A per-chunk
-`chunks.text_sparse` can be added later for sparse-on-chunks — §11.)
+The `semantic` query runs ELSER inference using the field's pinned `inference_id`
+(`.elser-2-elasticsearch`, §4.5) — no `inference_id` needed in the query. Repeat / combine across
+`title_semantic`, `summary_semantic`, `topic_semantic`. Sparse-on-chunks is decided against (no
+`chunks.text_sparse`; §11).
 
 ### 7.4 Hybrid — RRF and linear retrievers
 
@@ -584,10 +603,24 @@ signal is intentionally larger than the 25 used for single-signal** — see the 
 §7.6. `min_score` may be added at the search level; `similarity` inside the `knn` sub-retriever.
 Parameter values, settable status, and defaults are summarized in §7.5.
 
-**Sparse (ELSER) + BM25 on parent metadata (RRF or linear):** swap in `standard` retrievers wrapping a
-`sparse_vector` query and a `multi_match`. The **`linear`** retriever is available when weighted
-combination with `minmax`/`l2_norm` normalization is preferred over reciprocal-rank fusion (e.g.
-"weight kNN 5× BM25").
+**Sparse (ELSER) + BM25 on parent metadata (RRF or linear):** fuse a `match` on the `text` field with a
+`semantic` query on the `semantic_text` twin:
+```json
+{
+  "retriever": {
+    "rrf": {
+      "rank_window_size": 100,
+      "retrievers": [
+        { "standard": { "query": { "match": { "summary": "<query>" } } } },
+        { "standard": { "query": { "semantic": { "field": "summary_semantic", "query": "<query>" } } } }
+      ]
+    }
+  }
+}
+```
+Apply per field (`title`/`summary`/`topic`) or combine. The **`linear`** retriever is available when
+weighted combination with `minmax`/`l2_norm` normalization is preferred over reciprocal-rank fusion
+(e.g. "weight semantic 5× BM25").
 
 ### 7.5 Ranking semantics and chunk-level results
 
@@ -753,7 +786,7 @@ recovering chunk-level hybrid ranking on top of nested's grouping and parent pre
 | Dense kNN on chunks | `embedding` | `chunks.embedding` (same config) | = |
 | RRF (dense+BM25) | yes | yes (nested) | = |
 | BM25 + MMR | yes (app-side) | yes (app-side) | = |
-| Sparse / ELSER | **no** | `*_sparse` on title/topic/summary (+ optional chunk sparse) | **+ new** |
+| Sparse / ELSER | **no** | `semantic_text` (pinned ELSER) on title/topic/summary, via `semantic` query | **+ new** |
 | Hybrid sparse+BM25 (parent) | no | `rrf`/`linear` retrievers | + new |
 | Cross-encoder / late-interaction rerank | no | `text_similarity_reranker` / `rank_vectors` | + new |
 | Subset scoping | `subsetIds` | `subset_ids` | = |
@@ -868,9 +901,9 @@ The chunk schema stores only `chunk_index`, `text`, `token_count`, `leading_over
 
 Only the *values* of `chunk_index`/`text`/`token_count`/`leading_overlap_chars`/`embedding` differ
 between strategies. The sole field that must not be derived by summing chunks is the document-level
-`token_count` (§6.2), precisely because overlap makes chunk token counts non-additive. (A future
-per-chunk `chunks.text_sparse` or `chunks.late_interaction` can be added later without disturbing
-existing data — §11.)
+`token_count` (§6.2), precisely because overlap makes chunk token counts non-additive. (Per-chunk
+sparse/late-interaction fields are decided against, §11; if ever needed they could be added later
+without disturbing existing data.)
 
 ---
 
@@ -881,30 +914,15 @@ These are intentionally left open; they do not block the structural design:
 1. **`title` source.** Identify the RelativityOne field to populate `title` (and/or map
    `metadata.documentName`). `RelativityDocument` does not read it today, and the live index leaves
    `title` empty.
-2. **Dense-on-parent.** Whether to also store a dense vector for `summary` (in addition to ELSER
-   sparse) for semantic search over summaries.
-3. **Sparse-on-chunks.** Whether to reserve `chunks.text_sparse` (`sparse_vector`) now for ELSER over
-   chunk text (zero cost if unused) or add later.
-4. **Late-interaction.** Whether to reserve `chunks.late_interaction` (`rank_vectors`) now for
-   ColBERT-style reranking (experimental in 9.2) or add later.
-5. **Vector index type.** `bbq_hnsw` (parity default) vs `bbq_disk`/DiskBBQ (memory-efficient at
-   scale) for `chunks.embedding` (§4.3) — a reindex is required to change.
-6. **`subset_ids`.** Keep for multi-tenancy parity (recommended) or drop for a single-purpose
-   experimental index.
-7. **`semantic_text` alternative.** Whether to model the parent sparse fields as `semantic_text`
-   (ES-managed inference + automatic query expansion) instead of explicit `sparse_vector` + inference
-   pipeline. Trade-off: less control vs less plumbing.
-8. **`documentModifyTime`.** Add a parent `date` if a Relativity source is wired (present in the
-   current mapping, absent from `RelativityDocument`).
-9. **ES-side full-document reconstruction.** Whether to provide a `script_fields` helper that
+2. **ES-side full-document reconstruction.** Whether to provide a `script_fields` helper that
    concatenates all chunks server-side (uses `_source`, slow) vs always concatenating in the
    retrieval module (recommended default).
-10. **Default hybrid chunk-fusion path.** Approach A (single fused call + propagated `inner_hits`) vs
-    Approach B (two single-signal queries + client-side RRF of chunk rankings) from §7.6 — to settle
-    during retrieval-module work.
-11. **Retrieval paradigm.** Document-centric (nested) vs chunk-centric (flat) is the recommended
-    default vs the alternative; the final choice for this RAG is an evaluation outcome (§3.1.1), not a
-    structural decision blocked here.
+3. **Default hybrid chunk-fusion path.** Approach A (single fused call + propagated `inner_hits`) vs
+   Approach B (two single-signal queries + client-side RRF of chunk rankings) from §7.6 — to settle
+   during retrieval-module work.
+4. **Retrieval paradigm.** Document-centric (nested) vs chunk-centric (flat) is the recommended
+   default vs the alternative; the final choice for this RAG is an evaluation outcome (§3.1.1), not a
+   structural decision blocked here.
 
 Settled decisions (recorded for traceability): nested objects (document-centric) as the recommended
 default, with flat (chunk-centric) retained as a first-class alternative to be chosen by evaluation
@@ -913,8 +931,12 @@ default, with flat (chunk-centric) retained as a first-class alternative to be c
 `chunks[chunk_index == 0]` with no denormalized copy; `byte_size = len(text.encode("utf-8"))` with a
 5,242,880-byte threshold, applied as an optional query-time filter (not an ingest-time exclusion —
 every document is indexed); include `token_count`, `char_count` (doc-level, `len(str)` code points), and
-`chunk_count`; R14 satisfied via
-`leading_overlap_chars` + retrieval-side concatenation.
+`chunk_count`; R14 satisfied via `leading_overlap_chars` + retrieval-side concatenation;
+**parent-metadata sparse uses `semantic_text`** (pinned `inference_id: .elser-2-elasticsearch`,
+populated via `copy_to`, default chunking; explicit `sparse_vector` documented as the switch-back
+option in §4.5); **dense `chunks.embedding` uses `bbq_hnsw`** + production params (`bbq_disk` as the
+scale escalation); **no** sparse-on-chunks (`chunks.text_sparse`), **no** late-interaction
+(`chunks.late_interaction`), **no** dense-on-parent, **no** `documentModifyTime`; **keep** `subset_ids`.
 
 ---
 
@@ -942,8 +964,13 @@ every document is indexed); include `token_count`, `char_count` (doc-level, `len
 - Retrievers examples (computing inner hits from sub-retrievers): https://www.elastic.co/docs/reference/elasticsearch/rest-apis/retrievers/retrievers-examples
 - `dense_vector` mapping (bbq_hnsw / bbq_disk / int8_hnsw, `_source` exclusion default): https://www.elastic.co/docs/reference/elasticsearch/mapping-reference/dense-vector.md
 - Better Binary Quantization & DiskBBQ (`bbq_disk`, 9.2): https://www.elastic.co/docs/reference/elasticsearch/mapping-reference/bbq
-- `sparse_vector` field & query (ELSER): https://www.elastic.co/docs/reference/query-languages/query-dsl/query-dsl-sparse-vector-query
-- ELSER ingest/sparse workflows: https://www.elastic.co/docs/solutions/search/vector/dense-versus-sparse-ingest-pipelines
+- `semantic_text` field type: https://www.elastic.co/docs/reference/elasticsearch/mapping-reference/semantic-text
+- `semantic_text` setup & inference endpoints (default `.elser-2-elasticsearch` on 9.0-9.2): https://www.elastic.co/docs/reference/elasticsearch/mapping-reference/semantic-text-setup-configuration
+- `semantic_text` ingestion (`copy_to`, pre-chunking, `chunking_settings`): https://www.elastic.co/docs/reference/elasticsearch/mapping-reference/semantic-text-ingestions
+- `semantic` query: https://www.elastic.co/docs/reference/query-languages/query-dsl/query-dsl-semantic-query
+- Hybrid search with `semantic_text` (RRF of `match` + `semantic`): https://www.elastic.co/docs/solutions/search/hybrid-semantic-text
+- `sparse_vector` field & query (ELSER; switch-back option): https://www.elastic.co/docs/reference/query-languages/query-dsl/query-dsl-sparse-vector-query
+- ELSER ingest/sparse workflows (switch-back option): https://www.elastic.co/docs/solutions/search/vector/dense-versus-sparse-ingest-pipelines
 - Linear retriever: https://www.elastic.co/docs/reference/elasticsearch/rest-apis/retrievers/linear-retriever
 - Text similarity reranker retriever: https://www.elastic.co/docs/reference/elasticsearch/rest-apis/retrievers/text-similarity-reranker-retriever
 - `rank_vectors` / late-interaction MaxSim: https://github.com/elastic/elasticsearch/pull/118804 and https://www.elastic.co/search-labs/blog/late-interaction-model-colpali-scale
