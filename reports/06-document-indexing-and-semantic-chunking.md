@@ -254,11 +254,14 @@ MAX_CONTENT = MODEL_MAX_TOKENS - NUM_SPECIAL_TOKENS - len(tokenizer("passage: ",
 # ~= 512 - 2 - ~3 = ~507  (computed at runtime, not hard-coded)
 ```
 
-Because a chunk is `leading_overlap + new_content`, and we allow up to 120 overlap + ~400 new = 520,
-**the chunker must cap total chunk tokens at `MAX_CONTENT`** (overlap is chosen first within
-`[40, 120]`, then the cut yields so `cut_next - overlap_start <= MAX_CONTENT`). Without this, the
-**newest** content (chunk tail) would be silently truncated at embed time. This is the single most
-important numeric constraint introduced by the embedding model.
+Because a chunk is `leading_overlap + new_content`, **`overlap + unique <= MAX_CONTENT` is the only
+HARD size limit** — the ~400 unique target, the ~360 soft floor, and the ~80 overlap are all SOFT,
+sentence-driven targets (§6). The sentence packer picks the overlap first (whole sentences ~80 within
+`[40, 120]`) and then packs whole sentences for the unique content so that
+`cut_next - overlap_start <= MAX_CONTENT`; a sentence too long to fit triggers a clause/word cut
+(§6.4 Tier A) rather than truncation. Without this cap the **newest** content (chunk tail) would be
+silently truncated at embed time — the single most important numeric constraint from the embedding
+model.
 
 ---
 
@@ -314,96 +317,125 @@ a research/tooling repo (unlike the production agent image).
 
 ## 6. Semantic Chunking and Variable-Overlap Algorithm
 
-This is the core of the module. The geometry, measured in **e5 subword tokens**, is:
+This is the core of the module. It is a **whole-sentence packer with sentence-aligned overlap**: by
+default *both* the unique content and the leading overlap are composed of **whole sentences**
+(priority 5). The lower priorities (4-1: parenthetical / semicolon / comma / word) are a **fallback used
+only when a single sentence does not fit the length budget**. Geometry, measured in **e5 subword
+tokens**:
 
-- ~**400 new (unique) tokens** per chunk, snapped to a semantic boundary;
-- a **variable leading overlap of 40-120 tokens (target 80)** carried from the previous chunk;
-- the **first chunk has no leading overlap**;
-- total tokens per chunk capped at `MAX_CONTENT` (§4.1);
+- **Unique (new) content per chunk:** target ~**400 tokens** (SOFT), composed of whole sentences. There
+  is a SOFT lower floor of ~**360** tokens (itself adjusted by the realized overlap length), and the
+  whole-sentence packing aims near 400.
+- **Leading overlap:** whole sentence(s) summing to ~**80 tokens (a bit less in practice, since it is
+  whole sentences)**, clamped to **[40, 120]**. The **first chunk has no overlap**.
+- **The only HARD limit:** `overlap + unique <= MAX_CONTENT` (§4.1), so every chunk embeds without
+  truncation. `400`, `~360`, and `~80` are all soft, sentence-driven targets.
+- **Fallback to priorities 4-1 (Tier A):** only when a sentence is too long to fit — i.e. the overlap
+  cannot be a whole sentence within the ~120 cap, or the unique content cannot end on a sentence
+  boundary without breaching `MAX_CONTENT` or falling below the soft floor. See §6.4.
 - `leading_overlap_chars` recorded in **characters** for tokenizer-free concatenation (`05-...md` §8).
+
+> **For the next agent:** the rules below fix the design intent; the precise resolution of edge cases
+> (exact floors, tie-breaks, how far to search, behavior at document ends, interaction of the soft floor
+> with overlap length, etc.) should be decided **in consultation with the user** — when an edge-case
+> question arises while specifying the algorithm, ask rather than guess. The goal is a plan detailed
+> enough that an implementation agent (e.g. GPT Codex 5.3) can build the chunker reliably without
+> re-deriving intent.
 
 ### 6.1 Boundary candidates and priority
 
 Boundaries are detected as **character positions**, mapped to e5 token indices via the offset mapping,
-and tagged with a priority. The semantic preference hierarchy (most -> least preferred) is:
+and tagged with a priority. The semantic preference hierarchy (most -> least preferred), and which
+engine produces each level:
 
-| Priority | Boundary type | Source |
-|---|---|---|
-| 5 | Sentence end (incl. newlines) | segmenter (SaT default), as char spans |
-| 4 | Parenthetical close `)` | punctuation scan |
-| 3 | Semicolon `;` | punctuation scan |
-| 2 | Comma `,` (real separator) | punctuation scan with digit-guard (not `1,000`) |
-| 1 | Word boundary | every inter-token gap (always available) |
+| Priority | Boundary type | Produced by | When used |
+|---|---|---|---|
+| 5 | Sentence end (incl. newlines) | **SaT** sentence engine (default; pluggable, §6.5) | **Default** for both overlap and unique |
+| 4 | Parenthetical close `)` | **spaCy** clause engine (default) — morphosyntactic; type from the mark | Tier-A fallback only |
+| 3 | Semicolon `;` | **spaCy** clause engine (default) | Tier-A fallback only |
+| 2 | Comma `,` (real clause separator) | **spaCy** clause engine (default; digit-guarded, parse-validated) | Tier-A fallback only |
+| 1 | Word boundary | tokenizer (inter-token gap; always available) | Last-resort fallback |
 
-The segmenter is **pluggable** (see §6.5). SaT returns sentence strings that are exact contiguous
-substrings of the input, so their char offsets are recovered by sequential indexing; the clause layer
-(priorities 4-2) scans the original text for the punctuation marks and applies a digit-guard so numeric
-commas are not treated as clause separators. Word boundaries (priority 1) are the inter-token gaps from
-the tokenizer and guarantee a candidate always exists.
+Important properties (these drive the §6.5 engine choice):
+- **SaT covers only priority 5.** It is a sentence/newline boundary model; it does **not** type
+  sub-sentence boundaries and its boundary probability *inside* a sentence is uninformative
+  (`predict_proba` is trained on sentence/newline boundaries). So SaT cannot make the priority 4-2
+  decision — it is purely the sentence engine.
+- **Priorities 4-2 are a clause-level fallback** invoked only inside an over-long sentence (§6.4
+  Tier A). Locating a `)`/`;`/`,` is intrinsically a character operation, but the **judgement** of
+  whether that mark is a real clause boundary (and its type) is made **morphosyntactically by spaCy's
+  English dependency parse** (the default), which is preferred over a naive punctuation/regex rule
+  because e-discovery text (OCR, email threads) contains many run-on / poorly punctuated sentences. A
+  lean punctuation-only clause strategy remains available as a pluggable alternative (§6.5).
+- **Priority 1 (word)** is the tokenizer's inter-token gap and guarantees a candidate always exists.
+- The sentence engine returns sentence char spans (SaT's sentences are exact contiguous substrings, so
+  offsets are recovered by sequential indexing); the clause engine returns clause char spans within a
+  given sentence.
 
-### 6.2 Scoring
+### 6.2 Selection rules (sentence-first)
 
-Two selections drive the algorithm. Both prefer **higher-priority** boundaries first, then proximity to
-a target, with deterministic tie-breaking.
+Two selections drive the algorithm. Both are **sentence-first**: they operate over whole sentences and
+only drop to clause/word (priorities 4-1) when a sentence does not fit.
 
-**Cut selection** (end of the ~400 new tokens). Among candidate boundaries with token index in the
-search band around `target = content_start + 400`, choose by:
-1. highest priority;
-2. smallest `|index - target|` (linear);
-subject to the cap `index - overlap_start <= MAX_CONTENT`. If only word boundaries exist, take the word
-boundary nearest `target` (or the cap, whichever binds).
+**Cut selection** (end of the unique content). Default path — **pack whole sentences** starting at
+`content_start`, extending the cut to the end of each successive sentence, choosing the sentence
+boundary whose unique length `u = cut - content_start` is **closest to 400** while satisfying both:
+- HARD: `cut - overlap_start <= MAX_CONTENT`;
+- SOFT: `u >= ~360` (floor adjusted by the realized overlap length).
+Fallback (Tier A) — if even the **first** sentence from `content_start` cannot satisfy the hard cap (the
+sentence is longer than the remaining room), or whole-sentence packing cannot reach the soft floor
+without breaching the cap, cut **inside** that sentence at the best clause boundary (priority 4 -> 3 ->
+2) nearest the target via the clause engine, else a word boundary; always respecting `MAX_CONTENT`.
 
-**Overlap selection** (leading overlap of the next chunk; user-specified rule). Among candidate
-boundaries whose overlap length `o = content_start - index` falls in `[40, 120]`, choose by:
-1. highest priority;
-2. smallest `|o - 80|` (symmetric, linear);
-3. tie -> **shorter** overlap (larger index).
-If only word boundaries exist, take the word boundary nearest `o = 80` within `[40, 120]`. The first
-chunk has overlap 0.
+**Overlap selection** (leading overlap of the next chunk). Default path — walk **backward** from
+`content_start` over whole sentences, accumulating until the overlap length `o = content_start -
+overlap_start` is **closest to ~80** within **[40, 120]** (prefer a-bit-less / shorter on tie, since
+whole sentences rarely hit 80 exactly). Fallback (Tier A) — if the single immediately-preceding sentence
+is longer than the 120 cap (no whole sentence fits), take a ~80-token tail within [40, 120] at the best
+clause boundary (4 -> 3 -> 2) via the clause engine, else a word boundary. The first chunk has
+overlap 0.
 
-> Priority dominates distance by design ("semantic-based, not a strict token cut-off"): e.g. a sentence
-> boundary at overlap 45 is preferred over a comma at overlap 80. The weighting is a tunable knob; the
-> default is strict priority-first, distance-second.
+> Sentence boundaries (priority 5) dominate by design — clause/word boundaries appear only when a
+> sentence overflows the budget. Targets (`400`, `~360`, `~80`) and tie-breaks are tunable knobs;
+> exact values and edge-case behavior are to be confirmed with the user during algorithm design.
 
 ### 6.3 Algorithm (pseudocode)
 
 ```python
-def chunk_document(text, tokenizer, segmenter, cfg) -> list[ChunkSpan]:
+def chunk_document(text, tokenizer, sentence_engine, clause_engine, cfg) -> list[ChunkSpan]:
     enc = tokenizer(text, add_special_tokens=False, return_offsets_mapping=True)
     tokens, offsets = enc["input_ids"], enc["offset_mapping"]   # offsets[t] = (char_start, char_end)
     n = len(tokens)
     if n == 0:
         return []
 
-    # 1) candidate boundaries: token_index -> max priority (word=1 implicit for every index)
-    boundaries = detect_boundaries(text, offsets, segmenter)    # {token_index: priority>=2}; falls back below
+    # Sentence boundaries as token indices (priority 5), from the sentence engine (SaT default).
+    sentences = sentence_engine.sentence_token_bounds(text, offsets)   # ascending split indices
 
-    # 2) if no sentence/clause structure at all -> legacy non-semantic sliding window (02-...md §3)
-    if not has_usable_structure(boundaries):
-        return legacy_sliding_window(tokens, offsets, text, cfg)   # 500 window / 100 overlap
+    # Tier B: no sentence structure at all -> legacy non-semantic sliding window (02-...md §3)
+    if not sentences:
+        return legacy_sliding_window(tokens, offsets, text, cfg)       # 500 window / 100 overlap
 
     spans, content_start, i = [], 0, 0
     while content_start < n:
-        # leading overlap (0 for first chunk)
-        overlap_start = 0 if i == 0 else select_overlap(boundaries, content_start, cfg)
+        # Leading overlap: whole sentence(s) ~80 in [40,120]; Tier-A clause/word fallback if a
+        # single preceding sentence > 120 cap. (0 for the first chunk.)
+        overlap_start = 0 if i == 0 else choose_overlap_start(sentences, clause_engine, content_start, cfg)
 
-        # cut: ~400 new tokens, snapped, capped so (cut - overlap_start) <= MAX_CONTENT
-        target = content_start + cfg.chunk_new_tokens                  # 400
-        cap_hi = overlap_start + cfg.max_content_tokens                # ~507
-        cut = select_cut(boundaries, content_start, target, cap_hi, n, cfg)
-
-        char_start = offsets[overlap_start][0]
-        char_end   = offsets[cut - 1][1]
-        leading_overlap_chars = offsets[content_start][0] - offsets[overlap_start][0]  # 0 when i == 0
+        # Cut: pack whole sentences toward ~400 unique, soft floor ~360, HARD cap
+        # (cut - overlap_start) <= MAX_CONTENT; Tier-A clause/word cut inside an over-long sentence.
+        cut = choose_cut(sentences, clause_engine, content_start, overlap_start, n, cfg)
 
         spans.append(ChunkSpan(
             chunk_index=i,
-            text=text[char_start:char_end],
+            text=text[offsets[overlap_start][0] : offsets[cut - 1][1]],
             token_count=cut - overlap_start,
-            leading_overlap_chars=leading_overlap_chars,
+            leading_overlap_chars=offsets[content_start][0] - offsets[overlap_start][0],  # 0 when i == 0
         ))
         content_start, i = cut, i + 1
-    return spans
+
+    spans = drop_or_merge_pure_overlap_tail(spans, cfg)   # see §6.4: last chunk must carry new content
+    return [reindex(s, k) for k, s in enumerate(spans)]
 ```
 
 Key invariants:
@@ -411,50 +443,80 @@ Key invariants:
 - The head of chunk `i` of length `leading_overlap_chars` equals the tail of chunk `i-1` (same character
   range), so retrieval-time concatenation strips it once (`05-...md` §8).
 - `cut > content_start` is enforced (progress guaranteed; word boundaries ensure a candidate exists).
+- **No pure-overlap final chunk** (§6.4): the last chunk always carries content beyond its overlap.
 
-### 6.4 Fallbacks
+`choose_cut` / `choose_overlap_start` encapsulate the sentence-first selection of §6.2 with the
+clause/word Tier-A fallback. Their exact internals (search bounds, the soft-floor/overlap interaction,
+tie-breaks, document-end handling) are intentionally left for the algorithm-design step — to be settled
+with the user (see the note in §6 and §9).
 
-- **Per-boundary:** when no priority >= 2 boundary fits a search band, fall back to the **word**
-  boundary nearest the target (still token-accurate, just not semantic).
-- **Whole-document:** when the segmenter finds no sentence/clause structure (e.g. a single
-  unpunctuated blob), fall back to the **legacy non-semantic sliding window** (500-token window,
-  100-token overlap; `02-...md` §3). It plugs into the same `ChunkSpan` interface, so downstream code is
-  unchanged.
+### 6.4 Fallbacks (two tiers) and the last-chunk rule
 
-### 6.5 Segmenter library: evaluation and decision
+The default path uses whole sentences. Fallbacks are organized into two distinct tiers, plus a
+structural rule for the final chunk.
 
-The sentence engine is **pluggable / config-selectable**; the clause layer, scoring, fallbacks, and
-token/char alignment are engine-independent. Evaluation criteria (reweighted for the English-only,
-accuracy-first scope): **English sentence-boundary accuracy**, robustness to noisy/OCR/legal text,
-OOV/typo robustness, **maintenance/activity**, dependencies, license, and latency.
+- **Tier A - over-long sentence (clause/word).** The text *has* sentence structure, but a single
+  sentence does not fit the budget (overlap can't be a whole sentence within the ~120 cap, or the
+  unique content can't end on a sentence boundary without breaching `MAX_CONTENT` / the soft floor). We
+  then cut **inside** that sentence at the best clause boundary, descending the hierarchy
+  parenthetical(4) -> semicolon(3) -> comma(2), judged by the **spaCy English clause engine** (default),
+  and finally a **word boundary (1)** if no clause boundary fits. This is the only place priorities 4-1
+  are used, and it is expected to fire on OCR/email run-ons.
+- **Tier B - no sentence structure at all.** The segmenter finds no sentences (e.g. one unpunctuated
+  blob). Fall back to the **legacy non-semantic sliding window** (500-token window, 100-token overlap;
+  `02-...md` §3). It plugs into the same `ChunkSpan` interface, so downstream code is unchanged.
 
-- **SaT / `wtpsplit`** (ML; MIT; EMNLP 2024; actively maintained) — **RECOMMENDED DEFAULT.** English
-  ~96.5-97.4 (sat-3l-sm / sat-12l-sm); state-of-the-art, punctuation-agnostic, and explicitly robust on
-  poorly formatted and **legal-domain** text — a strong fit for e-discovery. Dependencies **reuse the
-  `torch`** already pulled for e5, or run via **`wtpsplit-lite`** (ONNX; minimal deps:
-  `onnxruntime`, `tokenizers`, `numpy`, `huggingface-hub`). Cost: per-document model inference
-  (~150 ms/page with the lite ONNX path; slower on CPU with full torch). OOV-robust (subword model).
-  ([paper](https://arxiv.org/abs/2406.16678), [repo](https://github.com/segment-any-text/wtpsplit),
-  [lite](https://github.com/superlinear-ai/wtpsplit-lite))
-- **BlingFire** (Microsoft; MIT; stable) — **recommended lightweight alternative / no-ML fallback.**
-  Fastest by far (C++ via pip wheel, **no runtime dependencies**), ~90-92% English GRS, handles
-  abbreviations (`Dr.`, `D.C.`, `Jan. 5th`). Best when ML/torch is undesirable.
-  ([repo](https://github.com/microsoft/BlingFire))
-- **sentencex** (Wikimedia; MIT; very actively maintained, Rust core, char offsets, ~300 languages) —
-  secondary lightweight option. Fast and current; English GRS accuracy is benchmark-dependent (worth a
-  quick check before adopting). ([repo](https://github.com/wikimedia/sentencex))
-- **pySBD** (MIT) — **assessed for completeness, NOT selected.** Accurate (~97% English GRS) but
-  **unmaintained since 2021** (last release v0.3.4, Feb 2021) and ~20x slower than BlingFire. It is the
-  origin of the sentencex / sentencesplit rule sets. ([repo](https://github.com/nipunsadvilkar/pySBD),
-  [paper](https://aclanthology.org/2020.nlposs-1.15/))
-- **Rejected:** `syntok` (fails on common abbreviation patterns), `nltk` punkt (lower ~66-72% GRS),
-  `MiniSBD` (brand-new, **AGPL-3.0** copyleft), spaCy (heavier; its dependency parser is offered only as
-  an optional clause-accuracy upgrade), and LLM/encoder approaches (cost, non-determinism; and e5 is an
-  **encoder** that cannot segment by generation).
+- **Last-chunk rule (no pure-overlap chunk).** A trailing segment that would contain **only overlap**
+  (no new/unique content beyond the leading overlap) must **not** be emitted: it is dropped, and its
+  content is already covered by the previous chunk (or merged into it). Equivalently, the final chunk
+  must always carry text beyond its overlap. This avoids a redundant tail chunk that duplicates the end
+  of the document.
 
-**Does this need morphosyntactic analysis?** No. SaT (or any rule-based engine) for sentences, plus the
-punctuation clause layer, suffices for the requested hierarchy. Full dependency parsing (spaCy) is an
-optional clause-accuracy upgrade only and is not required.
+### 6.5 Engine choice: sentence engine + clause engine
+
+There are **two** pluggable, config-selectable engines: a **sentence engine** (priority 5) and a
+**clause engine** (priorities 4-2, Tier-A fallback). The scoring, packing, two-tier fallback,
+last-chunk rule, and token/char alignment are engine-independent. Evaluation criteria (English-only,
+accuracy-first): English boundary accuracy, robustness to noisy/OCR/legal text, OOV/typo robustness,
+**how many priorities the engine can cover**, maintenance/activity, dependencies, license, latency.
+
+**Priorities-covered scoreboard** (can the engine both surface and meaningfully *judge* that priority):
+
+| Engine | 5 Sentence | 4 Paren | 3 Semicolon | 2 Comma | 1 Word | Notes |
+|---|---|---|---|---|---|---|
+| SaT (`wtpsplit`) | Native (SOTA) | no (scorer only, weak) | no | no | no | sentence/newline model; no typing; uninformative mid-sentence |
+| spaCy (en + parser) | yes | yes | yes | yes | yes | morphosyntactic clause boundaries; covers all five |
+| BlingFire | yes | no | no | no | yes | sentences + word tokenization |
+| sentencex | yes (+offsets) | no | no | no | yes | sentences + tokenizer |
+| pySBD | yes | no | no | no | no | sentences only |
+
+**Sentence engine — DEFAULT = SaT / `wtpsplit`** (ML; MIT; EMNLP 2024; actively maintained). English
+~96.5-97.4 (sat-3l-sm / sat-12l-sm); state-of-the-art, punctuation-agnostic, explicitly robust on
+poorly formatted and **legal-domain** text — the right fit for e-discovery, where both overlap and
+unique content are sentence-built. Dependencies **reuse the `torch`** already pulled for e5, or run via
+**`wtpsplit-lite`** (ONNX; minimal deps). Cost: per-document inference (~150 ms/page lite). OOV-robust.
+Pluggable alternatives: **BlingFire** (Microsoft; MIT; fastest; C++ wheel, no runtime deps; ~90-92%
+GRS) for a no-ML option; **sentencex** (Wikimedia; MIT; very actively maintained; char offsets); and
+**pySBD** assessed but **not selected** (accurate ~97% GRS but **unmaintained since 2021**, ~20x slower).
+([SaT paper](https://arxiv.org/abs/2406.16678), [wtpsplit](https://github.com/segment-any-text/wtpsplit),
+[lite](https://github.com/superlinear-ai/wtpsplit-lite), [BlingFire](https://github.com/microsoft/BlingFire),
+[sentencex](https://github.com/wikimedia/sentencex), [pySBD](https://github.com/nipunsadvilkar/pySBD))
+
+**Clause engine (Tier-A fallback) — DEFAULT = spaCy (English, `en_core_web_sm` with the dependency
+parser).** Rationale: SaT cannot judge sub-sentence boundaries (see §6.1), so when a sentence overflows
+the budget the choice is **morphosyntactic (spaCy) vs naive punctuation/regex**. Because the corpus has
+**substantial email threads and OCR'd documents** (frequent run-on / poorly punctuated sentences),
+spaCy's dependency parse earns its keep often enough to be the default: it identifies genuine clause
+boundaries (coordinations, clausal modifiers, parentheticals) and supplies the priority 4/3/2 type from
+the mark at the boundary. spaCy is the **only** engine that covers all five priorities. A **lean
+punctuation-only clause strategy** (locate `)`/`;`/`,` with a digit-guard; no parser) remains available
+as a pluggable alternative for minimal-dependency deployments. ([spaCy](https://spacy.io/))
+
+**Does this need morphosyntactic analysis?** For **sentences (priority 5): no** — SaT handles them. For
+the **over-long-sentence fallback (priorities 4-2): yes, by choice** — we default to spaCy's
+morphosyntactic parse rather than regex, because e-discovery's run-on/OCR text makes good clause cuts
+matter. e5 is an **encoder** and cannot segment by generation, so LLM/encoder segmentation is rejected
+(cost, non-determinism).
 
 ---
 
@@ -609,18 +671,26 @@ class DocumentResult:
 index_name = "as-..."          # target nested index
 
 [indexing]
-bulk_docs_per_request = 200    # documents per _bulk
+bulk_docs_per_request = 200       # documents per _bulk
 bulk_max_retries = 3
 embedding_model = "intfloat/multilingual-e5-small"   # or a local path
 embedding_batch_size = 96
-chunk_new_tokens = 400
-overlap_target = 80
+# Chunk geometry (all SOFT except max_content_tokens):
+chunk_unique_target = 400         # soft target for unique tokens
+chunk_unique_floor = 360          # soft lower floor (adjusted by realized overlap)
+overlap_target = 80               # soft; whole sentences, usually a bit less
 overlap_min = 40
 overlap_max = 120
-fallback_overlap = 100
-max_content_tokens = 505       # or computed from the tokenizer at runtime
-segmenter = "sat"              # "sat" | "blingfire" | ...
+max_content_tokens = 505          # HARD: overlap + unique cap (or computed from the tokenizer)
+# Sentence engine (priority 5):
+sentence_engine = "sat"           # "sat" | "blingfire" | "sentencex" | "pysbd"
 sat_model = "sat-3l-sm"
+# Clause engine (Tier-A fallback, priorities 4-2):
+clause_engine = "spacy"           # "spacy" (default, morphosyntactic) | "punctuation" (lean, no parser)
+spacy_model = "en_core_web_sm"
+# Tier-B fallback (no sentence structure at all): legacy non-semantic sliding window
+fallback_window = 500
+fallback_overlap = 100
 ```
 
 Overwrite behavior is a **CLI flag** (`--overwrite`, default off), not a config key: by default an
@@ -632,10 +702,14 @@ the reader is part of the later code phase.
 ### 8.4 Dependencies
 
 - `sentence-transformers` (+ `torch`, `transformers`) — e5 embeddings and the shared tokenizer.
-- `wtpsplit` (reuses `torch`) **or** `wtpsplit-lite` (ONNX, minimal deps) — the SaT segmenter.
-- optional `blingfire` — the lightweight, no-ML alternative engine.
+- `wtpsplit` (reuses `torch`) **or** `wtpsplit-lite` (ONNX, minimal deps) — the SaT **sentence** engine.
+- `spacy` (+ the `en_core_web_sm` English model) — the default **clause** engine (Tier-A fallback).
+  This is a second parser, accepted because the corpus has frequent OCR/email run-on sentences where
+  good clause cuts matter; the lean `punctuation` clause strategy needs no parser if a minimal install
+  is preferred.
+- optional `blingfire` / `sentencex` — alternative sentence engines.
 - `elasticsearch` — already present.
-- (`pysbd` is **not** required.)
+- (`pysbd` is assessed but **not** the default; available as an alternative sentence engine.)
 
 `es-index-explorer` is research/tooling, so these dependencies are acceptable (unlike the minimal
 production agent image).
@@ -647,8 +721,20 @@ production agent image).
 1. **SaT model size / runtime:** `sat-3l-sm` (~96.5, faster) vs `sat-12l-sm` (~97.4, slower); `wtpsplit`
    (torch) vs `wtpsplit-lite` (ONNX). To be benchmarked on representative e-discovery text in the code
    phase.
-2. **Cut search radius and priority-vs-distance weighting** are tunable; defaults are priority-first,
-   distance-second, with a modest band around 400.
+2. **Sentence-first chunk geometry is tunable and mostly soft.** `chunk_unique_target` (~400),
+   `chunk_unique_floor` (~360, overlap-adjusted), `overlap_target` (~80) and the `[40, 120]` overlap
+   band are soft; only `overlap + unique <= max_content_tokens` is hard. The exact selection internals
+   (sentence-packing search bounds, how the soft floor interacts with the realized overlap, tie-breaks,
+   when exactly Tier-A clause cutting triggers, and document-end handling) are to be settled with the
+   user during algorithm design.
+   - **Edge cases -> ask the user.** When the next agent specifies the chunker algorithm and an
+     edge-case/ambiguity arises (degenerate inputs, a sentence longer than `MAX_CONTENT`, overlap that
+     can't reach `overlap_min`, single-sentence documents, etc.), it should ask the user rather than
+     guess.
+   - **No pure-overlap last chunk (settled).** A trailing segment consisting solely of overlap is never
+     emitted; the final chunk must carry content beyond its overlap (§6.4).
+   - **Clause engine default = spaCy English (`en_core_web_sm`)** for Tier-A over-long-sentence cuts;
+     the lean `punctuation` strategy is the no-parser alternative (§6.5).
 3. **`subset_ids` source:** taken from the run's `relativity.subset_id`; append-to-existing semantics
    (production's `AlreadyIndexedAppendToSubset`, `02-...md` §5.3) are out of scope for the first version
    (full overwrite per document).
@@ -672,6 +758,7 @@ production agent image).
 - SaT / Segment any Text (EMNLP 2024): https://arxiv.org/abs/2406.16678 ; https://github.com/segment-any-text/wtpsplit ; https://github.com/superlinear-ai/wtpsplit-lite
 - BlingFire: https://github.com/microsoft/BlingFire
 - sentencex (Wikimedia): https://github.com/wikimedia/sentencex
+- spaCy (default clause engine; English `en_core_web_sm`, dependency parser): https://spacy.io/ ; https://spacy.io/models/en
 - pySBD (assessed, not selected): https://github.com/nipunsadvilkar/pySBD ; https://aclanthology.org/2020.nlposs-1.15/
 - Independent sentence-tokenizer benchmark: https://github.com/ndgigliotti/sentence-tokenizer-bench
 - Elasticsearch "tune for indexing speed" (refresh_interval): https://www.elastic.co/guide/en/elasticsearch/reference/current/tune-for-indexing-speed.html
