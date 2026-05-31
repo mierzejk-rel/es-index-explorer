@@ -399,7 +399,6 @@ def _is_breaking_field_change(existing: dict[str, Any], desired: dict[str, Any])
 
     tracked_keys = {
         "type",
-        "index_options",
         "dims",
         "dimension",
         "similarity",
@@ -412,10 +411,29 @@ def _is_breaking_field_change(existing: dict[str, Any], desired: dict[str, Any])
         desired_value = desired.get(key)
         if _normalize_setting_value(existing_value) != _normalize_setting_value(desired_value):
             return True
+    desired_index_options = desired.get("index_options")
+    if desired_index_options is not None and not _normalized_contains(existing.get("index_options"), desired_index_options):
+        return True
     # Elasticsearch always returns copy_to as a list, even when set as a scalar.
     if _normalize_copy_to(existing.get("copy_to")) != _normalize_copy_to(desired.get("copy_to")):
         return True
     return False
+
+
+def _normalized_contains(existing: Any, desired: Any) -> bool:
+    """Return True when normalized desired values exist in normalized existing values."""
+
+    return _contains(_normalize_setting_value(existing), _normalize_setting_value(desired))
+
+
+def _contains(existing: Any, desired: Any) -> bool:
+    """Return True when `existing` recursively contains `desired`."""
+
+    if isinstance(desired, dict):
+        if not isinstance(existing, dict):
+            return False
+        return all(key in existing and _contains(existing[key], value) for key, value in desired.items())
+    return existing == desired
 
 
 def _normalize_copy_to(value: Any) -> list[str]:

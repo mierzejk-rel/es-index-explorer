@@ -77,15 +77,42 @@
       },
       "title_semantic": {
         "type": "semantic_text",
-        "inference_id": ".elser-2-elasticsearch"
+        "inference_id": ".elser-2-elasticsearch",
+        "index_options": {
+          "sparse_vector": {
+            "prune": true,
+            "pruning_config": {
+              "tokens_freq_ratio_threshold": 5,
+              "tokens_weight_threshold": 0.4
+            }
+          }
+        }
       },
       "summary_semantic": {
         "type": "semantic_text",
-        "inference_id": ".elser-2-elasticsearch"
+        "inference_id": ".elser-2-elasticsearch",
+        "index_options": {
+          "sparse_vector": {
+            "prune": true,
+            "pruning_config": {
+              "tokens_freq_ratio_threshold": 5,
+              "tokens_weight_threshold": 0.4
+            }
+          }
+        }
       },
       "topic_semantic": {
         "type": "semantic_text",
-        "inference_id": ".elser-2-elasticsearch"
+        "inference_id": ".elser-2-elasticsearch",
+        "index_options": {
+          "sparse_vector": {
+            "prune": true,
+            "pruning_config": {
+              "tokens_freq_ratio_threshold": 5,
+              "tokens_weight_threshold": 0.4
+            }
+          }
+        }
       },
       "chunks": {
         "type": "nested",
