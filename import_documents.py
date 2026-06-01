@@ -21,6 +21,7 @@ def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Batch import RelativityOne documents into Elasticsearch.")
     parser.add_argument("--config", default=None, help="Path to config.toml.")
     parser.add_argument("--output-dir", default=".", help="Directory for progress log files.")
+    parser.add_argument("--limit", type=int, default=None, help="Stop after N documents.")
     parser.add_argument("--retry", action="store_true", help="Retry failed documents from the progress log.")
     parser.add_argument("--fresh", action="store_true", help="Discard existing progress log and start from scratch.")
     parser.add_argument(
@@ -60,14 +61,15 @@ def main() -> None:
         if not failed_ids:
             print("No failures to retry.")
             return
-        view = ProgressView(total=len(failed_ids), description="Indexing (retry)")
+        retry_total = len(failed_ids) if args.limit is None else min(len(failed_ids), args.limit)
+        view = ProgressView(total=retry_total, description="Indexing (retry)")
 
         def _on_progress_retry(snapshot: ProgressSnapshot) -> None:
             view.update(snapshot)
             live.update(view.render())
 
         importer = BatchImporter(
-            config, progress_log, on_progress=_on_progress_retry, sink=pipeline.index_documents
+            config, progress_log, on_progress=_on_progress_retry, sink=pipeline.index_documents, limit=args.limit
         )
         with pipeline.refresh_disabled(), Live(view.render(), refresh_per_second=10) as live:
             importer.retry_failed(failed_ids)
@@ -85,7 +87,7 @@ def main() -> None:
         live.update(view.render())
 
     view = ProgressView(total=None, description="Indexing")
-    importer = BatchImporter(config, progress_log, on_progress=_on_progress, sink=pipeline.index_documents)
+    importer = BatchImporter(config, progress_log, on_progress=_on_progress, sink=pipeline.index_documents, limit=args.limit)
     with pipeline.refresh_disabled(), Live(view.render(), refresh_per_second=10) as live:
         importer.run(resume_after=state.last_processed_id)
         if first_snapshot is None:

@@ -33,6 +33,7 @@ class BatchImporter:
         *,
         on_progress: Callable[[ProgressSnapshot], None] | None = None,
         sink: DocumentSink | None = None,
+        limit: int | None = None,
     ) -> None:
         self._config = config
         self._progress_log = progress_log
@@ -41,6 +42,7 @@ class BatchImporter:
         )
         self._on_progress = on_progress or (lambda _: None)
         self._sink = sink
+        self._limit = limit
         self._last_error: str | None = None
 
     def run(self, *, resume_after: int) -> ImportState:
@@ -53,6 +55,7 @@ class BatchImporter:
 
         response = self._execute_page(builder, start=0)
         total = response.TotalCount
+        effective_total = total if self._limit is None else min(total, self._limit)
 
         if response.TotalCount == 0:
             return self._progress_log.load()
@@ -76,14 +79,18 @@ class BatchImporter:
                 processed,
                 ok_count,
                 failed_count,
-                total,
+                effective_total,
             )
+            if self._limit is not None and processed >= self._limit:
+                break
             current_start += batch_size
             response = self._execute_page(builder, start=current_start)
 
         return self._progress_log.load()
 
     def retry_failed(self, failed_ids: list[int]) -> None:
+        if self._limit is not None:
+            failed_ids = failed_ids[: self._limit]
         if not failed_ids:
             return
         builder, field_names = self._build_query_builder()
@@ -170,6 +177,8 @@ class BatchImporter:
     ) -> tuple[int, int, int]:
         pending: list[RelativityDocument] = []
         for obj in response.Objects:
+            if self._limit is not None and processed >= self._limit:
+                break
             row: dict[str, object] = {ARTIFACT_ID_KEY: obj.ArtifactID}
             for name, value in zip(field_names, obj.Values):
                 row[name] = value
