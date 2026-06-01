@@ -41,6 +41,7 @@ def read_documents(
     failures: list[FailedDocument] = []
     field_names = list(field_map.keys())
     total, rows = builder.export_with_total(field_names=field_names)
+    effective_total = total if limit is None else min(total, limit)
     processed = 0
     ok_count = 0
     failed_count = 0
@@ -49,7 +50,7 @@ def read_documents(
         on_progress(
             ProgressSnapshot(
                 processed=0,
-                total=0,
+                total=effective_total,
                 ok_count=0,
                 failed_count=0,
                 last_artifact_id=None,
@@ -80,7 +81,7 @@ def read_documents(
             on_progress(
                 ProgressSnapshot(
                     processed=processed,
-                    total=total,
+                    total=effective_total,
                     ok_count=ok_count,
                     failed_count=failed_count,
                     last_artifact_id=artifact_id,
