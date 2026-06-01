@@ -10,10 +10,10 @@ from dataclasses import dataclass
 
 import pytest
 
-from es_index_explorer.indexing.chunking import ChunkParams, ClauseBoundary
+from es_index_explorer.indexing.chunking import ChunkParams, ClauseBoundary, Tokenizer
 
 
-class FakeTokenizer:
+class FakeTokenizer(Tokenizer):
     """Whitespace tokenizer: each run of non-space characters is one token."""
 
     def token_offsets(self, text: str) -> list[tuple[int, int]]:
@@ -37,6 +37,7 @@ class FakeSentenceEngine:
     def __init__(self, spans: list[tuple[int, int]]) -> None:
         self._spans = list(spans)
 
+    # noinspection PyUnusedLocal
     def sentence_spans(self, text: str) -> list[tuple[int, int]]:
         return list(self._spans)
 
@@ -47,6 +48,7 @@ class FakeClauseEngine:
     def __init__(self, boundaries: list[ClauseBoundary] | None = None) -> None:
         self._boundaries = list(boundaries or [])
 
+    # noinspection PyUnusedLocal
     def clause_boundaries(self, text: str, start: int, end: int) -> list[ClauseBoundary]:
         return [b for b in self._boundaries if start < b.char_pos < end]
 

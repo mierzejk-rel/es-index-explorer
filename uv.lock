@@ -228,6 +228,7 @@ dependencies = [
     { name = "spacy" },
     { name = "torch", version = "2.12.0", source = { registry = "https://download.pytorch.org/whl/cpu" }, marker = "sys_platform == 'darwin'" },
     { name = "torch", version = "2.12.0+cpu", source = { registry = "https://download.pytorch.org/whl/cpu" }, marker = "sys_platform != 'darwin'" },
+    { name = "transformers" },
     { name = "wtpsplit" },
 ]
 
@@ -246,6 +247,7 @@ requires-dist = [
     { name = "sentence-transformers", specifier = ">=3.0" },
     { name = "spacy", specifier = ">=3.7" },
     { name = "torch", specifier = ">=2.2", index = "https://download.pytorch.org/whl/cpu" },
+    { name = "transformers", specifier = ">=4.0" },
     { name = "wtpsplit", specifier = ">=2.1" },
 ]
 

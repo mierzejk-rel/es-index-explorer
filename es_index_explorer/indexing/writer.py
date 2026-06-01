@@ -7,7 +7,7 @@ from typing import Any
 from elasticsearch import Elasticsearch
 from elasticsearch.helpers import streaming_bulk
 
-from .document_builder import DocumentResult
+from .document_builder import DocumentResult, Outcome
 
 
 @contextmanager
@@ -62,7 +62,7 @@ def bulk_index(
         item = info.get(op_key) or next(iter(info.values()))
         artifact_id = _artifact_id(item.get("_id"))
         if ok:
-            outcome = "overwritten" if item.get("result") == "updated" else "created"
+            outcome: Outcome = "overwritten" if item.get("result") == "updated" else "created"
             results.append(DocumentResult(artifact_id=artifact_id, outcome=outcome))
             continue
         status = item.get("status")

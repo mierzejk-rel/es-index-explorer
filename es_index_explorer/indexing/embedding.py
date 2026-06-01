@@ -5,12 +5,14 @@ can be imported without them present.
 """
 
 import os
-from typing import Any
+# noinspection PyPackageRequirements
+from transformers import PreTrainedTokenizerBase
 
 from ..config import IndexingConfig
 from .engines import HuggingFaceTokenizer
 
 
+# noinspection PyNoneFunctionAssignment,PyArgumentList,PyUnresolvedReferences
 class E5Embedder:
     """Loads `intfloat/multilingual-e5-small` once and embeds passages.
 
@@ -27,7 +29,7 @@ class E5Embedder:
         self._model = SentenceTransformer(model_id, device=config.device or None)
         self._prefix = config.passage_prefix
         self._batch_size = config.embedding_batch_size
-        self._hf_tokenizer: Any = self._model.tokenizer
+        self._hf_tokenizer: PreTrainedTokenizerBase = self._model.tokenizer
         self._tokenizer = HuggingFaceTokenizer(self._hf_tokenizer)
 
     @property

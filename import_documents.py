@@ -87,7 +87,7 @@ def main() -> None:
     view = ProgressView(total=None, description="Indexing")
     importer = BatchImporter(config, progress_log, on_progress=_on_progress, sink=pipeline.index_documents)
     with pipeline.refresh_disabled(), Live(view.render(), refresh_per_second=10) as live:
-        importer.run(resume_after=state.last_processed_id, state=state)
+        importer.run(resume_after=state.last_processed_id)
         if first_snapshot is None:
             view.mark_complete()
         live.update(view.render())

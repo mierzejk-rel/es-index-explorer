@@ -11,7 +11,7 @@ from es_index_explorer.indexing.chunking import (
     PRIORITY_COMMA,
     PRIORITY_PARENTHETICAL,
     PRIORITY_SEMICOLON,
-    ClauseBoundary,
+    ClauseBoundary, ClauseEngine,
 )
 
 _CLAUSE_PRIORITY: dict[str, int] = {
@@ -33,7 +33,7 @@ class HuggingFaceTokenizer:
         return [(int(start), int(end)) for start, end in encoded["offset_mapping"] if end > start]
 
 
-class PunctuationClauseEngine:
+class PunctuationClauseEngine(ClauseEngine):
     """Lean, dependency-free clause engine: scans for ``)`` / ``;`` / ``,``.
 
     A comma surrounded by digits (e.g. ``1,000``) is not treated as a clause

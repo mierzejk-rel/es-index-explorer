@@ -66,7 +66,7 @@ def read_documents(
             documents.append(doc)
             ok_count += 1
         except (ValidationError, ValueError, KeyError, DocumentReadError) as exc:
-            last_error = str(exc)
+            last_error: str = str(exc)
             logger.warning("Skipping artifact %s: %s", artifact_id, exc)
             failures.append(
                 FailedDocument(

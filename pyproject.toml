@@ -11,6 +11,7 @@ dependencies = [
     # runtime is not pulled in for this CPU-only deployment. It is otherwise a transitive dep of
     # sentence-transformers / wtpsplit.
     "torch>=2.2",
+    "transformers>=4.0",
     "sentence-transformers>=3.0",
     "wtpsplit>=2.1",
     "spacy>=3.7",

@@ -245,7 +245,8 @@ class SemanticChunker:
         if chosen is None:
             chosen = 0
         # Keep the overlap region a suffix of the previous chunk (char-exact dedup).
-        chosen = max(chosen, prev_overlap_start)
+        assert chosen is not None
+        chosen: int = max(chosen, prev_overlap_start)
         if chosen >= content_start:
             chosen = max(prev_overlap_start, content_start - 1)
         return max(0, chosen)

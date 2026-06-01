@@ -43,7 +43,7 @@ class BatchImporter:
         self._sink = sink
         self._last_error: str | None = None
 
-    def run(self, *, resume_after: int, state: ImportState) -> ImportState:
+    def run(self, *, resume_after: int) -> ImportState:
         builder, field_names = self._build_query_builder()
         condition = self._compose_condition(resume_after)
         if condition is not None:
@@ -185,6 +185,7 @@ class BatchImporter:
                 doc = build_relativity_document(artifact_id=last_artifact_id, row=row)
             except (ValidationError, ValueError, KeyError, DocumentReadError) as exc:
                 self._last_error = str(exc)
+                # noinspection PyTypeChecker
                 self._progress_log.record_error(
                     last_artifact_id, self._last_error, phase=phase, stage="read",
                     error_type=type(exc).__name__,
@@ -217,6 +218,7 @@ class BatchImporter:
             self._progress_log.record_ok(result.artifact_id, phase=phase, outcome=result.outcome)
             return ok_count + 1, failed_count
         self._last_error = result.error_message or result.outcome
+        # noinspection PyTypeChecker
         self._progress_log.record_error(
             result.artifact_id, self._last_error, phase=phase,
             stage=result.stage or "index", error_type=result.error_type,
