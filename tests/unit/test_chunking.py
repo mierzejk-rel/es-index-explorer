@@ -8,9 +8,11 @@ sentence/clause engines) and need no SaT/spaCy/torch.
 import pytest
 
 from es_index_explorer.indexing.chunking import (
+    CharOffset,
     ChunkParams,
     ClauseBoundary,
     SemanticChunker,
+    SentenceSpan,
 )
 
 from tests.conftest import (
@@ -28,7 +30,7 @@ def _chunk(
     doc: Document,
     params: ChunkParams,
     *,
-    sentences: list[tuple[int, int]] | None = None,
+    sentences: list[SentenceSpan] | None = None,
     clauses: list[ClauseBoundary] | None = None,
 ) -> list:
     tokenizer = FakeTokenizer()
@@ -37,7 +39,7 @@ def _chunk(
     return SemanticChunker(tokenizer, sentence_engine, clause_engine, params).chunk(doc.text)
 
 
-def _token_offsets(text: str) -> list[tuple[int, int]]:
+def _token_offsets(text: str) -> list[CharOffset]:
     return FakeTokenizer().token_offsets(text)
 
 
@@ -114,7 +116,7 @@ def test_two_chunks(small_params: ChunkParams) -> None:
     assert len(chunks) == 2
     # chunk 0: [0, 10) on the sentence boundary closest to unique_target (10)
     assert chunks[0].char_start == doc.token_char_start(0)
-    assert chunks[0].char_end == _token_offsets(doc.text)[9][1]
+    assert chunks[0].char_end == _token_offsets(doc.text)[9].char_end
     assert chunks[0].leading_overlap_chars == 0
     # chunk 1: ends at EOF and carries overlap from chunk 0
     assert chunks[1].char_end == len(doc.text)
@@ -142,7 +144,7 @@ def test_overlong_sentence_word_fallback_when_no_clause(small_params: ChunkParam
     chunks = _chunk(doc, small_params)  # no clause boundaries -> word cut at the target
     # first chunk cut at unique_target (10) tokens via word fallback
     assert chunks[0].char_start == 0
-    assert chunks[0].char_end == _token_offsets(doc.text)[9][1]  # tokens [0, 10)
+    assert chunks[0].char_end == _token_offsets(doc.text)[9].char_end  # tokens [0, 10)
     assert_invariants(doc, chunks, small_params)
 
 
@@ -155,7 +157,7 @@ def test_overlong_sentence_prefers_higher_priority_clause(small_params: ChunkPar
     ]
     chunks = _chunk(doc, small_params, clauses=clauses)
     # priority dominates distance-to-target: cut before token 12 (semicolon), not token 8
-    assert chunks[0].char_end == _token_offsets(doc.text)[11][1]  # tokens [0, 12)
+    assert chunks[0].char_end == _token_offsets(doc.text)[11].char_end  # tokens [0, 12)
     assert_invariants(doc, chunks, small_params)
 
 
@@ -170,9 +172,9 @@ def test_no_sentences_uses_legacy_sliding_window(small_params: ChunkParams) -> N
     starts = [c.char_start for c in chunks]
     ends = [c.char_end for c in chunks]
     offsets = _token_offsets(doc.text)
-    assert starts[0] == offsets[0][0]
-    assert ends[0] == offsets[9][1]
-    assert starts[1] == offsets[7][0]
+    assert starts[0] == offsets[0].char_start
+    assert ends[0] == offsets[9].char_end
+    assert starts[1] == offsets[7].char_start
     assert ends[-1] == len(doc.text)
     assert chunks[0].leading_overlap_chars == 0
     assert all(c.leading_overlap_chars > 0 for c in chunks[1:])

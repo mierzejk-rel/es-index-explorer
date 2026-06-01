@@ -73,6 +73,28 @@ class WindowTriple(NamedTuple):
     cut: int
 
 
+class CharOffset(NamedTuple):
+    """Token offset over the original text.
+
+    Attributes
+    ----------
+    char_start : int
+        Inclusive character offset where the token starts.
+    char_end : int
+        Exclusive character offset where the token ends.
+    """
+
+    char_start: int
+    char_end: int
+
+
+class SentenceSpan(NamedTuple):
+    """Sentence character span over the original text."""
+
+    char_start: int
+    char_end: int
+
+
 @dataclass(frozen=True)
 class ClauseBoundary:
     """A candidate sub-sentence cut position with its priority.
@@ -113,7 +135,7 @@ class ChunkParams:
 class Tokenizer(Protocol):
     """Token<->character alignment for a text."""
 
-    def token_offsets(self, text: str) -> list[tuple[int, int]]:
+    def token_offsets(self, text: str) -> list[CharOffset]:
         """Return ``(char_start, char_end)`` for each token of ``text``.
 
         Special/model tokens must be excluded; the returned list defines both the
@@ -126,7 +148,7 @@ class Tokenizer(Protocol):
 class SentenceEngine(Protocol):
     """Sentence boundary detector (priority 5)."""
 
-    def sentence_spans(self, text: str) -> list[tuple[int, int]]:
+    def sentence_spans(self, text: str) -> list[SentenceSpan]:
         """Return ordered ``(char_start, char_end)`` spans of sentences in ``text``.
 
         An empty list signals "no sentence structure" and triggers the chunker's
@@ -208,7 +230,7 @@ class SemanticChunker:
     def _semantic_windows(
         self,
         text: str,
-        offsets: list[tuple[int, int]],
+        offsets: list[CharOffset],
         token_starts: list[int],
         bounds: list[int],
         n: int,
@@ -236,7 +258,7 @@ class SemanticChunker:
     def _choose_overlap_start(
         self,
         text: str,
-        offsets: list[tuple[int, int]],
+        offsets: list[CharOffset],
         token_starts: list[int],
         bounds: list[int],
         content_start: int,
@@ -255,7 +277,7 @@ class SemanticChunker:
                 )
             else:
                 clause_candidates = self._clause_token_candidates(
-                    text, token_starts, offsets[lo][0], offsets[content_start][0], lo, hi
+                    text, token_starts, offsets[lo].char_start, offsets[content_start].char_start, lo, hi
                 )
                 if clause_candidates:
                     chosen = min(
@@ -276,7 +298,7 @@ class SemanticChunker:
     def _choose_cut(
         self,
         text: str,
-        offsets: list[tuple[int, int]],
+        offsets: list[CharOffset],
         token_starts: list[int],
         bounds: list[int],
         content_start: int,
@@ -297,9 +319,9 @@ class SemanticChunker:
 
         # Tier A: cut inside an over-long sentence using clause (4-2) then word (1).
         target_tok = min(content_start + params.unique_target, cap_hi)
-        char_hi = offsets[cap_hi][0] if cap_hi < n else len(text)
+        char_hi = offsets[cap_hi].char_start if cap_hi < n else len(text)
         clause_candidates = self._clause_token_candidates(
-            text, token_starts, offsets[content_start][0], char_hi, content_start + 1, cap_hi
+            text, token_starts, offsets[content_start].char_start, char_hi, content_start + 1, cap_hi
         )
         if clause_candidates:
             best = min(
@@ -329,7 +351,7 @@ class SemanticChunker:
 
     @staticmethod
     def _sentence_boundaries(
-        sentence_spans: list[tuple[int, int]], token_starts: list[int], n: int
+        sentence_spans: list[SentenceSpan], token_starts: list[int], n: int
     ) -> list[int]:
         bounds: set[int] = {0, n}
         for char_start, char_end in sentence_spans:
@@ -365,7 +387,7 @@ class SemanticChunker:
     @staticmethod
     def _build_spans(
         text: str,
-        offsets: list[tuple[int, int]],
+        offsets: list[CharOffset],
         triples: list[WindowTriple],
     ) -> list[ChunkSpan]:
         spans: list[ChunkSpan] = []
@@ -376,13 +398,13 @@ class SemanticChunker:
             cut = window.cut
             if cut <= content_start:
                 continue  # safeguard: never emit a pure-overlap chunk
-            char_start = offsets[overlap_start][0]
-            char_end = offsets[cut - 1][1]
+            char_start = offsets[overlap_start].char_start
+            char_end = offsets[cut - 1].char_end
             # The overlap region is tokens [overlap_start, content_start); its char length
             # ends at the END of the last overlap token (excluding the separator that follows),
             # so the head of this chunk equals the tail of the previous chunk char-for-char.
             if content_start > overlap_start:
-                leading_overlap_chars = offsets[content_start - 1][1] - char_start
+                leading_overlap_chars = offsets[content_start - 1].char_end - char_start
             else:
                 leading_overlap_chars = 0
             spans.append(

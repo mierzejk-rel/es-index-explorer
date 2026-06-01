@@ -8,6 +8,8 @@ not require ``wtpsplit`` or ``spacy``.
 from typing import Any
 
 from es_index_explorer.indexing.chunking import (
+    CharOffset,
+    SentenceSpan,
     Priority,
     ClauseBoundary, ClauseEngine,
 )
@@ -25,10 +27,10 @@ class HuggingFaceTokenizer:
     def __init__(self, hf_tokenizer: Any) -> None:
         self._tokenizer = hf_tokenizer
 
-    def token_offsets(self, text: str) -> list[tuple[int, int]]:
+    def token_offsets(self, text: str) -> list[CharOffset]:
         encoded = self._tokenizer(text, add_special_tokens=False, return_offsets_mapping=True)
         # Drop zero-width entries that some tokenizers emit for control/special pieces.
-        return [(int(start), int(end)) for start, end in encoded["offset_mapping"] if end > start]
+        return [CharOffset(int(start), int(end)) for start, end in encoded["offset_mapping"] if end > start]
 
 
 class PunctuationClauseEngine(ClauseEngine):
@@ -99,8 +101,8 @@ class SatSentenceEngine:
         if device and device.lower() != "cpu":
             self._sat.to(device)
 
-    def sentence_spans(self, text: str) -> list[tuple[int, int]]:
-        spans: list[tuple[int, int]] = []
+    def sentence_spans(self, text: str) -> list[SentenceSpan]:
+        spans: list[SentenceSpan] = []
         cursor = 0
         for sentence in self._sat.split(text):
             stripped = sentence.strip()
@@ -109,6 +111,6 @@ class SatSentenceEngine:
             idx = text.find(stripped, cursor)
             if idx < 0:
                 continue
-            spans.append((idx, idx + len(stripped)))
+            spans.append(SentenceSpan(idx, idx + len(stripped)))
             cursor = idx + len(stripped)
         return spans

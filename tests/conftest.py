@@ -10,14 +10,20 @@ from dataclasses import dataclass
 
 import pytest
 
-from es_index_explorer.indexing.chunking import ChunkParams, ClauseBoundary, Tokenizer
+from es_index_explorer.indexing.chunking import (
+    CharOffset,
+    ChunkParams,
+    ClauseBoundary,
+    SentenceSpan,
+    Tokenizer,
+)
 
 
 class FakeTokenizer(Tokenizer):
     """Whitespace tokenizer: each run of non-space characters is one token."""
 
-    def token_offsets(self, text: str) -> list[tuple[int, int]]:
-        offsets: list[tuple[int, int]] = []
+    def token_offsets(self, text: str) -> list[CharOffset]:
+        offsets: list[CharOffset] = []
         i = 0
         n = len(text)
         while i < n:
@@ -27,18 +33,18 @@ class FakeTokenizer(Tokenizer):
             start = i
             while i < n and not text[i].isspace():
                 i += 1
-            offsets.append((start, i))
+            offsets.append(CharOffset(start, i))
         return offsets
 
 
 class FakeSentenceEngine:
     """Returns scripted sentence char spans (independent of the text argument)."""
 
-    def __init__(self, spans: list[tuple[int, int]]) -> None:
+    def __init__(self, spans: list[SentenceSpan]) -> None:
         self._spans = list(spans)
 
     # noinspection PyUnusedLocal
-    def sentence_spans(self, text: str) -> list[tuple[int, int]]:
+    def sentence_spans(self, text: str) -> list[SentenceSpan]:
         return list(self._spans)
 
 
@@ -58,14 +64,14 @@ class Document:
     """A built test document with word and sentence char offsets."""
 
     text: str
-    word_offsets: list[tuple[int, int]]   # char span of each word/token
-    sentence_spans: list[tuple[int, int]]  # char span of each sentence
+    word_offsets: list[CharOffset]   # char span of each word/token
+    sentence_spans: list[SentenceSpan]  # char span of each sentence
 
     def token_char_start(self, token_index: int) -> int:
         """Char offset where token ``token_index`` begins (or len(text) at the end)."""
         if token_index >= len(self.word_offsets):
             return len(self.text)
-        return self.word_offsets[token_index][0]
+        return self.word_offsets[token_index].char_start
 
 
 def build_document(sentence_word_counts: list[int]) -> Document:
@@ -79,20 +85,20 @@ def build_document(sentence_word_counts: list[int]) -> Document:
     words = [f"w{i:03d}" for i in range(total)]
     text = " ".join(words)
 
-    word_offsets: list[tuple[int, int]] = []
+    word_offsets: list[CharOffset] = []
     pos = 0
     for word in words:
-        word_offsets.append((pos, pos + len(word)))
+        word_offsets.append(CharOffset(pos, pos + len(word)))
         pos += len(word) + 1  # trailing space
 
-    sentence_spans: list[tuple[int, int]] = []
+    sentence_spans: list[SentenceSpan] = []
     wi = 0
     for count in sentence_word_counts:
         if count <= 0:
             continue
-        start_char = word_offsets[wi][0]
-        end_char = word_offsets[wi + count - 1][1]
-        sentence_spans.append((start_char, end_char))
+        start_char = word_offsets[wi].char_start
+        end_char = word_offsets[wi + count - 1].char_end
+        sentence_spans.append(SentenceSpan(start_char, end_char))
         wi += count
     return Document(text=text, word_offsets=word_offsets, sentence_spans=sentence_spans)
 
