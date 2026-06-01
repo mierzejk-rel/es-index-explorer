@@ -5,6 +5,7 @@ this module (and the pure ``PunctuationClauseEngine`` / ``HuggingFaceTokenizer``
 not require ``wtpsplit`` or ``spacy``.
 """
 
+import logging
 from typing import Any
 
 from es_index_explorer.indexing.chunking import (
@@ -19,6 +20,34 @@ _CLAUSE_PRIORITY: dict[str, Priority] = {
     ";": Priority.SEMICOLON,
     ",": Priority.COMMA,
 }
+
+# transformers' lazy `*_fast` image-processing aliases log a WARNING on every attribute
+# access (see transformers/__init__.py). skops (a wtpsplit dependency) probes every module
+# in ``sys.modules`` for scipy attributes during import, touching all those aliases and
+# emitting hundreds of irrelevant "Accessing `...`" lines. We drop only those records.
+_ALIAS_WARNING_PREFIX = "Accessing `"
+_alias_filter_installed = False
+
+
+class _TransformersAliasWarningFilter(logging.Filter):
+    """Drops transformers' ``*_fast`` deprecation-alias access warnings (noise only)."""
+
+    def filter(self, record: logging.LogRecord) -> bool:
+        return not record.getMessage().startswith(_ALIAS_WARNING_PREFIX)
+
+
+def silence_transformers_alias_warnings() -> None:
+    """Install a filter that suppresses transformers' alias-access WARNING spam.
+
+    Idempotent and surgical: only records starting with ``Accessing ``` are dropped, so
+    genuine transformers warnings are preserved. Must run before ``wtpsplit``/``skops`` import.
+    """
+
+    global _alias_filter_installed
+    if _alias_filter_installed:
+        return
+    logging.getLogger("transformers").addFilter(_TransformersAliasWarningFilter())
+    _alias_filter_installed = True
 
 
 class HuggingFaceTokenizer:
@@ -94,6 +123,7 @@ class SatSentenceEngine:
     """Sentence engine backed by wtpsplit's Segment any Text (SaT) model."""
 
     def __init__(self, model_name: str = "sat-12l-sm", device: str = "") -> None:
+        silence_transformers_alias_warnings()  # before wtpsplit/skops walk transformers' aliases
         from wtpsplit import SaT  # lazy: pulls torch
 
         self._sat = SaT(model_name)
