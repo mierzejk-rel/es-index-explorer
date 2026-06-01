@@ -12,7 +12,7 @@ See ``reports/06-document-indexing-and-semantic-chunking.md`` sections 6.1-6.4.
 import bisect
 from dataclasses import dataclass
 from enum import IntEnum
-from typing import Protocol, runtime_checkable
+from typing import NamedTuple, Protocol, runtime_checkable
 
 
 class Priority(IntEnum):
@@ -53,6 +53,24 @@ class ChunkSpan:
     leading_overlap_chars: int
     char_start: int
     char_end: int
+
+
+class WindowTriple(NamedTuple):
+    """Chunk window over token indices.
+
+    Attributes
+    ----------
+    overlap_start : int
+        Inclusive token index where the chunk starts (may include overlap).
+    content_start : int
+        Inclusive token index where new/unique content starts.
+    cut : int
+        Exclusive token index where the chunk ends.
+    """
+
+    overlap_start: int
+    content_start: int
+    cut: int
 
 
 @dataclass(frozen=True)
@@ -194,10 +212,10 @@ class SemanticChunker:
         token_starts: list[int],
         bounds: list[int],
         n: int,
-    ) -> list[tuple[int, int, int]]:
+    ) -> list[WindowTriple]:
         """Produce (overlap_start, content_start, cut) token triples."""
 
-        triples: list[tuple[int, int, int]] = []
+        triples: list[WindowTriple] = []
         content_start = 0
         prev_overlap_start = 0
         first = True
@@ -209,7 +227,7 @@ class SemanticChunker:
                     text, offsets, token_starts, bounds, content_start, prev_overlap_start
                 )
             cut = self._choose_cut(text, offsets, token_starts, bounds, content_start, overlap_start, n)
-            triples.append((overlap_start, content_start, cut))
+            triples.append(WindowTriple(overlap_start, content_start, cut))
             prev_overlap_start = overlap_start
             content_start = cut
             first = False
@@ -321,12 +339,12 @@ class SemanticChunker:
 
     # -- Tier B (no sentence structure): legacy sliding window -------------- #
 
-    def _legacy_windows(self, n: int) -> list[tuple[int, int, int]]:
+    def _legacy_windows(self, n: int) -> list[WindowTriple]:
         params = self._params
         window = params.fallback_window
         overlap = min(params.fallback_overlap, window - 1)
         stride = max(1, window - overlap)
-        triples: list[tuple[int, int, int]] = []
+        triples: list[WindowTriple] = []
         k = 0
         while True:
             overlap_start = k * stride
@@ -336,7 +354,7 @@ class SemanticChunker:
             content_start = overlap_start if k == 0 else overlap_start + overlap
             if content_start >= cut:
                 break  # no new content -> drop pure-overlap tail
-            triples.append((overlap_start, content_start, cut))
+            triples.append(WindowTriple(overlap_start, content_start, cut))
             if cut >= n:
                 break
             k += 1
@@ -348,11 +366,14 @@ class SemanticChunker:
     def _build_spans(
         text: str,
         offsets: list[tuple[int, int]],
-        triples: list[tuple[int, int, int]],
+        triples: list[WindowTriple],
     ) -> list[ChunkSpan]:
         spans: list[ChunkSpan] = []
         index = 0
-        for overlap_start, content_start, cut in triples:
+        for window in triples:
+            overlap_start = window.overlap_start
+            content_start = window.content_start
+            cut = window.cut
             if cut <= content_start:
                 continue  # safeguard: never emit a pure-overlap chunk
             char_start = offsets[overlap_start][0]
