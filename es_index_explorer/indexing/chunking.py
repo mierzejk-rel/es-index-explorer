@@ -11,14 +11,18 @@ See ``reports/06-document-indexing-and-semantic-chunking.md`` sections 6.1-6.4.
 
 import bisect
 from dataclasses import dataclass
+from enum import IntEnum
 from typing import Protocol, runtime_checkable
 
-# Boundary priority hierarchy (most -> least preferred), report 06 section 6.1.
-PRIORITY_SENTENCE = 5
-PRIORITY_PARENTHETICAL = 4
-PRIORITY_SEMICOLON = 3
-PRIORITY_COMMA = 2
-PRIORITY_WORD = 1
+
+class Priority(IntEnum):
+    """Boundary priority hierarchy (most -> least preferred), report 06 section 6.1."""
+
+    WORD = 1
+    COMMA = 2
+    SEMICOLON = 3
+    PARENTHETICAL = 4
+    SENTENCE = 5
 
 
 @dataclass(frozen=True)
@@ -60,13 +64,13 @@ class ClauseBoundary:
     char_pos : int
         Character offset in the original text at which a cut may occur (the start
         of the next clause/segment).
-    priority : int
-        One of ``PRIORITY_PARENTHETICAL`` (4), ``PRIORITY_SEMICOLON`` (3), or
-        ``PRIORITY_COMMA`` (2).
+    priority : Priority
+        One of ``Priority.PARENTHETICAL``, ``Priority.SEMICOLON``, or
+        ``Priority.COMMA``.
     """
 
     char_pos: int
-    priority: int
+    priority: Priority
 
 
 @dataclass(frozen=True)
@@ -295,10 +299,10 @@ class SemanticChunker:
         char_hi: int,
         token_lo: int,
         token_hi: int,
-    ) -> list[tuple[int, int]]:
+    ) -> list[tuple[int, Priority]]:
         """Return (token_index, priority) clause candidates within the bounds."""
 
-        out: list[tuple[int, int]] = []
+        out: list[tuple[int, Priority]] = []
         for boundary in self._clause_engine.clause_boundaries(text, char_lo, char_hi):
             token_index = bisect.bisect_left(token_starts, boundary.char_pos)
             if token_lo <= token_index <= token_hi:

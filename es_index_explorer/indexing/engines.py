@@ -8,16 +8,14 @@ not require ``wtpsplit`` or ``spacy``.
 from typing import Any
 
 from es_index_explorer.indexing.chunking import (
-    PRIORITY_COMMA,
-    PRIORITY_PARENTHETICAL,
-    PRIORITY_SEMICOLON,
+    Priority,
     ClauseBoundary, ClauseEngine,
 )
 
-_CLAUSE_PRIORITY: dict[str, int] = {
-    ")": PRIORITY_PARENTHETICAL,
-    ";": PRIORITY_SEMICOLON,
-    ",": PRIORITY_COMMA,
+_CLAUSE_PRIORITY: dict[str, Priority] = {
+    ")": Priority.PARENTHETICAL,
+    ";": Priority.SEMICOLON,
+    ",": Priority.COMMA,
 }
 
 
