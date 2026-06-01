@@ -1,6 +1,5 @@
 """Document models for RelativityOne exports."""
 
-from dataclasses import dataclass
 from datetime import datetime
 from typing import Annotated
 
@@ -31,16 +30,3 @@ class RelativityDocument(BaseModel):
     email_bcc: list[str] | None = None
     summary: str | None = None
     topic: str | None = None
-
-
-@dataclass(frozen=True)
-class FailedDocument:
-    artifact_id: int | None
-    raw_row: dict
-    error: str
-
-
-@dataclass(frozen=True)
-class ReadResult:
-    documents: list[RelativityDocument]
-    failures: list[FailedDocument]

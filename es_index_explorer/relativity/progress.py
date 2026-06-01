@@ -1,10 +1,14 @@
-"""JSONL progress log for batch imports."""
+"""JSONL progress log for the ingest engine (shared by both read sources)."""
 
 from __future__ import annotations
 
 from dataclasses import dataclass
 import json
 from pathlib import Path
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from ..indexing.document_builder import DocumentResult
 
 
 @dataclass
@@ -108,3 +112,29 @@ class ProgressLog:
         suffix = "all" if saved_search_id is None else str(saved_search_id)
         filename = f"import_{host}_{workspace_id}_{suffix}.jsonl"
         return directory / filename
+
+
+def record_index_result(
+    progress_log: ProgressLog, result: "DocumentResult", *, phase: str = "run"
+) -> str | None:
+    """Record one index outcome to the progress log; return its outcome category.
+
+    Maps a `DocumentResult` to a JSONL record: ``created``/``overwritten`` become an
+    ``ok`` record (with the outcome), anything else (``conflict``/``index_failed``)
+    becomes an ``error`` record carrying its stage, type, and message. Shared by both
+    read sources so the file structure is identical regardless of which produced it.
+    """
+
+    if result.artifact_id is None:
+        return None
+    if result.outcome in ("created", "overwritten"):
+        progress_log.record_ok(result.artifact_id, phase=phase, outcome=result.outcome)
+        return result.outcome
+    progress_log.record_error(
+        result.artifact_id,
+        result.error_message or result.outcome,
+        phase=phase,
+        stage=result.stage or "index",
+        error_type=result.error_type,
+    )
+    return result.outcome

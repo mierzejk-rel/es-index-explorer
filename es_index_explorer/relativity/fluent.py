@@ -199,6 +199,7 @@ class QueryBuilder:
                 ObjectType=object_type,
                 Fields=[f for f in self._fields],
                 Condition=self._condition if isinstance(self._condition, str) else None,
+                Sorts=self._sorts if self._sorts else None,
             ),
             start=0,
         )

@@ -15,7 +15,7 @@ wait_seconds = 3
 
 [elasticsearch]
 hosts = "https://services.esus.reg.k8s.r1.kcura.com/search/search-ai/"
-# Target nested index for the indexing pipeline (read_documents.py --index / import_documents.py).
+# Target nested index for the indexing pipeline (ingest.py --index).
 index_name = "as-..."
 
 [relativity]

@@ -67,8 +67,7 @@ def bulk_index(
             continue
         status = item.get("status")
         error = item.get("error")
-        error_type = error.get("type") if isinstance(error, dict) else None
-        error_message = error.get("reason") if isinstance(error, dict) else str(error)
+        error_type, error_message = _format_es_error(error)
         if status == 409:
             results.append(
                 DocumentResult(
@@ -96,3 +95,37 @@ def _artifact_id(raw_id: object) -> int | None:
     if isinstance(raw_id, str) and raw_id.isdigit():
         return int(raw_id)
     return None
+
+
+def _format_es_error(error: object) -> tuple[str | None, str | None]:
+    """Flatten an Elasticsearch bulk-item error into ``(error_type, message)``.
+
+    Walks the nested ``caused_by`` chain (and the first ``root_cause``) so the recorded
+    message exposes the actual root cause - e.g. an ELSER ``inference_exception`` whose
+    real reason is "No ML nodes exist in the cluster" - instead of only the generic
+    top-level ``reason``.
+    """
+
+    if not isinstance(error, dict):
+        return None, (str(error) if error is not None else None)
+    error_type = error.get("type")
+    segments: list[str] = []
+    top_reason = error.get("reason")
+    if top_reason:
+        segments.append(str(top_reason))
+    cause = error.get("caused_by")
+    while isinstance(cause, dict):
+        cause_type = cause.get("type")
+        cause_reason = cause.get("reason") or ""
+        label = f"[{cause_type}] " if cause_type else ""
+        segments.append(f"caused_by: {label}{cause_reason}".rstrip())
+        cause = cause.get("caused_by")
+    root_cause = error.get("root_cause")
+    if isinstance(root_cause, list) and root_cause and isinstance(root_cause[0], dict):
+        root_reason = root_cause[0].get("reason")
+        if root_reason and not any(str(root_reason) in segment for segment in segments):
+            root_type = root_cause[0].get("type")
+            label = f"[{root_type}] " if root_type else ""
+            segments.append(f"root_cause: {label}{root_reason}")
+    message = " <- ".join(segments) if segments else None
+    return (str(error_type) if error_type is not None else None), message

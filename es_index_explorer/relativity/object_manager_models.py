@@ -127,6 +127,7 @@ class QueryRequestParams(HiddenInputBaseModel):
     object_type: ObjectType = Field(..., alias="ObjectType")
     fields: list[RelativityIdentifier] = Field(..., alias="Fields")
     condition: str | None = Field(default=None, alias="Condition")
+    sorts: list[dict[str, object]] | None = Field(default=None, alias="Sorts")
     long_text_behavior: LongTextBehavior = Field(
         default=LongTextBehavior.TOKENIZED, alias="LongTextBehavior"
     )
