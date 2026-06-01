@@ -6,6 +6,7 @@ not require ``wtpsplit`` or ``spacy``.
 """
 
 import logging
+import warnings
 from typing import Any
 
 from es_index_explorer.indexing.chunking import (
@@ -48,6 +49,29 @@ def silence_transformers_alias_warnings() -> None:
         return
     logging.getLogger("transformers").addFilter(_TransformersAliasWarningFilter())
     _alias_filter_installed = True
+
+
+# The legacy single-file ``docopt`` module (pulled in transitively by the model stack) uses
+# unescaped regex strings, so the byte-compiler emits ``invalid escape sequence`` SyntaxWarnings
+# the first time it is compiled. These surface or vanish purely based on whether a valid
+# ``docopt`` .pyc is cached, which is why they come and go between runs.
+_docopt_filter_installed = False
+
+
+def silence_docopt_syntax_warnings() -> None:
+    """Suppress ``docopt``'s ``invalid escape sequence`` ``SyntaxWarning``s.
+
+    Targeted by category + message only. A ``module=`` filter does NOT work here: compile-time
+    syntax warnings are not attributed to the importing module's ``__name__``, so matching on
+    ``module`` silently fails (verified empirically). Must run before ``docopt`` is compiled
+    (i.e. before the wtpsplit/sentence-transformers import that pulls it in).
+    """
+
+    global _docopt_filter_installed
+    if _docopt_filter_installed:
+        return
+    warnings.filterwarnings("ignore", message=r"invalid escape sequence", category=SyntaxWarning)
+    _docopt_filter_installed = True
 
 
 class HuggingFaceTokenizer:
@@ -124,6 +148,7 @@ class SatSentenceEngine:
 
     def __init__(self, model_name: str = "sat-12l-sm", device: str = "") -> None:
         silence_transformers_alias_warnings()  # before wtpsplit/skops walk transformers' aliases
+        silence_docopt_syntax_warnings()  # before wtpsplit pulls in (and compiles) docopt
         from wtpsplit import SaT  # lazy: pulls torch
 
         self._sat = SaT(model_name)

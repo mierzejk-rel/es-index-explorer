@@ -9,7 +9,11 @@ import os
 from transformers import PreTrainedTokenizerBase
 
 from ..config import IndexingConfig
-from .engines import HuggingFaceTokenizer, silence_transformers_alias_warnings
+from .engines import (
+    HuggingFaceTokenizer,
+    silence_docopt_syntax_warnings,
+    silence_transformers_alias_warnings,
+)
 
 
 # noinspection PyNoneFunctionAssignment,PyArgumentList,PyUnresolvedReferences
@@ -24,6 +28,7 @@ class E5Embedder:
         if config.offline:
             os.environ.setdefault("HF_HUB_OFFLINE", "1")
         silence_transformers_alias_warnings()
+        silence_docopt_syntax_warnings()
         from sentence_transformers import SentenceTransformer  # lazy: pulls torch
 
         model_id = config.model_path or config.embedding_model
