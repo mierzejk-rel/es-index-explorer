@@ -22,32 +22,54 @@ _CLAUSE_PRIORITY: dict[str, Priority] = {
     ",": Priority.COMMA,
 }
 
-# transformers' lazy `*_fast` image-processing aliases log a WARNING on every attribute
-# access (see transformers/__init__.py). skops (a wtpsplit dependency) probes every module
-# in ``sys.modules`` for scipy attributes during import, touching all those aliases and
-# emitting hundreds of irrelevant "Accessing `...`" lines. We drop only those records.
-_ALIAS_WARNING_PREFIX = "Accessing `"
+# transformers logs two known-benign warnings in our startup path:
+# 1) lazy `*_fast` image-processing alias access ("Accessing `...`")
+# 2) `use_return_dict` deprecation triggered by wtpsplit reading model config
+# We suppress only these exact prefixes and let all other transformers warnings through.
+_SUPPRESSED_TRANSFORMERS_WARNING_PREFIXES = (
+    "Accessing `",
+    "`use_return_dict` is deprecated",
+)
 _alias_filter_installed = False
 
 
 class _TransformersAliasWarningFilter(logging.Filter):
-    """Drops transformers' ``*_fast`` deprecation-alias access warnings (noise only)."""
+    """Drops selected known-benign transformers warning lines (noise only)."""
 
     def filter(self, record: logging.LogRecord) -> bool:
-        return not record.getMessage().startswith(_ALIAS_WARNING_PREFIX)
+        return not record.getMessage().startswith(_SUPPRESSED_TRANSFORMERS_WARNING_PREFIXES)
 
 
 def silence_transformers_alias_warnings() -> None:
-    """Install a filter that suppresses transformers' alias-access WARNING spam.
+    """Install a targeted filter for known-benign transformers WARNING spam.
 
-    Idempotent and surgical: only records starting with ``Accessing ``` are dropped, so
-    genuine transformers warnings are preserved. Must run before ``wtpsplit``/``skops`` import.
+    Idempotent and surgical: only warning messages starting with a small explicit
+    allowlist are dropped, so genuine transformers warnings are preserved. Must run
+    before ``wtpsplit``/``skops`` import.
+
+    The filter is attached both to the ``transformers`` logger (for records it emits
+    directly, e.g. the ``*_fast`` alias spam) and to that logger's handler. The handler
+    is essential: the ``use_return_dict`` deprecation is emitted by the child logger
+    ``transformers.configuration_utils`` and only the parent's handler sees it on
+    propagation, so a parent-logger filter alone would miss it.
     """
 
     global _alias_filter_installed
     if _alias_filter_installed:
         return
-    logging.getLogger("transformers").addFilter(_TransformersAliasWarningFilter())
+    log_filter = _TransformersAliasWarningFilter()
+    transformers_logger = logging.getLogger("transformers")
+    transformers_logger.addFilter(log_filter)
+    # Ensure transformers' default handler exists, then filter at the handler level so
+    # records propagated from child loggers are covered too.
+    try:
+        from transformers.utils import logging as hf_logging
+
+        hf_logging.get_logger("transformers")
+    except ImportError:
+        pass
+    for handler in transformers_logger.handlers:
+        handler.addFilter(log_filter)
     _alias_filter_installed = True
 
 
