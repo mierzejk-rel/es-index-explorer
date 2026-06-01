@@ -7,10 +7,11 @@ dependencies = [
     "requests>=2.33.0",
     "pydantic>=2.0",
     "rich>=13.7.0",
-    # torch is declared directly (and pinned to the CPU-only index below) so the CUDA/nvidia-*
-    # runtime is not pulled in for this CPU-only deployment. It is otherwise a transitive dep of
-    # sentence-transformers / wtpsplit.
+    # torch and torchvision are declared directly (and pinned to the CPU-only index below) so no
+    # CUDA/nvidia-* runtime is pulled in. torchvision is needed because transformers' lazy loader
+    # for the Aria vision model is triggered during skops (a wtpsplit dep) scipy introspection.
     "torch>=2.2",
+    "torchvision>=0.17",
     "transformers>=4.0",
     "sentence-transformers>=3.0",
     "wtpsplit>=2.1",
@@ -57,3 +58,4 @@ explicit = true
 
 [tool.uv.sources]
 torch = [{ index = "pytorch-cpu" }]
+torchvision = [{ index = "pytorch-cpu" }]
