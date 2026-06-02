@@ -64,6 +64,7 @@ def resolve_field_selectors(
 
     id_to_name: dict[int, str] = {}
     for obj in response.Objects:
+        # select("Name") requests exactly one field, so Values has one entry at index 0.
         if obj.Values and isinstance(obj.Values[0], str):
             id_to_name[obj.ArtifactID] = obj.Values[0]
 
