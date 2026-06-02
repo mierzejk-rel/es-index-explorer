@@ -78,6 +78,11 @@
       "title_semantic": {
         "type": "semantic_text",
         "inference_id": ".elser-2-elasticsearch",
+        "chunking_settings": {
+          "strategy": "sentence",
+          "max_chunk_size": 250,
+          "sentence_overlap": 1
+        },
         "index_options": {
           "sparse_vector": {
             "prune": true,
@@ -91,6 +96,11 @@
       "summary_semantic": {
         "type": "semantic_text",
         "inference_id": ".elser-2-elasticsearch",
+        "chunking_settings": {
+          "strategy": "sentence",
+          "max_chunk_size": 250,
+          "sentence_overlap": 1
+        },
         "index_options": {
           "sparse_vector": {
             "prune": true,
@@ -104,6 +114,11 @@
       "topic_semantic": {
         "type": "semantic_text",
         "inference_id": ".elser-2-elasticsearch",
+        "chunking_settings": {
+          "strategy": "sentence",
+          "max_chunk_size": 250,
+          "sentence_overlap": 1
+        },
         "index_options": {
           "sparse_vector": {
             "prune": true,
