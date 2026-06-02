@@ -3,7 +3,10 @@
 from __future__ import annotations
 
 import json
+import time
 from uuid import UUID
+
+import requests
 
 from .base import BaseAPIClient
 from .object_manager_models import (
@@ -55,6 +58,17 @@ class ObjectManagerAPI(BaseAPIClient):
                 "exportObject": {"ArtifactID": object_artifact_id},
                 "longTextField": {"Guid": str(field_id)},
             }
-        res = self._t.post(f"{self._ws_base}/StreamLongText", json=body)
-        res.raise_for_status()
-        return str(res.text)
+
+        max_attempts = 2
+        for attempt in range(1, max_attempts + 1):
+            res = self._t.post(f"{self._ws_base}/StreamLongText", json=body)
+            try:
+                res.raise_for_status()
+                return str(res.text)
+            except requests.HTTPError as exc:
+                is_retryable_503 = exc.response is not None and exc.response.status_code == 503
+                if not is_retryable_503 or attempt >= max_attempts:
+                    raise
+                time.sleep(1)
+
+        raise RuntimeError("Unreachable retry loop termination.")
