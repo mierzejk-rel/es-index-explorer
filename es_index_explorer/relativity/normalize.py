@@ -1,5 +1,8 @@
 """Normalization helpers for Relativity document fields."""
 
+import warnings
+
+
 class DocumentReadError(RuntimeError):
     """Raised when required document fields are missing."""
 
@@ -10,6 +13,13 @@ _POOR_QUALITY_TOPIC = "Poor Quality Extracted Text"
 def normalize_str(value: object | None) -> str | None:
     match value:
         case str(text):
+            return text.strip() or None
+        case [str(text), *rest]:
+            if rest:
+                warnings.warn(
+                    "normalize_str received a sequence with multiple values; using the first item.",
+                    stacklevel=2,
+                )
             return text.strip() or None
         case _:
             return None
