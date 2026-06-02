@@ -58,6 +58,7 @@ def resolve_field_selectors(
     id_list = ", ".join(str(artifact_id) for artifact_id in artifact_ids)
     condition = f"'Artifact ID' IN [{id_list}]"
 
+    # ArtifactTypeID 14 is the Relativity built-in type for Field objects.
     builder = QueryBuilder(api).object_type_id(14).select("Name").where(condition)
     builder = builder.page(0, len(artifact_ids))
     response = builder.execute_raw()
@@ -136,6 +137,7 @@ class QueryBuilder:
         return self
 
     def from_documents(self) -> "QueryBuilder":
+        # ArtifactTypeID 10 is the Relativity built-in type for Document objects.
         return self.object_type_id(10)
 
     def select(self, *names: str, **fields: int | UUID | str) -> "QueryBuilder":
@@ -249,7 +251,7 @@ class QueryBuilder:
         object_type = (
             ObjectType(**self._object_type)
             if self._object_type
-            else ObjectType(ArtifactTypeID=10)
+            else ObjectType(ArtifactTypeID=10)  # 10 = Relativity built-in Document object type
         )
         qr = QueryRequest(
             QueryRequest=QueryRequestParams(
