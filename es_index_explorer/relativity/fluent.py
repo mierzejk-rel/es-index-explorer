@@ -6,6 +6,7 @@ from typing import Generator, Literal, cast
 from uuid import UUID
 
 from .conditions import Cond, field
+from .normalize import DocumentReadError
 from .object_manager import ObjectManagerAPI
 from .object_manager_models import (
     ObjectType,
@@ -78,6 +79,43 @@ def resolve_field_selectors(
         else:
             resolved[key] = selector
     return resolved
+
+
+def resolve_truncated_long_text(
+    api: ObjectManagerAPI,
+    *,
+    object_artifact_id: int,
+    row: dict[str, object],
+    field_ids: dict[str, int],
+) -> None:
+    """Stream-replace LongText fields that contain the truncation token.
+
+    Parameters
+    ----------
+    api : ObjectManagerAPI
+        Authenticated Object Manager API client.
+    object_artifact_id : int
+        Artifact ID of the current document/object.
+    row : dict[str, object]
+        Mutable row payload keyed by field alias.
+    field_ids : dict[str, int]
+        Mapping of LongText field alias to field Artifact ID.
+
+    Raises
+    ------
+    DocumentReadError
+        If StreamLongText still returns the truncation token for a field.
+    """
+    for field_name, field_id in field_ids.items():
+        value = row.get(field_name)
+        if not (isinstance(value, str) and value == R1_OBJECT_MANAGER_TRUNCATE_TOKEN):
+            continue
+        streamed = api.stream_long_text(object_artifact_id, field_id)
+        if streamed == R1_OBJECT_MANAGER_TRUNCATE_TOKEN:
+            raise DocumentReadError(
+                f"Truncation token still present after StreamLongText for field '{field_name}'."
+            )
+        row[field_name] = streamed
 
 
 class QueryResult:
@@ -231,17 +269,16 @@ class QueryBuilder:
     def execute_raw(self) -> QuerySlimResponse:
         return self.api.query_slim(self.build())
 
-    def export(
-        self, *, batch_size: int = 100, field_names: list[str] | None = None
-    ) -> Generator[dict[str, RelativityScalar], None, None]:
-        _, rows = self.export_with_total(batch_size=batch_size, field_names=field_names)
-        return rows
-
     def export_with_total(
         self, *, batch_size: int = 100, field_names: list[str] | None = None
-    ) -> tuple[int, Generator[dict[str, RelativityScalar], None, None]]:
+    ) -> tuple[int, dict[str, int], Generator[dict[str, RelativityScalar], None, None]]:
         run_id, total_count, r1_schema = self._initialize_export(field_names)
-        return total_count, self._export_rows(
+        long_text_field_ids = {
+            key: artifact_id
+            for key, (artifact_id, field_type) in r1_schema.items()
+            if field_type == "LongText"
+        }
+        return total_count, long_text_field_ids, self._export_rows(
             run_id=run_id, batch_size=batch_size, r1_schema=r1_schema
         )
 
@@ -308,14 +345,4 @@ class QueryBuilder:
             ]
 
             for row in rows:
-                for key, value in row.items():
-                    if (
-                        isinstance(value, str)
-                        and value == R1_OBJECT_MANAGER_TRUNCATE_TOKEN
-                    ):
-                        field_id = r1_schema[key][0]
-                        row[key] = self.api.stream_long_text(
-                            # ARTIFACT_ID_KEY is always an int set from obj.ArtifactID; typed as RelativityScalar because row is dict[str, RelativityScalar].
-                            cast(int, row[ARTIFACT_ID_KEY]),
-                            field_id)
                 yield row

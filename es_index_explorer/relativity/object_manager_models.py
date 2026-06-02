@@ -3,23 +3,14 @@
 from __future__ import annotations
 
 from enum import Enum
-from typing import Annotated, Any, Literal
+from typing import Any, Literal
 from uuid import UUID
 
 from pydantic import Field, field_serializer, model_validator
-from pydantic.functional_validators import AfterValidator
 
 from .base_models import HiddenInputBaseModel
 
 R1_OBJECT_MANAGER_TRUNCATE_TOKEN = "#KCURA99DF2F0FEB88420388879F1282A55760#"
-
-
-def _check_truncate_token(value: str) -> str:
-    if value.endswith(R1_OBJECT_MANAGER_TRUNCATE_TOKEN):
-        raise ValueError("Truncate token found in value")
-    return value
-
-
 class LongTextBehavior(Enum):
     """Long text retrieval mode for Object Manager queries."""
 
@@ -35,7 +26,7 @@ class SingleChoice(HiddenInputBaseModel):
     ArtifactID: int
 
 
-LongText = Annotated[str, AfterValidator(_check_truncate_token)]
+LongText = str
 RelativityScalar = LongText | int | bool | float | SingleChoice | None
 RelativityType = Literal[
     "WholeNumber",

@@ -25,13 +25,15 @@ from ..relativity.auth import get_authenticated_session
 from ..relativity.client import RelativityClient
 from ..relativity.conditions import Cond
 from ..relativity.document_factory import build_relativity_document, relativity_field_map
-from ..relativity.fluent import ARTIFACT_ID_KEY, QueryBuilder, resolve_field_selectors
+from ..relativity.fluent import (
+    ARTIFACT_ID_KEY,
+    QueryBuilder,
+    resolve_field_selectors,
+    resolve_truncated_long_text,
+)
 from ..relativity.models import RelativityDocument
 from ..relativity.normalize import DocumentReadError
-from ..relativity.object_manager_models import (
-    QuerySlimResponse,
-    R1_OBJECT_MANAGER_TRUNCATE_TOKEN,
-)
+from ..relativity.object_manager_models import QuerySlimResponse
 
 # Exceptions that mean "this single document could not be read/built" (vs a fatal error).
 _READ_EXCEPTIONS = (ValidationError, ValueError, KeyError, DocumentReadError)
@@ -108,7 +110,7 @@ class QuerySlimSource:
 
         first = builder.page(0, batch_size).execute_raw()
         total = first.TotalCount
-        long_text_columns = self._long_text_columns(first, field_names) if first.Objects else []
+        long_text_field_ids = self._long_text_field_ids(first, field_names)
 
         def _iter() -> Iterator[list[ReadItem]]:
             response = first
@@ -117,7 +119,7 @@ class QuerySlimSource:
             # yields 1+batch_size.
             current_start = 1
             while response.Objects:
-                yield self._to_read_items(response, field_names, long_text_columns)
+                yield self._to_read_items(response, field_names, long_text_field_ids)
                 current_start += batch_size
                 response = builder.page(current_start, batch_size).execute_raw()
 
@@ -132,7 +134,7 @@ class QuerySlimSource:
         self,
         response: QuerySlimResponse,
         field_names: list[str],
-        long_text_columns: list[tuple[int, int, str]],
+        long_text_field_ids: dict[str, int],
     ) -> list[ReadItem]:
         items: list[ReadItem] = []
         for obj in response.Objects:
@@ -141,7 +143,12 @@ class QuerySlimSource:
                 row[name] = value
             artifact_id = int(obj.ArtifactID)
             try:
-                row = self._resolve_long_text(artifact_id, row, long_text_columns)
+                resolve_truncated_long_text(
+                    self._client.object_manager,
+                    object_artifact_id=artifact_id,
+                    row=row,
+                    field_ids=long_text_field_ids,
+                )
                 document = build_relativity_document(artifact_id=artifact_id, row=row)
             except _READ_EXCEPTIONS as exc:
                 items.append(
@@ -152,32 +159,16 @@ class QuerySlimSource:
         return items
 
     @staticmethod
-    def _long_text_columns(
+    def _long_text_field_ids(
         response: QuerySlimResponse, field_names: list[str]
-    ) -> list[tuple[int, int, str]]:
+    ) -> dict[str, int]:
         if len(response.Fields) != len(field_names):
             raise ValueError("QuerySlim field count does not match selected field names.")
-        columns: list[tuple[int, int, str]] = []
+        field_ids: dict[str, int] = {}
         for idx, field_info in enumerate(response.Fields):
             if field_info.FieldType == "LongText":
-                columns.append((idx, field_info.ArtifactID, field_names[idx]))
-        return columns
-
-    def _resolve_long_text(
-        self,
-        artifact_id: int,
-        row: dict[str, object],
-        long_text_columns: list[tuple[int, int, str]],
-    ) -> dict[str, object]:
-        for _idx, field_artifact_id, field_name in long_text_columns:
-            value = row.get(field_name)
-            if not (isinstance(value, str) and value == R1_OBJECT_MANAGER_TRUNCATE_TOKEN):
-                continue
-            streamed = self._client.object_manager.stream_long_text(artifact_id, field_artifact_id)
-            if field_name == "extracted_text" and streamed == R1_OBJECT_MANAGER_TRUNCATE_TOKEN:
-                raise DocumentReadError("Truncation token still present after StreamLongText.")
-            row[field_name] = streamed
-        return row
+                field_ids[field_names[idx]] = field_info.ArtifactID
+        return field_ids
 
 
 class ExportSource:
@@ -197,14 +188,23 @@ class ExportSource:
         builder = builder.sort_by(_SORT_FIELD, direction="Ascending")
         field_names = list(self._field_map.keys())
 
-        total, rows = builder.export_with_total(batch_size=batch_size, field_names=field_names)
+        total, long_text_field_ids, rows = builder.export_with_total(
+            batch_size=batch_size, field_names=field_names
+        )
 
         def _iter() -> Iterator[list[ReadItem]]:
             batch: list[ReadItem] = []
             for row in rows:
                 artifact_id = cast(int, row.get(ARTIFACT_ID_KEY))
+                row_dict = dict(row)
                 try:
-                    document = build_relativity_document(artifact_id=artifact_id, row=dict(row))
+                    resolve_truncated_long_text(
+                        self._client.object_manager,
+                        object_artifact_id=artifact_id,
+                        row=row_dict,
+                        field_ids=long_text_field_ids,
+                    )
+                    document = build_relativity_document(artifact_id=artifact_id, row=row_dict)
                     batch.append(ReadItem(artifact_id=artifact_id, document=document))
                 except _READ_EXCEPTIONS as exc:
                     batch.append(
