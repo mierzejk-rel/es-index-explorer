@@ -104,10 +104,22 @@ def resolve_truncated_long_text(
     Raises
     ------
     DocumentReadError
-        If StreamLongText still returns the truncation token for a field.
+        If StreamLongText still returns the truncation token for a scalar field,
+        or if a list-valued LongText field contains the truncation token (the
+        API cannot reliably stream individual list elements).
     """
     for field_name, field_id in field_ids.items():
         value = row.get(field_name)
+        if isinstance(value, list):
+            # Multi-reflected LongText can come back as a list. If any element is
+            # the truncation token, we cannot reliably stream individual list
+            # entries via StreamLongText, so this document must fail.
+            if R1_OBJECT_MANAGER_TRUNCATE_TOKEN in value:
+                raise DocumentReadError(
+                    f"Multi-reflected LongText field '{field_name}' returned a truncated "
+                    f"value in a list; cannot stream individual elements."
+                )
+            continue
         if not (isinstance(value, str) and value == R1_OBJECT_MANAGER_TRUNCATE_TOKEN):
             continue
         streamed = api.stream_long_text(object_artifact_id, field_id)
