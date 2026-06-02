@@ -266,6 +266,7 @@ PUT as-air-assist-<workspace>-nested
       "title_semantic": {
         "type": "semantic_text",
         "inference_id": ".elser-2-elasticsearch",
+        "chunking_settings": { "strategy": "sentence", "max_chunk_size": 250, "sentence_overlap": 1 },
         "index_options": {
           "sparse_vector": {
             "prune": true,
@@ -276,6 +277,7 @@ PUT as-air-assist-<workspace>-nested
       "summary_semantic": {
         "type": "semantic_text",
         "inference_id": ".elser-2-elasticsearch",
+        "chunking_settings": { "strategy": "sentence", "max_chunk_size": 250, "sentence_overlap": 1 },
         "index_options": {
           "sparse_vector": {
             "prune": true,
@@ -286,6 +288,7 @@ PUT as-air-assist-<workspace>-nested
       "topic_semantic": {
         "type": "semantic_text",
         "inference_id": ".elser-2-elasticsearch",
+        "chunking_settings": { "strategy": "sentence", "max_chunk_size": 250, "sentence_overlap": 1 },
         "index_options": {
           "sparse_vector": {
             "prune": true,
@@ -339,7 +342,7 @@ document's `inner_hits` `from + size` — full behavior in §7.5.
 | `char_count` | `integer` | Character count of full doc (`len(extracted_text)`, Unicode code points). | Encoding- and tokenizer-independent length for filtering/analytics (§6). |
 | `chunk_count` | `integer` | Number of chunks. | Cross-index filter/sort/agg convenience (§6). |
 | `subset_ids` | `keyword` (multi-valued) | Multi-tenancy scoping. | `term` filter parity with production's always-on subset filter (`03-...md` §4.2). |
-| `title_semantic` / `summary_semantic` / `topic_semantic` | `semantic_text` (ELSER, `inference_id: .elser-2-elasticsearch`) | ES-managed ELSER inference at index + query; populated via `copy_to` from the text fields (§4.5). | Sparse/semantic (ELSER) retrieval on parent metadata via the `semantic` query (R7 sparse). |
+| `title_semantic` / `summary_semantic` / `topic_semantic` | `semantic_text` (ELSER, `inference_id: .elser-2-elasticsearch`; 512-token limit; chunking pinned `sentence`/250/1) | ES-managed ELSER inference at index + query, populated via `copy_to`; per-chunk vectors stored, document scored as MAX over chunks (§4.5). | Sparse/semantic (ELSER) retrieval on parent metadata via the `semantic` query (R7 sparse). |
 | `chunks` | `nested` | Preserves chunk independence for nested kNN/BM25 with parent pre-filters. | Container for child chunks (R1). |
 | `chunks.chunk_index` | `integer` | 0-based order. | First-chunk selection (`== 0`), ordering within doc. |
 | `chunks.text` | `text` | BM25 on chunk text. | Lexical chunk retrieval (R7 BM25-on-chunks). |
@@ -397,11 +400,29 @@ behavior is intentional, not surprising.
 representation of `title`/`summary`/`topic`. They are populated automatically via **`copy_to`** from the
 corresponding `text` fields — one source value feeds both BM25 (the `text` field) and semantic search
 (the `semantic_text` field). Elasticsearch runs ELSER inference **at index time and at query time**;
-the `inference_id` is pinned to **`.elser-2-elasticsearch`**. Default chunking is used (no
-`chunking_settings` override) — short parent fields produce a single inference chunk; longer summaries
-are chunked by the endpoint's default rather than truncated. At query time, use the `semantic` query
+the `inference_id` is pinned to **`.elser-2-elasticsearch`**, and the endpoint's default chunking is
+**pinned explicitly** in the mapping (see *Encoder input limit…* below) rather than inherited silently.
+At query time, use the `semantic` query
 (§7.3); for hybrid, fuse a `match` on the `text` field with a `semantic` query on the `*_semantic` field
 via an `rrf` retriever (§7.4).
+
+**Encoder input limit, chunking, and multi-chunk scoring (pinned).** Sparse encoders, like dense
+embedders, have a fixed **token-based** input limit: the endpoint tokenizes the input, encodes up to its
+maximum, and **discards the remainder** — long text is truncated unless chunked. For ELSER
+(`.elser-2-elasticsearch`) the limit is **512 tokens** (WordPiece sub-words; out-of-vocabulary terms are
+split into sub-words that consume the budget). `semantic_text` avoids truncation by **chunking at index
+time inside the endpoint**, encoding each chunk into its own sparse vector. The available strategies are
+`sentence` (whole sentences up to `max_chunk_size`, with `sentence_overlap` sentences shared between
+neighbors), `word` (fixed word windows with `overlap`), and `none` (no chunking, for pre-chunked input).
+Per R13 we pin the ELSER endpoint defaults in the mapping: **`strategy: sentence`, `max_chunk_size: 250`
+(words), `sentence_overlap: 1`** (for ELSER, `max_chunk_size` ≤ 300 and `sentence_overlap` ∈ {0, 1});
+250 words sits safely under the 512-token model limit even after sub-word expansion, and a one-sentence
+overlap preserves cross-boundary context. **All chunk vectors are stored — never merged or dropped** —
+in the field's inference metadata (8.18+: as character offsets into `_source`, not duplicated text), so a
+short parent field yields a single chunk and a long summary yields several, all retained. At **query time
+the document score is the MAX over its chunks**: `semantic_text` models chunks as nested objects scored
+with `score_mode = max`, so the single best-matching chunk sets the field's contribution (not mean, sum,
+or mode).
 
 **Why `semantic_text` over `sparse_vector` (and how to switch back).** We chose `semantic_text` because
 it is the least-setup, closest-to-default path: on ES 9.2 the default inference endpoint *is* ELSER
@@ -988,7 +1009,9 @@ default, with flat (chunk-centric) retained as a first-class alternative to be c
 every document is indexed); include `token_count`, `char_count` (doc-level, `len(str)` code points), and
 `chunk_count`; R14 satisfied via `leading_overlap_chars` + retrieval-side concatenation;
 **parent-metadata sparse uses `semantic_text`** (pinned `inference_id: .elser-2-elasticsearch`,
-populated via `copy_to`, default chunking; **`index_options.sparse_vector` token-pruning pinned to the
+populated via `copy_to`; **chunking pinned** to `sentence` / `max_chunk_size` 250 / `sentence_overlap` 1
+— ELSER's 512-token input limit, per-chunk vectors stored and scored MAX over chunks, §4.5;
+**`index_options.sparse_vector` token-pruning pinned to the
 9.4 default** — `prune: true`, `tokens_freq_ratio_threshold: 5`, `tokens_weight_threshold: 0.4`, §4.5;
 explicit `sparse_vector` documented as the switch-back option in §4.5); **dense `chunks.embedding` uses
 `bbq_hnsw`** + production params (`bbq_disk`, now the ES 9.4 default, as the scale escalation — §4.3);
@@ -1027,6 +1050,8 @@ the pinned sparse token-pruning above.
 - `semantic_text` field type: https://www.elastic.co/docs/reference/elasticsearch/mapping-reference/semantic-text
 - `semantic_text` setup & inference endpoints (default `.elser-2-elasticsearch` on 9.0-9.2): https://www.elastic.co/docs/reference/elasticsearch/mapping-reference/semantic-text-setup-configuration
 - `semantic_text` ingestion (`copy_to`, pre-chunking, `chunking_settings`): https://www.elastic.co/docs/reference/elasticsearch/mapping-reference/semantic-text-ingestions
+- ELSER 512-token input limit: https://www.elastic.co/docs/solutions/search/semantic-search/semantic-search-elser-ingest-pipelines
+- Chunking strategies & defaults for inference endpoints (`sentence`/`word`/`none`, `max_chunk_size`, `sentence_overlap`): https://www.elastic.co/search-labs/blog/elasticsearch-chunking-inference-api-endpoints
 - `semantic` query: https://www.elastic.co/docs/reference/query-languages/query-dsl/query-dsl-semantic-query
 - Hybrid search with `semantic_text` (RRF of `match` + `semantic`): https://www.elastic.co/docs/solutions/search/hybrid-semantic-text
 - `sparse_vector` field & query (ELSER; switch-back option): https://www.elastic.co/docs/reference/query-languages/query-dsl/query-dsl-sparse-vector-query
