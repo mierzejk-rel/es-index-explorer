@@ -20,12 +20,12 @@ from typing import Protocol, cast, runtime_checkable
 
 from pydantic import ValidationError
 
-from ..config import Config, RelativityFieldSelector
+from ..config import Config
 from ..relativity.auth import get_authenticated_session
 from ..relativity.client import RelativityClient
 from ..relativity.conditions import Cond
 from ..relativity.document_factory import build_relativity_document, relativity_field_map
-from ..relativity.fluent import ARTIFACT_ID_KEY, QueryBuilder
+from ..relativity.fluent import ARTIFACT_ID_KEY, QueryBuilder, resolve_field_selectors
 from ..relativity.models import RelativityDocument
 from ..relativity.normalize import DocumentReadError
 from ..relativity.object_manager_models import (
@@ -72,11 +72,16 @@ class DocumentSource(Protocol):
 def build_source(config: Config, source_kind: str) -> DocumentSource:
     """Construct the requested document source ("queryslim" or "export")."""
 
+    if source_kind not in ("queryslim", "export"):
+        raise ValueError(f"Unknown source '{source_kind}'; expected 'queryslim' or 'export'.")
+
+    client = _client(config)
+    raw_field_map = relativity_field_map(config.relativity.fields)
+    resolved_field_map = resolve_field_selectors(client.object_manager, raw_field_map)
+
     if source_kind == "queryslim":
-        return QuerySlimSource(config)
-    if source_kind == "export":
-        return ExportSource(config)
-    raise ValueError(f"Unknown source '{source_kind}'; expected 'queryslim' or 'export'.")
+        return QuerySlimSource(config, client, resolved_field_map)
+    return ExportSource(config, client, resolved_field_map)
 
 
 def _client(config: Config) -> RelativityClient:
@@ -87,9 +92,10 @@ def _client(config: Config) -> RelativityClient:
 class QuerySlimSource:
     """Read documents via Object Manager QuerySlim with stateless offset paging."""
 
-    def __init__(self, config: Config) -> None:
+    def __init__(self, config: Config, client: RelativityClient, field_map: dict[str, str]) -> None:
         self._config = config
-        self._client = _client(config)
+        self._client = client
+        self._field_map = field_map
 
     def read(
         self, *, condition: Cond | None, batch_size: int
@@ -119,11 +125,8 @@ class QuerySlimSource:
 
     def _build_query_builder(self) -> tuple[QueryBuilder, list[str]]:
         builder = self._client.query_object_manager().from_documents()
-        field_map: dict[str, RelativityFieldSelector] = relativity_field_map(
-            self._config.relativity.fields
-        )
-        builder = builder.select(**field_map)
-        return builder, list(field_map.keys())
+        builder = builder.select(**self._field_map)
+        return builder, list(self._field_map.keys())
 
     def _to_read_items(
         self,
@@ -180,21 +183,19 @@ class QuerySlimSource:
 class ExportSource:
     """Read documents via the Object Manager export run (cursor) with long text streamed."""
 
-    def __init__(self, config: Config) -> None:
+    def __init__(self, config: Config, client: RelativityClient, field_map: dict[str, str]) -> None:
         self._config = config
-        self._client = _client(config)
+        self._client = client
+        self._field_map = field_map
 
     def read(
         self, *, condition: Cond | None, batch_size: int
     ) -> tuple[int, Iterator[list[ReadItem]]]:
-        field_map: dict[str, RelativityFieldSelector] = relativity_field_map(
-            self._config.relativity.fields
-        )
-        builder = self._client.query_object_manager().from_documents().select(**field_map)
+        builder = self._client.query_object_manager().from_documents().select(**self._field_map)
         if condition is not None:
             builder = builder.where(condition)
         builder = builder.sort_by(_SORT_FIELD, direction="Ascending")
-        field_names = list(field_map.keys())
+        field_names = list(self._field_map.keys())
 
         total, rows = builder.export_with_total(batch_size=batch_size, field_names=field_names)
 

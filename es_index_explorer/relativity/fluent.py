@@ -22,6 +22,62 @@ from .object_manager_models import (
 ARTIFACT_ID_KEY: str = "artifact_id"
 
 
+def resolve_field_selectors(
+    api: ObjectManagerAPI,
+    field_map: dict[str, int | str],
+) -> dict[str, str]:
+    """Resolve mixed field selectors into display names.
+
+    If all selectors are already strings, returns immediately (no API call).
+    Otherwise, queries the Field object type (ArtifactTypeID=14) to resolve
+    ArtifactIDs to their display Names in a single lightweight call.
+
+    Parameters
+    ----------
+    api : ObjectManagerAPI
+        Authenticated Object Manager API client.
+    field_map : dict[str, int | str]
+        Mapping from POJO field key to Relativity field selector.
+
+    Returns
+    -------
+    dict[str, str]
+        Mapping from POJO field key to resolved Relativity field display name.
+
+    Raises
+    ------
+    ValueError
+        If a field ArtifactID cannot be resolved by the API.
+    """
+
+    int_selectors = {key: value for key, value in field_map.items() if isinstance(value, int)}
+    if not int_selectors:
+        return {key: str(value) for key, value in field_map.items()}
+
+    artifact_ids = list(int_selectors.values())
+    id_list = ", ".join(str(artifact_id) for artifact_id in artifact_ids)
+    condition = f"'Artifact ID' IN [{id_list}]"
+
+    builder = QueryBuilder(api).object_type_id(14).select("Name").where(condition)
+    builder = builder.page(0, len(artifact_ids))
+    response = builder.execute_raw()
+
+    id_to_name: dict[int, str] = {}
+    for obj in response.Objects:
+        if obj.Values and isinstance(obj.Values[0], str):
+            id_to_name[obj.ArtifactID] = obj.Values[0]
+
+    resolved: dict[str, str] = {}
+    for key, selector in field_map.items():
+        if isinstance(selector, int):
+            if selector not in id_to_name:
+                raise ValueError(f"Could not resolve field ArtifactID {selector} for '{key}'.")
+            resolved[key] = id_to_name[selector]
+        else:
+            resolved[key] = selector
+    return resolved
+
+
 class QueryResult:
     """QuerySlim response adapter."""
 
