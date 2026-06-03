@@ -130,6 +130,7 @@ def main() -> None:
                 saved_search_id=config.relativity.saved_search_id,
                 directory=output_dir,
             )
+            assert progress_log is not None
             pipeline = IndexingPipeline(config, overwrite=args.overwrite, index_name=args.index_name)
 
             mode: Mode

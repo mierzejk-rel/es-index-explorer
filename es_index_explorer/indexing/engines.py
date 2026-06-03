@@ -84,6 +84,7 @@ def silence_transformers_alias_warnings() -> None:
     # Ensure transformers' default handler exists, then filter at the handler level so
     # records propagated from child loggers are covered too.
     try:
+        # noinspection PyUnusedImports
         from transformers.utils import logging as hf_logging
 
         hf_logging.get_logger("transformers")
