@@ -151,6 +151,7 @@ def test_overlong_sentence_word_fallback_when_no_clause(small_params: ChunkParam
 def test_overlong_sentence_prefers_higher_priority_clause(small_params: ChunkParams) -> None:
     doc = build_document([30])
     # A semicolon (priority 3) at token 12 and a comma (priority 2) at token 8.
+    # noinspection PyTypeChecker
     clauses = [
         ClauseBoundary(char_pos=doc.token_char_start(12), priority=3),
         ClauseBoundary(char_pos=doc.token_char_start(8), priority=2),

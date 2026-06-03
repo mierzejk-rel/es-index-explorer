@@ -135,6 +135,7 @@ def main() -> None:
             mode: Mode
             resume_after = 0
             retry_ids: list[int] | None = None
+            # noinspection PyUnresolvedReferences
             match args:
                 case argparse.Namespace(retry=True):
                     retry_ids = list(progress_log.load().failed)

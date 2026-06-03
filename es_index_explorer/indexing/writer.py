@@ -107,6 +107,7 @@ def _format_es_error(error: object) -> tuple[str | None, str | None]:
     """
 
     if not isinstance(error, dict):
+        # noinspection PyStringConversionWithoutDunderMethod
         return None, (str(error) if error is not None else None)
     error_type = error.get("type")
     segments: list[str] = []
