@@ -1,16 +1,17 @@
 # aiR Assist: Document Indexing Module and Semantic Chunking
 
-**Purpose:** Design reference for engineers and AI agents building a new `es-index-explorer` module
-that takes the `RelativityDocument` data produced by [`read_documents.py`](../read_documents.py)
-(one-shot) and [`import_documents.py`](../import_documents.py) (resumable batch) and writes it into the
-custom nested aiR Assist index defined in `05-index-structure-design.md`. It specifies the declarative
-field mapping, the derived/numeric field calculations, the HuggingFace tokenization + embedding stack,
-a new semantic (sentence/clause-aware) chunker with variable overlap, the Elasticsearch bulk-write
-strategy (including `refresh_interval` handling), and read-vs-index error reporting.
+**Purpose:** Design reference for the `es-index-explorer` indexing module. The module reads
+`RelativityDocument` data through a unified ingest pipeline (see [`ingest.py`](../ingest.py) and
+[`es_index_explorer/ingest/`](../es_index_explorer/ingest/)) and writes it into the custom nested
+aiR Assist index defined in `05-index-structure-design.md`. It specifies the declarative field mapping,
+the derived/numeric field calculations, the HuggingFace tokenization + embedding stack, a semantic
+(sentence/clause-aware) chunker with variable overlap, the Elasticsearch bulk-write strategy (including
+`refresh_interval` handling), and read-vs-index error reporting.
 
-This document is a **design specification only** — it contains the critical algorithm, mapping, and
-calculation snippets, but no full implementation. The code-planning and code-writing steps follow
-separately.
+> **Note — post-merge update:** this document was originally written before the two former entry points
+> (`read_documents.py` one-shot + `import_documents.py` resumable batch) were unified into a single
+> `ingest.py` CLI. §1, §2.1, §8.1, §8.3, and §9 have been updated to reflect the current
+> implementation; chunking/embedding design (§5–§6) and the index mapping (§3–§4) are unchanged.
 
 **Scope and constraints (confirmed):**
 - **Language: English only** for now. Multilingual is a future nice-to-have and explicitly out of
@@ -32,27 +33,23 @@ separately.
 `05-index-structure-design.md` (the target nested mapping, derived fields R12-R14, and `semantic_text`
 parent fields).
 
-> **`title` is documented here; only the code wiring is deferred.** This report fully specifies the
-> index `title` mapping (source: the RelativityOne **`"Unified Title"`** field) and its derived
-> `title_semantic` twin (§3). What is left to the later code phase is the *implementation* of the source
-> wiring — adding `title` to `RelativityFieldMappingConfig`
-> ([config.py](../es_index_explorer/config.py)), to `RelativityDocument`
-> ([models.py](../es_index_explorer/relativity/models.py)), to the reader `field_map`
-> ([reader.py](../es_index_explorer/relativity/reader.py)), and to `config.example.toml`. This report
-> changes no code; it records the mapping so the code phase implements it alongside everything else.
+> **`title` is fully implemented.** The index `title` field (source: RelativityOne
+> **`"Unified Title"`**) and its `title_semantic` twin (§3) are wired end-to-end: the config key
+> `[relativity.fields].title`, the `RelativityDocument.title` attribute, field-selector resolution, and
+> the `MAPPING` extractor are all in place.
 
 ---
 
 ## 1. Pipeline Overview
 
-The new module sits downstream of the existing readers and turns each `RelativityDocument` into one
-nested ES document. The unit of work is a single document: read -> build -> chunk -> embed -> write.
+The module turns each `RelativityDocument` into one nested ES document. The unit of work is a single
+document: read → build → chunk → embed → write.
 
 ```mermaid
 flowchart TD
-    subgraph read [Reading - existing]
-        OneShot["read_documents.py (read_documents)"]
-        Batch["import_documents.py (BatchImporter, resumable)"]
+    subgraph read [Reading — ingest.py --source]
+        QS["QuerySlimSource (stateless paging)"]
+        EX["ExportSource (cursor, long text streamed)"]
     end
     RelDoc["RelativityDocument (POJO)"]
     Builder["IndexDocument wrapper (computed props)"]
@@ -63,8 +60,8 @@ flowchart TD
     Index["as-* nested index (ES 9.4)"]
     Progress["JSONL progress + failures (stage=read|index)"]
 
-    OneShot --> RelDoc
-    Batch --> RelDoc
+    QS --> RelDoc
+    EX --> RelDoc
     RelDoc --> Builder
     Builder --> Chunker
     Chunker --> Embedder
@@ -76,11 +73,20 @@ flowchart TD
     RelDoc -.read failure.-> Progress
 ```
 
-**Contrast with production (`02-...md`):** production chunks the text, embeds each chunk via the R1
-Model Gateway, and writes **one ES document per chunk** keyed `{documentId}_{chunkId}`. Here we keep all
-chunks of a document **together** as a nested array on **one** ES document keyed by the document
-ArtifactId, matching the nested design in `05-...md` §2.4. Embedding still happens per chunk (batched),
-but the ES write unit is the document.
+**Unified ingest pipeline:** a single CLI `ingest.py` drives both reading and indexing via
+`IngestEngine` ([`es_index_explorer/ingest/engine.py`](../es_index_explorer/ingest/engine.py)).
+`--source queryslim` selects `QuerySlimSource` (stateless offset paging; robust to slow consumers,
+default) and `--source export` selects `ExportSource` (server-managed export cursor; efficient for large
+workspaces). Both sources build `RelativityDocument` POJOs through the shared
+[`document_factory`](../es_index_explorer/relativity/document_factory.py) and share the same long-text
+streaming logic (`resolve_truncated_long_text` in
+[`fluent.py`](../es_index_explorer/relativity/fluent.py)). Without `--index` the run is a dry-run read
+(connectivity/readability check, no models loaded, no ES writes). With `--index` the indexing pipeline
+is activated.
+
+**Contrast with production (`02-...md`):** production writes one ES document per chunk keyed
+`{documentId}_{chunkId}`. Here all chunks of a document are stored as a nested array on one ES document
+keyed by the ArtifactId, matching the nested design in `05-...md` §2.4.
 
 ---
 
@@ -89,15 +95,26 @@ but the ES write unit is the document.
 The request is to reuse as many existing data classes as possible and, where a new shape is needed, to
 prefer a class that holds a reference to the original object and exposes computed properties.
 
-### 2.1 Reused as-is (no changes in this report)
+### 2.1 Reused as-is
 
 From [`es_index_explorer/relativity/models.py`](../es_index_explorer/relativity/models.py):
-- `RelativityDocument` — the source POJO (artifact_id, control_number, extracted_text,
-  primary_date_time, email_from/to/cc/bcc, summary, topic). The mapping (§3) also reads `source.title`;
-  adding that `title` field (and its `"Unified Title"` config/reader wiring) is implemented in the later
-  code phase — documented here, no code changed now.
-- `ReadResult` — `documents` + `failures`.
-- `FailedDocument` — `artifact_id`, `raw_row`, `error` (extended for stages in §8).
+- `RelativityDocument` — the source POJO (`artifact_id`, `control_number`, `extracted_text`,
+  `title`, `primary_date_time`, `email_from/to/cc/bcc`, `summary`, `topic`). All fields including
+  `title` are fully implemented.
+
+From [`es_index_explorer/ingest/sources.py`](../es_index_explorer/ingest/sources.py):
+- `ReadItem` — per-document read result: either `document: RelativityDocument` or
+  `error: str` + `error_type: str` (for per-document read failures).
+- `DocumentSource` (protocol) — implemented by `QuerySlimSource` and `ExportSource`.
+- `SourceKind` (`StrEnum`) — `QUERYSLIM` / `EXPORT`; drives `--source` CLI argument.
+
+From [`es_index_explorer/relativity/progress.py`](../es_index_explorer/relativity/progress.py) and
+[`es_index_explorer/relativity/tui.py`](../es_index_explorer/relativity/tui.py):
+- `ProgressLog` / `ImportState` — resumable JSONL progress log; records `last_processed_id`,
+  `ok_count`, failed artifact IDs (retryable via `--retry`).
+- `ProgressSnapshot` / `ProgressView` — Rich live TUI with progress bar, last ID, last error, and
+  last warning (transformers warnings are routed here via `set_transformers_warning_sink` so they
+  don't corrupt the live display).
 
 ### 2.2 New: `IndexDocument` (wrapper over `RelativityDocument`)
 
@@ -113,6 +130,7 @@ class IndexDocument:
     source: RelativityDocument
     chunks: list["Chunk"]          # produced by the chunker+embedder
     subset_ids: list[str]          # from run config (the active subset)
+    full_token_count: int          # full-document e5 token count, computed once pre-chunking (§4)
 
     @property
     def byte_size(self) -> int:
@@ -124,12 +142,17 @@ class IndexDocument:
 
     @property
     def token_count(self) -> int:
-        # full-document e5 token count, computed once (see section 4)
-        ...
+        return self.full_token_count  # full-doc tokens, pre-chunking (see §4)
 
     @property
     def chunk_count(self) -> int:
         return len(self.chunks)
+
+    @property
+    def workspace_extracted_text_size(self) -> int | None:
+        """Workspace-reported extracted-text size in bytes (KB field, rounded up). Optional."""
+        kb = self.source.extracted_text_size_kb
+        return math.ceil(kb * 1024) if kb is not None else None
 ```
 
 ### 2.3 New: `Chunk` dataclass
@@ -143,6 +166,7 @@ class Chunk:
     text: str                   # exact substring of extracted_text
     token_count: int            # e5 tokens spanning [overlap_start, cut_next)
     leading_overlap_chars: int  # characters duplicated from the previous chunk (0 for chunk 0)
+    byte_size: int              # len(text.encode("utf-8")) — UTF-8 bytes of this chunk's text
     embedding: list[float]      # 384-dim, normalized e5 passage vector
 ```
 
@@ -169,11 +193,12 @@ MAPPING: dict[str, Callable[[IndexDocument], object]] = {
     "email_to":             lambda d: d.source.email_to,
     "email_cc":             lambda d: d.source.email_cc,
     "email_bcc":            lambda d: d.source.email_bcc,
-    "byte_size":            lambda d: d.byte_size,
-    "token_count":          lambda d: d.token_count,
-    "char_count":           lambda d: d.char_count,
-    "chunk_count":          lambda d: d.chunk_count,
-    "subset_ids":           lambda d: d.subset_ids,
+    "byte_size":                       lambda d: d.byte_size,
+    "workspace_extracted_text_size":   lambda d: d.workspace_extracted_text_size,
+    "token_count":                     lambda d: d.token_count,
+    "char_count":                      lambda d: d.char_count,
+    "chunk_count":                     lambda d: d.chunk_count,
+    "subset_ids":                      lambda d: d.subset_ids,
     "chunks":               lambda d: [_chunk_to_dict(c) for c in d.chunks],
     # title_semantic / summary_semantic / topic_semantic are populated by Elasticsearch via copy_to
     # (05-...md §4.5) from title / summary / topic respectively - not set by the client.
@@ -187,6 +212,7 @@ def _chunk_to_dict(c: Chunk) -> dict[str, object]:
         "chunk_index": c.chunk_index,
         "text": c.text,
         "token_count": c.token_count,
+        "byte_size": c.byte_size,
         "leading_overlap_chars": c.leading_overlap_chars,
         "embedding": c.embedding,
     }
@@ -196,11 +222,12 @@ def _chunk_to_dict(c: Chunk) -> dict[str, object]:
 |---|---|---|
 | `document_artifact_id` | `source.artifact_id` | also the ES `_id` (as a string) |
 | `control_number` | `source.control_number` | |
-| `title` | `source.title` | from RelativityOne `"Unified Title"`; feeds `title_semantic` via `copy_to`; source wiring implemented in the code phase |
+| `title` | `source.title` | from RelativityOne `"Unified Title"` (`[relativity.fields].title`); feeds `title_semantic` via `copy_to` |
 | `summary`, `topic` | `source.summary`, `source.topic` | each feeds its `*_semantic` twin via `copy_to` (ES-side) |
 | `primary_date_time` | `source.primary_date_time` | datetime | None`; serialized ISO-8601 |
 | `email_from/to/cc/bcc` | `source.email_*` | keyword(s) |
 | `byte_size`, `token_count`, `char_count`, `chunk_count` | computed (`IndexDocument`) | see §4 |
+| `workspace_extracted_text_size` | `source.extracted_text_size_kb` via `IndexDocument` property | optional; from OM field "Extracted Text Size in KB" (KB → bytes, `ceil(kb * 1024)`); omitted when not configured (see §4) |
 | `subset_ids` | run config (`relativity.subset_id`) | multi-tenancy scoping (`05-...md` §4.1) |
 | `chunks[]` | chunker + embedder | nested array (§6) |
 | `title_semantic`, `summary_semantic`, `topic_semantic` | not set by client | filled by ES `copy_to` from `title`/`summary`/`topic` (`05-...md` §4.5) |
@@ -224,19 +251,30 @@ char_count = len(extracted_text)                    # 05-...md §6.4 (Unicode co
 token_count = len(tokenizer(extracted_text,         # 05-...md §6.2 (full-doc, PRE-chunking)
                             add_special_tokens=False).input_ids)
 chunk_count = len(chunks)                            # 05-...md §6.3
+workspace_extracted_text_size = math.ceil(extracted_text_size_kb * 1024) \
+                                if extracted_text_size_kb is not None else None
+# optional: from OM field "Extracted Text Size in KB"; 1 KB = 1024 bytes (binary).
+# This is the workspace's own reported measure, NOT recomputed from extracted_text.
+# It may differ from byte_size if the text was transformed or re-encoded by Relativity.
 ```
 
 - `token_count` is the **full-document** e5 token count computed **before** chunking. It is *not* the
   sum of `chunks[].token_count` (overlap double-counts boundary tokens), per `05-...md` §6.2.
 - These reuse the **same** tokenizer object used for chunking and embedding (§5), so the count is
   consistent with the chunk geometry.
+- `workspace_extracted_text_size` is omitted from `_source` when the source field is absent or
+  not configured (the extractor returns `None`, and `build_source` already skips `None` values).
 
 **Chunk level:**
 
 ```python
 chunk_index           = i                                   # 0-based, in order
 token_count           = cut_next - overlap_start            # e5 tokens in [overlap_start, cut_next)
+byte_size             = len(chunk_text.encode("utf-8"))     # UTF-8 bytes of this chunk's text
 leading_overlap_chars = char(content_start) - char(overlap_start)   # 0 for chunk 0; see §6
+# Note: sum(chunk.byte_size for chunk in chunks) != document.byte_size:
+#   - Leading-overlap duplication inflates the sum.
+#   - Whitespace/boundary trimming at chunk edges reduces it.
 ```
 
 `leading_overlap_chars` is in **characters** (not tokens) so the retrieval layer can concatenate a
@@ -621,19 +659,30 @@ load re-attempts only the not-yet-succeeded documents (§8.1-§8.2).
 
 ## 8. Integration, Error Reporting, Configuration, Dependencies
 
-### 8.1 Integration with the existing readers
+### 8.1 Integration — unified ingest pipeline
 
-A new `indexing` package (e.g. `es_index_explorer/indexing/`: `document_builder.py`, `chunking.py`,
-`embedding.py`, `writer.py`, `indexer.py`) consumes either:
-- the one-shot `read_documents(...) -> ReadResult` ([`reader.py`](../es_index_explorer/relativity/reader.py)), or
-- the resumable `BatchImporter` stream ([`batch_reader.py`](../es_index_explorer/relativity/batch_reader.py))
-  for large workspaces.
+The `es_index_explorer/indexing/` package (`document_builder.py`, `chunking.py`, `embedding.py`,
+`writer.py`, `pipeline.py`) is wired into a single root CLI:
 
-A new root CLI (`index_documents.py`) wires read -> index, reusing the existing JSONL `ProgressLog` /
-`ImportState` and the `ProgressView` TUI ([`progress.py`](../es_index_explorer/relativity/progress.py),
-[`tui.py`](../es_index_explorer/relativity/tui.py)). The transaction unit is one document, matching the
-existing per-document progress model and resume semantics. The CLI exposes **`--overwrite`** to permit
-replacing documents that already exist in the index (default off; see §7.4).
+- **[`ingest.py`](../ingest.py)** — the only entry point. Flags: `--config`, `--source {queryslim,export}`,
+  `--index` (enable indexing; without it: dry-run read), `--index-name`, `--batch-size`, `--overwrite`,
+  `--fresh`, `--retry`, `--limit`, `--output-dir`.
+- **[`es_index_explorer/ingest/engine.py`](../es_index_explorer/ingest/engine.py)** — `IngestEngine`
+  drives any `DocumentSource` (fresh/resume/retry modes). Read batch size is clamped to
+  `min(batch_size, limit)` when `--limit` is set, avoiding building documents that will be discarded.
+- **[`es_index_explorer/ingest/sources.py`](../es_index_explorer/ingest/sources.py)** —
+  `QuerySlimSource` / `ExportSource` (selected via `SourceKind` enum, `--source` CLI arg). Both build
+  documents via the shared `document_factory` and resolve field selectors (int ArtifactID → display name)
+  via a single lightweight OM probe at startup (`resolve_field_selectors`). Long-text streaming
+  (`resolve_truncated_long_text`) handles per-document `StreamLongText` calls and raises
+  `DocumentReadError` / `DocumentFetchError` for unresolvable tokens or persistent 503s — both are caught
+  per-document via `_READ_EXCEPTIONS` (the document is logged as failed and the run continues).
+- **[`es_index_explorer/relativity/tui.py`](../es_index_explorer/relativity/tui.py)** — `ProgressView`
+  renders the live TUI (bar, OK/failed/last ID/last error, and optionally a last-warning row for
+  transformers warnings routed via `set_transformers_warning_sink`).
+- The transaction unit is one document; `ProgressLog`/`ImportState` provide per-document
+  resume (`--fresh`/`--retry`) semantics.
+- **`--overwrite`** permits replacing documents that already exist in the index (default off; see §7.4).
 
 ### 8.2 Error reporting: distinguish read vs index failures
 
@@ -684,7 +733,7 @@ overlap_max = 120
 max_content_tokens = 505          # HARD: overlap + unique cap (or computed from the tokenizer)
 # Sentence engine (priority 5):
 sentence_engine = "sat"           # "sat" | "blingfire" | "sentencex" | "pysbd"
-sat_model = "sat-3l-sm"
+sat_model = "sat-12l-sm"          # highest English accuracy; CPU-only deployment (§9.1)
 # Clause engine (Tier-A fallback, priorities 4-2):
 clause_engine = "spacy"           # "spacy" (default, morphosyntactic) | "punctuation" (lean, no parser)
 spacy_model = "en_core_web_sm"
@@ -695,9 +744,12 @@ fallback_overlap = 100
 
 Overwrite behavior is a **CLI flag** (`--overwrite`, default off), not a config key: by default an
 existing `_id` is a conflict error (§7.4); passing `--overwrite` replaces the document and logs it as
-`overwritten`. `title` is mapped from the RelativityOne `"Unified Title"` field via a new
-`[relativity.fields].title` key (mapping documented in §3); implementing that config key, the POJO, and
-the reader is part of the later code phase.
+`overwritten`. `title` is mapped from the RelativityOne `"Unified Title"` field via
+`[relativity.fields].title` and is fully implemented.
+
+Optionally, the RelativityOne field **"Extracted Text Size in KB"** can be configured via
+`[relativity.fields].extracted_text_size_kb` to populate the `workspace_extracted_text_size`
+document field (§4).
 
 ### 8.4 Dependencies
 
@@ -718,16 +770,12 @@ production agent image).
 
 ## 9. Open Decisions and Assumptions
 
-1. **SaT model + device (decided): `sat-12l-sm` on CPU.** `sat-12l-sm` is chosen for the best English
-   score (~97.4, §6.5). The deployment is **CPU-only** — no GPU/CUDA, Apple MPS, or other NPU is
-   available — so `[indexing].device` is set explicitly to `"cpu"` (avoiding accelerator
-   auto-selection). Accelerated devices (a CUDA GPU, or Apple MPS) would be a **faster option** for both
-   SaT and the e5 embedder, but are not available here. On CPU, `sat-12l-sm` is the accuracy-but-slowest
-   combination and is expected to be the indexing throughput bottleneck. Faster CPU options, if ever
-   needed (a quality/speed trade-off, no code change — only `[indexing]` settings): switch the sentence
-   engine to `sat-3l-sm` (~96.5), and/or set **`clause_engine = "punctuation"` to skip loading spaCy
-   entirely** (the clause path is only the rare over-long-sentence fallback, §6.4 Tier A). `wtpsplit-lite`
-   (ONNX) is an alternative SaT runtime to benchmark.
+1. **SaT model + device (implemented): `sat-12l-sm` on CPU.** `sat-12l-sm` is chosen for the best
+   English score (~97.4, §6.5) and is the current default (`[indexing].sat_model = "sat-12l-sm"`,
+   `[indexing].device = "cpu"`). The deployment is **CPU-only**. Faster CPU options if needed (quality/
+   speed trade-off, config change only): switch to `sat-3l-sm` (~96.5) and/or set
+   `clause_engine = "punctuation"` to skip loading spaCy. `wtpsplit-lite` (ONNX) is an alternative SaT
+   runtime.
 2. **Sentence-first chunk geometry is tunable and mostly soft.** `chunk_unique_target` (~400),
    `chunk_unique_floor` (~360, overlap-adjusted), `overlap_target` (~80) and the `[40, 120]` overlap
    band are soft; only `overlap + unique <= max_content_tokens` is hard. The exact selection internals
@@ -745,8 +793,8 @@ production agent image).
 3. **`subset_ids` source:** taken from the run's `relativity.subset_id`; append-to-existing semantics
    (production's `AlreadyIndexedAppendToSubset`, `02-...md` §5.3) are out of scope for the first version
    (full overwrite per document).
-4. **`title`** mapping (source: `"Unified Title"`) is documented in §3; only its code wiring (config,
-   POJO, reader, example config) is deferred to the code phase.
+4. **`title`** mapping (source: `"Unified Title"`) is documented in §3 and **fully implemented**
+   (config key `[relativity.fields].title`, POJO attribute, field-selector resolution, MAPPING extractor).
 5. **Document modify time / versioning** (production `documentModifyTime`, `NewVersion`) are not
    modeled. Re-runs do **not** overwrite by default: an existing `_id` is reported as a conflict error
    (§7.4); overriding requires the explicit `--overwrite` flag, which logs an `overwritten` outcome.

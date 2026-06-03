@@ -75,14 +75,16 @@ The `es-index-explorer` reader produces `RelativityDocument`
 | `email_bcc` | `list[str] \| None` | no | Email BCC (multi-valued) |
 | `summary` | `str \| None` | no | Document-level summary |
 | `topic` | `str \| None` | no | Document-level topic |
+| `extracted_text_size_kb` | `float \| None` | no | Workspace-reported extracted-text size in KB (OM field "Extracted Text Size in KB"); converted to bytes at index time (§6.5) |
 
 ### 2.2 Parent vs child mapping of these fields
 
 - **Parent (document)** carries all of the above *except* `extracted_text`, plus derived metrics
-  (§6): `byte_size`, `token_count`, `char_count`, `chunk_count`, and the multi-tenancy `subset_ids`.
+  (§6): `byte_size`, `token_count`, `char_count`, `chunk_count`, the multi-tenancy `subset_ids`,
+  and optionally `workspace_extracted_text_size` (workspace-reported size, §6.5).
 - **Child (chunk)** carries only what is derived from `extracted_text`: `chunk_index`, `text`,
-  `embedding`, `token_count`, `leading_overlap_chars`. Per R6, the chunk schema is intentionally
-  agnostic to *how* the text was split.
+  `embedding`, `token_count`, `leading_overlap_chars`, `byte_size`. Per R6, the chunk schema is
+  intentionally agnostic to *how* the text was split.
 
 ### 2.3 Fields explicitly in/out of scope
 
@@ -260,6 +262,7 @@ PUT as-air-assist-<workspace>-nested
       "token_count": { "type": "integer" },
       "char_count":  { "type": "integer" },
       "chunk_count": { "type": "integer" },
+      "workspace_extracted_text_size": { "type": "long" },
 
       "subset_ids": { "type": "keyword" },
 
@@ -303,6 +306,7 @@ PUT as-air-assist-<workspace>-nested
           "chunk_index": { "type": "integer" },
           "text":        { "type": "text" },
           "token_count": { "type": "integer" },
+          "byte_size":   { "type": "long" },
           "leading_overlap_chars": { "type": "integer" },
           "embedding": {
             "type": "dense_vector",
@@ -341,12 +345,14 @@ document's `inner_hits` `from + size` — full behavior in §7.5.
 | `token_count` | `integer` | Token count of full doc. | Analytics, filtering, cost estimation (§6). |
 | `char_count` | `integer` | Character count of full doc (`len(extracted_text)`, Unicode code points). | Encoding- and tokenizer-independent length for filtering/analytics (§6). |
 | `chunk_count` | `integer` | Number of chunks. | Cross-index filter/sort/agg convenience (§6). |
+| `workspace_extracted_text_size` | `long` | Workspace-reported extracted-text size converted KB → bytes (`ceil(kb * 1024)`). Optional — omitted when the source OM field is not configured or absent. | Size analytics; cross-index comparison with the workspace's own measure (§6.5). |
 | `subset_ids` | `keyword` (multi-valued) | Multi-tenancy scoping. | `term` filter parity with production's always-on subset filter (`03-...md` §4.2). |
 | `title_semantic` / `summary_semantic` / `topic_semantic` | `semantic_text` (ELSER, `inference_id: .elser-2-elasticsearch`; 512-token limit; chunking pinned `sentence`/250/1) | ES-managed ELSER inference at index + query, populated via `copy_to`; per-chunk vectors stored, document scored as MAX over chunks (§4.5). | Sparse/semantic (ELSER) retrieval on parent metadata via the `semantic` query (R7 sparse). |
 | `chunks` | `nested` | Preserves chunk independence for nested kNN/BM25 with parent pre-filters. | Container for child chunks (R1). |
 | `chunks.chunk_index` | `integer` | 0-based order. | First-chunk selection (`== 0`), ordering within doc. |
 | `chunks.text` | `text` | BM25 on chunk text. | Lexical chunk retrieval (R7 BM25-on-chunks). |
 | `chunks.token_count` | `integer` | Per-chunk tokens. | Diagnostics; not summable to document tokens (§6). |
+| `chunks.byte_size` | `long` | UTF-8 byte length of the chunk text (`len(text.encode("utf-8"))`). | Per-chunk size analytics. The sum across chunks is not equal to the document `byte_size` — leading-overlap duplication inflates it while whitespace/boundary trimming at chunk edges reduces it. |
 | `chunks.leading_overlap_chars` | `integer` | Leading characters duplicated from previous chunk; chunk 0 = 0. | Tokenizer-free de-duplication for contiguous chunk concatenation (R14). |
 | `chunks.embedding` | `dense_vector` (384, cosine, `bbq_hnsw`) | Dense ANN per chunk. | Dense/kNN chunk retrieval (R7 dense-on-chunks). |
 
@@ -360,7 +366,7 @@ Confirms R11 — nothing today is lost:
 | `embedding` (dense_vector 384/cosine/bbq_hnsw) | `chunks.embedding` | Identical vector config, now nested + **explicitly set** (not template-derived). |
 | `documentId` | `document_artifact_id` | Renamed; same value. |
 | `chunkId` | `chunks.chunk_index` | Renamed; same semantics. |
-| `chunkSize` (UTF-8×2 per chunk) | superseded by `byte_size` (doc-level, §6) + optional `chunks.token_count` | The per-chunk byte stat had no retrieval role; replaced by a faithful doc-level size. |
+| `chunkSize` (UTF-8×2 per chunk) | superseded by `byte_size` (doc-level, §6) + `chunks.byte_size` (per-chunk UTF-8 actual, §4) | The old per-chunk stat used `UTF-8 × 2` (a UTF-16 approximation) and had no retrieval role. Replaced by: (a) a faithful doc-level `byte_size` (UTF-8 actual of `extracted_text`) and (b) a per-chunk `chunks.byte_size` (UTF-8 actual of the chunk text) for per-chunk size analytics. |
 | `controlNumber` | `control_number` | Same. |
 | `subsetIds` | `subset_ids` | Same multi-tenancy role. |
 | `title` | `title` | Same (still optional/unpopulated; §11). |
@@ -411,9 +417,11 @@ embedders, have a fixed **token-based** input limit: the endpoint tokenizes the 
 maximum, and **discards the remainder** — long text is truncated unless chunked. For ELSER
 (`.elser-2-elasticsearch`) the limit is **512 tokens** (WordPiece sub-words; out-of-vocabulary terms are
 split into sub-words that consume the budget). `semantic_text` avoids truncation by **chunking at index
-time inside the endpoint**, encoding each chunk into its own sparse vector. The available strategies are
-`sentence` (whole sentences up to `max_chunk_size`, with `sentence_overlap` sentences shared between
-neighbors), `word` (fixed word windows with `overlap`), and `none` (no chunking, for pre-chunked input).
+time inside the endpoint**, encoding each chunk into its own sparse vector. The available strategies are:
+- `sentence` — whole sentences up to `max_chunk_size` words, with `sentence_overlap` sentences (0 or 1) shared between neighbors.
+- `word` — fixed word windows with `overlap` words.
+- `none` — no chunking, for pre-chunked input (pass an array of strings; each element becomes one chunk).
+- `recursive` — splits on an ordered list of separator patterns (e.g. Markdown headings, paragraph breaks), recursively splitting any piece that exceeds `max_chunk_size` words and falling back to sentence-level splitting; configured with `max_chunk_size` plus either `separator_group` (`"markdown"` or `"plaintext"`) or a custom `separators` list of regex strings. **Introduced in ES 9.1 / 8.19** — available on the target 9.4 cluster.
 Per R13 we pin the ELSER endpoint defaults in the mapping: **`strategy: sentence`, `max_chunk_size: 250`
 (words), `sentence_overlap: 1`** (for ELSER, `max_chunk_size` ≤ 300 and `sentence_overlap` ∈ {0, 1});
 250 words sits safely under the 512-token model limit even after sub-word expansion, and a one-sentence
@@ -558,6 +566,29 @@ multi-byte (non-ASCII) content, and is unrelated to the token scale. Useful as a
 tokenizer-independent document length for filtering and analytics. Chunk-level character count is
 deliberately **not** stored: when a chunk is returned its text is already present, so `len(text)` is a
 zero-cost client-side computation.
+
+### 6.5 `workspace_extracted_text_size` — optional workspace-reported size
+
+**Source:** the RelativityOne Object Manager field **"Extracted Text Size in KB"** (a `Decimal`/float in
+KB). Configured via `[relativity.fields].extracted_text_size_kb`; if absent or unconfigured the field
+is omitted from `_source` entirely (same optional-field pattern as `email_from`, `summary`, etc.).
+
+**Conversion:** `bytes = ceil(kb * 1024)` — using binary KB (1 KiB = 1024 bytes), consistent with the
+5 MB = `5 * 1024 * 1024` threshold used throughout this report (§6.1). If the workspace ever reports
+decimal KB (1000-based), the multiplier should be changed to 1000.
+
+**Type:** `long` (bytes).
+
+**Contrast with `byte_size` (§6.1):** `byte_size` is computed by this tool from `extracted_text`
+(`len(extracted_text.encode("utf-8"))`); it is always present. `workspace_extracted_text_size` is the
+workspace's own reported measure — it may reflect the original file size (before any Relativity
+processing) and can differ from `byte_size` if the text was transformed or re-encoded. Neither
+supersedes the other; they measure different things.
+
+```python
+workspace_extracted_text_size = math.ceil(extracted_text_size_kb * 1024) if extracted_text_size_kb is not None else None
+# stored when the OM field is configured; omitted (None) otherwise
+```
 
 ---
 
@@ -968,8 +999,8 @@ are available; the choice is an evaluation question (§3.1.1), not a fallback.
 
 ## 10. Chunking-Agnostic Guarantees (R6)
 
-The chunk schema stores only `chunk_index`, `text`, `token_count`, `leading_overlap_chars`, and
-`embedding`. None of these assume a particular splitting method. Therefore all of the following work
+The chunk schema stores only `chunk_index`, `text`, `token_count`, `leading_overlap_chars`,
+`byte_size`, and `embedding`. None of these assume a particular splitting method. Therefore all of the following work
 **without any index change**:
 - fixed token window **with** overlap (current production: 500 tokens / 100 overlap — `02-...md` §3),
 - fixed token window **without** overlap,
@@ -1051,7 +1082,8 @@ the pinned sparse token-pruning above.
 - `semantic_text` setup & inference endpoints (default `.elser-2-elasticsearch` on 9.0-9.2): https://www.elastic.co/docs/reference/elasticsearch/mapping-reference/semantic-text-setup-configuration
 - `semantic_text` ingestion (`copy_to`, pre-chunking, `chunking_settings`): https://www.elastic.co/docs/reference/elasticsearch/mapping-reference/semantic-text-ingestions
 - ELSER 512-token input limit: https://www.elastic.co/docs/solutions/search/semantic-search/semantic-search-elser-ingest-pipelines
-- Chunking strategies & defaults for inference endpoints (`sentence`/`word`/`none`, `max_chunk_size`, `sentence_overlap`): https://www.elastic.co/search-labs/blog/elasticsearch-chunking-inference-api-endpoints
+- Chunking strategies & defaults for inference endpoints (`sentence`/`word`/`none`/`recursive`, `max_chunk_size`, `sentence_overlap`): https://www.elastic.co/search-labs/blog/elasticsearch-chunking-inference-api-endpoints
+- `recursive` chunking strategy (ES 9.1 / 8.19; `separator_group`: `markdown`/`plaintext` or custom `separators`): https://www.elastic.co/search-labs/blog/recursive-chunking-structured-documents-elasticsearch
 - `semantic` query: https://www.elastic.co/docs/reference/query-languages/query-dsl/query-dsl-semantic-query
 - Hybrid search with `semantic_text` (RRF of `match` + `semantic`): https://www.elastic.co/docs/solutions/search/hybrid-semantic-text
 - `sparse_vector` field & query (ELSER; switch-back option): https://www.elastic.co/docs/reference/query-languages/query-dsl/query-dsl-sparse-vector-query
