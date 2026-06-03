@@ -165,8 +165,9 @@ class Chunk:
     chunk_index: int            # 0-based, sequential
     text: str                   # exact substring of extracted_text
     token_count: int            # e5 tokens spanning [overlap_start, cut_next)
-    leading_overlap_chars: int  # characters duplicated from the previous chunk (0 for chunk 0)
     byte_size: int              # len(text.encode("utf-8")) — UTF-8 bytes of this chunk's text
+    char_count: int             # len(text) — Unicode code points of this chunk's text
+    leading_overlap_chars: int  # characters duplicated from the previous chunk (0 for chunk 0)
     embedding: list[float]      # 384-dim, normalized e5 passage vector
 ```
 
@@ -213,6 +214,7 @@ def _chunk_to_dict(c: Chunk) -> dict[str, object]:
         "text": c.text,
         "token_count": c.token_count,
         "byte_size": c.byte_size,
+        "char_count": c.char_count,
         "leading_overlap_chars": c.leading_overlap_chars,
         "embedding": c.embedding,
     }
@@ -271,10 +273,11 @@ workspace_extracted_text_size = math.ceil(extracted_text_size_kb * 1024) \
 chunk_index           = i                                   # 0-based, in order
 token_count           = cut_next - overlap_start            # e5 tokens in [overlap_start, cut_next)
 byte_size             = len(chunk_text.encode("utf-8"))     # UTF-8 bytes of this chunk's text
+char_count            = len(chunk_text)                     # Unicode code points of this chunk's text
 leading_overlap_chars = char(content_start) - char(overlap_start)   # 0 for chunk 0; see §6
-# Note: sum(chunk.byte_size for chunk in chunks) != document.byte_size:
+# Note: for both byte_size and char_count, the sum across chunks differs from the document value:
 #   - Leading-overlap duplication inflates the sum.
-#   - Whitespace/boundary trimming at chunk edges reduces it.
+#   - Whitespace/boundary trimming by the sentence segmenter at chunk edges reduces it.
 ```
 
 `leading_overlap_chars` is in **characters** (not tokens) so the retrieval layer can concatenate a

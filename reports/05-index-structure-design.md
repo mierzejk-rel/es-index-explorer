@@ -83,8 +83,8 @@ The `es-index-explorer` reader produces `RelativityDocument`
   (§6): `byte_size`, `token_count`, `char_count`, `chunk_count`, the multi-tenancy `subset_ids`,
   and optionally `workspace_extracted_text_size` (workspace-reported size, §6.5).
 - **Child (chunk)** carries only what is derived from `extracted_text`: `chunk_index`, `text`,
-  `embedding`, `token_count`, `leading_overlap_chars`, `byte_size`. Per R6, the chunk schema is
-  intentionally agnostic to *how* the text was split.
+  `embedding`, `token_count`, `byte_size`, `char_count`, `leading_overlap_chars`. Per R6, the chunk
+  schema is intentionally agnostic to *how* the text was split.
 
 ### 2.3 Fields explicitly in/out of scope
 
@@ -307,6 +307,7 @@ PUT as-air-assist-<workspace>-nested
           "text":        { "type": "text" },
           "token_count": { "type": "integer" },
           "byte_size":   { "type": "long" },
+          "char_count":  { "type": "integer" },
           "leading_overlap_chars": { "type": "integer" },
           "embedding": {
             "type": "dense_vector",
@@ -353,6 +354,7 @@ document's `inner_hits` `from + size` — full behavior in §7.5.
 | `chunks.text` | `text` | BM25 on chunk text. | Lexical chunk retrieval (R7 BM25-on-chunks). |
 | `chunks.token_count` | `integer` | Per-chunk tokens. | Diagnostics; not summable to document tokens (§6). |
 | `chunks.byte_size` | `long` | UTF-8 byte length of the chunk text (`len(text.encode("utf-8"))`). | Per-chunk size analytics. The sum across chunks is not equal to the document `byte_size` — leading-overlap duplication inflates it while whitespace/boundary trimming at chunk edges reduces it. |
+| `chunks.char_count` | `integer` | Unicode code-point length of the chunk text (`len(text)`). | Per-chunk size analytics. The sum across chunks differs from the document `char_count` — overlap duplication inflates it while whitespace/boundary trimming by the sentence segmenter reduces it. |
 | `chunks.leading_overlap_chars` | `integer` | Leading characters duplicated from previous chunk; chunk 0 = 0. | Tokenizer-free de-duplication for contiguous chunk concatenation (R14). |
 | `chunks.embedding` | `dense_vector` (384, cosine, `bbq_hnsw`) | Dense ANN per chunk. | Dense/kNN chunk retrieval (R7 dense-on-chunks). |
 
@@ -564,9 +566,11 @@ characters) and **not retrievable for free** from Elasticsearch (the parent stor
 and `_source` scripting would be slow), so it is computed once at ingest — a single tokenizer-free
 integer. It is a *distinct* length lens: it equals `byte_size` only for pure ASCII and diverges for
 multi-byte (non-ASCII) content, and is unrelated to the token scale. Useful as an encoding- and
-tokenizer-independent document length for filtering and analytics. Chunk-level character count is
-deliberately **not** stored: when a chunk is returned its text is already present, so `len(text)` is a
-zero-cost client-side computation.
+tokenizer-independent document length for filtering and analytics. Chunk-level `char_count` (`len(text)`) **is** stored alongside the chunk. Although a client could
+recompute it from the returned text, storing it enables Elasticsearch-side aggregations and filters
+(e.g. "chunks shorter than N characters") without scripting over `_source`. The sum across chunks
+differs from the document `char_count`: leading-overlap duplication inflates it while
+whitespace/boundary trimming by the sentence segmenter reduces it.
 
 ### 6.5 `workspace_extracted_text_size` — optional workspace-reported size
 
@@ -1000,16 +1004,18 @@ are available; the choice is an evaluation question (§3.1.1), not a fallback.
 
 ## 10. Chunking-Agnostic Guarantees (R6)
 
-The chunk schema stores only `chunk_index`, `text`, `token_count`, `leading_overlap_chars`,
-`byte_size`, and `embedding`. None of these assume a particular splitting method. Therefore all of the following work
+The chunk schema stores only `chunk_index`, `text`, `token_count`, `byte_size`, `char_count`,
+`leading_overlap_chars`, and `embedding`. None of these assume a particular splitting method. Therefore all of the following work
 **without any index change**:
 - fixed token window **with** overlap (current production: 500 tokens / 100 overlap — `02-...md` §3),
 - fixed token window **without** overlap,
 - sentence-/separator-boundary or semantic chunking, with or without overlap.
 
-Only the *values* of `chunk_index`/`text`/`token_count`/`leading_overlap_chars`/`embedding` differ
-between strategies. The sole field that must not be derived by summing chunks is the document-level
-`token_count` (§6.2), precisely because overlap makes chunk token counts non-additive. (Per-chunk
+Only the *values* of `chunk_index`/`text`/`token_count`/`byte_size`/`char_count`/`leading_overlap_chars`/`embedding`
+differ between strategies. The sole field that must not be derived by summing chunks is the
+document-level `token_count` (§6.2), precisely because overlap makes chunk token counts non-additive
+(and likewise for `byte_size`/`char_count` — overlap duplication and whitespace trimming make them
+non-summable to the parent value). (Per-chunk
 sparse/late-interaction fields are decided against, §11; if ever needed they could be added later
 without disturbing existing data.)
 
