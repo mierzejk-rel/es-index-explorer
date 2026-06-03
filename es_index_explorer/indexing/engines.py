@@ -55,6 +55,7 @@ class _TransformersAliasWarningFilter(logging.Filter):
         if message.startswith(_DROPPED_TRANSFORMERS_WARNING_PREFIXES):
             return False
         if record.levelno >= logging.WARNING and _warning_sink is not None:
+            # noinspection PyCallingNonCallable
             _warning_sink(message)
             return False
         return True
