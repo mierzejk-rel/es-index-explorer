@@ -422,6 +422,7 @@ time inside the endpoint**, encoding each chunk into its own sparse vector. The 
 - `word` — fixed word windows with `overlap` words.
 - `none` — no chunking, for pre-chunked input (pass an array of strings; each element becomes one chunk).
 - `recursive` — splits on an ordered list of separator patterns (e.g. Markdown headings, paragraph breaks), recursively splitting any piece that exceeds `max_chunk_size` words and falling back to sentence-level splitting; configured with `max_chunk_size` plus either `separator_group` (`"markdown"` or `"plaintext"`) or a custom `separators` list of regex strings. **Introduced in ES 9.1 / 8.19** — available on the target 9.4 cluster.
+
 Per R13 we pin the ELSER endpoint defaults in the mapping: **`strategy: sentence`, `max_chunk_size: 250`
 (words), `sentence_overlap: 1`** (for ELSER, `max_chunk_size` ≤ 300 and `sentence_overlap` ∈ {0, 1});
 250 words sits safely under the 512-token model limit even after sub-word expansion, and a one-sentence
