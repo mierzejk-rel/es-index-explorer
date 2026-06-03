@@ -92,6 +92,9 @@ class IngestEngine:
         """Process documents for the given mode (fresh/resume/retry)."""
 
         self._reset_counters()
+        # Never fetch/build more documents than the limit; with a small --limit a full
+        # batch would otherwise be read and processed only to be discarded by _consume.
+        read_batch_size = min(self._batch_size, self._limit) if self._limit else self._batch_size
         if mode == "retry":
             ids = list(retry_ids or [])
             total = len(ids) if self._limit is None else min(len(ids), self._limit)
@@ -99,7 +102,7 @@ class IngestEngine:
                 condition = compose_condition(
                     saved_search_id=self._saved_search_id, resume_after=0, retry_ids=chunk
                 )
-                _, batches = self._source.read(condition=condition, batch_size=self._batch_size)
+                _, batches = self._source.read(condition=condition, batch_size=read_batch_size)
                 if self._consume(batches, total, phase="retry"):
                     return
             return
@@ -107,7 +110,7 @@ class IngestEngine:
         condition = compose_condition(
             saved_search_id=self._saved_search_id, resume_after=resume_after, retry_ids=None
         )
-        total, batches = self._source.read(condition=condition, batch_size=self._batch_size)
+        total, batches = self._source.read(condition=condition, batch_size=read_batch_size)
         effective_total = total if self._limit is None else min(total, self._limit)
         self._consume(batches, effective_total, phase="run")
 
