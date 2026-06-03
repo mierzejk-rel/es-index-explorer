@@ -9,11 +9,13 @@ def _quote(value: str) -> str:
 
 
 def _format_scalar(value: int | str | bool) -> str:
-    if isinstance(value, bool):
-        return "True" if value else "False"
-    if isinstance(value, int):
-        return str(value)
-    return _quote(value)
+    match value:
+        # case bool():
+        #     return "True" if value else "False"
+        case int():  # bool is a subclass of int
+            return str(value)
+        case _:
+            return _quote(value)
 
 
 def _format_list(values: Iterable[int | str]) -> str:

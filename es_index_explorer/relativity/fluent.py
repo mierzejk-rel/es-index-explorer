@@ -262,10 +262,13 @@ class QueryBuilder:
             "start": self._start,
             "length": self._length,
         }
-        if isinstance(self._condition, dict):
-            inner.update(self._condition)
-        elif isinstance(self._condition, str):
-            inner["condition"] = self._condition
+        match self._condition:
+            case dict(condition):
+                inner.update(condition)
+            case str(condition):
+                inner["condition"] = condition
+            case _:
+                pass
         if self._sorts:
             inner["Sorts"] = self._sorts
         return request

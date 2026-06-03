@@ -134,18 +134,19 @@ def main() -> None:
             mode: Mode
             resume_after = 0
             retry_ids: list[int] | None = None
-            if args.retry:
-                retry_ids = list(progress_log.load().failed)
-                if not retry_ids:
-                    print("No failures to retry.")
-                    return
-                mode = "retry"
-            elif args.fresh:
-                progress_log.reset()
-                mode = "fresh"
-            else:
-                mode = "resume"
-                resume_after = progress_log.load().last_processed_id
+            match args:
+                case argparse.Namespace(retry=True):
+                    retry_ids = list(progress_log.load().failed)
+                    if not retry_ids:
+                        print("No failures to retry.")
+                        return
+                    mode = "retry"
+                case argparse.Namespace(retry=False, fresh=True):
+                    progress_log.reset()
+                    mode = "fresh"
+                case _:
+                    mode = "resume"
+                    resume_after = progress_log.load().last_processed_id
 
             engine = IngestEngine(
                 source=source,

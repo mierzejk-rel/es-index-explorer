@@ -123,15 +123,17 @@ class RelativityConfig(BaseModel):
     @field_validator("saved_search_id", mode="before")
     @classmethod
     def normalize_saved_search_id(cls, value: object | None) -> int | None:
-        if value is None:
-            return None
-        if isinstance(value, str):
-            if not value.strip():
+        match value:
+            case None:
                 return None
-            return int(value)
-        if isinstance(value, int):
-            return value
-        raise ValueError("saved_search_id must be an int or empty.")
+            case str(s) if not s.strip():
+                return None
+            case str(s):
+                return int(s)
+            case int(n):
+                return n
+            case _:
+                raise ValueError("saved_search_id must be an int or empty.")
 
     @field_validator("batch_size")
     @classmethod

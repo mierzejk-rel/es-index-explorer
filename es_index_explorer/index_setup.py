@@ -510,13 +510,16 @@ def _insert_field(current: dict[str, Any], parts: list[str], definition: dict[st
 def _normalize_setting_value(value: Any) -> Any:
     """Normalize value types for stable setting comparisons."""
 
-    if isinstance(value, str):
-        stripped = value.strip()
-        if stripped.isdigit():
-            return int(stripped)
-        return stripped
-    if isinstance(value, dict):
-        return {k: _normalize_setting_value(v) for k, v in sorted(value.items())}
-    if isinstance(value, list):
-        return [_normalize_setting_value(item) for item in value]
-    return value
+    match value:
+        case str(text):
+            stripped = text.strip()
+            return int(stripped) if stripped.isdigit() else stripped
+        case dict(mapping):
+            return {
+                key: _normalize_setting_value(item)
+                for key, item in sorted(mapping.items())
+            }
+        case list(items):
+            return [_normalize_setting_value(item) for item in items]
+        case _:
+            return value

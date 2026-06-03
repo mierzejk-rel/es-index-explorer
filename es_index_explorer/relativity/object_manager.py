@@ -49,16 +49,21 @@ class ObjectManagerAPI(BaseAPIClient):
         return list(res.json())
 
     def stream_long_text(self, object_artifact_id: int, field_id: int | UUID) -> str:
-        if isinstance(field_id, int):
-            body = {
-                "exportObject": {"ArtifactID": object_artifact_id},
-                "longTextField": {"ArtifactID": field_id},
-            }
-        else:
-            body = {
-                "exportObject": {"ArtifactID": object_artifact_id},
-                "longTextField": {"Guid": str(field_id)},
-            }
+        match field_id:
+            case int(afid):
+                body = {
+                    "exportObject": {"ArtifactID": object_artifact_id},
+                    "longTextField": {"ArtifactID": afid},
+                }
+            case UUID() as guid:
+                body = {
+                    "exportObject": {"ArtifactID": object_artifact_id},
+                    "longTextField": {"Guid": str(guid)},
+                }
+            case _:
+                raise TypeError(
+                    f"field_id must be int or UUID, got {type(field_id).__name__}"
+                )
 
         max_attempts = 3
         for attempt in range(1, max_attempts + 1):
