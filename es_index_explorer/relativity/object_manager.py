@@ -59,7 +59,7 @@ class ObjectManagerAPI(BaseAPIClient):
                 "longTextField": {"Guid": str(field_id)},
             }
 
-        max_attempts = 2
+        max_attempts = 3
         for attempt in range(1, max_attempts + 1):
             res = self._t.post(f"{self._ws_base}/StreamLongText", json=body)
             try:
@@ -69,6 +69,6 @@ class ObjectManagerAPI(BaseAPIClient):
                 is_retryable_503 = exc.response is not None and exc.response.status_code == 503
                 if not is_retryable_503 or attempt >= max_attempts:
                     raise
-                time.sleep(1)
+                time.sleep(2.5)
 
         raise RuntimeError("Unreachable retry loop termination.")
