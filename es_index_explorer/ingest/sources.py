@@ -16,6 +16,7 @@ from __future__ import annotations
 
 from collections.abc import Iterator
 from dataclasses import dataclass
+from enum import StrEnum
 from typing import Protocol, cast, runtime_checkable
 
 from pydantic import ValidationError
@@ -71,19 +72,25 @@ class DocumentSource(Protocol):
         ...
 
 
-def build_source(config: Config, source_kind: str) -> DocumentSource:
-    """Construct the requested document source ("queryslim" or "export")."""
+class SourceKind(StrEnum):
+    """Object Manager read mechanism for document ingestion."""
 
-    if source_kind not in ("queryslim", "export"):
-        raise ValueError(f"Unknown source '{source_kind}'; expected 'queryslim' or 'export'.")
+    QUERYSLIM = "queryslim"
+    EXPORT = "export"
+
+
+def build_source(config: Config, source_kind: SourceKind) -> DocumentSource:
+    """Construct the requested document source ("queryslim" or "export")."""
 
     client = _client(config)
     raw_field_map = relativity_field_map(config.relativity.fields)
     resolved_field_map = resolve_field_selectors(client.object_manager, raw_field_map)
 
-    if source_kind == "queryslim":
+    if source_kind is SourceKind.QUERYSLIM:
         return QuerySlimSource(config, client, resolved_field_map)
-    return ExportSource(config, client, resolved_field_map)
+    if source_kind is SourceKind.EXPORT:
+        return ExportSource(config, client, resolved_field_map)
+    raise ValueError(f"Unknown source '{source_kind}'; expected one of {list(SourceKind)}.")
 
 
 def _client(config: Config) -> RelativityClient:

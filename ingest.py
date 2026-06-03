@@ -15,7 +15,7 @@ from rich.live import Live
 
 from es_index_explorer.config import load_config
 from es_index_explorer.ingest.engine import IngestEngine, Mode
-from es_index_explorer.ingest.sources import build_source
+from es_index_explorer.ingest.sources import SourceKind, build_source
 from es_index_explorer.relativity.progress import ProgressLog
 from es_index_explorer.relativity.tui import ProgressSnapshot, ProgressView
 
@@ -27,8 +27,9 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--config", default=None, help="Path to config.toml.")
     parser.add_argument(
         "--source",
-        choices=["queryslim", "export"],
-        default="queryslim",
+        choices=list(SourceKind),
+        default=SourceKind.QUERYSLIM,
+        type=SourceKind,
         help="RelativityOne read mechanism (default: queryslim).",
     )
     parser.add_argument(
