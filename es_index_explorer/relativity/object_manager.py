@@ -9,6 +9,7 @@ from uuid import UUID
 import requests
 
 from .base import BaseAPIClient
+from .normalize import DocumentFetchError
 from .object_manager_models import (
     InitializeExportResponse,
     QueryRequest,
@@ -67,8 +68,13 @@ class ObjectManagerAPI(BaseAPIClient):
                 return str(res.text)
             except requests.HTTPError as exc:
                 is_retryable_503 = exc.response is not None and exc.response.status_code == 503
-                if not is_retryable_503 or attempt >= max_attempts:
+                if not is_retryable_503:
                     raise
+                if attempt >= max_attempts:
+                    raise DocumentFetchError(
+                        f"StreamLongText failed after {max_attempts} attempts "
+                        f"(object {object_artifact_id}, field {field_id})."
+                    ) from exc
                 time.sleep(2.5)
 
         raise RuntimeError("Unreachable retry loop termination.")

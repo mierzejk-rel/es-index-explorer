@@ -32,11 +32,11 @@ from ..relativity.fluent import (
     resolve_truncated_long_text,
 )
 from ..relativity.models import RelativityDocument
-from ..relativity.normalize import DocumentReadError
+from ..relativity.normalize import DocumentFetchError, DocumentReadError
 from ..relativity.object_manager_models import QuerySlimResponse
 
 # Exceptions that mean "this single document could not be read/built" (vs a fatal error).
-_READ_EXCEPTIONS = (ValidationError, ValueError, KeyError, DocumentReadError)
+_READ_EXCEPTIONS = (ValidationError, ValueError, KeyError, DocumentReadError, DocumentFetchError)
 
 _SORT_FIELD = "Artifact ID"
 

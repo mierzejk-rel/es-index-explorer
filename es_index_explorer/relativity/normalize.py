@@ -7,6 +7,10 @@ class DocumentReadError(RuntimeError):
     """Raised when required document fields are missing."""
 
 
+class DocumentFetchError(RuntimeError):
+    """Raised when a per-document network fetch fails after retries."""
+
+
 _POOR_QUALITY_TOPIC = "Poor Quality Extracted Text"
 
 
