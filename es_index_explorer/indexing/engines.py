@@ -7,6 +7,7 @@ not require ``wtpsplit`` or ``spacy``.
 
 import logging
 import warnings
+from collections.abc import Callable
 from typing import Any
 
 from es_index_explorer.indexing.chunking import (
@@ -22,22 +23,52 @@ _CLAUSE_PRIORITY: dict[str, Priority] = {
     ",": Priority.COMMA,
 }
 
-# transformers logs two known-benign warnings in our startup path:
+# Two transformers warnings are pure noise in our startup path and are dropped outright:
 # 1) lazy `*_fast` image-processing alias access ("Accessing `...`")
 # 2) `use_return_dict` deprecation triggered by wtpsplit reading model config
-# We suppress only these exact prefixes and let all other transformers warnings through.
-_SUPPRESSED_TRANSFORMERS_WARNING_PREFIXES = (
+_DROPPED_TRANSFORMERS_WARNING_PREFIXES = (
     "Accessing `",
     "`use_return_dict` is deprecated",
 )
+
+# This warning is informative (a document is far larger than the e5 model max) but benign:
+# we tokenize the FULL document only for chunk offsets / token counting and only embed chunks
+# (<= model max), never the full sequence. It is logged via a handler bound to the real stderr,
+# so it would bypass Rich's Live redirect and corrupt the progress display. Rather than drop it,
+# we route it to a registered sink (the live display) so it stays visible without breaking the UI.
+_ROUTED_TRANSFORMERS_WARNING_PREFIXES = (
+    "Token indices sequence length is longer",
+)
 _alias_filter_installed = False
+_warning_sink: Callable[[str], None] | None = None
+
+
+def set_transformers_warning_sink(sink: Callable[[str], None] | None) -> None:
+    """Register (or clear) a callback that receives routed transformers warnings.
+
+    Parameters
+    ----------
+    sink : Callable[[str], None] | None
+        Called with the warning message text when a routed warning is logged. Pass ``None``
+        to clear the sink (e.g. after the live display has been torn down).
+    """
+
+    global _warning_sink
+    _warning_sink = sink
 
 
 class _TransformersAliasWarningFilter(logging.Filter):
-    """Drops selected known-benign transformers warning lines (noise only)."""
+    """Routes informative transformers warnings to a sink and drops pure-noise ones."""
 
     def filter(self, record: logging.LogRecord) -> bool:
-        return not record.getMessage().startswith(_SUPPRESSED_TRANSFORMERS_WARNING_PREFIXES)
+        message = record.getMessage()
+        if message.startswith(_ROUTED_TRANSFORMERS_WARNING_PREFIXES):
+            if _warning_sink is not None:
+                _warning_sink(message)
+            # Keep it off stderr (it is surfaced via the sink); emitting it raw would corrupt
+            # the live progress display.
+            return False
+        return not message.startswith(_DROPPED_TRANSFORMERS_WARNING_PREFIXES)
 
 
 def silence_transformers_alias_warnings() -> None:

@@ -36,6 +36,11 @@ class ProgressView:
             last_artifact_id=None,
             last_error=None,
         )
+        self._last_warning: str | None = None
+
+    def note_warning(self, message: str) -> None:
+        """Record the most recent warning to surface in the logging area."""
+        self._last_warning = message
 
     def mark_complete(self, *, description: str = "Up to date") -> None:
         self._progress.update(
@@ -64,5 +69,9 @@ class ProgressView:
         table.add_row(
             "Last error:",
             self._snapshot.last_error or "-",
+        )
+        table.add_row(
+            "Last warning:",
+            self._last_warning or "-",
         )
         return Group(self._progress, table)

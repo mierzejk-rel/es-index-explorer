@@ -120,6 +120,7 @@ def main() -> None:
     try:
         if indexing:
             # Lazy import: only an indexing run loads the embedding/segmentation models.
+            from es_index_explorer.indexing.engines import set_transformers_warning_sink
             from es_index_explorer.indexing.pipeline import IndexingPipeline
 
             output_dir = Path(args.output_dir).expanduser().resolve()
@@ -157,8 +158,16 @@ def main() -> None:
                 sink=pipeline.index_documents,
                 limit=args.limit,
             )
+            def _on_warning(message: str) -> None:
+                view.note_warning(message)
+                live.update(view.render())
+
             with pipeline.refresh_disabled(), Live(view.render(), refresh_per_second=10) as live:
-                engine.run(mode=mode, resume_after=resume_after, retry_ids=retry_ids)
+                set_transformers_warning_sink(_on_warning)
+                try:
+                    engine.run(mode=mode, resume_after=resume_after, retry_ids=retry_ids)
+                finally:
+                    set_transformers_warning_sink(None)
                 live.update(view.render())
         else:
             engine = IngestEngine(
