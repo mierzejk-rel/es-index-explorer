@@ -70,8 +70,9 @@ class ProgressView:
             "Last error:",
             self._snapshot.last_error or "-",
         )
-        table.add_row(
-            "Last warning:",
-            self._last_warning or "-",
-        )
+        if self._last_warning is not None:
+            table.add_row(
+                "Last warning:",
+                self._last_warning,
+            )
         return Group(self._progress, table)

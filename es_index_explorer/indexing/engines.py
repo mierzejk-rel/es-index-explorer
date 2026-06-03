@@ -23,20 +23,10 @@ _CLAUSE_PRIORITY: dict[str, Priority] = {
     ",": Priority.COMMA,
 }
 
-# Two transformers warnings are pure noise in our startup path and are dropped outright:
-# 1) lazy `*_fast` image-processing alias access ("Accessing `...`")
-# 2) `use_return_dict` deprecation triggered by wtpsplit reading model config
+# Pure-noise transformers warnings we drop outright.
 _DROPPED_TRANSFORMERS_WARNING_PREFIXES = (
     "Accessing `",
     "`use_return_dict` is deprecated",
-)
-
-# This warning is informative (a document is far larger than the e5 model max) but benign:
-# we tokenize the FULL document only for chunk offsets / token counting and only embed chunks
-# (<= model max), never the full sequence. It is logged via a handler bound to the real stderr,
-# so it would bypass Rich's Live redirect and corrupt the progress display. Rather than drop it,
-# we route it to a registered sink (the live display) so it stays visible without breaking the UI.
-_ROUTED_TRANSFORMERS_WARNING_PREFIXES = (
     "Token indices sequence length is longer",
 )
 _alias_filter_installed = False
@@ -58,17 +48,16 @@ def set_transformers_warning_sink(sink: Callable[[str], None] | None) -> None:
 
 
 class _TransformersAliasWarningFilter(logging.Filter):
-    """Routes informative transformers warnings to a sink and drops pure-noise ones."""
+    """Drops known-noise warnings and routes other warning-level logs to a sink."""
 
     def filter(self, record: logging.LogRecord) -> bool:
         message = record.getMessage()
-        if message.startswith(_ROUTED_TRANSFORMERS_WARNING_PREFIXES):
-            if _warning_sink is not None:
-                _warning_sink(message)
-            # Keep it off stderr (it is surfaced via the sink); emitting it raw would corrupt
-            # the live progress display.
+        if message.startswith(_DROPPED_TRANSFORMERS_WARNING_PREFIXES):
             return False
-        return not message.startswith(_DROPPED_TRANSFORMERS_WARNING_PREFIXES)
+        if record.levelno >= logging.WARNING and _warning_sink is not None:
+            _warning_sink(message)
+            return False
+        return True
 
 
 def silence_transformers_alias_warnings() -> None:
