@@ -102,6 +102,8 @@ class IndexingPipeline:
             Chunk(
                 chunk_index=span.chunk_index,
                 text=span.text,
+                byte_size=len(span.text.encode("utf-8")),
+                char_count=len(span.text),
                 token_count=span.token_count,
                 leading_overlap_chars=span.leading_overlap_chars,
                 embedding=vector,

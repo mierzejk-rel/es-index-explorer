@@ -63,6 +63,9 @@
       "byte_size": {
         "type": "long"
       },
+      "workspace_extracted_text_size": {
+        "type": "long"
+      },
       "token_count": {
         "type": "integer"
       },
@@ -137,6 +140,12 @@
           },
           "text": {
             "type": "text"
+          },
+          "byte_size": {
+            "type": "long"
+          },
+          "char_count": {
+            "type": "integer"
           },
           "token_count": {
             "type": "integer"

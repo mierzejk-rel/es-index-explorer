@@ -11,6 +11,7 @@ from ..config import RelativityFieldMappingConfig, RelativityFieldSelector, is_f
 from .models import RelativityDocument
 from .normalize import (
     ensure_required_field,
+    normalize_float,
     normalize_str,
     normalize_str_list,
     normalize_summary_topic,
@@ -37,6 +38,7 @@ def relativity_field_map(
         "email_bcc": fields.email_bcc,
         "summary": fields.summary,
         "topic": fields.topic,
+        "extracted_text_size_kb": fields.extracted_text_size_kb,
     }
     return {key: value for key, value in mapping.items() if is_field_configured(value)}
 
@@ -75,4 +77,5 @@ def build_relativity_document(*, artifact_id: int, row: dict[str, object]) -> Re
         email_bcc=normalize_str_list(row.get("email_bcc")),
         summary=summary,
         topic=topic,
+        extracted_text_size_kb=normalize_float(row.get("extracted_text_size_kb")),
     )

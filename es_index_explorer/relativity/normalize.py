@@ -43,6 +43,31 @@ def normalize_str_list(value: object | None) -> list[str] | None:
     return normalized or None
 
 
+def normalize_float(value: object | None) -> float | None:
+    match value:
+        case float(number):
+            return number
+        case int(number):
+            return float(number)
+        case str(text):
+            stripped = text.strip()
+            if not stripped:
+                return None
+            try:
+                return float(stripped)
+            except ValueError:
+                return None
+        case [first, *rest]:
+            if rest:
+                warnings.warn(
+                    "normalize_float received a sequence with multiple values; using the first item.",
+                    stacklevel=2,
+                )
+            return normalize_float(first)
+        case _:
+            return None
+
+
 def normalize_summary_topic(
     raw_summary: object | None,
     raw_topic: object | None,

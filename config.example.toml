@@ -46,6 +46,7 @@ email_cc = "Email CC"
 email_bcc = "Email BCC"
 summary = ""
 topic = ""
+extracted_text_size_kb = "Extracted Text Size in KB"
 
 # Indexing pipeline (chunking + embedding + ES write). All values shown are defaults.
 [indexing]

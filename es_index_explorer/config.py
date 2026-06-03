@@ -64,6 +64,7 @@ class RelativityFieldMappingConfig(BaseModel):
     email_bcc: RelativityFieldSelector = ""
     summary: RelativityFieldSelector = ""
     topic: RelativityFieldSelector = ""
+    extracted_text_size_kb: RelativityFieldSelector = ""
 
     @field_validator(
         "extracted_text",
@@ -76,6 +77,7 @@ class RelativityFieldMappingConfig(BaseModel):
         "email_bcc",
         "summary",
         "topic",
+        "extracted_text_size_kb",
     )
     @classmethod
     def validate_field_selector(cls, value: RelativityFieldSelector) -> RelativityFieldSelector:

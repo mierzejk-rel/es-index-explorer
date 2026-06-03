@@ -6,6 +6,7 @@ module is light to import (no ML/ES dependencies).
 
 from collections.abc import Callable
 from dataclasses import dataclass
+import math
 from typing import Literal
 
 from ..relativity.models import RelativityDocument
@@ -21,6 +22,8 @@ class Chunk:
 
     chunk_index: int
     text: str
+    byte_size: int
+    char_count: int
     token_count: int
     leading_overlap_chars: int
     embedding: list[float]
@@ -67,6 +70,15 @@ class IndexDocument:
         """Number of chunks (report 05 section 6.3)."""
         return len(self.chunks)
 
+    @property
+    def workspace_extracted_text_size(self) -> int | None:
+        """Workspace-reported extracted text size in bytes (optional)."""
+        kb = self.source.extracted_text_size_kb
+        if kb is None:
+            return None
+        # Relativity workspace value is in kilobytes; convert to bytes for the ES document field.
+        return math.ceil(kb * 1024)
+
 
 @dataclass(frozen=True)
 class DocumentResult:
@@ -83,6 +95,8 @@ def _chunk_to_dict(chunk: Chunk) -> dict[str, object]:
     return {
         "chunk_index": chunk.chunk_index,
         "text": chunk.text,
+        "byte_size": chunk.byte_size,
+        "char_count": chunk.char_count,
         "token_count": chunk.token_count,
         "leading_overlap_chars": chunk.leading_overlap_chars,
         "embedding": chunk.embedding,
@@ -109,6 +123,7 @@ MAPPING: dict[str, Callable[[IndexDocument], object]] = {
     "email_cc": lambda d: d.source.email_cc,
     "email_bcc": lambda d: d.source.email_bcc,
     "byte_size": lambda d: d.byte_size,
+    "workspace_extracted_text_size": lambda d: d.workspace_extracted_text_size,
     "token_count": lambda d: d.token_count,
     "char_count": lambda d: d.char_count,
     "chunk_count": lambda d: d.chunk_count,

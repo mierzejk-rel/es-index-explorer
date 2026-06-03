@@ -30,3 +30,4 @@ class RelativityDocument(BaseModel):
     email_bcc: list[str] | None = None
     summary: str | None = None
     topic: str | None = None
+    extracted_text_size_kb: float | None = None
