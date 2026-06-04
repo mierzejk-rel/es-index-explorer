@@ -411,8 +411,13 @@ def _is_breaking_field_change(existing: dict[str, Any], desired: dict[str, Any])
         desired_value = desired.get(key)
         if _normalize_setting_value(existing_value) != _normalize_setting_value(desired_value):
             return True
+    existing_index_options = existing.get("index_options")
     desired_index_options = desired.get("index_options")
-    if desired_index_options is not None and not _normalized_contains(existing.get("index_options"), desired_index_options):
+    if (
+        desired_index_options is not None
+        and existing_index_options is not None
+        and not _normalized_contains(existing_index_options, desired_index_options)
+    ):
         return True
     # Elasticsearch always returns copy_to as a list, even when set as a scalar.
     if _normalize_copy_to(existing.get("copy_to")) != _normalize_copy_to(desired.get("copy_to")):
