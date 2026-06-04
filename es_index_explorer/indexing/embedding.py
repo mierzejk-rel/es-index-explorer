@@ -115,11 +115,6 @@ class SparseEmbedder:
         if token_count > budget:
             raise SparseInputTooLongError(field_name, token_count, budget)
 
-        encoded = self._model.encode(text, output_value="token_weights")
-        if isinstance(encoded, list):
-            if not encoded:
-                return {}
-            encoded = encoded[0]
-        if not isinstance(encoded, dict):
-            raise TypeError(f"Unexpected sparse encode output type: {type(encoded).__name__}")
-        return {str(token): float(weight) for token, weight in encoded.items()}
+        encoded = self._model.encode(text)
+        decoded = self._model.decode(encoded)
+        return {str(token): float(weight) for token, weight in decoded}
