@@ -16,26 +16,42 @@ class ProgressView:
     def __init__(self, total: int | None, *, description: str = "Importing") -> None:
         self._description = description
         self._previous_failed_count = 0
+        total_value = total if total is not None else 0
+        self._last_snapshot: ProgressSnapshot | None = ProgressSnapshot(
+            processed=0,
+            total=total_value,
+            ok_count=0,
+            failed_count=0,
+            last_artifact_id=None,
+            last_error=None,
+        )
 
     def note_warning(self, message: str) -> None:
         """Print warning immediately so it is visible in non-interactive consoles."""
         print(f"WARNING: {message}", flush=True)
 
     def update(self, snapshot: ProgressSnapshot) -> None:
-        """Print progress and any newly observed errors as plain text lines."""
+        """Handle per-document updates and print errors immediately."""
         if snapshot.failed_count > self._previous_failed_count and snapshot.last_error:
             print(f"ERROR: {snapshot.last_error}", flush=True)
 
         self._previous_failed_count = snapshot.failed_count
+        self._last_snapshot = snapshot
+
+    def flush_batch(self, snapshot: ProgressSnapshot | None = None) -> None:
+        """Print one summary status line for the completed batch."""
+        current = snapshot or self._last_snapshot
+        if current is None:
+            return
         percentage = (
-            f"{(snapshot.processed * 100) // snapshot.total}%"
-            if snapshot.total > 0
+            f"{(current.processed * 100) // current.total}%"
+            if current.total > 0
             else "?%"
         )
         print(
             f"{self._description}: "
-            f"[{percentage}] {snapshot.processed}/{snapshot.total} "
-            f"ok={snapshot.ok_count} failed={snapshot.failed_count} "
-            f"last_id={snapshot.last_artifact_id or '-'}",
+            f"[{percentage}] {current.processed}/{current.total} "
+            f"ok={current.ok_count} failed={current.failed_count} "
+            f"last_id={current.last_artifact_id or '-'}",
             flush=True,
         )

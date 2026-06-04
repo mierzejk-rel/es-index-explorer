@@ -69,6 +69,7 @@ class IngestEngine:
         saved_search_id: int | None,
         batch_size: int,
         on_progress: Callable[[ProgressSnapshot], None],
+        on_batch_complete: Callable[[ProgressSnapshot], None] | None = None,
         progress_log: ProgressLog | None = None,
         sink: DocumentSink | None = None,
         limit: int | None = None,
@@ -77,6 +78,7 @@ class IngestEngine:
         self._saved_search_id = saved_search_id
         self._batch_size = batch_size
         self._on_progress = on_progress
+        self._on_batch_complete = on_batch_complete
         self._progress_log = progress_log
         self._sink = sink
         self._limit = limit
@@ -146,6 +148,8 @@ class IngestEngine:
                 for result in self._sink(pending):
                     self._record_index_outcome(result, phase)
                     self._emit(total)
+            if self._on_batch_complete is not None:
+                self._on_batch_complete(self._snapshot(total))
             if limit_hit or (self._limit is not None and self._processed >= self._limit):
                 return True
         return False
@@ -174,13 +178,14 @@ class IngestEngine:
             self._last_artifact_id = result.artifact_id
 
     def _emit(self, total: int) -> None:
-        self._on_progress(
-            ProgressSnapshot(
-                processed=self._processed,
-                total=total,
-                ok_count=self._ok,
-                failed_count=self._failed,
-                last_artifact_id=self._last_artifact_id,
-                last_error=self._last_error,
-            )
+        self._on_progress(self._snapshot(total))
+
+    def _snapshot(self, total: int) -> ProgressSnapshot:
+        return ProgressSnapshot(
+            processed=self._processed,
+            total=total,
+            ok_count=self._ok,
+            failed_count=self._failed,
+            last_artifact_id=self._last_artifact_id,
+            last_error=self._last_error,
         )

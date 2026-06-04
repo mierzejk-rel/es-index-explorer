@@ -113,6 +113,9 @@ def main() -> None:
         last_snapshot = snapshot
         view.update(snapshot)
 
+    def _on_batch_complete(snapshot: ProgressSnapshot) -> None:
+        view.flush_batch(snapshot)
+
     progress_log: ProgressLog | None = None
     try:
         if indexing:
@@ -153,6 +156,7 @@ def main() -> None:
                 saved_search_id=config.relativity.saved_search_id,
                 batch_size=batch_size,
                 on_progress=_on_progress,
+                on_batch_complete=_on_batch_complete,
                 progress_log=progress_log,
                 sink=pipeline.index_documents,
                 limit=args.limit,
@@ -172,6 +176,7 @@ def main() -> None:
                 saved_search_id=config.relativity.saved_search_id,
                 batch_size=batch_size,
                 on_progress=_on_progress,
+                on_batch_complete=_on_batch_complete,
                 progress_log=None,
                 sink=None,
                 limit=args.limit,
