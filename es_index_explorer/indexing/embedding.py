@@ -16,6 +16,12 @@ from .engines import (
 )
 
 
+def configure_hf_offline(config: IndexingConfig) -> None:
+    """Set Hugging Face Hub offline mode for air-gapped runs."""
+    if config.offline:
+        os.environ.setdefault("HF_HUB_OFFLINE", "1")
+
+
 # noinspection PyNoneFunctionAssignment,PyArgumentList,PyUnresolvedReferences
 class E5Embedder:
     """Loads `intfloat/multilingual-e5-small` once and embeds passages.
@@ -25,8 +31,6 @@ class E5Embedder:
     """
 
     def __init__(self, config: IndexingConfig) -> None:
-        if config.offline:
-            os.environ.setdefault("HF_HUB_OFFLINE", "1")
         silence_transformers_alias_warnings()
         silence_docopt_syntax_warnings()
         from sentence_transformers import SentenceTransformer  # lazy: pulls torch
@@ -83,8 +87,6 @@ class SparseEmbedder:
     """Client-side sparse encoder for metadata fields."""
 
     def __init__(self, config: IndexingConfig) -> None:
-        if config.offline:
-            os.environ.setdefault("HF_HUB_OFFLINE", "1")
         silence_transformers_alias_warnings()
         silence_docopt_syntax_warnings()
         from sentence_transformers.sparse_encoder import SparseEncoder  # lazy: pulls torch

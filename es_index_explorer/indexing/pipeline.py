@@ -15,7 +15,7 @@ from ..config import Config
 from ..relativity.models import RelativityDocument
 from .chunking import ChunkParams, ClauseEngine, SemanticChunker, SentenceEngine
 from .document_builder import Chunk, DocumentResult, IndexDocument, to_action
-from .embedding import E5Embedder, SparseEmbedder
+from .embedding import E5Embedder, SparseEmbedder, configure_hf_offline
 from .engines import PunctuationClauseEngine, SatSentenceEngine, SpacyClauseEngine
 from .writer import bulk_index, disabled_refresh
 
@@ -36,6 +36,7 @@ class IndexingPipeline:
         self._client: Elasticsearch = get_client(config)
 
         indexing = config.indexing
+        configure_hf_offline(indexing)
         self._embedder = E5Embedder(indexing)
         self._sparse_embedder = SparseEmbedder(indexing)
         max_content = indexing.max_content_tokens or self._embedder.max_content_tokens()
