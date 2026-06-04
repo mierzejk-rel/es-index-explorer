@@ -360,7 +360,7 @@ a research/tooling repo (unlike the production agent image).
 
 This is the core of the module. It is a **whole-sentence packer with sentence-aligned overlap**: by
 default *both* the unique content and the leading overlap are composed of **whole sentences**
-(priority 5). The lower priorities (4-1: parenthetical / semicolon / comma / word) are a **fallback used
+(priority 6). The lower priorities (5-1: newline / parenthetical / semicolon / comma / word) are a **fallback used
 only when a single sentence does not fit the length budget**. Geometry, measured in **e5 subword
 tokens**:
 
@@ -371,7 +371,7 @@ tokens**:
   whole sentences)**, clamped to **[40, 120]**. The **first chunk has no overlap**.
 - **The only HARD limit:** `overlap + unique <= MAX_CONTENT` (§4.1), so every chunk embeds without
   truncation. `400`, `~360`, and `~80` are all soft, sentence-driven targets.
-- **Fallback to priorities 4-1 (Tier A):** only when a sentence is too long to fit — i.e. the overlap
+- **Fallback to priorities 5-1 (Tier A):** only when a sentence is too long to fit — i.e. the overlap
   cannot be a whole sentence within the ~120 cap, or the unique content cannot end on a sentence
   boundary without breaching `MAX_CONTENT` or falling below the soft floor. See §6.4.
 - `leading_overlap_chars` recorded in **characters** for tokenizer-free concatenation (`05-...md` §8).
@@ -391,23 +391,31 @@ engine produces each level:
 
 | Priority | Boundary type | Produced by | When used |
 |---|---|---|---|
-| 5 | Sentence end (incl. newlines) | **SaT** sentence engine (default; pluggable, §6.5) | **Default** for both overlap and unique |
+| 6 | Sentence end (incl. newlines) | **SaT** sentence engine (default; pluggable, §6.5) | **Default** for both overlap and unique |
+| 5 | New line (`\s*\n\r*` — last `\n` in contiguous whitespace) | **Clause engine** (regex; both spaCy and punctuation engines) | Tier-A fallback only |
 | 4 | Parenthetical close `)` | **spaCy** clause engine (default) — morphosyntactic; type from the mark | Tier-A fallback only |
 | 3 | Semicolon `;` | **spaCy** clause engine (default) | Tier-A fallback only |
 | 2 | Comma `,` (real clause separator) | **spaCy** clause engine (default; digit-guarded, parse-validated) | Tier-A fallback only |
 | 1 | Word boundary | tokenizer (inter-token gap; always available) | Last-resort fallback |
 
 Important properties (these drive the §6.5 engine choice):
-- **SaT covers only priority 5.** It is a sentence/newline boundary model; it does **not** type
+- **SaT covers only priority 6.** It is a sentence/newline boundary model; it does **not** type
   sub-sentence boundaries and its boundary probability *inside* a sentence is uninformative
-  (`predict_proba` is trained on sentence/newline boundaries). So SaT cannot make the priority 4-2
+  (`predict_proba` is trained on sentence/newline boundaries). So SaT cannot make the priority 5-2
   decision — it is purely the sentence engine.
-- **Priorities 4-2 are a clause-level fallback** invoked only inside an over-long sentence (§6.4
-  Tier A). Locating a `)`/`;`/`,` is intrinsically a character operation, but the **judgement** of
-  whether that mark is a real clause boundary (and its type) is made **morphosyntactically by spaCy's
-  English dependency parse** (the default), which is preferred over a naive punctuation/regex rule
-  because e-discovery text (OCR, email threads) contains many run-on / poorly punctuated sentences. A
-  lean punctuation-only clause strategy remains available as a pluggable alternative (§6.5).
+- **Priority 5 (New line)** is a regex-based boundary detected by the clause engine. It fires on the
+  last `\n` in any contiguous whitespace run (pattern: `\s*\n\r*(?!\s*\n)`). The `char_pos` is placed
+  at `match.end()`, so the whitespace separator is naturally excluded from chunk spans via token
+  alignment — the full text remains reconstructable from chunks without any explicit trimming. It is
+  the **highest-priority Tier-A fallback**: preferred over parenthetical/semicolon/comma when cutting
+  inside an over-long sentence that contains embedded newlines (common in OCR and email threads).
+- **Priorities 5-2 are a clause-level fallback** invoked only inside an over-long sentence (§6.4
+  Tier A). Priority 5 (newline) is detected by a regex in both clause engines. Locating a `)`/`;`/`,`
+  is intrinsically a character operation, but the **judgement** of whether that mark is a real clause
+  boundary (and its type) is made **morphosyntactically by spaCy's English dependency parse** (the
+  default), which is preferred over a naive punctuation/regex rule because e-discovery text (OCR,
+  email threads) contains many run-on / poorly punctuated sentences. A lean punctuation-only clause
+  strategy remains available as a pluggable alternative (§6.5).
 - **Priority 1 (word)** is the tokenizer's inter-token gap and guarantees a candidate always exists.
 - The sentence engine returns sentence char spans (SaT's sentences are exact contiguous substrings, so
   offsets are recovered by sequential indexing); the clause engine returns clause char spans within a
@@ -416,27 +424,28 @@ Important properties (these drive the §6.5 engine choice):
 ### 6.2 Selection rules (sentence-first)
 
 Two selections drive the algorithm. Both are **sentence-first**: they operate over whole sentences and
-only drop to clause/word (priorities 4-1) when a sentence does not fit.
+only drop to clause/word (priorities 5-1) when a sentence does not fit.
 
 **Cut selection** (end of the unique content). Default path — **pack whole sentences** starting at
 `content_start`, extending the cut to the end of each successive sentence, choosing the sentence
 boundary whose unique length `u = cut - content_start` is **closest to 400** while satisfying both:
 - HARD: `cut - overlap_start <= MAX_CONTENT`;
 - SOFT: `u >= ~360` (floor adjusted by the realized overlap length).
+
 Fallback (Tier A) — if even the **first** sentence from `content_start` cannot satisfy the hard cap (the
 sentence is longer than the remaining room), or whole-sentence packing cannot reach the soft floor
-without breaching the cap, cut **inside** that sentence at the best clause boundary (priority 4 -> 3 ->
-2) nearest the target via the clause engine, else a word boundary; always respecting `MAX_CONTENT`.
+without breaching the cap, cut **inside** that sentence at the best clause boundary (priority 5 -> 4 ->
+3 -> 2) nearest the target via the clause engine, else a word boundary; always respecting `MAX_CONTENT`.
 
 **Overlap selection** (leading overlap of the next chunk). Default path — walk **backward** from
 `content_start` over whole sentences, accumulating until the overlap length `o = content_start -
 overlap_start` is **closest to ~80** within **[40, 120]** (prefer a-bit-less / shorter on tie, since
 whole sentences rarely hit 80 exactly). Fallback (Tier A) — if the single immediately-preceding sentence
 is longer than the 120 cap (no whole sentence fits), take a ~80-token tail within [40, 120] at the best
-clause boundary (4 -> 3 -> 2) via the clause engine, else a word boundary. The first chunk has
+clause boundary (5 -> 4 -> 3 -> 2) via the clause engine, else a word boundary. The first chunk has
 overlap 0.
 
-> Sentence boundaries (priority 5) dominate by design — clause/word boundaries appear only when a
+> Sentence boundaries (priority 6) dominate by design — clause/word boundaries appear only when a
 > sentence overflows the budget. Targets (`400`, `~360`, `~80`) and tie-breaks are tunable knobs;
 > exact values and edge-case behavior are to be confirmed with the user during algorithm design.
 
@@ -450,7 +459,7 @@ def chunk_document(text, tokenizer, sentence_engine, clause_engine, cfg) -> list
     if n == 0:
         return []
 
-    # Sentence boundaries as token indices (priority 5), from the sentence engine (SaT default).
+    # Sentence boundaries as token indices (priority 6), from the sentence engine (SaT default).
     sentences = sentence_engine.sentence_token_bounds(text, offsets)   # ascending split indices
 
     # Tier B: no sentence structure at all -> legacy non-semantic sliding window (02-...md §3)
@@ -500,9 +509,9 @@ structural rule for the final chunk.
   sentence does not fit the budget (overlap can't be a whole sentence within the ~120 cap, or the
   unique content can't end on a sentence boundary without breaching `MAX_CONTENT` / the soft floor). We
   then cut **inside** that sentence at the best clause boundary, descending the hierarchy
-  parenthetical(4) -> semicolon(3) -> comma(2), judged by the **spaCy English clause engine** (default),
-  and finally a **word boundary (1)** if no clause boundary fits. This is the only place priorities 4-1
-  are used, and it is expected to fire on OCR/email run-ons.
+  newline(5) -> parenthetical(4) -> semicolon(3) -> comma(2), judged by the **spaCy English clause
+  engine** (default), and finally a **word boundary (1)** if no clause boundary fits. This is the only
+  place priorities 5-1 are used, and it is expected to fire on OCR/email run-ons.
 - **Tier B - no sentence structure at all.** The segmenter finds no sentences (e.g. one unpunctuated
   blob). Fall back to the **legacy non-semantic sliding window** (500-token window, 100-token overlap;
   `02-...md` §3). It plugs into the same `ChunkSpan` interface, so downstream code is unchanged.
@@ -515,21 +524,22 @@ structural rule for the final chunk.
 
 ### 6.5 Engine choice: sentence engine + clause engine
 
-There are **two** pluggable, config-selectable engines: a **sentence engine** (priority 5) and a
-**clause engine** (priorities 4-2, Tier-A fallback). The scoring, packing, two-tier fallback,
+There are **two** pluggable, config-selectable engines: a **sentence engine** (priority 6) and a
+**clause engine** (priorities 5-2, Tier-A fallback). The scoring, packing, two-tier fallback,
 last-chunk rule, and token/char alignment are engine-independent. Evaluation criteria (English-only,
 accuracy-first): English boundary accuracy, robustness to noisy/OCR/legal text, OOV/typo robustness,
 **how many priorities the engine can cover**, maintenance/activity, dependencies, license, latency.
 
 **Priorities-covered scoreboard** (can the engine both surface and meaningfully *judge* that priority):
 
-| Engine | 5 Sentence | 4 Paren | 3 Semicolon | 2 Comma | 1 Word | Notes |
-|---|---|---|---|---|---|---|
-| SaT (`wtpsplit`) | Native (SOTA) | no (scorer only, weak) | no | no | no | sentence/newline model; no typing; uninformative mid-sentence |
-| spaCy (en + parser) | yes | yes | yes | yes | yes | morphosyntactic clause boundaries; covers all five |
-| BlingFire | yes | no | no | no | yes | sentences + word tokenization |
-| sentencex | yes (+offsets) | no | no | no | yes | sentences + tokenizer |
-| pySBD | yes | no | no | no | no | sentences only |
+| Engine | 6 Sentence | 5 New line | 4 Paren | 3 Semicolon | 2 Comma | 1 Word | Notes |
+|---|---|---|---|---|---|---|---|
+| SaT (`wtpsplit`) | Native (SOTA) | no | no (scorer only, weak) | no | no | no | sentence/newline model; no typing; uninformative mid-sentence |
+| spaCy (en + parser) | yes | yes (regex) | yes | yes | yes | yes | morphosyntactic clause boundaries; covers all six; newline via regex |
+| Punctuation (lean) | no | yes (regex) | yes | yes | yes | no | regex scan only; no parser; newline via regex |
+| BlingFire | yes | no | no | no | no | yes | sentences + word tokenization; no clause engine |
+| sentencex | yes (+offsets) | no | no | no | no | yes | sentences + tokenizer; no clause engine |
+| pySBD | yes | no | no | no | no | no | sentences only |
 
 **Sentence engine — DEFAULT = SaT / `wtpsplit`** (ML; MIT; EMNLP 2024; actively maintained). English
 ~96.5-97.4 (sat-3l-sm / sat-12l-sm); state-of-the-art, punctuation-agnostic, explicitly robust on
@@ -548,13 +558,14 @@ parser).** Rationale: SaT cannot judge sub-sentence boundaries (see §6.1), so w
 the budget the choice is **morphosyntactic (spaCy) vs naive punctuation/regex**. Because the corpus has
 **substantial email threads and OCR'd documents** (frequent run-on / poorly punctuated sentences),
 spaCy's dependency parse earns its keep often enough to be the default: it identifies genuine clause
-boundaries (coordinations, clausal modifiers, parentheticals) and supplies the priority 4/3/2 type from
-the mark at the boundary. spaCy is the **only** engine that covers all five priorities. A **lean
-punctuation-only clause strategy** (locate `)`/`;`/`,` with a digit-guard; no parser) remains available
-as a pluggable alternative for minimal-dependency deployments. ([spaCy](https://spacy.io/))
+boundaries (coordinations, clausal modifiers, parentheticals) and supplies the priority 5/4/3/2 type
+from the mark at the boundary. Both clause engines (spaCy and punctuation) additionally detect
+priority 5 (newline) via the shared regex. A **lean punctuation-only clause strategy** (locate
+`)`/`;`/`,` with a digit-guard and newlines by regex; no parser) remains available as a pluggable
+alternative for minimal-dependency deployments. ([spaCy](https://spacy.io/))
 
-**Does this need morphosyntactic analysis?** For **sentences (priority 5): no** — SaT handles them. For
-the **over-long-sentence fallback (priorities 4-2): yes, by choice** — we default to spaCy's
+**Does this need morphosyntactic analysis?** For **sentences (priority 6): no** — SaT handles them. For
+the **over-long-sentence fallback (priorities 5-2): yes, by choice for priorities 4-2** — we default to spaCy's
 morphosyntactic parse rather than regex, because e-discovery's run-on/OCR text makes good clause cuts
 matter. e5 is an **encoder** and cannot segment by generation, so LLM/encoder segmentation is rejected
 (cost, non-determinism).
@@ -734,10 +745,10 @@ overlap_target = 80               # soft; whole sentences, usually a bit less
 overlap_min = 40
 overlap_max = 120
 max_content_tokens = 505          # HARD: overlap + unique cap (or computed from the tokenizer)
-# Sentence engine (priority 5):
+# Sentence engine (priority 6):
 sentence_engine = "sat"           # "sat" | "blingfire" | "sentencex" | "pysbd"
 sat_model = "sat-12l-sm"          # highest English accuracy; CPU-only deployment (§9.1)
-# Clause engine (Tier-A fallback, priorities 4-2):
+# Clause engine (Tier-A fallback, priorities 5-2; priority 5 newline via regex in both engines):
 clause_engine = "spacy"           # "spacy" (default, morphosyntactic) | "punctuation" (lean, no parser)
 spacy_model = "en_core_web_sm"
 # Tier-B fallback (no sentence structure at all): legacy non-semantic sliding window
