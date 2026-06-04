@@ -11,8 +11,6 @@ import argparse
 import sys
 from pathlib import Path
 
-from rich.live import Live
-
 from es_index_explorer.config import load_config
 from es_index_explorer.ingest.engine import IngestEngine, Mode
 from es_index_explorer.ingest.sources import SourceKind, build_source
@@ -114,7 +112,6 @@ def main() -> None:
         nonlocal last_snapshot
         last_snapshot = snapshot
         view.update(snapshot)
-        live.update(view.render())
 
     progress_log: ProgressLog | None = None
     try:
@@ -162,15 +159,13 @@ def main() -> None:
             )
             def _on_warning(message: str) -> None:
                 view.note_warning(message)
-                live.update(view.render())
 
-            with pipeline.refresh_disabled(), Live(view.render(), refresh_per_second=10) as live:
+            with pipeline.refresh_disabled():
                 set_transformers_warning_sink(_on_warning)
                 try:
                     engine.run(mode=mode, resume_after=resume_after, retry_ids=retry_ids)
                 finally:
                     set_transformers_warning_sink(None)
-                live.update(view.render())
         else:
             engine = IngestEngine(
                 source=source,
@@ -181,9 +176,7 @@ def main() -> None:
                 sink=None,
                 limit=args.limit,
             )
-            with Live(view.render(), refresh_per_second=10) as live:
-                engine.run(mode="fresh", resume_after=0, retry_ids=None)
-                live.update(view.render())
+            engine.run(mode="fresh", resume_after=0, retry_ids=None)
     finally:
         if progress_log is not None:
             progress_log.close()

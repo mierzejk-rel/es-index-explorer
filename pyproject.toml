@@ -6,7 +6,6 @@ dependencies = [
     "elasticsearch~=9.4.1",
     "requests>=2.33.0",
     "pydantic>=2.0",
-    "rich>=13.7.0",
     # torch and torchvision are declared directly (and pinned to the CPU-only index below) so no
     # CUDA/nvidia-* runtime is pulled in. torchvision is needed because transformers' lazy loader
     # for the Aria vision model is triggered during skops (a wtpsplit dep) scipy introspection.

@@ -2,11 +2,6 @@
 
 from dataclasses import dataclass
 
-from rich.console import Group
-from rich.progress import BarColumn, Progress, TaskProgressColumn, TextColumn
-from rich.table import Table
-
-
 @dataclass
 class ProgressSnapshot:
     processed: int
@@ -19,60 +14,28 @@ class ProgressSnapshot:
 
 class ProgressView:
     def __init__(self, total: int | None, *, description: str = "Importing") -> None:
-        self._progress = Progress(
-            TextColumn("{task.description}"),
-            BarColumn(),
-            TaskProgressColumn(),
-            TextColumn("{task.completed}/{task.total}"),
-        )
-        self._task_id = self._progress.add_task(description, total=total)
-        self._default_description = description
-        total_value = total if total is not None else 0
-        self._snapshot = ProgressSnapshot(
-            processed=0,
-            total=total_value,
-            ok_count=0,
-            failed_count=0,
-            last_artifact_id=None,
-            last_error=None,
-        )
-        self._last_warning: str | None = None
+        self._description = description
+        self._previous_failed_count = 0
 
     def note_warning(self, message: str) -> None:
-        """Record the most recent warning to surface in the logging area."""
-        self._last_warning = message
-
-    def mark_complete(self, *, description: str = "Up to date") -> None:
-        self._progress.update(
-            self._task_id,
-            description=description,
-            completed=0,
-            total=0,
-        )
+        """Print warning immediately so it is visible in non-interactive consoles."""
+        print(f"WARNING: {message}", flush=True)
 
     def update(self, snapshot: ProgressSnapshot) -> None:
-        self._snapshot = snapshot
-        self._progress.update(
-            self._task_id,
-            description=self._default_description,
-            completed=snapshot.processed,
-            total=snapshot.total,
-        )
+        """Print progress and any newly observed errors as plain text lines."""
+        if snapshot.failed_count > self._previous_failed_count and snapshot.last_error:
+            print(f"ERROR: {snapshot.last_error}", flush=True)
 
-    def render(self) -> Group:
-        table = Table.grid(padding=(0, 2))
-        table.add_row(
-            f"OK: {self._snapshot.ok_count}",
-            f"Failed: {self._snapshot.failed_count}",
-            f"Last ID: {self._snapshot.last_artifact_id or '-'}",
+        self._previous_failed_count = snapshot.failed_count
+        percentage = (
+            f"{(snapshot.processed * 100) // snapshot.total}%"
+            if snapshot.total > 0
+            else "?%"
         )
-        table.add_row(
-            "Last error:",
-            self._snapshot.last_error or "-",
+        print(
+            f"{self._description}: "
+            f"[{percentage}] {snapshot.processed}/{snapshot.total} "
+            f"ok={snapshot.ok_count} failed={snapshot.failed_count} "
+            f"last_id={snapshot.last_artifact_id or '-'}",
+            flush=True,
         )
-        if self._last_warning is not None:
-            table.add_row(
-                "Last warning:",
-                self._last_warning,
-            )
-        return Group(self._progress, table)
