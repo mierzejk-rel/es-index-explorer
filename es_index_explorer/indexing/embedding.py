@@ -65,3 +65,59 @@ class E5Embedder:
         special = self._hf_tokenizer.num_special_tokens_to_add(pair=False)
         prefix_tokens = len(self._hf_tokenizer(self._prefix, add_special_tokens=False)["input_ids"])
         return max(1, model_max - special - prefix_tokens)
+
+
+class SparseInputTooLongError(ValueError):
+    """Raised when a metadata field exceeds the sparse encoder's token budget."""
+
+    def __init__(self, field_name: str, token_count: int, token_budget: int) -> None:
+        self.field_name = field_name
+        self.token_count = token_count
+        self.token_budget = token_budget
+        super().__init__(
+            f"'{field_name}' has {token_count} tokens, which exceeds sparse token budget {token_budget}."
+        )
+
+
+class SparseEmbedder:
+    """Client-side sparse encoder for metadata fields."""
+
+    def __init__(self, config: IndexingConfig) -> None:
+        if config.offline:
+            os.environ.setdefault("HF_HUB_OFFLINE", "1")
+        silence_transformers_alias_warnings()
+        silence_docopt_syntax_warnings()
+        from sentence_transformers.sparse_encoder import SparseEncoder  # lazy: pulls torch
+
+        model_id = config.sparse_model_path or config.sparse_model
+        device = config.sparse_device or config.device
+        self._model = SparseEncoder(model_id, device=device or None)
+        self._hf_tokenizer: PreTrainedTokenizerBase = self._model.tokenizer
+        model_max = getattr(self._model, "max_seq_length", 512) or 512
+        special = self._hf_tokenizer.num_special_tokens_to_add(pair=False)
+        derived_budget = max(1, model_max - special)
+        self._token_budget = config.sparse_max_tokens or derived_budget
+
+    def token_budget(self) -> int:
+        """Return max metadata tokens allowed by the sparse encoder."""
+        return self._token_budget
+
+    def count_tokens(self, text: str) -> int:
+        """Count metadata field tokens without special tokens."""
+        return len(self._hf_tokenizer(text, add_special_tokens=False)["input_ids"])
+
+    def encode(self, text: str, *, field_name: str = "metadata") -> dict[str, float]:
+        """Encode metadata text as sparse token weights for Elasticsearch."""
+        token_count = self.count_tokens(text)
+        budget = self.token_budget()
+        if token_count > budget:
+            raise SparseInputTooLongError(field_name, token_count, budget)
+
+        encoded = self._model.encode(text, output_value="token_weights")
+        if isinstance(encoded, list):
+            if not encoded:
+                return {}
+            encoded = encoded[0]
+        if not isinstance(encoded, dict):
+            raise TypeError(f"Unexpected sparse encode output type: {type(encoded).__name__}")
+        return {str(token): float(weight) for token, weight in encoded.items()}

@@ -49,6 +49,9 @@ class IndexDocument:
     chunks: list[Chunk]
     subset_ids: list[str]
     full_token_count: int
+    title_sparse: dict[str, float] | None = None
+    summary_sparse: dict[str, float] | None = None
+    topic_sparse: dict[str, float] | None = None
 
     @property
     def byte_size(self) -> int:
@@ -109,8 +112,8 @@ def _primary_date_time(doc: IndexDocument) -> str | None:
 
 
 # Single source of truth: ES field name -> extractor over an IndexDocument.
-# title_semantic/summary_semantic/topic_semantic are filled by ES via copy_to and
-# are intentionally not set by the client (report 05 section 4.5).
+# title_sparse/summary_sparse/topic_sparse are computed client-side and written
+# directly to sparse_vector fields in the index mapping (report 07).
 MAPPING: dict[str, Callable[[IndexDocument], object]] = {
     "document_artifact_id": lambda d: d.source.artifact_id,
     "control_number": lambda d: d.source.control_number,
@@ -128,6 +131,9 @@ MAPPING: dict[str, Callable[[IndexDocument], object]] = {
     "char_count": lambda d: d.char_count,
     "chunk_count": lambda d: d.chunk_count,
     "subset_ids": lambda d: d.subset_ids,
+    "title_sparse": lambda d: d.title_sparse,
+    "summary_sparse": lambda d: d.summary_sparse,
+    "topic_sparse": lambda d: d.topic_sparse,
     "chunks": lambda d: [_chunk_to_dict(c) for c in d.chunks],
 }
 

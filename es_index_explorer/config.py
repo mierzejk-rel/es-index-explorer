@@ -166,6 +166,10 @@ class IndexingConfig(BaseModel):
     model_path: str = ""  # local model directory; empty = use the hub id
     offline: bool = False  # set HF_HUB_OFFLINE for air-gapped runs
     device: str = "cpu"  # CPU-only deployment (no GPU/MPS/NPU available)
+    sparse_model: str = "opensearch-project/opensearch-neural-sparse-encoding-v2-distill"
+    sparse_model_path: str = ""  # local sparse model directory; empty = use the hub id
+    sparse_device: str = ""  # empty = reuse `device`
+    sparse_max_tokens: int | None = None  # None = derive budget from model and tokenizer
 
     # Chunk geometry (e5 subword tokens). All SOFT except max_content_tokens.
     chunk_unique_target: int = 400
@@ -210,6 +214,8 @@ class IndexingConfig(BaseModel):
             raise ValueError("Require overlap_min <= overlap_target <= overlap_max.")
         if self.max_content_tokens is not None and self.max_content_tokens <= 0:
             raise ValueError("max_content_tokens must be a positive integer or null.")
+        if self.sparse_max_tokens is not None and self.sparse_max_tokens <= 0:
+            raise ValueError("sparse_max_tokens must be a positive integer or null.")
         return self
 
 

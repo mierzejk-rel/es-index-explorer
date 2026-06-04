@@ -106,7 +106,6 @@ def _read_exists(config_path: str | None, index_name: str) -> bool:
 def _create(config_path: str | None, index_name: str, definition: IndexDefinition) -> None:
     """Create an index from scratch."""
 
-    _ensure_elser_precheck(config_path, definition)
     config = load_config(config_path)
     run_with_auth_retry(config, lambda client: create_index(client, index_name, definition), write=True)
     print(f"Created index '{index_name}'.")

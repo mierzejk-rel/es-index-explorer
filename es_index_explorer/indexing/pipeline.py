@@ -15,7 +15,7 @@ from ..config import Config
 from ..relativity.models import RelativityDocument
 from .chunking import ChunkParams, ClauseEngine, SemanticChunker, SentenceEngine
 from .document_builder import Chunk, DocumentResult, IndexDocument, to_action
-from .embedding import E5Embedder
+from .embedding import E5Embedder, SparseEmbedder
 from .engines import PunctuationClauseEngine, SatSentenceEngine, SpacyClauseEngine
 from .writer import bulk_index, disabled_refresh
 
@@ -37,6 +37,7 @@ class IndexingPipeline:
 
         indexing = config.indexing
         self._embedder = E5Embedder(indexing)
+        self._sparse_embedder = SparseEmbedder(indexing)
         max_content = indexing.max_content_tokens or self._embedder.max_content_tokens()
         params = ChunkParams(
             unique_target=indexing.chunk_unique_target,
@@ -110,11 +111,17 @@ class IndexingPipeline:
             )
             for span, vector in zip(spans, vectors)
         ]
+        title_sparse = self._sparse_embedder.encode(doc.title, field_name="title") if doc.title else None
+        summary_sparse = self._sparse_embedder.encode(doc.summary, field_name="summary") if doc.summary else None
+        topic_sparse = self._sparse_embedder.encode(doc.topic, field_name="topic") if doc.topic else None
         return IndexDocument(
             source=doc,
             chunks=chunks,
             subset_ids=self._subset_ids,
             full_token_count=self._embedder.count_tokens(doc.extracted_text),
+            title_sparse=title_sparse,
+            summary_sparse=summary_sparse,
+            topic_sparse=topic_sparse,
         )
 
     def _build_sentence_engine(self) -> SentenceEngine:

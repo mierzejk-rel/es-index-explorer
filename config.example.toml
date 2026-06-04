@@ -58,6 +58,11 @@ passage_prefix = "passage: "
 model_path = ""          # local model directory; empty = download from the HuggingFace Hub
 offline = false          # true sets HF_HUB_OFFLINE for air-gapped runs
 device = "cpu"           # CPU-only deployment (no GPU/MPS/NPU available)
+# Sparse encoder for parent metadata (title/summary/topic).
+sparse_model = "opensearch-project/opensearch-neural-sparse-encoding-v2-distill"
+sparse_model_path = ""   # local model directory; empty = download from HuggingFace Hub
+sparse_device = ""       # empty = reuse device
+# sparse_max_tokens = 510 # omit/null to derive from the model
 chunk_unique_target = 400
 chunk_unique_floor = 360
 overlap_target = 80
