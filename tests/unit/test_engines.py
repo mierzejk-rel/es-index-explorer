@@ -40,3 +40,35 @@ def test_punctuation_clause_engine_respects_span_bounds() -> None:
     # only the region around the second semicolon
     boundaries = engine.clause_boundaries(text, 3, len(text))
     assert all(3 < b.char_pos < len(text) for b in boundaries)
+
+
+def test_punctuation_clause_engine_newline_boundary_uses_last_newline_in_run() -> None:
+    engine = PunctuationClauseEngine()
+    text = "Message \r\n\r\nFrom: Abbey, Michael"
+    boundaries = engine.clause_boundaries(text, 0, len(text))
+    newline_positions = [b.char_pos for b in boundaries if b.priority == Priority.NEWLINE]
+    assert newline_positions == [12]
+
+
+def test_punctuation_clause_engine_newline_with_trailing_carriage_returns() -> None:
+    engine = PunctuationClauseEngine()
+    text = "A\n\r\rB"
+    boundaries = engine.clause_boundaries(text, 0, len(text))
+    newline_positions = [b.char_pos for b in boundaries if b.priority == Priority.NEWLINE]
+    assert newline_positions == [4]
+
+
+def test_punctuation_clause_engine_no_newline_means_no_newline_boundary() -> None:
+    engine = PunctuationClauseEngine()
+    text = "alpha ; beta, gamma"
+    boundaries = engine.clause_boundaries(text, 0, len(text))
+    newline_positions = [b.char_pos for b in boundaries if b.priority == Priority.NEWLINE]
+    assert newline_positions == []
+
+
+def test_punctuation_clause_engine_newline_respects_span_bounds() -> None:
+    engine = PunctuationClauseEngine()
+    text = "x \n y \n z"
+    boundaries = engine.clause_boundaries(text, 4, len(text))
+    newline_positions = [b.char_pos for b in boundaries if b.priority == Priority.NEWLINE]
+    assert newline_positions == [7]

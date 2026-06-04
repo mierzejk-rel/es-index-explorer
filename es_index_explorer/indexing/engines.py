@@ -6,6 +6,7 @@ not require ``wtpsplit`` or ``spacy``.
 """
 
 import logging
+import re
 import warnings
 from collections.abc import Callable
 from typing import Any
@@ -22,6 +23,7 @@ _CLAUSE_PRIORITY: dict[str, Priority] = {
     ";": Priority.SEMICOLON,
     ",": Priority.COMMA,
 }
+_NEWLINE_BOUNDARY_RE = re.compile(r"\s*\n\r*(?!\s*\n)")
 
 # Pure-noise transformers warnings we drop outright.
 _DROPPED_TRANSFORMERS_WARNING_PREFIXES = (
@@ -131,14 +133,14 @@ class HuggingFaceTokenizer:
 
 
 class PunctuationClauseEngine(ClauseEngine):
-    """Lean, dependency-free clause engine: scans for ``)`` / ``;`` / ``,``.
+    """Lean, dependency-free clause engine: scans for newline / ``)`` / ``;`` / ``,``.
 
     A comma surrounded by digits (e.g. ``1,000``) is not treated as a clause
     boundary (digit-guard). Boundaries are placed immediately after the mark.
     """
 
     def clause_boundaries(self, text: str, start: int, end: int) -> list[ClauseBoundary]:
-        boundaries: list[ClauseBoundary] = []
+        boundaries = _newline_boundaries(text, start, end)
         upper = min(end, len(text))
         for i in range(max(start, 0), upper):
             char = text[i]
@@ -159,8 +161,9 @@ class PunctuationClauseEngine(ClauseEngine):
 class SpacyClauseEngine:
     """Morphosyntactic clause engine using a spaCy English model (default Tier-A engine).
 
-    spaCy tokenization decides what counts as a clause-marking ``)``/``;``/``,``; a
-    comma between numbers is skipped (digit-guard). Boundaries are placed after the mark.
+    Newline boundaries use the shared regex detector; spaCy tokenization decides what
+    counts as a clause-marking ``)``/``;``/``,``. A comma between numbers is skipped
+    (digit-guard). Boundaries are placed after the mark.
     """
 
     def __init__(self, model_name: str = "en_core_web_sm") -> None:
@@ -171,7 +174,7 @@ class SpacyClauseEngine:
     def clause_boundaries(self, text: str, start: int, end: int) -> list[ClauseBoundary]:
         segment = text[start:end]
         doc = self._nlp(segment)
-        boundaries: list[ClauseBoundary] = []
+        boundaries = _newline_boundaries(text, start, end)
         for token in doc:
             priority = _CLAUSE_PRIORITY.get(token.text)
             if priority is None:
@@ -185,6 +188,19 @@ class SpacyClauseEngine:
             if start < pos < end:
                 boundaries.append(ClauseBoundary(char_pos=pos, priority=priority))
         return boundaries
+
+
+def _newline_boundaries(text: str, start: int, end: int) -> list[ClauseBoundary]:
+    """Return priority-5 boundaries at the end of matched newline separators."""
+
+    boundaries: list[ClauseBoundary] = []
+    lower = max(start, 0)
+    upper = min(end, len(text))
+    for match in _NEWLINE_BOUNDARY_RE.finditer(text, pos=lower, endpos=upper):
+        boundary_pos = match.end()
+        if start < boundary_pos < end:
+            boundaries.append(ClauseBoundary(char_pos=boundary_pos, priority=Priority.NEWLINE))
+    return boundaries
 
 
 class SatSentenceEngine:

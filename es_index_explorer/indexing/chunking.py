@@ -22,7 +22,8 @@ class Priority(IntEnum):
     COMMA = 2
     SEMICOLON = 3
     PARENTHETICAL = 4
-    SENTENCE = 5
+    NEWLINE = 5
+    SENTENCE = 6
 
 
 @dataclass(frozen=True)
@@ -105,8 +106,8 @@ class ClauseBoundary:
         Character offset in the original text at which a cut may occur (the start
         of the next clause/segment).
     priority : Priority
-        One of ``Priority.PARENTHETICAL``, ``Priority.SEMICOLON``, or
-        ``Priority.COMMA``.
+        One of ``Priority.NEWLINE``, ``Priority.PARENTHETICAL``,
+        ``Priority.SEMICOLON``, or ``Priority.COMMA``.
     """
 
     char_pos: int
@@ -146,7 +147,7 @@ class Tokenizer(Protocol):
 
 @runtime_checkable
 class SentenceEngine(Protocol):
-    """Sentence boundary detector (priority 5)."""
+    """Sentence boundary detector (priority 6)."""
 
     def sentence_spans(self, text: str) -> list[SentenceSpan]:
         """Return ordered ``(char_start, char_end)`` spans of sentences in ``text``.
@@ -159,14 +160,15 @@ class SentenceEngine(Protocol):
 
 @runtime_checkable
 class ClauseEngine(Protocol):
-    """Sub-sentence clause boundary detector (priorities 4-2, Tier-A fallback)."""
+    """Sub-sentence clause boundary detector (priorities 5-2, Tier-A fallback)."""
 
     def clause_boundaries(self, text: str, start: int, end: int) -> list[ClauseBoundary]:
         """Return candidate clause cut boundaries within ``[start, end)`` of ``text``.
 
         Only used when a single sentence is too long to fit the budget. Returns
-        boundaries with priority 4 (parenthetical), 3 (semicolon), or 2 (comma);
-        an empty list means the chunker falls back to a word boundary (priority 1).
+        boundaries with priority 5 (newline), 4 (parenthetical), 3 (semicolon),
+        or 2 (comma); an empty list means the chunker falls back to a word
+        boundary (priority 1).
         """
         ...
 
@@ -179,10 +181,10 @@ class SemanticChunker:
     tokenizer : Tokenizer
         Provides token<->char offsets used for counting and slicing.
     sentence_engine : SentenceEngine
-        Produces sentence spans (priority 5); the default unit of both the unique
+        Produces sentence spans (priority 6); the default unit of both the unique
         content and the leading overlap.
     clause_engine : ClauseEngine
-        Produces clause boundaries (priorities 4-2) used only inside an over-long
+        Produces clause boundaries (priorities 5-2) used only inside an over-long
         sentence (Tier A).
     params : ChunkParams
         Chunk geometry (soft targets + the hard ``max_content_tokens`` cap).
@@ -317,7 +319,7 @@ class SemanticChunker:
         if feasible and max(feasible) == n:
             return n
 
-        # Tier A: cut inside an over-long sentence using clause (4-2) then word (1).
+        # Tier A: cut inside an over-long sentence using clause (5-2) then word (1).
         target_tok = min(content_start + params.unique_target, cap_hi)
         char_hi = offsets[cap_hi].char_start if cap_hi < n else len(text)
         clause_candidates = self._clause_token_candidates(
