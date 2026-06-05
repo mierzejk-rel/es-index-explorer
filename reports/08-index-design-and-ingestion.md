@@ -238,8 +238,8 @@ Every parameter is set explicitly per R13. The JSON below is the authoritative m
 | `summary` | `text` | `source.summary` | BM25 full-text search on summary. |
 | `topic` | `text` | `source.topic` | BM25 full-text search on topic. |
 | `title_sparse` | `sparse_vector` | Client-computed by `SparseEmbedder` from `title` text; `{token: weight}` map. Omitted when title is empty. | Learned-sparse retrieval on title via `sparse_vector` query. Token pruning pinned (`prune: true`, thresholds 5/0.4). |
-| `summary_sparse` | `sparse_vector` | Client-computed by `SparseEmbedder` from `summary` text. | Learned-sparse retrieval on summary. |
-| `topic_sparse` | `sparse_vector` | Client-computed by `SparseEmbedder` from `topic` text. | Learned-sparse retrieval on topic. |
+| `summary_sparse` | `sparse_vector` | Client-computed by `SparseEmbedder` from `summary` text; `{token: weight}` map. Omitted when summary is empty. | Learned-sparse retrieval on summary via `sparse_vector` query. Token pruning pinned (`prune: true`, thresholds 5/0.4). |
+| `topic_sparse` | `sparse_vector` | Client-computed by `SparseEmbedder` from `topic` text; `{token: weight}` map. Omitted when topic is empty. | Learned-sparse retrieval on topic via `sparse_vector` query. Token pruning pinned (`prune: true`, thresholds 5/0.4). |
 | `primary_date_time` | `date` | `source.primary_date_time` (ISO-8601) | Date range filter. |
 | `email_from` | `keyword` | `source.email_from` | Email participant filter. |
 | `email_to` | `keyword` (multi-valued) | `source.email_to` | Email participant filter. |
