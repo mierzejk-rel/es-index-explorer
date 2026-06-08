@@ -1,9 +1,11 @@
 """Resume helpers for the aiR Assist ingest pipeline."""
 
 import argparse
+import pickle
 from typing import cast
 
 from elasticsearch import Elasticsearch
+from jinja2.ext import do
 
 from es_index_explorer.client import with_auth_retry
 from es_index_explorer.config import Config, load_config
@@ -37,6 +39,11 @@ def parse_args() -> argparse.Namespace:
         "--list-r1-ids",
         action="store_true",
         help="Print all RelativityOne document Artifact IDs in ascending order, space-separated.",
+    )
+    actions.add_argument(
+        "--get-id",
+        action="store_true",
+        help="Placeholder operation for orchestrating all ID-related flows.",
     )
     return parser.parse_args()
 
@@ -131,11 +138,82 @@ def _list_r1_artifact_ids(config: Config) -> list[int]:
     return ids
 
 
+def _run_get_id_operation(config: Config, index_name: str) -> None:
+    from pathlib import Path
+    import pickle
+
+    r1_ids_path = Path(r'r1_ids.pkl')
+    if r1_ids_path.is_file():
+        with open(r1_ids_path, 'rb') as f:
+            r1_ids = pickle.load(f)
+    else:
+        r1_ids = _list_r1_artifact_ids(config)
+        with open(r1_ids_path, 'wb') as f:
+            pickle.dump(r1_ids, f)
+
+    r1_ids_len = len(r1_ids)
+
+    es_ids_path = Path(r'es_ids.pkl')
+    if es_ids_path.is_file():
+        with open(es_ids_path, 'rb') as f:
+            es_ids = pickle.load(f)
+    else:
+        es_ids = cast(list[int],
+                      with_auth_retry(
+                          config,
+                          lambda client: _list_all_artifact_ids(client, index_name))
+                      )
+        with open(es_ids_path, 'wb') as f:
+            pickle.dump(es_ids, f)
+
+
+    es_ids_len = len(es_ids)
+    es_max_id = cast(int | None,
+                     with_auth_retry(
+                         config,
+                         lambda client: _get_max_artifact_id(client, index_name)))
+
+    assert es_ids_len <= r1_ids_len
+    r1_i = -1
+    missing_ids: list[int] = []
+
+    def next_r1_id(value: int) -> int | None:
+        nonlocal r1_i
+        r1_value = -1 if r1_i < 0 else r1_ids[r1_i]
+        while r1_i < r1_ids_len - 1:
+            r1_next = r1_ids[r1_i := r1_i + 1]
+            assert r1_value < r1_next
+            if r1_next == value:
+                return r1_next
+
+            assert r1_next < value
+            missing_ids.append(r1_next)
+            r1_value = r1_next
+
+        return None
+    es_i = 0
+    es_value = es_ids[es_i]
+    while next_r1_id(es_value) is not None and (es_i := es_i + 1) < es_ids_len:
+        es_next = es_ids[es_i]
+        assert es_value < es_next
+        es_value = es_next
+
+    print(f'Missing ids: {missing_ids}')
+    assert es_value == es_max_id
+    assert r1_ids[r1_i] == es_value
+    print(f'Last Document Artifact ID: {es_value}')
+
+
+
 def main() -> None:
     """Run the resume utility CLI."""
 
     args = parse_args()
     config = load_config(args.config)
+
+    if args.get_id:
+        _run_get_id_operation(config, _resolve_index(args, config))
+        return
 
     if args.list_r1_ids:
         ids = _list_r1_artifact_ids(config)
