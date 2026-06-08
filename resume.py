@@ -7,6 +7,9 @@ from elasticsearch import Elasticsearch
 
 from es_index_explorer.client import with_auth_retry
 from es_index_explorer.config import Config, load_config
+from es_index_explorer.relativity.auth import get_authenticated_session
+from es_index_explorer.relativity.client import RelativityClient
+from es_index_explorer.relativity.fluent import field as r1_field
 
 
 def parse_args() -> argparse.Namespace:
@@ -29,6 +32,11 @@ def parse_args() -> argparse.Namespace:
         "--list-ids",
         action="store_true",
         help="Print all indexed document_artifact_id values in ascending order, space-separated.",
+    )
+    actions.add_argument(
+        "--list-r1-ids",
+        action="store_true",
+        help="Print all RelativityOne document Artifact IDs in ascending order, space-separated.",
     )
     return parser.parse_args()
 
@@ -97,14 +105,48 @@ def _list_all_artifact_ids(client: Elasticsearch, index_name: str, page_size: in
         search_after = raw_sort
 
 
+def _list_r1_artifact_ids(config: Config) -> list[int]:
+    """Return all RelativityOne document Artifact IDs sorted ascending."""
+
+    session = get_authenticated_session(config).session
+    client = RelativityClient(config.relativity.host, config.relativity.workspace_id, session)
+    builder = (
+        client.query_object_manager()
+        .from_documents()
+        .select("Artifact ID")
+        .sort_by("Artifact ID", direction="Ascending")
+    )
+    if config.relativity.saved_search_id is not None:
+        builder = builder.where(r1_field("Artifact ID").in_saved_search(config.relativity.saved_search_id))
+
+    ids: list[int] = []
+    batch_size = config.relativity.batch_size
+    response = builder.page(0, batch_size).execute_raw()
+    start = 1
+    while response.Objects:
+        for obj in response.Objects:
+            ids.append(int(obj.ArtifactID))
+        start += batch_size
+        response = builder.page(start, batch_size).execute_raw()
+    return ids
+
+
 def main() -> None:
     """Run the resume utility CLI."""
 
     args = parse_args()
     config = load_config(args.config)
-    index_name = _resolve_index(args, config)
+
+    if args.list_r1_ids:
+        ids = _list_r1_artifact_ids(config)
+        if not ids:
+            print("No documents found in the workspace.")
+        else:
+            print(" ".join(str(artifact_id) for artifact_id in ids))
+        return
 
     if args.list_ids:
+        index_name = _resolve_index(args, config)
         ids = cast(list[int], with_auth_retry(config, lambda client: _list_all_artifact_ids(client, index_name)))
         if not ids:
             print("No documents found in the index.")
@@ -112,6 +154,7 @@ def main() -> None:
             print(" ".join(str(artifact_id) for artifact_id in ids))
         return
 
+    index_name = _resolve_index(args, config)
     max_id = cast(int | None, with_auth_retry(config, lambda client: _get_max_artifact_id(client, index_name)))
     if max_id is None:
         print("No documents found in the index.")
