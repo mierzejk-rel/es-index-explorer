@@ -275,7 +275,7 @@ anchor, enabling clean attribution of any quality change.
 |---|---|---|---|
 | **Tier 0** | Production parity: reproduce current qna-service behaviour on the nested index | Flat chunk list | `low` |
 | **Tier 1** | Metadata-enriched retrieval: add parent-field signals, keep flat output | Flat chunk list | `low` |
-| **Tier 2** | Nested document format: full document groups with metadata and concatenated chunks | Nested doc groups | `medium` |
+| **Tier 2** | Nested document format: full document groups with metadata and concatenated chunks | Nested doc groups | `low` or `medium` |
 
 ### 5.2 Variable dimensions
 
@@ -285,24 +285,30 @@ anchor, enabling clean attribution of any quality change.
 | **Metadata for generation** | OFF | OFF | ON or OFF |
 | **Fusion location** | Client-side RRF | Client-side RRF | Client-side RRF or ES-side RRF |
 | **Chunk count** | 25 | 25 | 25 or 60 |
-| **Reasoning effort** | `low` | `low` | `medium` |
-| **Hop strategy** | Multi-hop | Multi-hop | Multi-hop or Single-hop |
+| **Reasoning effort** | `low` | `low` | `low` (E2a-low) or `medium` (E2a-med, E2c, E2d, E2d-nometa, E2e) |
+| **Hop strategy** | Multi-hop | Multi-hop | Single-hop (E2a-low, E2e) or Multi-hop |
 | **Title in retrieval** | N/A | EMC2: ON / Mallinckrodt: OFF | EMC2: ON / Mallinckrodt: OFF |
 | **5 MB size filter** | ON | ON | ON |
 
 ### 5.3 Notes on design choices
 
-**Reasoning effort shift at Tier 2.** Tier 2 experiments use `reasoning_effort: medium`
-throughout rather than making it a variable dimension. The nested document format sends
-significantly more structured information to the LLM (metadata per document group plus
-concatenated adjacent chunks); medium reasoning is expected to be necessary to fully exploit
-that richer context. A clean reasoning-effort comparison is available through E0/E1 (low) vs
-E2a (medium) via the E1 → E2a transition, though this comparison also changes the output
-format.
+**Reasoning effort in Tier 2.** Most Tier 2 experiments use `reasoning_effort: medium` because
+the nested document format sends significantly more structured information to the LLM (metadata
+per document group plus concatenated adjacent chunks), and medium reasoning is expected to be
+necessary to fully exploit that richer context. However, E2a-low deliberately uses `low`
+reasoning and single-hop — it is the minimum viable Tier 2 configuration, testing whether the
+nested structure alone (with no metadata visible to the LLM) adds value over the flat output at
+the cheapest operational settings. The E2a-low → E2a-med comparison captures the combined
+value of switching to medium reasoning and multi-hop.
 
 **Metadata retrieval always ON in Tier 2.** Once the nested document structure is adopted,
 excluding parent-field signals would waste the indexed metadata. All Tier 2 experiments use
 the full signal set. The value of metadata retrieval signals is assessed at Tier 1 (E0 vs E1).
+
+**Metadata for generation tested at both chunk counts.** E2a-low (25 chunks, low reasoning)
+has metadata gen OFF, and E2d-nometa (60 chunks, medium reasoning) also has metadata gen OFF.
+Together they reveal whether the value of exposing document metadata to the LLM depends on
+how much raw chunk context the model already has.
 
 **Title toggle.** The EMC2 workspace has meaningful document titles (email subjects, file
 names); the Mallinckrodt corpus has less reliable titles. Title is therefore included as a
@@ -315,7 +321,7 @@ returned chunk-level results are fused via RRF in Python. When fusion is ES-side
 request with a nested RRF retriever is issued; ES fuses at the **document level** (each
 document is scored by its best matching chunk via `score_mode: max`) and the client reads
 chunks from `inner_hits`. ES-side fusion cannot rank chunks across documents globally — that
-distinction is explored by E2a vs E2c.
+distinction is explored by E2a-med vs E2c.
 
 ---
 
@@ -353,33 +359,36 @@ selection quality?
 
 ---
 
-**Tier 2 — Nested document format (anchor and variants)**
+**Tier 2 — Nested document format**
 
-All Tier 2 experiments use the nested document output structure: the tool returns document
-groups, each containing the document's `title`, `summary`, `topic`, `control_number`,
-`primary_date_time`, and a list of retrieved chunks with adjacent chunks concatenated where
-`chunk_index` values are consecutive. The LLM prompt is updated for this format. A new
-model TOML config is created for Tier 2 (see §8).
+All Tier 2 experiments return document groups: each group contains the document's
+`title`, `summary`, `topic`, `control_number`, `primary_date_time`, and a list of retrieved
+chunks with adjacent chunks concatenated where `chunk_index` values are consecutive. Metadata
+fields (`title`, `summary`, `topic`) are omitted from the XML in experiments marked
+"metadata gen OFF". A new TOML config is created for Tier 2 (see §8).
 
-**E2a** — Anchor experiment (nested, full signals, metadata in generation, client-side RRF,
-25 chunks, medium reasoning, multi-hop).
+**E2a-low** — Minimum viable Tier 2 configuration.
 
-Retrieval: all four signals (BM25-chunks, kNN-chunks, BM25-parent, sparse-parent) issued
-separately, client-side RRF fusion, top 25 chunks. Generation context: document groups with
-`title`/`summary`/`topic` visible to the LLM. `reasoning_effort: medium`. Multi-hop (1–3
-iterations, LLM decides). Title toggle: EMC2 ON / Mallinckrodt OFF.
+Retrieval: all four signals, client-side RRF, top 25 chunks. Generation context: document
+groups with metadata fields **omitted** (metadata gen OFF). `reasoning_effort: low`.
+Single-hop (exactly one retrieval iteration). Title toggle: EMC2 ON / Mallinckrodt OFF.
 
-*Purpose:* anchor for all Tier 2 comparisons; first test of the full nested pipeline.
+*Purpose:* does the nested document structure alone — without metadata visible to the LLM,
+without medium reasoning, without multi-hop — beat flat output? Establishes the minimum
+nested baseline and enables a clean E1 vs E2a-low comparison (both low reasoning, both
+metadata gen OFF, same chunk count; only output format differs — flat vs nested).
 
-**E2b** — Same as E2a but metadata generation OFF.
+**E2a-med** — Full nested anchor.
 
-Document groups are returned without `title`/`summary`/`topic` in the XML; the LLM sees only
-chunk text. Everything else identical to E2a.
+Same as E2a-low except: metadata gen **ON** (title/summary/topic visible to LLM),
+`reasoning_effort: medium`, multi-hop (1–3 iterations). This is the Tier 2 anchor for all
+medium-reasoning comparisons.
 
-*Purpose:* isolates the contribution of metadata fields to generation quality, holding
-retrieval fixed.
+*Purpose:* first test of the full nested pipeline; anchor for E2c, E2d, E2d-nometa, E2e.
+The E2a-low → E2a-med comparison captures the combined value of adding metadata to generation,
+upgrading to medium reasoning, and switching from single-hop to multi-hop.
 
-**E2c** — Same as E2a but ES-side fusion.
+**E2c** — Same as E2a-med but ES-side fusion.
 
 A single ES request with a nested RRF retriever fuses all signals. ES returns documents ranked
 by their best chunk score; the client reads `inner_hits` and groups. No cross-document chunk
@@ -388,57 +397,67 @@ ranking by the client.
 *Purpose:* isolates fusion location (client-side global chunk ranking vs ES-side document
 ranking).
 
-**E2d** — Same as E2a but 60 chunks.
+**E2d** — Same as E2a-med but 60 chunks.
 
 Retrieval returns 60 chunks instead of 25. Inner-hits sizes scaled accordingly.
 
 *Purpose:* isolates the effect of providing more retrieved context to the LLM.
 
+**E2d-nometa** — Same as E2d but metadata generation OFF.
+
+Document groups are returned without `title`/`summary`/`topic` in the XML; the LLM sees only
+chunk text and chunk count is 60.
+
+*Purpose:* at 60 chunks, does metadata gen add value, or does raw passage volume suffice?
+Pairs with E2d (one dimension change) and cross-pairs with E2a-low (both metadata gen OFF,
+different reasoning/hops/chunk count).
+
 **E2e** — Same as E2d but single-hop with parallel tool calls.
 
 The LLM is constrained to exactly one retrieval iteration (`tool_choice="none"` after
 iteration 0). The agent may issue multiple parallel tool calls in that single iteration.
-Chunk count: 60.
+Chunk count: 60, metadata gen ON.
 
 *Purpose:* isolates hop strategy at 60 chunks — does multi-hop reasoning add value beyond
 what a single richer retrieval provides?
 
 ### 6.2 Full experiment table
 
-| ID | Tier | Retrieval signals | Metadata for generation | Fusion location | Chunks | Reasoning | Hop strategy |
+| ID | Tier | Metadata retrieval | Metadata gen | Fusion location | Chunks | Reasoning | Hop strategy |
 |---|---|---|---|---|---|---|---|
-| **E0** | 0 | BM25-chunks + kNN-chunks | OFF | Client-side RRF | 25 | low | Multi-hop |
-| **E1** | 1 | BM25-chunks + kNN-chunks + BM25-parent + sparse-parent | OFF | Client-side RRF | 25 | low | Multi-hop |
-| **E2a** | 2 | BM25-chunks + kNN-chunks + BM25-parent + sparse-parent | ON | Client-side RRF | 25 | medium | Multi-hop |
-| **E2b** | 2 | BM25-chunks + kNN-chunks + BM25-parent + sparse-parent | **OFF** | Client-side RRF | 25 | medium | Multi-hop |
-| **E2c** | 2 | BM25-chunks + kNN-chunks + BM25-parent + sparse-parent | ON | **ES-side RRF** | 25 | medium | Multi-hop |
-| **E2d** | 2 | BM25-chunks + kNN-chunks + BM25-parent + sparse-parent | ON | Client-side RRF | **60** | medium | Multi-hop |
-| **E2e** | 2 | BM25-chunks + kNN-chunks + BM25-parent + sparse-parent | ON | Client-side RRF | **60** | medium | **Single-hop** |
+| **E0** | 0 | OFF | OFF | Client-side RRF | 25 | low | Multi-hop |
+| **E1** | 1 | ON | OFF | Client-side RRF | 25 | low | Multi-hop |
+| **E2a-low** | 2 | ON | **OFF** | Client-side RRF | 25 | **low** | **Single-hop** |
+| **E2a-med** | 2 | ON | ON | Client-side RRF | 25 | medium | Multi-hop |
+| **E2c** | 2 | ON | ON | **ES-side RRF** | 25 | medium | Multi-hop |
+| **E2d** | 2 | ON | ON | Client-side RRF | **60** | medium | Multi-hop |
+| **E2d-nometa** | 2 | ON | **OFF** | Client-side RRF | **60** | medium | Multi-hop |
+| **E2e** | 2 | ON | ON | Client-side RRF | **60** | medium | **Single-hop** |
 
-Bold values mark the single dimension that differs from the anchor (E2a for Tier 2, E0 for
-Tier 1).
+Bold values mark the dimension(s) that differ from E2a-med (Tier 2 anchor), E0 (Tier 0), or
+E1 (Tier 1) in the relevant comparison.
 
 ### 6.3 Comparison map
 
-Each comparison isolates one dimension; all other dimensions are held constant.
-
 | Comparison | Dimension isolated | Question answered |
 |---|---|---|
-| E0 vs E1 | Retrieval signals | Does adding BM25 + sparse on parent metadata improve chunk selection? |
-| E1 vs E2a | Output format + reasoning effort | Does the nested document format (with metadata visible to LLM) and stronger reasoning improve answers? |
-| E2a vs E2b | Metadata for generation | Does exposing title/summary/topic to the LLM improve answers, given metadata-enriched retrieval? |
-| E2a vs E2c | Fusion location | Is client-side global chunk ranking better than ES-side document-level ranking? |
-| E2a vs E2d | Chunk count | Does providing 60 chunks instead of 25 improve answers? |
-| E2d vs E2e | Hop strategy | Does multi-hop reasoning over 60 chunks beat single-hop retrieval of 60 chunks? |
+| E0 vs E1 | Metadata retrieval signals | Does adding BM25 + sparse on parent fields improve chunk selection? |
+| E1 vs E2a-low | Output format (flat → nested) | Does the nested structure alone improve answers? (both low reasoning, metadata gen OFF, same chunk count; hops differ) |
+| E2a-low vs E2a-med | Metadata gen + reasoning + hops | What is the full upgrade from minimum to full nested config worth? |
+| E2a-med vs E2c | Fusion location | Is client-side global chunk ranking better than ES-side document ranking? |
+| E2a-med vs E2d | Chunk count (25 → 60) | Does more retrieved context improve answers? |
+| E2d vs E2d-nometa | Metadata for generation at 60 chunks | At 60 chunks, does exposing document metadata to the LLM still add value? |
+| E2d vs E2e | Hop strategy at 60 chunks | Does multi-hop reasoning beat single-hop retrieval of 60 chunks? |
 
 ### 6.4 Execution order
 
-Run E0 and E1 first to validate that the new Python tools produce results at parity with
-production and confirm that metadata signals add value at the flat-output level. Then run
-E2a as the Tier 2 anchor before running E2b–E2e in parallel.
+Run E0 and E1 first to validate tool parity and the value of metadata retrieval signals.
+E2a-low is cheap (low reasoning, single-hop) and runs next — it validates the nested pipeline
+quickly and gives an early signal before committing the full eval to medium-reasoning runs.
+E2a-med establishes the Tier 2 anchor; E2c, E2d, E2d-nometa, E2e then run in parallel.
 
 ```
-E0 → E1 → E2a → E2b, E2c, E2d, E2e (parallel)
+E0 → E1 → E2a-low → E2a-med → E2c, E2d, E2d-nometa, E2e (parallel)
 ```
 
 ---
@@ -487,12 +506,14 @@ The active tool set is selected by the environment variable `AIR_ASSIST_RETRIEVA
 
 | Value | Tool set | Used by |
 |---|---|---|
-| `flat_baseline` | `SearchDocuments` (flat output) + `WriteFile` + `ReadFile` | E0, E1 |
-| `nested_docs` | `SearchDocuments` (nested output) + `WriteFile` + `ReadFile` | E2a–E2e |
+| *(not set)* | Current MCP tools (`GetRelevantDocuments` + `GetRelevantDocumentsWithMetadataFilter`) | E0 |
+| `flat_baseline` | `SearchDocuments` (flat output) + `WriteFile` + `ReadFile` | E1 |
+| `nested_docs` | `SearchDocuments` (nested output) + `WriteFile` + `ReadFile` | E2a-low, E2a-med, E2d, E2d-nometa, E2e |
+| `nested_docs_es_rrf` | `SearchDocuments` (nested output, ES-side RRF) + `WriteFile` + `ReadFile` | E2c |
 
 Tool selection reads the env var in `tool_selection.py` and registers the appropriate
-`_ALL_TOOL_MODELS` tuple. E0 continues to use the current MCP tools (no env var needed; it
-runs with the original `013.toml` and the existing `tool_selection.py` unchanged).
+`_ALL_TOOL_MODELS` tuple. E0 continues to use the current MCP tools; it runs with the
+original `013.toml` and the existing `tool_selection.py` unchanged.
 
 ### 7.3 Tool definitions
 
@@ -522,8 +543,9 @@ chunk count) is controlled by the server-side config, invisible to the LLM. This
 the current contract: the agent describes what it wants to find, not how to find it.
 
 When `flat_baseline` is active, the tool returns a flat chunk list (Tier 0/1 format).
-When `nested_docs` is active, it returns nested document groups with metadata and
-concatenated adjacent chunks (Tier 2 format).
+When `nested_docs` or `nested_docs_es_rrf` is active, it returns nested document groups with
+concatenated adjacent chunks (Tier 2 format). Metadata fields are included or omitted from
+the XML based on a per-experiment flag (not exposed to the LLM as a tool parameter).
 
 ### 7.4 Post-retrieval processing
 
@@ -541,8 +563,8 @@ concatenated adjacent chunks (Tier 2 format).
    (ES-side RRF, E2c).
 2. Group result chunks by `document_artifact_id`.
 3. For each group, attach parent metadata (`title`, `summary`, `topic`, `control_number`,
-   `primary_date_time`) from `_source`. If metadata for generation is OFF (E2b), omit
-   `title`/`summary`/`topic` from the XML.
+   `primary_date_time`) from `_source`. If metadata for generation is OFF (E2a-low,
+   E2d-nometa), omit `title`/`summary`/`topic` from the XML.
 4. Within each group, detect runs of consecutive `chunk_index` values and concatenate
    adjacent chunks by removing the leading overlap (using `leading_overlap_chars`).
 5. Serialize as `<document_group>` XML elements containing per-document metadata and
@@ -576,39 +598,46 @@ index's first-class parent fields:
   references to "keyword search" / "BM25"; describe as "relevance search"
 - `required_tools` updated accordingly
 
-**E2a–E2e** use a new config (e.g. `015.toml`) with:
+**E2a-low** uses a new config (e.g. `015.toml`) with:
+- `reasoning_effort: low`
+- System prompt updated for nested document format (metadata gen OFF variant — metadata
+  fields omitted from XML, so the format explanation does not mention them)
+- Single-hop: tool_choice capped at `none` after iteration 0
+
+**E2a-med, E2c, E2d, E2d-nometa, E2e** use a further config (e.g. `016.toml`) with:
 - `reasoning_effort: medium`
-- System prompt updated for nested document format: explain that each result group contains
-  document metadata (title, summary, topic) plus extracted passages; instruct the LLM to use
-  metadata to understand document context before citing specific passages
+- System prompt updated for nested document format with metadata visible: "Each result
+  contains document-level metadata (title, summary, topic) followed by the most relevant
+  passages. Use the metadata to orient your understanding before citing passages."
 - E2e additionally: prompt instructs exactly one retrieval iteration; tool_choice capped at
   `none` after iteration 0
 
-The TOML schema is not extended. Retrieval parameters (signals, chunk count, fusion) are
-passed via the `AIR_ASSIST_RETRIEVAL` environment variable and a companion environment-specific
-config file read by the tool at startup, not via the TOML.
+The TOML schema is not extended. Retrieval parameters (signals, chunk count, fusion,
+metadata-gen flag) are passed via the `AIR_ASSIST_RETRIEVAL` environment variable and a
+companion config read by the tool at startup, not via the TOML.
 
 ### 8.2 Per-experiment environment configuration
 
-| Experiment | `AIR_ASSIST_RETRIEVAL` | Fusion | Chunks | Reasoning | Hop policy |
-|---|---|---|---|---|---|
-| E0 | *(MCP tools, not used)* | ES RRF via qna-service | 25 | low | Multi (013.toml) |
-| E1 | `flat_baseline` | Client-side RRF | 25 | low | Multi (014.toml) |
-| E2a | `nested_docs` | Client-side RRF | 25 | medium | Multi (015.toml) |
-| E2b | `nested_docs` | Client-side RRF | 25 | medium | Multi (015.toml, metadata gen OFF) |
-| E2c | `nested_docs_es_rrf` | ES-side RRF | 25 | medium | Multi (015.toml) |
-| E2d | `nested_docs` | Client-side RRF | 60 | medium | Multi (015.toml) |
-| E2e | `nested_docs` | Client-side RRF | 60 | medium | Single (015.toml, capped) |
+| Experiment | `AIR_ASSIST_RETRIEVAL` | Fusion | Chunks | Metadata gen | Reasoning | Hop policy |
+|---|---|---|---|---|---|---|
+| E0 | *(not set — MCP tools)* | qna-service RRF | 25 | OFF | low | Multi (013.toml) |
+| E1 | `flat_baseline` | Client-side RRF | 25 | OFF | low | Multi (014.toml) |
+| E2a-low | `nested_docs` | Client-side RRF | 25 | OFF | low | Single (015.toml, capped) |
+| E2a-med | `nested_docs` | Client-side RRF | 25 | ON | medium | Multi (016.toml) |
+| E2c | `nested_docs_es_rrf` | ES-side RRF | 25 | ON | medium | Multi (016.toml) |
+| E2d | `nested_docs` | Client-side RRF | 60 | ON | medium | Multi (016.toml) |
+| E2d-nometa | `nested_docs` | Client-side RRF | 60 | OFF | medium | Multi (016.toml) |
+| E2e | `nested_docs` | Client-side RRF | 60 | ON | medium | Single (016.toml, capped) |
 
 ### 8.3 Prompt changes summary
 
-| Experiment group | Change from 013.toml |
-|---|---|
-| E0 | None |
-| E1 | Merge two retrieval tools into `SearchDocuments`; remove BM25-specific guidance; describe retrieval as "relevance search" |
-| E2a, E2c–E2e | E1 changes + add nested document format explanation: "Each result contains document-level metadata (title, summary, topic) followed by the most relevant passages. Use the metadata to orient your understanding before citing passages." |
-| E2b | Same as E2a group but metadata fields are omitted from the XML; no prompt change needed for the format difference |
-| E2e | Add: "Perform exactly one retrieval call per turn. Issue all necessary queries simultaneously using parallel tool calls." |
+| Config | Experiment(s) | Changes from 013.toml |
+|---|---|---|
+| 013.toml | E0 | None |
+| 014.toml | E1 | Merge two retrieval tools into `SearchDocuments`; remove BM25-specific guidance; describe retrieval as "relevance search" |
+| 015.toml | E2a-low | E1 changes + nested format explanation (no metadata fields mentioned, as they are omitted); single-hop instruction: "Perform exactly one retrieval call per turn. Issue all necessary queries simultaneously." |
+| 016.toml | E2a-med, E2c, E2d, E2d-nometa | E1 changes + nested format explanation with metadata: "Each result contains document-level metadata (title, summary, topic) followed by the most relevant passages. Use the metadata to orient your understanding before citing passages." |
+| 016.toml | E2e | Same as above + single-hop instruction |
 
 ---
 
@@ -658,7 +687,7 @@ and cross-experiment comparison.
 
 ### 9.4 Statistical analysis
 
-With 77 rubrics per experiment and 7 experiments, we have 539 total evaluation points.
+With 77 rubrics per experiment and 8 experiments, we have 616 total evaluation points.
 
 **Paired comparisons:** each rubric is evaluated under every experiment, enabling paired
 statistical tests (Wilcoxon signed-rank) between any two experiments on the same rubric set.
@@ -671,7 +700,7 @@ experiment pairs simultaneously.
 
 ### 9.5 Feature selection methodology
 
-After the initial 7-experiment matrix is evaluated:
+After the initial 8-experiment matrix is evaluated:
 
 1. **Rank experiments** by mean rubric score across both workspaces.
 2. **Identify the top configuration(s)** and the dimensions that drove their gains over E0.
