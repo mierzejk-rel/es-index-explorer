@@ -263,151 +263,183 @@ Source: `rag_agent.py` lines 890–925.
 
 ---
 
-## 5. Experiment Factor Space
+## 5. Experiment Dimensions
 
-Six variable factors span the experimental design. Each factor has discrete levels.
+The experiment set is organised into three tiers. Each tier adds capability over the previous
+one. Within each tier, individual experiments vary one dimension at a time against a designated
+anchor, enabling clean attribution of any quality change.
 
-### 5.1 Factor taxonomy
+### 5.1 Tier overview
 
-#### F1: Retrieval signal
+| Tier | Description | Output format | Reasoning effort |
+|---|---|---|---|
+| **Tier 0** | Production parity: reproduce current qna-service behaviour on the nested index | Flat chunk list | `low` |
+| **Tier 1** | Metadata-enriched retrieval: add parent-field signals, keep flat output | Flat chunk list | `low` |
+| **Tier 2** | Nested document format: full document groups with metadata and concatenated chunks | Nested doc groups | `medium` |
 
-| Level | Signals used | Query shape |
-|---|---|---|
-| `BM25` | BM25 on `chunks.text` only | nested `match` |
-| `Dense` | kNN on `chunks.embedding` only | nested `knn` |
-| `Sparse` | Sparse on `title_sparse` + `summary_sparse` + `topic_sparse` | `sparse_vector` queries (3 fields) |
-| `BM25+Dense` | BM25 on chunks + kNN on chunks | Two nested sub-retrievers |
-| `BM25+Sparse` | BM25 on chunks + sparse on parent metadata | Mixed nested + top-level |
-| `BM25+Dense+Sparse` | All three signals | Three sub-retrievers |
+### 5.2 Variable dimensions
 
-#### F2: Fusion method
+| Dimension | Tier 0 | Tier 1 | Tier 2 |
+|---|---|---|---|
+| **Retrieval signals** | BM25-chunks + kNN-chunks | BM25-chunks + kNN-chunks + BM25-parent + sparse-parent | BM25-chunks + kNN-chunks + BM25-parent + sparse-parent (always ON) |
+| **Metadata for generation** | OFF | OFF | ON or OFF |
+| **Fusion location** | Client-side RRF | Client-side RRF | Client-side RRF or ES-side RRF |
+| **Chunk count** | 25 | 25 | 25 or 60 |
+| **Reasoning effort** | `low` | `low` | `medium` |
+| **Hop strategy** | Multi-hop | Multi-hop | Multi-hop or Single-hop |
+| **Title in retrieval** | N/A | EMC2: ON / Mallinckrodt: OFF | EMC2: ON / Mallinckrodt: OFF |
+| **5 MB size filter** | ON | ON | ON |
 
-| Level | Mechanism | When applicable |
-|---|---|---|
-| `None` | Single signal, no fusion | F1 is single-signal |
-| `RRF-60` | ES RRF retriever, `rank_constant=60` | F1 is multi-signal |
-| `RRF-10` | ES RRF retriever, `rank_constant=10` | F1 is multi-signal |
-| `Linear-equal` | ES linear retriever, equal weights, minmax normalization | F1 is multi-signal |
+### 5.3 Notes on design choices
 
-The literature suggests RRF k=60 is a robust default [3][6], while k=10 emphasises top-ranked
-documents more aggressively — which the financial QA benchmark found optimal for RRF [1]. Linear
-with equal weights and minmax normalization slightly outperforms RRF on some benchmarks (Recall@5
-0.726 vs 0.695 [1]) but requires normalization and is harder to tune. We include both for
-comparison.
+**Reasoning effort shift at Tier 2.** Tier 2 experiments use `reasoning_effort: medium`
+throughout rather than making it a variable dimension. The nested document format sends
+significantly more structured information to the LLM (metadata per document group plus
+concatenated adjacent chunks); medium reasoning is expected to be necessary to fully exploit
+that richer context. A clean reasoning-effort comparison is available through E0/E1 (low) vs
+E2a (medium) via the E1 → E2a transition, though this comparison also changes the output
+format.
 
-#### F3: Retrieval scope
+**Metadata retrieval always ON in Tier 2.** Once the nested document structure is adopted,
+excluding parent-field signals would waste the indexed metadata. All Tier 2 experiments use
+the full signal set. The value of metadata retrieval signals is assessed at Tier 1 (E0 vs E1).
 
-| Level | What is retrieved |
-|---|---|
-| `Chunks` | Only chunk-level signals (BM25 on `chunks.text`, kNN on `chunks.embedding`) |
-| `Parent` | Only parent-level signals (BM25 on `title`/`summary`/`topic`, sparse on `*_sparse`) |
-| `Chunks+Parent` | Both chunk-level and parent-level signals combined |
+**Title toggle.** The EMC2 workspace has meaningful document titles (email subjects, file
+names); the Mallinckrodt corpus has less reliable titles. Title is therefore included as a
+retrieval signal for EMC2 but excluded for Mallinckrodt. This is implemented as a per-eval-set
+configuration flag passed to the tool at runtime, not as a separate experiment dimension.
 
-#### F4: Field boosting (parent BM25)
-
-| Level | `multi_match.fields` configuration |
-|---|---|
-| `None` | No parent BM25 in the retriever |
-| `Equal` | `["title", "summary", "topic"]` — equal weight |
-| `Boosted` | `["title^2", "summary^3", "topic^2"]` — summary weighted highest |
-
-Boosting is relevant only when parent BM25 is included (F3 = `Parent` or `Chunks+Parent`). The
-boost values are initial estimates motivated by the hypothesis that `summary` is the richest
-metadata signal, followed by `title` and `topic`. These can be refined via grid search in a
-follow-up optimisation phase.
-
-Elasticsearch also supports boosting in `sparse_vector` queries via a `boost` parameter on each
-field. This is a secondary tuning knob documented in `08-index-design-and-ingestion.md` §13.3,
-available for follow-up optimisation but not included as a primary factor to keep the initial
-matrix tractable.
-
-#### F5: Agent hop strategy
-
-| Level | Behaviour |
-|---|---|
-| `SingleHop` | Agent makes exactly 1 retrieval call per iteration (LLM still loops 1–3 times) |
-| `MultiHopBaseline` | Current 013.toml prompt: 1–3 retrieval iterations, LLM decides when to stop |
-| `MultiHopMetadataFirst` | Hop 1: parent-only retrieval (sparse + BM25 on title/summary/topic); Hop 2: chunk-level retrieval restricted to documents from Hop 1 |
-
-`MultiHopMetadataFirst` is the novel strategy. The intuition: use cheap, high-recall
-parent-metadata queries to identify candidate documents, then use expensive dense+BM25 chunk
-queries on the narrowed set for passage extraction. This is analogous to the two-stage
-retrieve-then-rerank pattern [1][4], but with the first stage operating on document metadata
-rather than passages.
-
-#### F6: Result count
-
-| Level | Chunks returned to the LLM |
-|---|---|
-| `Top-10` | 10 |
-| `Top-25` | 25 (current default) |
-| `Top-50` | 50 |
-
-### 5.2 Combinatorial analysis
-
-The full factor space has 7 × 4 × 3 × 3 × 3 × 3 = **2,268** combinations, many of which are
-invalid (e.g. fusion without multi-signal, boosting without parent scope). The curated matrix
-below selects ~15 valid, informative experiments that cover all factors and ideas.
+**Client-side vs ES-side fusion.** When fusion is performed on the client, each signal
+(BM25-chunks, kNN-chunks, BM25-parent, sparse-parent) is issued as a separate ES query and the
+returned chunk-level results are fused via RRF in Python. When fusion is ES-side, a single ES
+request with a nested RRF retriever is issued; ES fuses at the **document level** (each
+document is scored by its best matching chunk via `score_mode: max`) and the client reads
+chunks from `inner_hits`. ES-side fusion cannot rank chunks across documents globally — that
+distinction is explored by E2a vs E2c.
 
 ---
 
 ## 6. Experiment Matrix
 
-### 6.1 Curated experiment set
+### 6.1 Experiment definitions
 
-Each row specifies the factor levels and the primary question it answers.
+**Tier 0 — Baseline reproduction**
 
-| ID | Name | F1: Signal | F2: Fusion | F3: Scope | F4: Boost | F5: Hops | F6: k | Primary question |
-|---|---|---|---|---|---|---|---|---|
-| **E0** | Baseline | BM25+Dense (via MCP) | RRF-60 | Chunks | None | MultiHopBaseline | 25 | Reproduce current agent performance |
-| **E1** | BM25-nested | BM25 | None | Chunks | None | MultiHopBaseline | 25 | Parity: new index BM25 vs production BM25 |
-| **E2** | Dense-only | Dense | None | Chunks | None | MultiHopBaseline | 25 | Dense kNN ceiling on new index |
-| **E3** | Sparse-only | Sparse | None | Parent | None | MultiHopBaseline | 25 | Sparse parent metadata retrieval ceiling |
-| **E4** | Hybrid-chunks | BM25+Dense | RRF-60 | Chunks | None | MultiHopBaseline | 25 | 2026 default hybrid on new nested index |
-| **E5** | Hybrid+parent-BM25 | BM25+Dense | RRF-60 | Chunks+Parent | Equal | MultiHopBaseline | 25 | Does adding parent BM25 help? |
-| **E6** | Hybrid+parent-boosted | BM25+Dense | RRF-60 | Chunks+Parent | Boosted | MultiHopBaseline | 25 | Does field boosting improve over equal weight? |
-| **E7** | Three-signal-RRF | BM25+Dense+Sparse | RRF-60 | Chunks+Parent | Equal | MultiHopBaseline | 25 | Does adding sparse as a third signal help? |
-| **E8** | Three-signal-linear | BM25+Dense+Sparse | Linear-equal | Chunks+Parent | Equal | MultiHopBaseline | 25 | Linear vs RRF for three-signal fusion |
-| **E9** | MetadataFirst-hop | BM25+Dense+Sparse | RRF-60 | Chunks+Parent | Equal | MultiHopMetadataFirst | 25 | Does metadata-first two-phase retrieval help? |
-| **E10** | SingleHop-full | BM25+Dense+Sparse | RRF-60 | Chunks+Parent | Equal | SingleHop | 25 | Can a single rich retrieval call match multi-hop? |
-| **E11** | RRF-k10 | BM25+Dense | RRF-10 | Chunks | None | MultiHopBaseline | 25 | Lower k emphasises top ranks — better or worse? |
-| **E12** | Top-50 | BM25+Dense+Sparse | RRF-60 | Chunks+Parent | Equal | MultiHopBaseline | 50 | More context to the LLM — does it help or hurt? |
-| **E13** | Top-10 | BM25+Dense+Sparse | RRF-60 | Chunks+Parent | Equal | MultiHopBaseline | 10 | Less context to the LLM — precision over recall? |
+**E0** — Production parity on nested index.
 
-### 6.2 Experiment dependencies and ordering
+Run two nested ES queries independently (BM25 on `chunks.text`, kNN on `chunks.embedding`),
+flatten the returned `inner_hits` chunks, apply client-side RRF, take top 25 by score. Filter
+`byte_size <= 5 MB`. No parent metadata fields involved in retrieval or generation. Use
+`013.toml` unchanged (model config, prompt, tool descriptions). Output is a flat chunk list
+in the same XML format as current production.
 
-```
-E0 (baseline)
- ├── E1 (BM25 parity check)
- ├── E2 (dense ceiling)
- ├── E3 (sparse ceiling)
- └── E4 (hybrid-chunks baseline for new index)
-      ├── E5, E6 (parent BM25 ablation)
-      ├── E11 (RRF k ablation)
-      └── E7 (three-signal)
-           ├── E8 (linear vs RRF)
-           ├── E9 (metadata-first hops)
-           ├── E10 (single-hop)
-           ├── E12 (top-50)
-           └── E13 (top-10)
-```
+*Purpose:* confirm the new direct-ES Python tool reproduces current qna-service behavior.
 
-**Recommended execution order:** E0, E1, E4, E2, E3, then E5–E13 in parallel. E0 establishes
-the baseline; E1 and E4 validate the new index is at least at parity; the remaining experiments
-test incremental improvements.
+---
 
-### 6.3 Factor coverage verification
+**Tier 1 — Metadata-enriched retrieval (flat output)**
 
-| Factor | Levels covered | By experiments |
+**E1** — Add parent-field retrieval signals, keep flat output.
+
+Same as E0 plus: BM25 `multi_match` on `title`/`summary`/`topic` and `sparse_vector` queries
+on `title_sparse`/`summary_sparse`/`topic_sparse`. All four signal results (BM25-chunks,
+kNN-chunks, BM25-parent, sparse-parent) are issued as separate ES queries and fused
+client-side via RRF to produce the top 25 chunks. Title included for EMC2, excluded for
+Mallinckrodt. Output remains a flat chunk list; the LLM does not see document metadata
+directly.
+
+*Purpose:* does adding BM25 + sparse signals on parent metadata fields improve chunk
+selection quality?
+
+---
+
+**Tier 2 — Nested document format (anchor and variants)**
+
+All Tier 2 experiments use the nested document output structure: the tool returns document
+groups, each containing the document's `title`, `summary`, `topic`, `control_number`,
+`primary_date_time`, and a list of retrieved chunks with adjacent chunks concatenated where
+`chunk_index` values are consecutive. The LLM prompt is updated for this format. A new
+model TOML config is created for Tier 2 (see §8).
+
+**E2a** — Anchor experiment (nested, full signals, metadata in generation, client-side RRF,
+25 chunks, medium reasoning, multi-hop).
+
+Retrieval: all four signals (BM25-chunks, kNN-chunks, BM25-parent, sparse-parent) issued
+separately, client-side RRF fusion, top 25 chunks. Generation context: document groups with
+`title`/`summary`/`topic` visible to the LLM. `reasoning_effort: medium`. Multi-hop (1–3
+iterations, LLM decides). Title toggle: EMC2 ON / Mallinckrodt OFF.
+
+*Purpose:* anchor for all Tier 2 comparisons; first test of the full nested pipeline.
+
+**E2b** — Same as E2a but metadata generation OFF.
+
+Document groups are returned without `title`/`summary`/`topic` in the XML; the LLM sees only
+chunk text. Everything else identical to E2a.
+
+*Purpose:* isolates the contribution of metadata fields to generation quality, holding
+retrieval fixed.
+
+**E2c** — Same as E2a but ES-side fusion.
+
+A single ES request with a nested RRF retriever fuses all signals. ES returns documents ranked
+by their best chunk score; the client reads `inner_hits` and groups. No cross-document chunk
+ranking by the client.
+
+*Purpose:* isolates fusion location (client-side global chunk ranking vs ES-side document
+ranking).
+
+**E2d** — Same as E2a but 60 chunks.
+
+Retrieval returns 60 chunks instead of 25. Inner-hits sizes scaled accordingly.
+
+*Purpose:* isolates the effect of providing more retrieved context to the LLM.
+
+**E2e** — Same as E2d but single-hop with parallel tool calls.
+
+The LLM is constrained to exactly one retrieval iteration (`tool_choice="none"` after
+iteration 0). The agent may issue multiple parallel tool calls in that single iteration.
+Chunk count: 60.
+
+*Purpose:* isolates hop strategy at 60 chunks — does multi-hop reasoning add value beyond
+what a single richer retrieval provides?
+
+### 6.2 Full experiment table
+
+| ID | Tier | Retrieval signals | Metadata for generation | Fusion location | Chunks | Reasoning | Hop strategy |
+|---|---|---|---|---|---|---|---|
+| **E0** | 0 | BM25-chunks + kNN-chunks | OFF | Client-side RRF | 25 | low | Multi-hop |
+| **E1** | 1 | BM25-chunks + kNN-chunks + BM25-parent + sparse-parent | OFF | Client-side RRF | 25 | low | Multi-hop |
+| **E2a** | 2 | BM25-chunks + kNN-chunks + BM25-parent + sparse-parent | ON | Client-side RRF | 25 | medium | Multi-hop |
+| **E2b** | 2 | BM25-chunks + kNN-chunks + BM25-parent + sparse-parent | **OFF** | Client-side RRF | 25 | medium | Multi-hop |
+| **E2c** | 2 | BM25-chunks + kNN-chunks + BM25-parent + sparse-parent | ON | **ES-side RRF** | 25 | medium | Multi-hop |
+| **E2d** | 2 | BM25-chunks + kNN-chunks + BM25-parent + sparse-parent | ON | Client-side RRF | **60** | medium | Multi-hop |
+| **E2e** | 2 | BM25-chunks + kNN-chunks + BM25-parent + sparse-parent | ON | Client-side RRF | **60** | medium | **Single-hop** |
+
+Bold values mark the single dimension that differs from the anchor (E2a for Tier 2, E0 for
+Tier 1).
+
+### 6.3 Comparison map
+
+Each comparison isolates one dimension; all other dimensions are held constant.
+
+| Comparison | Dimension isolated | Question answered |
 |---|---|---|
-| F1: Signal | BM25, Dense, Sparse, BM25+Dense, BM25+Dense+Sparse | E1, E2, E3, E4, E7 |
-| F2: Fusion | None, RRF-60, RRF-10, Linear-equal | E1/E2/E3, E4/E5–E10/E12/E13, E11, E8 |
-| F3: Scope | Chunks, Parent, Chunks+Parent | E1/E2/E4/E11, E3, E5–E10/E12/E13 |
-| F4: Boost | None, Equal, Boosted | E0–E4/E11, E5/E7–E10/E12/E13, E6 |
-| F5: Hops | SingleHop, MultiHopBaseline, MultiHopMetadataFirst | E10, E0–E8/E11–E13, E9 |
-| F6: Count | 10, 25, 50 | E13, E0–E11, E12 |
+| E0 vs E1 | Retrieval signals | Does adding BM25 + sparse on parent metadata improve chunk selection? |
+| E1 vs E2a | Output format + reasoning effort | Does the nested document format (with metadata visible to LLM) and stronger reasoning improve answers? |
+| E2a vs E2b | Metadata for generation | Does exposing title/summary/topic to the LLM improve answers, given metadata-enriched retrieval? |
+| E2a vs E2c | Fusion location | Is client-side global chunk ranking better than ES-side document-level ranking? |
+| E2a vs E2d | Chunk count | Does providing 60 chunks instead of 25 improve answers? |
+| E2d vs E2e | Hop strategy | Does multi-hop reasoning over 60 chunks beat single-hop retrieval of 60 chunks? |
 
-All factor levels are represented.
+### 6.4 Execution order
+
+Run E0 and E1 first to validate that the new Python tools produce results at parity with
+production and confirm that metadata signals add value at the flat-output level. Then run
+E2a as the Tier 2 anchor before running E2b–E2e in parallel.
+
+```
+E0 → E1 → E2a → E2b, E2c, E2d, E2e (parallel)
+```
 
 ---
 
@@ -423,217 +455,160 @@ air-assist-agent (LangGraph v3)
     │
     ▼
 New tool (Pydantic model + async handler)
-    │  constructs ES query from config + tool args
+    │  selected by AIR_ASSIST_RETRIEVAL env var
     ▼
 elasticsearch-py AsyncElasticsearch client
-    │
+    │  separate queries per signal (client-side fusion)
+    │  or single RRF retriever (ES-side fusion)
     ▼
 Elasticsearch (as-* nested index)
     │
     ▼
-Post-processing: inner_hits flatten → chunk ranking → group by document
+Post-processing: inner_hits flatten + chunk ranking + grouping + concatenation
     │
     ▼
-GroupedChunks → XML for LLM
+Flat chunk list (Tier 0/1) or Nested doc groups (Tier 2) → XML for LLM
 ```
 
-**Client lifecycle:** a single `AsyncElasticsearch` instance, created at pipeline startup with
-bearer auth (CID token), shared across tool calls within a request. Connection parameters
-(hosts, auth) come from TOML config.
+**Client lifecycle:** a single `AsyncElasticsearch` instance, created at agent startup with
+bearer auth (CID token), shared across all tool calls within a request.
 
-**Query embedding:** the tool handler embeds the query string using the same models as ingest:
+**Query embedding:** the tool handler embeds the query string at call time using cached model
+instances:
 - Dense: `intfloat/multilingual-e5-small` with `"query: "` prefix → 384-dim vector
 - Sparse: `opensearch-neural-sparse-encoding-v2-distill` → `{token: weight}` map
 
-Model instances are loaded lazily and cached for the process lifetime, mirroring the
-`E5Embedder` / `SparseEmbedder` pattern in `es-index-explorer/indexing/embedding.py`.
+Models are loaded lazily and cached for the process lifetime, mirroring the `E5Embedder` /
+`SparseEmbedder` pattern in `es-index-explorer/indexing/embedding.py`.
 
-### 7.2 Tool definitions
+### 7.2 Tool selection
 
-Three new Pydantic tool models, registered in place of the current MCP-based tools:
+The active tool set is selected by the environment variable `AIR_ASSIST_RETRIEVAL`:
 
-#### `SearchDocuments` (primary retrieval tool)
+| Value | Tool set | Used by |
+|---|---|---|
+| `flat_baseline` | `SearchDocuments` (flat output) + `WriteFile` + `ReadFile` | E0, E1 |
+| `nested_docs` | `SearchDocuments` (nested output) + `WriteFile` + `ReadFile` | E2a–E2e |
+
+Tool selection reads the env var in `tool_selection.py` and registers the appropriate
+`_ALL_TOOL_MODELS` tuple. E0 continues to use the current MCP tools (no env var needed; it
+runs with the original `013.toml` and the existing `tool_selection.py` unchanged).
+
+### 7.3 Tool definitions
+
+Two new Pydantic tool models replace the current MCP pair:
+
+#### `SearchDocuments` (all experiments except E0)
 
 ```python
 class SearchDocuments(BaseModel):
     """Search the document corpus using hybrid retrieval.
 
-    Returns top documents ranked by relevance to `query`, using the configured
-    retrieval strategy (BM25, dense, sparse, or hybrid fusion). Supports
-    optional metadata filters for dates, email participants, and subset scoping.
+    Returns top documents ranked by relevance to `query`. Metadata filters
+    (dates, email participants) are optional hard constraints. The retrieval
+    strategy — signals, fusion, and result count — is configured server-side
+    and is not exposed here.
     """
-    query: str = Field(..., min_length=1)
+    query: str = Field(..., min_length=1,
+        description="Keyword or natural-language query. No boolean operators.")
     date_from: ISODate | None = None
     date_to: ISODate | None = None
     email_participants: EmailParticipantsFilter | None = None
 ```
 
-This tool replaces both `GetRelevantDocuments` and `GetRelevantDocumentsWithMetadataFilter`.
-The retrieval strategy (signals, fusion, scope, boosting, result count) is **not** exposed to
-the LLM — it is configured per-experiment in TOML. The tool always accepts metadata filters;
-when none are provided, only the subset filter is applied.
+This single tool replaces both `GetRelevantDocuments` and
+`GetRelevantDocumentsWithMetadataFilter`. The retrieval strategy (signals, fusion, scope,
+chunk count) is controlled by the server-side config, invisible to the LLM. This matches
+the current contract: the agent describes what it wants to find, not how to find it.
 
-**Rationale for merging:** the current two-tool split exists because qna-service has separate
-code paths. With direct ES queries, a single tool with optional filter parameters is simpler
-and avoids the LLM needing to choose between tools.
-
-#### `SearchByMetadata` (multi-hop hop 1)
-
-```python
-class SearchByMetadata(BaseModel):
-    """Lightweight search on document metadata (title, summary, topic).
-
-    Returns document IDs and metadata — not chunk content — for use as a
-    first-pass filter before detailed chunk retrieval.
-    """
-    query: str = Field(..., min_length=1)
-    date_from: ISODate | None = None
-    date_to: ISODate | None = None
-    email_participants: EmailParticipantsFilter | None = None
-```
-
-Returns parent-level results only (no `inner_hits`). Used in `MultiHopMetadataFirst` (E9) as
-hop 1 to identify candidate documents before chunk-level follow-up.
-
-#### `SearchChunksInDocuments` (multi-hop hop 2)
-
-```python
-class SearchChunksInDocuments(BaseModel):
-    """Retrieve chunks from specific documents.
-
-    Given a set of document IDs (from a prior metadata search), retrieve the
-    most relevant chunks using dense and/or BM25 search within those documents.
-    """
-    query: str = Field(..., min_length=1)
-    document_ids: list[int] = Field(..., min_length=1)
-```
-
-Issues a chunk-level nested query with a `terms` filter on `document_artifact_id` restricting
-to the hop-1 result set.
-
-### 7.3 Tool registration per experiment
-
-| Experiment | Registered tools |
-|---|---|
-| E0 | Current MCP tools (unchanged) |
-| E1–E8, E10–E13 | `SearchDocuments` + `WriteFile` + `ReadFile` |
-| E9 | `SearchByMetadata` + `SearchChunksInDocuments` + `WriteFile` + `ReadFile` |
-
-The registration happens in `tool_selection.py` where `_ALL_TOOL_MODELS` is defined. For
-experiments, a config flag selects which tool set to register.
+When `flat_baseline` is active, the tool returns a flat chunk list (Tier 0/1 format).
+When `nested_docs` is active, it returns nested document groups with metadata and
+concatenated adjacent chunks (Tier 2 format).
 
 ### 7.4 Post-retrieval processing
 
-The tool handler must replicate qna-service's post-processing:
+#### Flat output (Tier 0, Tier 1)
 
-1. **Inner-hits flatten:** Extract all chunks from `inner_hits`, flatten across documents,
-   sort by `_score`, take top-k.
-2. **Document grouping:** Group chunks by `document_artifact_id`, attach parent metadata
-   (`control_number`, `title`, `summary`, `topic`, `primary_date_time`).
-3. **First-chunk injection:** For each document, include `chunk_index=0` text as context
-   header (currently done via a separate ES query in qna-service; in the nested index,
-   chunk 0 is available in `_source.chunks[0]` or via a targeted `inner_hits` filter).
-4. **XML serialization:** Produce the same `GroupedChunks` → XML format the LLM expects.
+1. Issue separate ES queries for each active signal.
+2. Collect all chunks from `inner_hits` across all queries.
+3. Apply client-side RRF: for each chunk `(document_artifact_id, chunk_index)`, sum
+   reciprocal ranks across signals. Take top-k by fused score.
+4. Serialize as flat `<passage>` XML elements matching the current qna-service format.
+
+#### Nested output (Tier 2)
+
+1. Same multi-signal queries as Tier 1 (client-side RRF) or a single ES RRF retriever
+   (ES-side RRF, E2c).
+2. Group result chunks by `document_artifact_id`.
+3. For each group, attach parent metadata (`title`, `summary`, `topic`, `control_number`,
+   `primary_date_time`) from `_source`. If metadata for generation is OFF (E2b), omit
+   `title`/`summary`/`topic` from the XML.
+4. Within each group, detect runs of consecutive `chunk_index` values and concatenate
+   adjacent chunks by removing the leading overlap (using `leading_overlap_chars`).
+5. Serialize as `<document_group>` XML elements containing per-document metadata and
+   chunk list.
 
 ### 7.5 Metadata filter mapping
 
-| Current MCP field | New ES query |
+The new tools replicate the current qna-service metadata filter semantics against the nested
+index's first-class parent fields:
+
+| Current MCP parameter | New ES query |
 |---|---|
 | `dateFrom` | `{"range": {"primary_date_time": {"gte": "<dateFrom>"}}}` |
 | `dateTo` | `{"range": {"primary_date_time": {"lt": "<dateTo + 1 day>"}}}` |
-| `emailParticipants.participantsA` (AtoB) | `bool.must` with `term` on `email_from` (side A) and `term` on `email_to`/`email_cc`/`email_bcc` (side B) |
+| `emailParticipants` (AtoB) | `bool.must`: `term` on `email_from` ∩ `term` on `email_to`/`cc`/`bcc` |
 | `emailParticipants` (AnyDirection) | `bool.should` with both direction permutations |
 | `emailParticipants` (Either) | `bool.should` with side A only OR side B only |
-| `subsetId` | `{"term": {"subset_ids": "<subset>"}}` |
-
-The semantic mapping is equivalent to `03-retrieval-strategies.md` §5; the implementation
-shifts from qna-service C# to Python `elasticsearch-py` query builders.
+| `subsetId` | `{"term": {"subset_ids": "<subset>"}}` — always applied |
 
 ---
 
 ## 8. Config and Prompt Variations
 
-### 8.1 TOML config structure
+### 8.1 TOML configs
 
-Each experiment is defined by a TOML config extending 013.toml:
+**E0** uses `013.toml` unchanged (current production config, MCP tools, `reasoning_effort: low`).
 
-```toml
-[metadata]
-version = 14           # or 15, 16, ...
-agent_version = 3
-experiment_id = "E4"   # maps to experiment matrix row
+**E1** uses a new config (e.g. `014.toml`) identical to `013.toml` except:
+- `reasoning_effort` stays `low`
+- System prompt updated: `SearchDocuments` replaces the two retrieval tools; remove
+  references to "keyword search" / "BM25"; describe as "relevance search"
+- `required_tools` updated accordingly
 
-[elasticsearch]
-hosts = "https://..."
-index_name = "as-mierzej-mlcdt-a4r-v01"      # workspace-specific
-subset_id = "97848311-d89e-426e-8386-e48b7b1fec39"
+**E2a–E2e** use a new config (e.g. `015.toml`) with:
+- `reasoning_effort: medium`
+- System prompt updated for nested document format: explain that each result group contains
+  document metadata (title, summary, topic) plus extracted passages; instruct the LLM to use
+  metadata to understand document context before citing specific passages
+- E2e additionally: prompt instructs exactly one retrieval iteration; tool_choice capped at
+  `none` after iteration 0
 
-[retrieval]
-signals = ["bm25_chunks", "dense_chunks"]     # F1
-fusion = "rrf"                                 # F2
-rrf_rank_constant = 60
-scope = "chunks"                               # F3
-parent_bm25_fields = []                        # F4
-parent_bm25_boost = {}
-result_count = 25                              # F6
-rank_window_size = 100
-knn_k = 100
-knn_num_candidates = 250
-inner_hits_size = 25
+The TOML schema is not extended. Retrieval parameters (signals, chunk count, fusion) are
+passed via the `AIR_ASSIST_RETRIEVAL` environment variable and a companion environment-specific
+config file read by the tool at startup, not via the TOML.
 
-[retrieval.sparse]
-model = "opensearch-project/opensearch-neural-sparse-encoding-v2-distill"
-model_path = ""
-device = "cpu"
-query_overflow = "trim"
+### 8.2 Per-experiment environment configuration
 
-[retrieval.dense]
-model = "intfloat/multilingual-e5-small"
-model_path = ""
-device = "cpu"
-query_prefix = "query: "
-
-[openai_request]
-model = "gpt-5.1-2025-11-13"
-reasoning_effort = "low"
-seed = 20
-max_completion_tokens = 30_000
-```
-
-### 8.2 Signal-to-config mapping
-
-| Experiment | `signals` | `fusion` | `scope` | `parent_bm25_fields` | `parent_bm25_boost` |
+| Experiment | `AIR_ASSIST_RETRIEVAL` | Fusion | Chunks | Reasoning | Hop policy |
 |---|---|---|---|---|---|
-| E1 | `["bm25_chunks"]` | `none` | `chunks` | — | — |
-| E2 | `["dense_chunks"]` | `none` | `chunks` | — | — |
-| E3 | `["sparse_parent"]` | `none` | `parent` | — | — |
-| E4 | `["bm25_chunks", "dense_chunks"]` | `rrf` | `chunks` | — | — |
-| E5 | `["bm25_chunks", "dense_chunks"]` | `rrf` | `chunks_parent` | `["title", "summary", "topic"]` | `{}` |
-| E6 | `["bm25_chunks", "dense_chunks"]` | `rrf` | `chunks_parent` | `["title", "summary", "topic"]` | `{"title": 2, "summary": 3, "topic": 2}` |
-| E7 | `["bm25_chunks", "dense_chunks", "sparse_parent"]` | `rrf` | `chunks_parent` | `["title", "summary", "topic"]` | `{}` |
-| E8 | `["bm25_chunks", "dense_chunks", "sparse_parent"]` | `linear` | `chunks_parent` | `["title", "summary", "topic"]` | `{}` |
-| E11 | `["bm25_chunks", "dense_chunks"]` | `rrf` | `chunks` | — | — |
+| E0 | *(MCP tools, not used)* | ES RRF via qna-service | 25 | low | Multi (013.toml) |
+| E1 | `flat_baseline` | Client-side RRF | 25 | low | Multi (014.toml) |
+| E2a | `nested_docs` | Client-side RRF | 25 | medium | Multi (015.toml) |
+| E2b | `nested_docs` | Client-side RRF | 25 | medium | Multi (015.toml, metadata gen OFF) |
+| E2c | `nested_docs_es_rrf` | ES-side RRF | 25 | medium | Multi (015.toml) |
+| E2d | `nested_docs` | Client-side RRF | 60 | medium | Multi (015.toml) |
+| E2e | `nested_docs` | Client-side RRF | 60 | medium | Single (015.toml, capped) |
 
-E11 differs from E4 only in `rrf_rank_constant = 10`.
+### 8.3 Prompt changes summary
 
-### 8.3 Prompt variations
-
-The 013.toml system prompt is largely reusable. Per-experiment changes:
-
-| Experiment | Prompt change |
+| Experiment group | Change from 013.toml |
 |---|---|
-| E0 | No change (current prompt, current tools) |
-| E1–E8, E10–E13 | Replace tool descriptions: `SearchDocuments` replaces `GetRelevantDocuments` + `GetRelevantDocumentsWithMetadataFilter`. Merge tool use instructions into one. Remove references to "keyword search" / "BM25 only" — describe as "relevance search" (the backend strategy is transparent to the LLM). |
-| E9 | Two-tool prompt: instruct LLM to call `SearchByMetadata` first for candidate documents, then `SearchChunksInDocuments` for passage extraction. Add workflow step: "First search by topic/summary to identify relevant documents, then retrieve detailed passages from those documents." |
-| E10 | Prompt instructs exactly 1 retrieval call per iteration (no follow-up in same turn). |
-
-### 8.4 Hop strategy implementation
-
-| Strategy | Implementation |
-|---|---|
-| `MultiHopBaseline` | Current iteration policy unchanged. LLM decides 1–3 iterations. |
-| `SingleHop` | Set `tool_choice="none"` after iteration 0 (or cap `max_iterations=1` in graph). |
-| `MultiHopMetadataFirst` | Register `SearchByMetadata` + `SearchChunksInDocuments`. Prompt guides LLM to use metadata tool first, chunk tool second. Iteration policy: `required` for iterations 0 and 1, `auto` thereafter. |
+| E0 | None |
+| E1 | Merge two retrieval tools into `SearchDocuments`; remove BM25-specific guidance; describe retrieval as "relevance search" |
+| E2a, E2c–E2e | E1 changes + add nested document format explanation: "Each result contains document-level metadata (title, summary, topic) followed by the most relevant passages. Use the metadata to orient your understanding before citing passages." |
+| E2b | Same as E2a group but metadata fields are omitted from the XML; no prompt change needed for the format difference |
+| E2e | Add: "Perform exactly one retrieval call per turn. Issue all necessary queries simultaneously using parallel tool calls." |
 
 ---
 
@@ -683,7 +658,7 @@ and cross-experiment comparison.
 
 ### 9.4 Statistical analysis
 
-With 77 rubrics per experiment and 14 experiments, we have 1,078 total evaluation points.
+With 77 rubrics per experiment and 7 experiments, we have 539 total evaluation points.
 
 **Paired comparisons:** each rubric is evaluated under every experiment, enabling paired
 statistical tests (Wilcoxon signed-rank) between any two experiments on the same rubric set.
@@ -696,15 +671,16 @@ experiment pairs simultaneously.
 
 ### 9.5 Feature selection methodology
 
-After the initial 14-experiment matrix is evaluated:
+After the initial 7-experiment matrix is evaluated:
 
 1. **Rank experiments** by mean rubric score across both workspaces.
-2. **Identify top-3 configurations** and their shared factor levels.
-3. **Ablation:** for each factor in the top configuration, run a variant with that factor
-   removed/changed to its baseline level. If performance drops significantly, the factor
+2. **Identify the top configuration(s)** and the dimensions that drove their gains over E0.
+3. **Ablation:** for each active dimension in the winning configuration, run a variant with that
+   dimension reverted to its E0 baseline. If performance drops significantly, the dimension
    contributes; if not, it can be dropped.
-4. **Forward selection:** starting from the best single-signal experiment (E1, E2, or E3),
-   greedily add factors that improve performance most, stopping when marginal gain < threshold.
+4. **Follow-up grid:** once dominant dimensions are identified, a targeted follow-up grid can
+   explore secondary parameters (field boosts, RRF k, chunk concatenation policy) without
+   running the full cross-product.
 
 This produces a Pareto-optimal retrieval configuration balancing quality and complexity.
 
