@@ -335,9 +335,10 @@ distinction is explored by E2a-med vs E2c.
 
 Run two nested ES queries independently (BM25 on `chunks.text`, kNN on `chunks.embedding`),
 flatten the returned `inner_hits` chunks, apply client-side RRF, take top 25 by score. Filter
-`byte_size <= 5 MB`. No parent metadata fields involved in retrieval or generation. Use
-`013.toml` unchanged (model config, prompt, tool descriptions). Output is a flat chunk list
-in the same XML format as current production.
+`byte_size <= 5 MB`. No parent metadata fields involved in retrieval or generation. Uses
+`DSAS-2836/090.toml` with `SearchDocuments` tool (same prompt changes as E1, but retrieval
+restricted to BM25-chunks + kNN-chunks via env var). Output is a flat chunk list in the same
+XML format as current production.
 
 *Purpose:* confirm the new direct-ES Python tool reproduces current qna-service behavior.
 
@@ -506,14 +507,14 @@ The active tool set is selected by the environment variable `AIR_ASSIST_RETRIEVA
 
 | Value | Tool set | Used by |
 |---|---|---|
-| *(not set)* | Current MCP tools (`GetRelevantDocuments` + `GetRelevantDocumentsWithMetadataFilter`) | E0 |
-| `flat_baseline` | `SearchDocuments` (flat output) + `WriteFile` + `ReadFile` | E1 |
+| `flat_baseline` | `SearchDocuments` (flat output, BM25-chunks + kNN-chunks only) + `WriteFile` + `ReadFile` | E0 |
+| `flat_baseline` | `SearchDocuments` (flat output, all 4 signals) + `WriteFile` + `ReadFile` | E1 |
 | `nested_docs` | `SearchDocuments` (nested output) + `WriteFile` + `ReadFile` | E2a-low, E2a-med, E2d, E2d-nometa, E2e |
 | `nested_docs_es_rrf` | `SearchDocuments` (nested output, ES-side RRF) + `WriteFile` + `ReadFile` | E2c |
 
 Tool selection reads the env var in `tool_selection.py` and registers the appropriate
-`_ALL_TOOL_MODELS` tuple. E0 continues to use the current MCP tools; it runs with the
-original `013.toml` and the existing `tool_selection.py` unchanged.
+`_ALL_TOOL_MODELS` tuple. E0 uses `flat_baseline` with the new Python tools restricted to
+BM25-chunks + kNN-chunks only; no experiment routes through MCP or qna-service.
 
 ### 7.3 Tool definitions
 
@@ -594,11 +595,24 @@ All experiment config files are placed under
 `air-assist-agent/packages/air_assist_core/src/air_assist_core/registry/configs/DSAS-2836/`
 alongside the existing `rag_agent_v3/` folder. The registry discovers them automatically via
 `rglob("*.toml")`. All use `agent_version = 3` (`ModelType.RAG_AGENT_MULTIHOP`), so no code
-change is needed. Version numbers 91–93 have no collision with any existing config (current
+change is needed. Version numbers 90–93 have no collision with any existing config (current
 range is 8–24 in `rag_agent_v3/`).
 
-**E0** uses existing `rag_agent_v3/013.toml` (version 3.13, unchanged — MCP tools,
-`reasoning_effort: low`). No new file is needed.
+**All experiments — including E0 — use the new nested index** (`air_assist_nested.json`
+mapping) and the new direct-ES Python tools. No experiment routes through qna-service or MCP.
+E0's purpose is to confirm that the new tools produce results equivalent to qna-service on the
+same two signals (BM25-chunks + kNN-chunks), establishing a baseline before parent-field signals
+are introduced.
+
+**E0** uses `DSAS-2836/090.toml` (version 3.90) — based on `013.toml` with:
+- `reasoning_effort` stays `low`
+- System prompt updated: `SearchDocuments` replaces the two retrieval tools; remove
+  references to "keyword search" / "BM25"; describe as "relevance search"
+- `required_tools` updated accordingly (same changes as 091.toml)
+
+The retrieval strategy for E0 is `flat_baseline` with only the two chunk-level signals active
+(BM25-chunks + kNN-chunks), controlled by `AIR_ASSIST_RETRIEVAL=flat_baseline` and a companion
+signal-selection flag.
 
 **E1** uses `DSAS-2836/091.toml` (version 3.91) — based on `013.toml` with:
 - `reasoning_effort` stays `low`
@@ -628,7 +642,7 @@ companion config read by the tool at startup, not via the TOML.
 
 | Experiment | Config (version) | `AIR_ASSIST_RETRIEVAL` | Fusion | Chunks | Metadata gen | Reasoning | Hop policy |
 |---|---|---|---|---|---|---|---|
-| E0 | `013.toml` (3.13) | *(not set — MCP tools)* | qna-service RRF | 25 | OFF | low | Multi |
+| E0 | `DSAS-2836/090.toml` (3.90) | `flat_baseline` | Client-side RRF | 25 | OFF | low | Multi |
 | E1 | `DSAS-2836/091.toml` (3.91) | `flat_baseline` | Client-side RRF | 25 | OFF | low | Multi |
 | E2a-low | `DSAS-2836/092.toml` (3.92) | `nested_docs` | Client-side RRF | 25 | OFF | low | Single (capped) |
 | E2a-med | `DSAS-2836/093.toml` (3.93) | `nested_docs` | Client-side RRF | 25 | ON | medium | Multi |
@@ -641,7 +655,7 @@ companion config read by the tool at startup, not via the TOML.
 
 | Config | Experiment(s) | Changes from 013.toml |
 |---|---|---|
-| `013.toml` (3.13) | E0 | None |
+| `DSAS-2836/090.toml` (3.90) | E0 | Same as 091.toml (SearchDocuments replaces MCP tools; relevance search description); retrieval restricted to BM25-chunks + kNN-chunks only via env var |
 | `DSAS-2836/091.toml` (3.91) | E1 | Merge two retrieval tools into `SearchDocuments`; remove BM25-specific guidance; describe retrieval as "relevance search" |
 | `DSAS-2836/092.toml` (3.92) | E2a-low | E1 changes + nested format explanation (no metadata fields mentioned, as they are omitted); single-hop instruction: "Perform exactly one retrieval call per turn. Issue all necessary queries simultaneously." |
 | `DSAS-2836/093.toml` (3.93) | E2a-med, E2c, E2d, E2d-nometa | E1 changes + nested format explanation with metadata: "Each result contains document-level metadata (title, summary, topic) followed by the most relevant passages. Use the metadata to orient your understanding before citing passages." |
