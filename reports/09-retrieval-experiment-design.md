@@ -590,21 +590,29 @@ index's first-class parent fields:
 
 ### 8.1 TOML configs
 
-**E0** uses `013.toml` unchanged (current production config, MCP tools, `reasoning_effort: low`).
+All experiment config files are placed under
+`air-assist-agent/packages/air_assist_core/src/air_assist_core/registry/configs/DSAS-2836/`
+alongside the existing `rag_agent_v3/` folder. The registry discovers them automatically via
+`rglob("*.toml")`. All use `agent_version = 3` (`ModelType.RAG_AGENT_MULTIHOP`), so no code
+change is needed. Version numbers 91–93 have no collision with any existing config (current
+range is 8–24 in `rag_agent_v3/`).
 
-**E1** uses a new config (e.g. `014.toml`) identical to `013.toml` except:
+**E0** uses existing `rag_agent_v3/013.toml` (version 3.13, unchanged — MCP tools,
+`reasoning_effort: low`). No new file is needed.
+
+**E1** uses `DSAS-2836/091.toml` (version 3.91) — based on `013.toml` with:
 - `reasoning_effort` stays `low`
 - System prompt updated: `SearchDocuments` replaces the two retrieval tools; remove
   references to "keyword search" / "BM25"; describe as "relevance search"
 - `required_tools` updated accordingly
 
-**E2a-low** uses a new config (e.g. `015.toml`) with:
+**E2a-low** uses `DSAS-2836/092.toml` (version 3.92) with:
 - `reasoning_effort: low`
 - System prompt updated for nested document format (metadata gen OFF variant — metadata
   fields omitted from XML, so the format explanation does not mention them)
 - Single-hop: tool_choice capped at `none` after iteration 0
 
-**E2a-med, E2c, E2d, E2d-nometa, E2e** use a further config (e.g. `016.toml`) with:
+**E2a-med, E2c, E2d, E2d-nometa, E2e** use `DSAS-2836/093.toml` (version 3.93) with:
 - `reasoning_effort: medium`
 - System prompt updated for nested document format with metadata visible: "Each result
   contains document-level metadata (title, summary, topic) followed by the most relevant
@@ -618,26 +626,26 @@ companion config read by the tool at startup, not via the TOML.
 
 ### 8.2 Per-experiment environment configuration
 
-| Experiment | `AIR_ASSIST_RETRIEVAL` | Fusion | Chunks | Metadata gen | Reasoning | Hop policy |
-|---|---|---|---|---|---|---|
-| E0 | *(not set — MCP tools)* | qna-service RRF | 25 | OFF | low | Multi (013.toml) |
-| E1 | `flat_baseline` | Client-side RRF | 25 | OFF | low | Multi (014.toml) |
-| E2a-low | `nested_docs` | Client-side RRF | 25 | OFF | low | Single (015.toml, capped) |
-| E2a-med | `nested_docs` | Client-side RRF | 25 | ON | medium | Multi (016.toml) |
-| E2c | `nested_docs_es_rrf` | ES-side RRF | 25 | ON | medium | Multi (016.toml) |
-| E2d | `nested_docs` | Client-side RRF | 60 | ON | medium | Multi (016.toml) |
-| E2d-nometa | `nested_docs` | Client-side RRF | 60 | OFF | medium | Multi (016.toml) |
-| E2e | `nested_docs` | Client-side RRF | 60 | ON | medium | Single (016.toml, capped) |
+| Experiment | Config (version) | `AIR_ASSIST_RETRIEVAL` | Fusion | Chunks | Metadata gen | Reasoning | Hop policy |
+|---|---|---|---|---|---|---|---|
+| E0 | `013.toml` (3.13) | *(not set — MCP tools)* | qna-service RRF | 25 | OFF | low | Multi |
+| E1 | `DSAS-2836/091.toml` (3.91) | `flat_baseline` | Client-side RRF | 25 | OFF | low | Multi |
+| E2a-low | `DSAS-2836/092.toml` (3.92) | `nested_docs` | Client-side RRF | 25 | OFF | low | Single (capped) |
+| E2a-med | `DSAS-2836/093.toml` (3.93) | `nested_docs` | Client-side RRF | 25 | ON | medium | Multi |
+| E2c | `DSAS-2836/093.toml` (3.93) | `nested_docs_es_rrf` | ES-side RRF | 25 | ON | medium | Multi |
+| E2d | `DSAS-2836/093.toml` (3.93) | `nested_docs` | Client-side RRF | 60 | ON | medium | Multi |
+| E2d-nometa | `DSAS-2836/093.toml` (3.93) | `nested_docs` | Client-side RRF | 60 | OFF | medium | Multi |
+| E2e | `DSAS-2836/093.toml` (3.93) | `nested_docs` | Client-side RRF | 60 | ON | medium | Single (capped) |
 
 ### 8.3 Prompt changes summary
 
 | Config | Experiment(s) | Changes from 013.toml |
 |---|---|---|
-| 013.toml | E0 | None |
-| 014.toml | E1 | Merge two retrieval tools into `SearchDocuments`; remove BM25-specific guidance; describe retrieval as "relevance search" |
-| 015.toml | E2a-low | E1 changes + nested format explanation (no metadata fields mentioned, as they are omitted); single-hop instruction: "Perform exactly one retrieval call per turn. Issue all necessary queries simultaneously." |
-| 016.toml | E2a-med, E2c, E2d, E2d-nometa | E1 changes + nested format explanation with metadata: "Each result contains document-level metadata (title, summary, topic) followed by the most relevant passages. Use the metadata to orient your understanding before citing passages." |
-| 016.toml | E2e | Same as above + single-hop instruction |
+| `013.toml` (3.13) | E0 | None |
+| `DSAS-2836/091.toml` (3.91) | E1 | Merge two retrieval tools into `SearchDocuments`; remove BM25-specific guidance; describe retrieval as "relevance search" |
+| `DSAS-2836/092.toml` (3.92) | E2a-low | E1 changes + nested format explanation (no metadata fields mentioned, as they are omitted); single-hop instruction: "Perform exactly one retrieval call per turn. Issue all necessary queries simultaneously." |
+| `DSAS-2836/093.toml` (3.93) | E2a-med, E2c, E2d, E2d-nometa | E1 changes + nested format explanation with metadata: "Each result contains document-level metadata (title, summary, topic) followed by the most relevant passages. Use the metadata to orient your understanding before citing passages." |
+| `DSAS-2836/093.toml` (3.93) | E2e | Same as above + single-hop instruction |
 
 ---
 
