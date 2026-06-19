@@ -289,7 +289,7 @@ anchor, enabling clean attribution of any quality change.
 | **Reasoning effort** | `low` | `low` | `low` (E2a-low) or `medium` (E2a-med, E2c, E2d, E2d-nometa, E2e) |
 | **Hop strategy** | Multi-hop | Multi-hop | Single-hop (E2a-low, E2e) or Multi-hop |
 | **Title in retrieval** | N/A | EMC2: ON / Mallinckrodt: OFF | EMC2: ON / Mallinckrodt: OFF |
-| **5 MB size filter** | ON | ON | ON |
+| **5 MB size filter** | ON | ON | **OFF** |
 
 ### 5.3 Notes on design choices
 
@@ -323,6 +323,11 @@ request with a nested RRF retriever is issued; ES fuses at the **document level*
 document is scored by its best matching chunk via `score_mode: max`) and the client reads
 chunks from `inner_hits`. ES-side fusion cannot rank chunks across documents globally — that
 distinction is explored by E2a-med vs E2c.
+
+**5 MB size filter in Tier 2.** The 5 MB size filter (`workspace_extracted_text_size <= 5,242,880`)
+is applied in Tier 0 and Tier 1 to match current production behaviour. It is disabled for all
+Tier 2 experiments so that larger documents — which may contain the most relevant context for
+complex multi-hop questions — are not excluded from retrieval.
 
 **MMR as an alternative selection method.** A parallel branch (E0-mmr, E1-mmr, E2a-med-mmr)
 replaces the client-side RRF fusion step with Maximum Marginal Relevance (MMR) selection. This
@@ -362,9 +367,9 @@ XML format as current production.
 Same as E0 plus: BM25 `multi_match` on `title`/`summary`/`topic` and `sparse_vector` queries
 on `title_sparse`/`summary_sparse`/`topic_sparse`. All four signal results (BM25-chunks,
 kNN-chunks, BM25-parent, sparse-parent) are issued as separate ES queries and fused
-client-side via RRF to produce the top 25 chunks. Title included for EMC2, excluded for
-Mallinckrodt. Output remains a flat chunk list; the LLM does not see document metadata
-directly.
+client-side via RRF to produce the top 25 chunks. Filter `byte_size <= 5 MB`. Title included
+for EMC2, excluded for Mallinckrodt. Output remains a flat chunk list; the LLM does not see
+document metadata directly.
 
 *Purpose:* does adding BM25 + sparse signals on parent metadata fields improve chunk
 selection quality?
@@ -378,7 +383,8 @@ All Tier 2 experiments return document groups: each group contains the document'
 chunks with adjacent chunks concatenated where `chunk_index` values are consecutive
 (each concatenated run identified by a range-style chunk ID, e.g. `"1:3"`). Metadata
 fields (`title`, `summary`, `topic`) are omitted from the XML in experiments marked
-"metadata gen OFF". A new TOML config is created for Tier 2 (see §8).
+"metadata gen OFF". The 5 MB size filter is disabled for all Tier 2 experiments. A new
+TOML config is created for Tier 2 (see §8).
 
 **E2a-low** — Minimum viable Tier 2 configuration.
 
@@ -470,19 +476,19 @@ what the LLM sees.
 
 ### 6.2 Full experiment table
 
-| ID | Tier | Metadata retrieval | Metadata gen | Fusion location | Chunks | Reasoning | Hop strategy |
-|---|---|---|---|---|---|---|---|
-| **E0** | 0 | OFF | OFF | Client-side RRF | 25 | low | Multi-hop |
-| **E1** | 1 | ON | OFF | Client-side RRF | 25 | low | Multi-hop |
-| **E2a-low** | 2 | ON | **OFF** | Client-side RRF | 25 | **low** | **Single-hop** |
-| **E2a-med** | 2 | ON | ON | Client-side RRF | 25 | medium | Multi-hop |
-| **E2c** | 2 | ON | ON | **ES-side RRF** | 25 | medium | Multi-hop |
-| **E2d** | 2 | ON | ON | Client-side RRF | **60** | medium | Multi-hop |
-| **E2d-nometa** | 2 | ON | **OFF** | Client-side RRF | **60** | medium | Multi-hop |
-| **E2e** | 2 | ON | ON | Client-side RRF | **60** | medium | **Single-hop** |
-| **E0-mmr** | 0 | OFF | OFF | **Client-side MMR** | 25 | low | Multi-hop |
-| **E1-mmr** | 1 | ON | OFF | **Client-side MMR** | 25 | low | Multi-hop |
-| **E2a-med-mmr** | 2 | ON | ON | **Client-side MMR** | 25 | medium | Multi-hop |
+| ID | Tier | Metadata retrieval | Metadata gen | Fusion location | Chunks | Reasoning | Hop strategy | 5 MB filter |
+|---|---|---|---|---|---|---|---|---|
+| **E0** | 0 | OFF | OFF | Client-side RRF | 25 | low | Multi-hop | ON |
+| **E1** | 1 | ON | OFF | Client-side RRF | 25 | low | Multi-hop | ON |
+| **E2a-low** | 2 | ON | **OFF** | Client-side RRF | 25 | **low** | **Single-hop** | **OFF** |
+| **E2a-med** | 2 | ON | ON | Client-side RRF | 25 | medium | Multi-hop | **OFF** |
+| **E2c** | 2 | ON | ON | **ES-side RRF** | 25 | medium | Multi-hop | **OFF** |
+| **E2d** | 2 | ON | ON | Client-side RRF | **60** | medium | Multi-hop | **OFF** |
+| **E2d-nometa** | 2 | ON | **OFF** | Client-side RRF | **60** | medium | Multi-hop | **OFF** |
+| **E2e** | 2 | ON | ON | Client-side RRF | **60** | medium | **Single-hop** | **OFF** |
+| **E0-mmr** | 0 | OFF | OFF | **Client-side MMR** | 25 | low | Multi-hop | ON |
+| **E1-mmr** | 1 | ON | OFF | **Client-side MMR** | 25 | low | Multi-hop | ON |
+| **E2a-med-mmr** | 2 | ON | ON | **Client-side MMR** | 25 | medium | Multi-hop | **OFF** |
 
 Bold values mark the dimension(s) that differ from E2a-med (Tier 2 anchor), E0 (Tier 0), or
 E1 (Tier 1) in the relevant comparison. For the MMR branch, the bold "Client-side MMR" marks
@@ -505,19 +511,24 @@ the only difference from each experiment's RRF counterpart (E0, E1, E2a-med).
 
 ### 6.4 Execution order
 
-Run E0 and E1 first to validate tool parity and the value of metadata retrieval signals.
+**Starting point: E1.** E0 is deferred — it may be executed by a colleague, or run last as a
+retrospective production-parity check. The evaluation sequence therefore starts at E1.
+
+E1 validates the four-signal flat retriever and establishes the metadata-retrieval baseline.
 E2a-low is cheap (low reasoning, single-hop) and runs next — it validates the nested pipeline
-quickly and gives an early signal before committing the full eval to medium-reasoning runs.
-E2a-med establishes the Tier 2 anchor; E2c, E2d, E2d-nometa, E2e then run in parallel.
+quickly before committing to medium-reasoning runs. E2a-med establishes the Tier 2 anchor;
+E2c, E2d, E2d-nometa, E2e then run in parallel.
 
 ```
-E0 → E1 → E2a-low → E2a-med → E2c, E2d, E2d-nometa, E2e (parallel)
+E1 → E2a-low → E2a-med → E2c, E2d, E2d-nometa, E2e (parallel)
+[E0 deferred: run last, or by a colleague]
 ```
 
 The MMR branch runs after its RRF counterparts so each pair can be compared directly:
 
 ```
-E0-mmr → E1-mmr → E2a-med-mmr
+E1-mmr → E2a-med-mmr
+[E0-mmr deferred alongside E0]
 ```
 
 ---
@@ -617,7 +628,9 @@ the XML based on a per-experiment flag (not exposed to the LLM as a tool paramet
 
 #### Flat output (Tier 0, Tier 1)
 
-1. Issue separate ES queries for each active signal.
+1. Issue separate ES queries for each active signal. The signal set is controlled by the
+   `signals: list[SignalType]` parameter on the retriever method — defaults to all four
+   signals; E0 passes only `[BM25_CHUNKS, KNN_CHUNKS]`.
 2. Collect all chunks from `inner_hits` across all queries.
 3. Apply client-side RRF: for each chunk `(document_artifact_id, chunk_index)`, sum
    reciprocal ranks across signals. Take top-k by fused score.
@@ -682,6 +695,26 @@ index's first-class parent fields:
 | `emailParticipants` (Either) | `bool.should` with side A only OR side B only |
 | `subsetId` | `{"term": {"subset_ids": "<subset>"}}` — always applied |
 
+### 7.6 Per-experiment changes required
+
+All experiment branches fork from the shared root branch (`DSAS-2836/experiments`), which
+provides retriever methods with parameterised signals, chunk count, size filter, and fusion
+method (RRF/MMR). The table below shows what must change in each experiment branch relative to
+that shared root — the root itself remains identical for every experiment.
+
+| Dimension | Control mechanism | What changes per experiment branch |
+|---|---|---|
+| Retrieval signals (2 vs 4) | `signals: list[SignalType]` param on retriever (default: all 4) | `tool.py` handler sets signal list per experiment |
+| Metadata for generation (ON/OFF) | Boolean flag on nested retriever XML serializer | `air_assist_experiments` nested retriever (Tier 2 experiment branch) |
+| Fusion location (ES-side RRF) | Separate `nested_docs_es_rrf` retriever module | `air_assist_experiments` new retriever (E2c branch only) |
+| Final selection method (RRF/MMR) | `AIR_ASSIST_FUSION` env var (default `rrf`) | Env var only — no code change |
+| Chunk count (25/60) | `result_count: int` method param (default 25) | `tool.py` handler passes override per experiment |
+| 5 MB size filter (ON/OFF) | `size_limit_bytes: int \| None` method param | `tool.py` handler passes `None` for all Tier 2 experiments |
+| Reasoning effort (low/medium) | TOML `reasoning_effort` field | New TOML file only — no code change |
+| Hop strategy (multi/single) | System prompt wording + `get_tool_choice()` in `rag_agent.py` | `air_assist_core/src` rag_agent.py (experiment branch) |
+| Title in retrieval | `title_enabled` in per-index config dict | Already implemented on root — no change |
+| Tool registration + dispatch | `AIR_ASSIST_RETRIEVAL` env var; `_call_tool()` case in `rag_agent.py` | `air_assist_core/src` tool_selection.py and rag_agent.py |
+
 ---
 
 ## 8. Config and Prompt Variations
@@ -741,19 +774,19 @@ their RRF counterparts' configs (090, 091, 093 respectively) and prompts, differ
 
 ### 8.2 Per-experiment environment configuration
 
-| Experiment | Config (version) | `AIR_ASSIST_RETRIEVAL` | Fusion | Chunks | Metadata gen | Reasoning | Hop policy |
-|---|---|---|---|---|---|---|---|
-| E0 | `DSAS-2836/090.toml` (3.90) | `flat_baseline` | Client-side RRF | 25 | OFF | low | Multi |
-| E1 | `DSAS-2836/091.toml` (3.91) | `flat_baseline` | Client-side RRF | 25 | OFF | low | Multi |
-| E2a-low | `DSAS-2836/092.toml` (3.92) | `nested_docs` | Client-side RRF | 25 | OFF | low | Single (capped) |
-| E2a-med | `DSAS-2836/093.toml` (3.93) | `nested_docs` | Client-side RRF | 25 | ON | medium | Multi |
-| E2c | `DSAS-2836/093.toml` (3.93) | `nested_docs_es_rrf` | ES-side RRF | 25 | ON | medium | Multi |
-| E2d | `DSAS-2836/093.toml` (3.93) | `nested_docs` | Client-side RRF | 60 | ON | medium | Multi |
-| E2d-nometa | `DSAS-2836/093.toml` (3.93) | `nested_docs` | Client-side RRF | 60 | OFF | medium | Multi |
-| E2e | `DSAS-2836/093.toml` (3.93) | `nested_docs` | Client-side RRF | 60 | ON | medium | Single (capped) |
-| E0-mmr | `DSAS-2836/090.toml` (3.90) | `flat_baseline` + `AIR_ASSIST_FUSION=mmr` | Client-side MMR | 25 | OFF | low | Multi |
-| E1-mmr | `DSAS-2836/091.toml` (3.91) | `flat_baseline` + `AIR_ASSIST_FUSION=mmr` | Client-side MMR | 25 | OFF | low | Multi |
-| E2a-med-mmr | `DSAS-2836/093.toml` (3.93) | `nested_docs` + `AIR_ASSIST_FUSION=mmr` | Client-side MMR | 25 | ON | medium | Multi |
+| Experiment | Config (version) | `AIR_ASSIST_RETRIEVAL` | Fusion | Chunks | Metadata gen | Reasoning | Hop policy | 5 MB filter |
+|---|---|---|---|---|---|---|---|---|
+| E0 | `DSAS-2836/090.toml` (3.90) | `flat_baseline` | Client-side RRF | 25 | OFF | low | Multi | ON |
+| E1 | `DSAS-2836/091.toml` (3.91) | `flat_baseline` | Client-side RRF | 25 | OFF | low | Multi | ON |
+| E2a-low | `DSAS-2836/092.toml` (3.92) | `nested_docs` | Client-side RRF | 25 | OFF | low | Single (capped) | OFF |
+| E2a-med | `DSAS-2836/093.toml` (3.93) | `nested_docs` | Client-side RRF | 25 | ON | medium | Multi | OFF |
+| E2c | `DSAS-2836/093.toml` (3.93) | `nested_docs_es_rrf` | ES-side RRF | 25 | ON | medium | Multi | OFF |
+| E2d | `DSAS-2836/093.toml` (3.93) | `nested_docs` | Client-side RRF | 60 | ON | medium | Multi | OFF |
+| E2d-nometa | `DSAS-2836/093.toml` (3.93) | `nested_docs` | Client-side RRF | 60 | OFF | medium | Multi | OFF |
+| E2e | `DSAS-2836/093.toml` (3.93) | `nested_docs` | Client-side RRF | 60 | ON | medium | Single (capped) | OFF |
+| E0-mmr | `DSAS-2836/090.toml` (3.90) | `flat_baseline` + `AIR_ASSIST_FUSION=mmr` | Client-side MMR | 25 | OFF | low | Multi | ON |
+| E1-mmr | `DSAS-2836/091.toml` (3.91) | `flat_baseline` + `AIR_ASSIST_FUSION=mmr` | Client-side MMR | 25 | OFF | low | Multi | ON |
+| E2a-med-mmr | `DSAS-2836/093.toml` (3.93) | `nested_docs` + `AIR_ASSIST_FUSION=mmr` | Client-side MMR | 25 | ON | medium | Multi | OFF |
 
 ### 8.3 Prompt changes summary
 
