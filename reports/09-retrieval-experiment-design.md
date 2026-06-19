@@ -364,7 +364,8 @@ selection quality?
 
 All Tier 2 experiments return document groups: each group contains the document's
 `title`, `summary`, `topic`, `control_number`, `primary_date_time`, and a list of retrieved
-chunks with adjacent chunks concatenated where `chunk_index` values are consecutive. Metadata
+chunks with adjacent chunks concatenated where `chunk_index` values are consecutive
+(each concatenated run identified by a range-style chunk ID, e.g. `"1:3"`). Metadata
 fields (`title`, `summary`, `topic`) are omitted from the XML in experiments marked
 "metadata gen OFF". A new TOML config is created for Tier 2 (see §8).
 
@@ -566,8 +567,19 @@ the XML based on a per-experiment flag (not exposed to the LLM as a tool paramet
 3. For each group, attach parent metadata (`title`, `summary`, `topic`, `control_number`,
    `primary_date_time`) from `_source`. If metadata for generation is OFF (E2a-low,
    E2d-nometa), omit `title`/`summary`/`topic` from the XML.
-4. Within each group, detect runs of consecutive `chunk_index` values and concatenate
-   adjacent chunks by removing the leading overlap (using `leading_overlap_chars`).
+4. **Adjacent chunk concatenation.** `chunk_index` values are 0-based. Within each
+   document group, detect runs of consecutive `chunk_index` values. For a run of chunks
+   with indices `[i, i+1, ..., j]`:
+   - Start with the full text of chunk `i`.
+   - For each subsequent chunk `i+1, ..., j`, strip the first `leading_overlap_chars`
+     characters from its text before appending (this removes the duplicated overlap
+     without losing any unique content).
+   - The resulting concatenated passage is assigned the range-style chunk ID `"i:j"`
+     (inclusive), e.g. `"1:3"` means chunks 1, 2, and 3 were merged. A single
+     non-concatenated chunk retains its plain integer ID (e.g. `"5"`).
+   - In the XML, the concatenated chunk appears as a single `<chunk>` element with
+     `<chunk_id>1:3</chunk_id>` and the de-duplicated text as `<content>`. The LLM
+     cites it as `[doc_id-1:3]`.
 5. Serialize as `<document_group>` XML elements containing per-document metadata and
    chunk list.
 
