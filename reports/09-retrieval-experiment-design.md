@@ -284,6 +284,7 @@ anchor, enabling clean attribution of any quality change.
 | **Retrieval signals** | BM25-chunks + kNN-chunks | BM25-chunks + kNN-chunks + BM25-parent + sparse-parent | BM25-chunks + kNN-chunks + BM25-parent + sparse-parent (always ON) |
 | **Metadata for generation** | OFF | OFF | ON or OFF |
 | **Fusion location** | Client-side RRF | Client-side RRF | Client-side RRF or ES-side RRF |
+| **Final selection method** | RRF or MMR | RRF or MMR | RRF or MMR |
 | **Chunk count** | 25 | 25 | 25 or 60 |
 | **Reasoning effort** | `low` | `low` | `low` (E2a-low) or `medium` (E2a-med, E2c, E2d, E2d-nometa, E2e) |
 | **Hop strategy** | Multi-hop | Multi-hop | Single-hop (E2a-low, E2e) or Multi-hop |
@@ -322,6 +323,16 @@ request with a nested RRF retriever is issued; ES fuses at the **document level*
 document is scored by its best matching chunk via `score_mode: max`) and the client reads
 chunks from `inner_hits`. ES-side fusion cannot rank chunks across documents globally — that
 distinction is explored by E2a-med vs E2c.
+
+**MMR as an alternative selection method.** A parallel branch (E0-mmr, E1-mmr, E2a-med-mmr)
+replaces the client-side RRF fusion step with Maximum Marginal Relevance (MMR) selection. This
+is an orthogonal dimension that spans tiers: instead of fusing the per-signal ranked lists by
+reciprocal rank, MMR embeds the candidate chunks and the query with the dense e5 model and
+greedily selects chunks that are relevant to the query while penalizing redundancy with
+already-selected chunks (`λ·sim(q,d) − (1−λ)·max_s sim(d,s)`, λ = 0.5, mirroring the
+qna-service production MMR strategy). The branch isolates the selection method while holding
+signals, output format, reasoning, and hop strategy identical to each experiment's RRF
+counterpart.
 
 ---
 
@@ -423,6 +434,40 @@ Chunk count: 60, metadata gen ON.
 *Purpose:* isolates hop strategy at 60 chunks — does multi-hop reasoning add value beyond
 what a single richer retrieval provides?
 
+---
+
+**MMR branch — alternative final selection**
+
+These three experiments form a parallel branch that replaces the client-side RRF fusion step
+with MMR selection (λ = 0.5). Each signal fetches a larger candidate pool (up to 100) so MMR
+has room to diversify; MMR then selects the final top-k. Everything else is held identical to
+the named RRF counterpart, making each pair a clean single-dimension (RRF vs MMR) swap.
+
+**E0-mmr** — E0 with MMR instead of RRF (baseline of the MMR branch).
+
+Two chunk-level signals (BM25-chunks, kNN-chunks) build the candidate pool; MMR selects the
+final 25 chunks. Flat output, low reasoning, multi-hop. Identical to E0 otherwise.
+
+*Purpose:* MMR-branch baseline; isolates RRF vs MMR with chunk-only signals.
+
+**E1-mmr** — E1 with MMR instead of RRF.
+
+All four signals (BM25-chunks, kNN-chunks, BM25-parent, sparse-parent) build the candidate
+pool; MMR selects the final 25 chunks. Flat output, low reasoning, multi-hop. Identical to E1
+otherwise. Title included for EMC2, excluded for Mallinckrodt.
+
+*Purpose:* does MMR's diversity-aware selection beat RRF once parent-metadata signals are added?
+
+**E2a-med-mmr** — E2a-med with MMR instead of RRF.
+
+All four signals build the candidate pool; MMR selects the final 25 chunks. Nested document
+output, metadata gen ON, medium reasoning, multi-hop. Identical to the Tier 2 anchor E2a-med
+otherwise. E2a-med is chosen as the Tier 2 base because it is the designated anchor (cleanest
+single-dimension comparison) and at 25 chunks the selection method has maximum leverage over
+what the LLM sees.
+
+*Purpose:* does MMR selection help in the full nested pipeline?
+
 ### 6.2 Full experiment table
 
 | ID | Tier | Metadata retrieval | Metadata gen | Fusion location | Chunks | Reasoning | Hop strategy |
@@ -435,9 +480,13 @@ what a single richer retrieval provides?
 | **E2d** | 2 | ON | ON | Client-side RRF | **60** | medium | Multi-hop |
 | **E2d-nometa** | 2 | ON | **OFF** | Client-side RRF | **60** | medium | Multi-hop |
 | **E2e** | 2 | ON | ON | Client-side RRF | **60** | medium | **Single-hop** |
+| **E0-mmr** | 0 | OFF | OFF | **Client-side MMR** | 25 | low | Multi-hop |
+| **E1-mmr** | 1 | ON | OFF | **Client-side MMR** | 25 | low | Multi-hop |
+| **E2a-med-mmr** | 2 | ON | ON | **Client-side MMR** | 25 | medium | Multi-hop |
 
 Bold values mark the dimension(s) that differ from E2a-med (Tier 2 anchor), E0 (Tier 0), or
-E1 (Tier 1) in the relevant comparison.
+E1 (Tier 1) in the relevant comparison. For the MMR branch, the bold "Client-side MMR" marks
+the only difference from each experiment's RRF counterpart (E0, E1, E2a-med).
 
 ### 6.3 Comparison map
 
@@ -450,6 +499,9 @@ E1 (Tier 1) in the relevant comparison.
 | E2a-med vs E2d | Chunk count (25 → 60) | Does more retrieved context improve answers? |
 | E2d vs E2d-nometa | Metadata for generation at 60 chunks | At 60 chunks, does exposing document metadata to the LLM still add value? |
 | E2d vs E2e | Hop strategy at 60 chunks | Does multi-hop reasoning beat single-hop retrieval of 60 chunks? |
+| E0 vs E0-mmr | Final selection (RRF vs MMR) | Does MMR beat RRF with chunk-only signals? |
+| E1 vs E1-mmr | Final selection (RRF vs MMR) | Does MMR beat RRF with metadata signals (flat output)? |
+| E2a-med vs E2a-med-mmr | Final selection (RRF vs MMR) | Does MMR beat RRF in the full nested pipeline? |
 
 ### 6.4 Execution order
 
@@ -460,6 +512,12 @@ E2a-med establishes the Tier 2 anchor; E2c, E2d, E2d-nometa, E2e then run in par
 
 ```
 E0 → E1 → E2a-low → E2a-med → E2c, E2d, E2d-nometa, E2e (parallel)
+```
+
+The MMR branch runs after its RRF counterparts so each pair can be compared directly:
+
+```
+E0-mmr → E1-mmr → E2a-med-mmr
 ```
 
 ---
@@ -516,6 +574,12 @@ The active tool set is selected by the environment variable `AIR_ASSIST_RETRIEVA
 Tool selection reads the env var in `tool_selection.py` and registers the appropriate
 `_ALL_TOOL_MODELS` tuple. E0 uses `flat_baseline` with the new Python tools restricted to
 BM25-chunks + kNN-chunks only; no experiment routes through MCP or qna-service.
+
+**Final selection method (RRF vs MMR).** The selection method is an independent companion
+setting (`AIR_ASSIST_FUSION`, default `rrf`). Setting `AIR_ASSIST_FUSION=mmr` replaces the
+client-side RRF step with MMR selection without changing the tool set, so E0-mmr and E1-mmr
+reuse `flat_baseline` and E2a-med-mmr reuses `nested_docs`. ES-side fusion
+(`nested_docs_es_rrf`) has no MMR variant.
 
 ### 7.3 Tool definitions
 
@@ -582,6 +646,27 @@ the XML based on a per-experiment flag (not exposed to the LLM as a tool paramet
      cites it as `[doc_id-1:3]`.
 5. Serialize as `<document_group>` XML elements containing per-document metadata and
    chunk list.
+
+#### MMR selection (MMR branch)
+
+When `AIR_ASSIST_FUSION=mmr`, the client-side RRF step is replaced by Maximum Marginal
+Relevance selection:
+
+1. Issue the same per-signal ES queries as the RRF counterpart and collect the deduplicated
+   union of candidate chunks `(document_artifact_id, chunk_index)`. Each signal fetches a
+   larger pool (up to 100) so MMR has room to diversify.
+2. Embed the query and each candidate chunk's text with the dense e5 model
+   (`intfloat/multilingual-e5-small`, `"passage: "` prefix for chunks), reusing the cached
+   encoder; these reproduce the index-time chunk vectors.
+3. Run MMR with λ = 0.5: first select the chunk most similar to the query, then iteratively
+   select the chunk maximizing `λ·sim(q,d) − (1−λ)·max_s sim(d,s)` until top-k are chosen.
+4. Feed the selected chunks into the same flat (Tier 0/1) or nested (Tier 2) serialization as
+   the RRF path.
+
+This mirrors qna-service's `MaximumMarginalRelevanceSelector` and `Bm25SearchWithMmrSettings`
+(λ = 0.5, candidate fetch 100, top-k 25). MMR is additive to the experiment toolkit — a new
+`mmr_select` function alongside `rrf_fuse` — so no existing `air_assist_experiments` code is
+invalidated; the RRF path is unchanged.
 
 ### 7.5 Metadata filter mapping
 
@@ -650,6 +735,10 @@ The TOML schema is not extended. Retrieval parameters (signals, chunk count, fus
 metadata-gen flag) are passed via the `AIR_ASSIST_RETRIEVAL` environment variable and a
 companion config read by the tool at startup, not via the TOML.
 
+**MMR branch configs.** E0-mmr, E1-mmr, and E2a-med-mmr add no new TOML files — they reuse
+their RRF counterparts' configs (090, 091, 093 respectively) and prompts, differing only by
+`AIR_ASSIST_FUSION=mmr`.
+
 ### 8.2 Per-experiment environment configuration
 
 | Experiment | Config (version) | `AIR_ASSIST_RETRIEVAL` | Fusion | Chunks | Metadata gen | Reasoning | Hop policy |
@@ -662,6 +751,9 @@ companion config read by the tool at startup, not via the TOML.
 | E2d | `DSAS-2836/093.toml` (3.93) | `nested_docs` | Client-side RRF | 60 | ON | medium | Multi |
 | E2d-nometa | `DSAS-2836/093.toml` (3.93) | `nested_docs` | Client-side RRF | 60 | OFF | medium | Multi |
 | E2e | `DSAS-2836/093.toml` (3.93) | `nested_docs` | Client-side RRF | 60 | ON | medium | Single (capped) |
+| E0-mmr | `DSAS-2836/090.toml` (3.90) | `flat_baseline` + `AIR_ASSIST_FUSION=mmr` | Client-side MMR | 25 | OFF | low | Multi |
+| E1-mmr | `DSAS-2836/091.toml` (3.91) | `flat_baseline` + `AIR_ASSIST_FUSION=mmr` | Client-side MMR | 25 | OFF | low | Multi |
+| E2a-med-mmr | `DSAS-2836/093.toml` (3.93) | `nested_docs` + `AIR_ASSIST_FUSION=mmr` | Client-side MMR | 25 | ON | medium | Multi |
 
 ### 8.3 Prompt changes summary
 
@@ -672,6 +764,9 @@ companion config read by the tool at startup, not via the TOML.
 | `DSAS-2836/092.toml` (3.92) | E2a-low | E1 changes + nested format explanation (no metadata fields mentioned, as they are omitted); single-hop instruction: "Perform exactly one retrieval call per turn. Issue all necessary queries simultaneously." |
 | `DSAS-2836/093.toml` (3.93) | E2a-med, E2c, E2d, E2d-nometa | E1 changes + nested format explanation with metadata: "Each result contains document-level metadata (title, summary, topic) followed by the most relevant passages. Use the metadata to orient your understanding before citing passages." |
 | `DSAS-2836/093.toml` (3.93) | E2e | Same as above + single-hop instruction |
+| `DSAS-2836/090.toml` (3.90) | E0-mmr | Identical to E0 (MMR set via `AIR_ASSIST_FUSION=mmr`; no prompt change) |
+| `DSAS-2836/091.toml` (3.91) | E1-mmr | Identical to E1 (MMR set via `AIR_ASSIST_FUSION=mmr`; no prompt change) |
+| `DSAS-2836/093.toml` (3.93) | E2a-med-mmr | Identical to E2a-med (MMR set via `AIR_ASSIST_FUSION=mmr`; no prompt change) |
 
 ---
 
@@ -682,16 +777,17 @@ companion config read by the tool at startup, not via the TOML.
 | Dataset | Workspace | Rubric count | Schema | Source |
 |---|---|---|---|---|
 | EMC2 UAT set_1 | EMC2 (1030345) | 21 | v7 | Human-authored |
+| EMC2 UAT set_2 | EMC2 (1030345) | 20 | v7 | Human-authored |
 | Mallinckrodt GA | Mallinckrodt (1034598) | 22 | v7 | Human-authored |
-| Mallinckrodt synthetic | Mallinckrodt (1034598) | 34 | v1 | AI-generated (Vals.ai) |
 
-**Total:** 77 rubrics. Each rubric has multiple input variants (paraphrases) and 2–74
-expectations graded PASS/FAIL/UNDETERMINED by an LLM judge.
+**Total:** 63 rubrics across 3 datasets. Each dataset is evaluated as a separate MLflow
+experiment with its own traces and quality report. Each rubric has multiple input variants
+(paraphrases) and 2–74 expectations graded PASS/FAIL/UNDETERMINED by an LLM judge.
 
 Rubric paths:
 - `r1-evals-new/src/r1_evals/rubrics/rubric_data/air_assist/EMC2/uat/set_1/`
+- `r1-evals-new/src/r1_evals/rubrics/rubric_data/air_assist/EMC2/uat/set_2/`
 - `r1-evals-new/src/r1_evals/rubrics/rubric_data/air_assist/mallinckrodt/rubrics_for_ga/`
-- `r1-evals-new/src/r1_evals/rubrics/rubric_data/air_assist/mallinckrodt/synthetic_valsai_key_doc/`
 
 ### 9.2 Metrics
 
@@ -721,22 +817,32 @@ and cross-experiment comparison.
 
 ### 9.4 Statistical analysis
 
-With 77 rubrics per experiment and 8 experiments, we have 616 total evaluation points.
+Each of the 3 datasets is evaluated in a separate MLflow experiment with its own traces and
+quality report. With 11 experiments per dataset:
+
+| Dataset | Rubrics | Evaluation points (× 11) |
+|---|---|---|
+| EMC2 UAT set_1 | 21 | 231 |
+| EMC2 UAT set_2 | 20 | 220 |
+| Mallinckrodt GA | 22 | 242 |
+| **Total** | **63** | **693** |
 
 **Paired comparisons:** each rubric is evaluated under every experiment, enabling paired
-statistical tests (Wilcoxon signed-rank) between any two experiments on the same rubric set.
+statistical tests (Wilcoxon signed-rank) between any two experiments within the same dataset.
+Paired tests apply within each dataset independently; cross-dataset aggregation is descriptive
+only.
 
 **Effect size:** Cohen's d or rank-biserial correlation to quantify practical significance
 beyond p-values.
 
 **Multiple comparisons:** Bonferroni or Holm-Bonferroni correction when comparing many
-experiment pairs simultaneously.
+experiment pairs simultaneously within a dataset.
 
 ### 9.5 Feature selection methodology
 
-After the initial 8-experiment matrix is evaluated:
+After the initial 11-experiment matrix is evaluated:
 
-1. **Rank experiments** by mean rubric score across both workspaces.
+1. **Rank experiments** by mean rubric score across all three datasets.
 2. **Identify the top configuration(s)** and the dimensions that drove their gains over E0.
 3. **Ablation:** for each active dimension in the winning configuration, run a variant with that
    dimension reverted to its E0 baseline. If performance drops significantly, the dimension
