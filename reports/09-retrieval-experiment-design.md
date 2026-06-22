@@ -352,9 +352,10 @@ counterpart.
 Run two nested ES queries independently (BM25 on `chunks.text`, kNN on `chunks.embedding`),
 flatten the returned `inner_hits` chunks, apply client-side RRF, take top 25 by score. Filter
 `byte_size <= 5 MB`. No parent metadata fields involved in retrieval or generation. Uses
-`DSAS-2836/090.toml` with `SearchDocuments` tool (same prompt changes as E1, but retrieval
-restricted to BM25-chunks + kNN-chunks via env var). Output is a flat chunk list in the same
-XML format as current production.
+the production config (`rag_agent_v3/013.toml`, version 3.13) with no prompt changes. The
+experiment eval runner restricts retrieval to BM25-chunks + kNN-chunks only; the tool pair
+presented to the LLM is unchanged. Output is a flat chunk list in the same XML format as
+current production.
 
 *Purpose:* confirm the new direct-ES Python tool reproduces current qna-service behavior.
 
@@ -546,7 +547,7 @@ air-assist-agent (LangGraph v3)
     │
     ▼
 New tool (Pydantic model + async handler)
-    │  selected by AIR_ASSIST_RETRIEVAL env var
+    │  routed by ExperimentToolProvider (eval runner selects flat vs nested)
     ▼
 elasticsearch-py AsyncElasticsearch client
     │  separate queries per signal (client-side fusion)
@@ -574,56 +575,41 @@ Models are loaded lazily and cached for the process lifetime, mirroring the `E5E
 
 ### 7.2 Tool selection
 
-The active tool set is selected by the environment variable `AIR_ASSIST_RETRIEVAL`:
+The retrieval mode for each experiment is selected by which `ExperimentToolProvider` variant
+the eval runner instantiates at process start — no environment variable is required for this.
+The existing tool pair (`GetRelevantDocuments` + `GetRelevantDocumentsWithMetadataFilter`) is
+presented to the LLM unchanged across all experiments. Behind these tool names, the provider
+routes calls to the appropriate Python retriever, bypassing MCP entirely. No changes to
+`tool_definitions.py`, `tool_selection.py`, or `rag_agent.py` are required.
 
-| Value | Tool set | Used by |
+| Retrieval mode | Retriever called | Used by |
 |---|---|---|
-| `flat_baseline` | `SearchDocuments` (flat output, BM25-chunks + kNN-chunks only) + `WriteFile` + `ReadFile` | E0 |
-| `flat_baseline` | `SearchDocuments` (flat output, all 4 signals) + `WriteFile` + `ReadFile` | E1 |
-| `nested_docs` | `SearchDocuments` (nested output) + `WriteFile` + `ReadFile` | E2a-low, E2a-med, E2d, E2d-nometa, E2e |
-| `nested_docs_es_rrf` | `SearchDocuments` (nested output, ES-side RRF) + `WriteFile` + `ReadFile` | E2c |
+| Flat — 2 signals (BM25-chunks + kNN-chunks) | `handle_search_documents` (signals restricted) | E0 |
+| Flat — 4 signals (all) | `handle_search_documents` (default signals) | E1 |
+| Nested — client-side RRF | `handle_search_documents_nested` | E2a-low, E2a-med, E2d, E2d-nometa, E2e |
+| Nested — ES-side RRF | future `handle_search_documents_nested_es_rrf` | E2c |
 
-Tool selection reads the env var in `tool_selection.py` and registers the appropriate
-`_ALL_TOOL_MODELS` tuple. E0 uses `flat_baseline` with the new Python tools restricted to
-BM25-chunks + kNN-chunks only; no experiment routes through MCP or qna-service.
-
-**Final selection method (RRF vs MMR).** The selection method is an independent companion
-setting (`AIR_ASSIST_FUSION`, default `rrf`). Setting `AIR_ASSIST_FUSION=mmr` replaces the
-client-side RRF step with MMR selection without changing the tool set, so E0-mmr and E1-mmr
-reuse `flat_baseline` and E2a-med-mmr reuses `nested_docs`. ES-side fusion
+**Final selection method (RRF vs MMR).** `AIR_ASSIST_FUSION` (default `rrf`) controls the
+fusion step independently of the retrieval mode. Setting `AIR_ASSIST_FUSION=mmr` replaces
+client-side RRF with MMR selection. The MMR experiments (E0-mmr, E1-mmr, E2a-med-mmr) reuse
+their RRF counterparts' eval runners and configs with this env var added. ES-side fusion
 (`nested_docs_es_rrf`) has no MMR variant.
 
 ### 7.3 Tool definitions
 
-Two new Pydantic tool models replace the current MCP pair:
+The existing tool pair (`GetRelevantDocuments` and `GetRelevantDocumentsWithMetadataFilter`)
+is reused in all experiments. The LLM-facing interface, tool descriptions, and system prompt
+guidance are identical to production. The retrieval strategy (signals, fusion, scope, chunk
+count) is controlled by the `ExperimentToolProvider`, invisible to the LLM.
 
-#### `SearchDocuments` (all experiments except E0)
-
-```python
-class SearchDocuments(BaseModel):
-    """Search the document corpus using hybrid retrieval.
-
-    Returns top documents ranked by relevance to `query`. Metadata filters
-    (dates, email participants) are optional hard constraints. The retrieval
-    strategy — signals, fusion, and result count — is configured server-side
-    and is not exposed here.
-    """
-    query: str = Field(..., min_length=1,
-        description="Keyword or natural-language query. No boolean operators.")
-    date_from: ISODate | None = None
-    date_to: ISODate | None = None
-    email_participants: EmailParticipantsFilter | None = None
-```
-
-This single tool replaces both `GetRelevantDocuments` and
-`GetRelevantDocumentsWithMetadataFilter`. The retrieval strategy (signals, fusion, scope,
-chunk count) is controlled by the server-side config, invisible to the LLM. This matches
-the current contract: the agent describes what it wants to find, not how to find it.
-
-When `flat_baseline` is active, the tool returns a flat chunk list (Tier 0/1 format).
-When `nested_docs` or `nested_docs_es_rrf` is active, it returns nested document groups with
-concatenated adjacent chunks (Tier 2 format). Metadata fields are included or omitted from
-the XML based on a per-experiment flag (not exposed to the LLM as a tool parameter).
+The `ExperimentToolProvider` intercepts calls to these tools by name and routes them to the
+Python retriever, returning `GroupedChunks` structured content in the same format as the MCP
+layer. Arguments are parsed from the MCP-format dict (e.g. `dateFrom` → `date_from`) and
+passed to `handle_search_documents` or `handle_search_documents_nested`. When the flat
+retriever is active the tool returns a flat chunk list (Tier 0/1 format); when the nested
+retriever is active it returns nested document groups with concatenated adjacent chunks
+(Tier 2 format). Metadata fields are included or omitted from the XML based on a
+per-experiment flag (not exposed to the LLM as a tool parameter).
 
 ### 7.4 Post-retrieval processing
 
@@ -721,7 +707,7 @@ that shared root — the root itself remains identical for every experiment.
 | Reasoning effort (low/medium) | TOML `reasoning_effort` field | New TOML file only — no code change |
 | Hop strategy (multi/single) | System prompt wording + `get_tool_choice()` in `rag_agent.py` | `air_assist_core/src` rag_agent.py (experiment branch) |
 | Title in retrieval | `title_enabled` in per-index config dict | Already implemented on root — no change |
-| Tool registration + dispatch | `AIR_ASSIST_RETRIEVAL` env var; `_call_tool()` case in `rag_agent.py` | `air_assist_core/src` tool_selection.py and rag_agent.py |
+| Tool registration + dispatch | `ExperimentToolProvider` injected by the eval runner (no code change in `air_assist_core`) | Eval runner script selects provider per experiment |
 
 ---
 
@@ -729,34 +715,24 @@ that shared root — the root itself remains identical for every experiment.
 
 ### 8.1 TOML configs
 
-All experiment config files are placed under
+**All experiments — including E0 — use the new nested index** (`air_assist_nested.json`
+mapping) and the new direct-ES Python tools via `ExperimentToolProvider`. No experiment routes
+through qna-service or MCP. E0's purpose is to confirm that the new tools produce results
+equivalent to qna-service on the same two signals (BM25-chunks + kNN-chunks), establishing a
+baseline before parent-field signals are introduced.
+
+**E0 and E1** (and their MMR variants E0-mmr, E1-mmr) reuse `rag_agent_v3/013.toml`
+(version 3.13) with **no changes**. The system prompt, tool descriptions, and agent behaviour
+are identical to production. The only difference is the retrieval backend, which is swapped at
+the eval runner level via `AIR_ASSIST_EXPERIMENT_INDEX`. New TOML files are not needed for
+Tier 0 or Tier 1.
+
+Tier 2 experiments require new TOML files because the system prompt genuinely changes to
+explain the nested document format to the LLM. These are placed under
 `air-assist-agent/packages/air_assist_core/src/air_assist_core/registry/configs/DSAS-2836/`
 alongside the existing `rag_agent_v3/` folder. The registry discovers them automatically via
-`rglob("*.toml")`. All use `agent_version = 3` (`ModelType.RAG_AGENT_MULTIHOP`), so no code
-change is needed. Version numbers 90–93 have no collision with any existing config (current
+`rglob("*.toml")`. Version numbers 92–93 have no collision with any existing config (current
 range is 8–24 in `rag_agent_v3/`).
-
-**All experiments — including E0 — use the new nested index** (`air_assist_nested.json`
-mapping) and the new direct-ES Python tools. No experiment routes through qna-service or MCP.
-E0's purpose is to confirm that the new tools produce results equivalent to qna-service on the
-same two signals (BM25-chunks + kNN-chunks), establishing a baseline before parent-field signals
-are introduced.
-
-**E0** uses `DSAS-2836/090.toml` (version 3.90) — based on `013.toml` with:
-- `reasoning_effort` stays `low`
-- System prompt updated: `SearchDocuments` replaces the two retrieval tools; remove
-  references to "keyword search" / "BM25"; describe as "relevance search"
-- `required_tools` updated accordingly (same changes as 091.toml)
-
-The retrieval strategy for E0 is `flat_baseline` with only the two chunk-level signals active
-(BM25-chunks + kNN-chunks), controlled by `AIR_ASSIST_RETRIEVAL=flat_baseline` and a companion
-signal-selection flag.
-
-**E1** uses `DSAS-2836/091.toml` (version 3.91) — based on `013.toml` with:
-- `reasoning_effort` stays `low`
-- System prompt updated: `SearchDocuments` replaces the two retrieval tools; remove
-  references to "keyword search" / "BM25"; describe as "relevance search"
-- `required_tools` updated accordingly
 
 **E2a-low** uses `DSAS-2836/092.toml` (version 3.92) with:
 - `reasoning_effort: low`
@@ -773,40 +749,38 @@ signal-selection flag.
   `none` after iteration 0
 
 The TOML schema is not extended. Retrieval parameters (signals, chunk count, fusion,
-metadata-gen flag) are passed via the `AIR_ASSIST_RETRIEVAL` environment variable and a
-companion config read by the tool at startup, not via the TOML.
+metadata-gen flag) are controlled by the `ExperimentToolProvider` and companion Python
+configuration, not via the TOML.
 
-**MMR branch configs.** E0-mmr, E1-mmr, and E2a-med-mmr add no new TOML files — they reuse
-their RRF counterparts' configs (090, 091, 093 respectively) and prompts, differing only by
-`AIR_ASSIST_FUSION=mmr`.
+**MMR branch configs.** E0-mmr and E1-mmr add no new TOML files — they reuse
+`rag_agent_v3/013.toml` (version 3.13), identical to their RRF counterparts, differing only by
+`AIR_ASSIST_FUSION=mmr`. E2a-med-mmr reuses `DSAS-2836/093.toml` (version 3.93) and also
+differs only by `AIR_ASSIST_FUSION=mmr`.
 
 ### 8.2 Per-experiment environment configuration
 
-| Experiment | Config (version) | `AIR_ASSIST_RETRIEVAL` | Fusion | Chunks | Metadata gen | Reasoning | Hop policy | 5 MB filter |
+| Experiment | Config (version) | Retrieval mode | Fusion | Chunks | Metadata gen | Reasoning | Hop policy | 5 MB filter |
 |---|---|---|---|---|---|---|---|---|
-| E0 | `DSAS-2836/090.toml` (3.90) | `flat_baseline` | Client-side RRF | 25 | OFF | low | Multi | ON |
-| E1 | `DSAS-2836/091.toml` (3.91) | `flat_baseline` | Client-side RRF | 25 | OFF | low | Multi | ON |
-| E2a-low | `DSAS-2836/092.toml` (3.92) | `nested_docs` | Client-side RRF | 25 | OFF | low | Single (capped) | OFF |
-| E2a-med | `DSAS-2836/093.toml` (3.93) | `nested_docs` | Client-side RRF | 25 | ON | medium | Multi | OFF |
-| E2c | `DSAS-2836/093.toml` (3.93) | `nested_docs_es_rrf` | ES-side RRF | 25 | ON | medium | Multi | OFF |
-| E2d | `DSAS-2836/093.toml` (3.93) | `nested_docs` | Client-side RRF | 60 | ON | medium | Multi | OFF |
-| E2d-nometa | `DSAS-2836/093.toml` (3.93) | `nested_docs` | Client-side RRF | 60 | OFF | medium | Multi | OFF |
-| E2e | `DSAS-2836/093.toml` (3.93) | `nested_docs` | Client-side RRF | 60 | ON | medium | Single (capped) | OFF |
-| E0-mmr | `DSAS-2836/090.toml` (3.90) | `flat_baseline` + `AIR_ASSIST_FUSION=mmr` | Client-side MMR | 25 | OFF | low | Multi | ON |
-| E1-mmr | `DSAS-2836/091.toml` (3.91) | `flat_baseline` + `AIR_ASSIST_FUSION=mmr` | Client-side MMR | 25 | OFF | low | Multi | ON |
-| E2a-med-mmr | `DSAS-2836/093.toml` (3.93) | `nested_docs` + `AIR_ASSIST_FUSION=mmr` | Client-side MMR | 25 | ON | medium | Multi | OFF |
+| E0 | `rag_agent_v3/013.toml` (3.13) | Flat — 2 signals | Client-side RRF | 25 | OFF | low | Multi | ON |
+| E1 | `rag_agent_v3/013.toml` (3.13) | Flat — 4 signals | Client-side RRF | 25 | OFF | low | Multi | ON |
+| E2a-low | `DSAS-2836/092.toml` (3.92) | Nested — client-side RRF | Client-side RRF | 25 | OFF | low | Single (capped) | OFF |
+| E2a-med | `DSAS-2836/093.toml` (3.93) | Nested — client-side RRF | Client-side RRF | 25 | ON | medium | Multi | OFF |
+| E2c | `DSAS-2836/093.toml` (3.93) | Nested — ES-side RRF | ES-side RRF | 25 | ON | medium | Multi | OFF |
+| E2d | `DSAS-2836/093.toml` (3.93) | Nested — client-side RRF | Client-side RRF | 60 | ON | medium | Multi | OFF |
+| E2d-nometa | `DSAS-2836/093.toml` (3.93) | Nested — client-side RRF | Client-side RRF | 60 | OFF | medium | Multi | OFF |
+| E2e | `DSAS-2836/093.toml` (3.93) | Nested — client-side RRF | Client-side RRF | 60 | ON | medium | Single (capped) | OFF |
+| E0-mmr | `rag_agent_v3/013.toml` (3.13) | Flat — 2 signals | Client-side MMR (`AIR_ASSIST_FUSION=mmr`) | 25 | OFF | low | Multi | ON |
+| E1-mmr | `rag_agent_v3/013.toml` (3.13) | Flat — 4 signals | Client-side MMR (`AIR_ASSIST_FUSION=mmr`) | 25 | OFF | low | Multi | ON |
+| E2a-med-mmr | `DSAS-2836/093.toml` (3.93) | Nested — client-side RRF | Client-side MMR (`AIR_ASSIST_FUSION=mmr`) | 25 | ON | medium | Multi | OFF |
 
 ### 8.3 Prompt changes summary
 
 | Config | Experiment(s) | Changes from 013.toml |
 |---|---|---|
-| `DSAS-2836/090.toml` (3.90) | E0 | Same as 091.toml (SearchDocuments replaces MCP tools; relevance search description); retrieval restricted to BM25-chunks + kNN-chunks only via env var |
-| `DSAS-2836/091.toml` (3.91) | E1 | Merge two retrieval tools into `SearchDocuments`; remove BM25-specific guidance; describe retrieval as "relevance search" |
-| `DSAS-2836/092.toml` (3.92) | E2a-low | E1 changes + nested format explanation (no metadata fields mentioned, as they are omitted); single-hop instruction: "Perform exactly one retrieval call per turn. Issue all necessary queries simultaneously." |
-| `DSAS-2836/093.toml` (3.93) | E2a-med, E2c, E2d, E2d-nometa | E1 changes + nested format explanation with metadata: "Each result contains document-level metadata (title, summary, topic) followed by the most relevant passages. Use the metadata to orient your understanding before citing passages." |
+| `rag_agent_v3/013.toml` (3.13) | E0, E1, E0-mmr, E1-mmr | **No changes.** System prompt, tool descriptions, and all guidance are identical to production. Retrieval backend is swapped at eval runner level only. |
+| `DSAS-2836/092.toml` (3.92) | E2a-low | Nested format explanation (no metadata fields mentioned, as they are omitted from XML); single-hop instruction: "Perform exactly one retrieval call per turn. Issue all necessary queries simultaneously." |
+| `DSAS-2836/093.toml` (3.93) | E2a-med, E2c, E2d, E2d-nometa | Nested format explanation with metadata visible: "Each result contains document-level metadata (title, summary, topic) followed by the most relevant passages. Use the metadata to orient your understanding before citing passages."; `reasoning_effort = "medium"` |
 | `DSAS-2836/093.toml` (3.93) | E2e | Same as above + single-hop instruction |
-| `DSAS-2836/090.toml` (3.90) | E0-mmr | Identical to E0 (MMR set via `AIR_ASSIST_FUSION=mmr`; no prompt change) |
-| `DSAS-2836/091.toml` (3.91) | E1-mmr | Identical to E1 (MMR set via `AIR_ASSIST_FUSION=mmr`; no prompt change) |
 | `DSAS-2836/093.toml` (3.93) | E2a-med-mmr | Identical to E2a-med (MMR set via `AIR_ASSIST_FUSION=mmr`; no prompt change) |
 
 ---
