@@ -759,6 +759,28 @@ differs only by `AIR_ASSIST_FUSION=mmr`.
 
 ### 8.2 Per-experiment environment configuration
 
+Two environment variables control the experiment at runner start-up:
+
+**`AIR_ASSIST_EXPERIMENT_INDEX`** (required)
+: Selects which Elasticsearch index the `ExperimentToolProvider` queries.
+  Allowed values:
+  - `emc2` — EMC2 index (`as-mierzej-emc2-a4r-v01`), title field enabled.
+  - `mallinckrodt` — Mallinckrodt index (`as-mierzej-mlcdt-a4r-v01`), title field disabled.
+
+  When set, the eval runner replaces `McpToolProvider` with `ExperimentToolProvider`
+  and bypasses qna-service/MCP entirely. Must be set for every experiment run.
+  The index key is resolved via `get_index_config()` in
+  `air_assist_experiments/config.py` (`EXPERIMENT_CONFIG["indices"]`).
+
+**`AIR_ASSIST_FUSION`** (optional, default: `rrf`)
+: Selects the final candidate-selection method applied after signal retrieval.
+  Allowed values:
+  - `rrf` — Reciprocal Rank Fusion (default for all non-MMR experiments).
+  - `mmr` — Maximum Marginal Relevance (set for E0-mmr, E1-mmr, E2a-med-mmr).
+
+  Resolved in `air_assist_experiments/retrieval/flat_retriever.py` and
+  `nested_retriever.py` via `_get_fusion_method()`.
+
 | Experiment | Config (version) | Retrieval mode | Fusion | Chunks | Metadata gen | Reasoning | Hop policy | 5 MB filter |
 |---|---|---|---|---|---|---|---|---|
 | E0 | `rag_agent_v3/013.toml` (3.13) | Flat — 2 signals | Client-side RRF | 25 | OFF | low | Multi | ON |
