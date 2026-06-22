@@ -378,12 +378,13 @@ selection quality?
 
 **Tier 2 — Nested document format**
 
-All Tier 2 experiments return document groups: each group contains the document's
-`title`, `summary`, `topic`, `control_number`, `primary_date_time`, and a list of retrieved
+All Tier 2 experiments return document groups: each group contains a list of retrieved
 chunks with adjacent chunks concatenated where `chunk_index` values are consecutive
-(each concatenated run identified by a range-style chunk ID, e.g. `"1:3"`). Metadata
-fields (`title`, `summary`, `topic`) are omitted from the XML in experiments marked
-"metadata gen OFF". The 5 MB size filter is disabled for all Tier 2 experiments. A new
+(each concatenated run identified by a range-style chunk ID, e.g. `"1:3"`). In experiments
+marked "metadata gen ON", the LLM-facing `<document_group>` XML also carries
+`title`, `summary`, and `topic` (`title` only for indices where `title_enabled` is true,
+e.g. EMC2). In experiments marked "metadata gen OFF" (`E2a-low`, `E2d-nometa`), those
+fields are omitted from the XML. The 5 MB size filter is disabled for all Tier 2 experiments. A new
 TOML config is created for Tier 2 (see §8).
 
 **E2a-low** — Minimum viable Tier 2 configuration.
@@ -641,9 +642,16 @@ the XML based on a per-experiment flag (not exposed to the LLM as a tool paramet
 1. Same multi-signal queries as Tier 1 (client-side RRF) or a single ES RRF retriever
    (ES-side RRF, E2c).
 2. Group result chunks by `document_artifact_id`.
-3. For each group, attach parent metadata (`title`, `summary`, `topic`, `control_number`,
-   `primary_date_time`) from `_source`. If metadata for generation is OFF (E2a-low,
-   E2d-nometa), omit `title`/`summary`/`topic` from the XML.
+3. For each group, determine which parent fields are included in the LLM-facing XML:
+   - **LLM-facing XML** (`<document_group>` elements): carries only `title` / `summary` /
+     `topic` when metadata for generation is ON (`title` further gated by `title_enabled`:
+     ON for EMC2, OFF for Mallinckrodt). When metadata for generation is OFF (E2a-low,
+     E2d-nometa), these fields are omitted entirely.
+   - **`control_number`** is carried in the structured `GroupedChunks` output returned
+     alongside the XML. This is the channel used by eval scorers and citation
+     post-processing (`citation_validation.py`). It is not emitted in the LLM-facing XML.
+   - **`primary_date_time`** is used solely for ES-side filtering (a `range` query clause
+     in `filters.py`). It is neither extracted into `_source` nor serialized into the XML.
 4. **Adjacent chunk concatenation.** `chunk_index` values are 0-based. Within each
    document group, detect runs of consecutive `chunk_index` values. For a run of chunks
    with indices `[i, i+1, ..., j]`:
@@ -705,7 +713,7 @@ that shared root — the root itself remains identical for every experiment.
 | Dimension | Control mechanism | What changes per experiment branch |
 |---|---|---|
 | Retrieval signals (2 vs 4) | `signals: list[SignalType]` param on retriever (default: all 4) | `tool.py` handler sets signal list per experiment |
-| Metadata for generation (ON/OFF) | Boolean flag on nested retriever XML serializer | `air_assist_experiments` nested retriever (Tier 2 experiment branch) |
+| Metadata for generation (ON/OFF) | `include_metadata: bool` param on `retrieve_nested` / `handle_search_documents_nested` (default `False`) — implemented on root branch | `tool.py` handler passes `include_metadata=True` for metadata-ON experiments (E2a-med, E2d, E2e, E2a-med-mmr) |
 | Fusion location (ES-side RRF) | Separate `nested_docs_es_rrf` retriever module | `air_assist_experiments` new retriever (E2c branch only) |
 | Final selection method (RRF/MMR) | `AIR_ASSIST_FUSION` env var (default `rrf`) | Env var only — no code change |
 | Chunk count (25/60) | `result_count: int` method param (default 25) | `tool.py` handler passes override per experiment |
