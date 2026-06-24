@@ -191,8 +191,9 @@ All sparse fields have index-time token pruning: `prune: true`,
 
 **BM25 on parent metadata:**
 ```json
-{ "query": { "multi_match": { "query": "<q>", "fields": ["title", "topic", "summary"] } } }
+{ "query": { "multi_match": { "query": "<q>", "fields": ["summary", "topic", "title^0.5"] } } }
 ```
+`summary` and `topic` use the default field weight of `1.0`. `title^0.5` is included only when `title_enabled` is true (EMC2); omitted for Mallinckrodt.
 
 **Dense kNN on chunks (nested):**
 ```json
@@ -315,6 +316,9 @@ how much raw chunk context the model already has.
 names); the Mallinckrodt corpus has less reliable titles. Title is therefore included as a
 retrieval signal for EMC2 but excluded for Mallinckrodt. This is implemented as a per-eval-set
 configuration flag passed to the tool at runtime, not as a separate experiment dimension.
+When included, `title` is assigned a field weight of `0.5` in the BM25 `multi_match` query —
+half the default weight of `summary` and `topic` — reflecting its lower reliability as a
+standalone retrieval signal relative to AI-generated metadata.
 
 **Client-side vs ES-side fusion.** When fusion is performed on the client, each signal
 (BM25-chunks, kNN-chunks, BM25-parent, sparse-parent) is issued as a separate ES query and the
@@ -576,7 +580,12 @@ Models are loaded lazily and cached for the process lifetime, mirroring the `E5E
 ### 7.2 Tool selection
 
 The retrieval mode for each experiment is selected by which `ExperimentToolProvider` variant
-the eval runner instantiates at process start — no environment variable is required for this.
+`AirAssistRunner` instantiates in its `__init__` at process start — no environment variable is
+required for this. `AirAssistRunner` is the runner class used by `air-assist-evals eval-flow`
+(see §9.3). It receives the corpus from the `--dataset` CLI argument, maps it to the
+appropriate index key (`emc2` or `mallinckrodt`), constructs `ExperimentToolProvider` with
+that index config, and passes it to `create_agent()`.
+
 The existing tool pair (`GetRelevantDocuments` + `GetRelevantDocumentsWithMetadataFilter`) is
 presented to the LLM unchanged across all experiments. Behind these tool names, the provider
 routes calls to the appropriate Python retriever, bypassing MCP entirely. No changes to
@@ -724,8 +733,8 @@ baseline before parent-field signals are introduced.
 **E0 and E1** (and their MMR variants E0-mmr, E1-mmr) reuse `rag_agent_v3/013.toml`
 (version 3.13) with **no changes**. The system prompt, tool descriptions, and agent behaviour
 are identical to production. The only difference is the retrieval backend, which is swapped at
-the eval runner level via `AIR_ASSIST_EXPERIMENT_INDEX`. New TOML files are not needed for
-Tier 0 or Tier 1.
+the eval runner level: `AirAssistRunner` instantiates `ExperimentToolProvider` instead of
+`McpToolProvider` (see §7.2). No new TOML files are needed for Tier 0 or Tier 1.
 
 Tier 2 experiments require new TOML files because the system prompt genuinely changes to
 explain the nested document format to the LLM. These are placed under
@@ -757,22 +766,34 @@ configuration, not via the TOML.
 `AIR_ASSIST_FUSION=mmr`. E2a-med-mmr reuses `DSAS-2836/093.toml` (version 3.93) and also
 differs only by `AIR_ASSIST_FUSION=mmr`.
 
-### 8.2 Per-experiment environment configuration
+### 8.2 Per-experiment configuration — CLI and environment
 
-Two environment variables control the experiment at runner start-up:
+Experiments are run with `uv run air-assist-evals eval-flow` (see §9.3 for full command
+examples). The CLI parameters and environment variables below govern each run:
 
-**`AIR_ASSIST_EXPERIMENT_INDEX`** (required)
-: Selects which Elasticsearch index the `ExperimentToolProvider` queries.
-  Allowed values:
-  - `emc2` — EMC2 index (`as-mierzej-emc2-a4r-v01`), title field enabled.
-  - `mallinckrodt` — Mallinckrodt index (`as-mierzej-mlcdt-a4r-v01`), title field disabled.
+**CLI parameter `--dataset`** (required)
+: Corpus selector. Determines which Elasticsearch index `AirAssistRunner` passes to
+  `ExperimentToolProvider` and which Relativity workspace is used in the request context.
+  Allowed values: `emc2`, `mallinckrodt`.
+  Internally maps `emc2` → index `as-mierzej-emc2-a4r-v01` (title enabled) and
+  `mallinckrodt` → index `as-mierzej-mlcdt-a4r-v01` (title disabled).
+  Defined in `air_assist_experiments/config.py` (`EXPERIMENT_CONFIG["indices"]`).
 
-  When set, the eval runner replaces `McpToolProvider` with `ExperimentToolProvider`
-  and bypasses qna-service/MCP entirely. Must be set for every experiment run.
-  The index key is resolved via `get_index_config()` in
-  `air_assist_experiments/config.py` (`EXPERIMENT_CONFIG["indices"]`).
+**CLI parameter `--rubric-pattern-override`** (required for EMC2 set_1/set_2 separation)
+: Narrows the rubric set within the eval-set glob. Use to target a single EMC2 UAT set:
+  - `"**/uat/set_1/*.rubric.toml"` — 21 rubrics (EMC2 UAT set_1)
+  - `"**/uat/set_2/*.rubric.toml"` — 20 rubrics (EMC2 UAT set_2)
+  Omit for Mallinckrodt (all 22 rubrics are in a single folder with no sub-sets).
 
-**`AIR_ASSIST_FUSION`** (optional, default: `rrf`)
+**CLI parameter `--model-version`** (required)
+: Model version string in `<type>.<config>` format. For all Tier 0/1 experiments: `3.13`
+  (resolves to `rag_agent_v3/013.toml`). For Tier 2: `3.92` or `3.93`.
+
+**`AIR_ASSIST_EXPERIMENT_CID_SECRET`** (required, env)
+: CID client secret for authenticating the Elasticsearch bearer token.
+  Read by `air_assist_experiments/config.py:get_cid_client_secret()`.
+
+**`AIR_ASSIST_FUSION`** (optional, env, default: `rrf`)
 : Selects the final candidate-selection method applied after signal retrieval.
   Allowed values:
   - `rrf` — Reciprocal Rank Fusion (default for all non-MMR experiments).
@@ -838,21 +859,67 @@ Rubric paths:
 
 ### 9.3 Evaluation workflow
 
-```
-For each experiment E_i:
-    1. Load config (TOML)
-    2. For each rubric:
-       a. Run agent with rubric input
-       b. Log MLflow trace (input, output, retrieved docs, search queries)
-    3. Score: r1-evals run evaluate --eval-set air_assist_v2
-    4. Aggregate: r1-evals run aggregate
-    5. Report: r1-evals run rubric-dashboard-v2
+All experiments are run with the `air-assist-evals eval-flow` CLI command. This command
+invokes `AirAssistRunner` (from `air_assist_evals/runner.py`) via the r1-evals
+`invoke_and_evaluate` function. It handles model invocation, MLflow tracing, rubric scoring,
+metrics aggregation, and optional report generation in a single call.
+
+The general template per run is:
+
+```bash
+AIR_ASSIST_EXPERIMENT_CID_SECRET=<secret> [AIR_ASSIST_FUSION=mmr] \
+uv run air-assist-evals eval-flow --full-evals \
+    --dataset <emc2|mallinckrodt> \
+    --model-version <3.13|3.92|3.93> \
+    --experiment-name "<mlflow_experiment_path>" \
+    --generate-report \
+    [--rubric-pattern-override "<glob>"] \
+    [--max-rubrics <n>]
 ```
 
-Each experiment is a separate MLflow run within a shared experiment. This enables per-experiment
-and cross-experiment comparison.
+`--max-rubrics 1` limits to one rubric for a quick smoke check.
 
-### 9.4 Statistical analysis
+### 9.4 How to run E1 and E1-mmr
+
+The following table lists the exact command for each E1/E1-mmr run. All six runs must be
+executed to cover the three evaluation datasets (EMC2 set_1, EMC2 set_2, Mallinckrodt GA).
+
+| Run | Corpus | `--dataset` | `--rubric-pattern-override` | `AIR_ASSIST_FUSION` |
+|---|---|---|---|---|
+| E1 — EMC2 set_1 | EMC2 | `emc2` | `**/uat/set_1/*.rubric.toml` | (unset) |
+| E1 — EMC2 set_2 | EMC2 | `emc2` | `**/uat/set_2/*.rubric.toml` | (unset) |
+| E1 — Mallinckrodt | Mallinckrodt | `mallinckrodt` | (omit) | (unset) |
+| E1-mmr — EMC2 set_1 | EMC2 | `emc2` | `**/uat/set_1/*.rubric.toml` | `mmr` |
+| E1-mmr — EMC2 set_2 | EMC2 | `emc2` | `**/uat/set_2/*.rubric.toml` | `mmr` |
+| E1-mmr — Mallinckrodt | Mallinckrodt | `mallinckrodt` | (omit) | `mmr` |
+
+Example — E1, EMC2 set_1:
+
+```bash
+AIR_ASSIST_EXPERIMENT_CID_SECRET=<secret> \
+uv run air-assist-evals eval-flow --full-evals \
+    --dataset emc2 \
+    --model-version 3.13 \
+    --experiment-name "DSAS-2836/E1-emc2-set1" \
+    --generate-report \
+    --rubric-pattern-override "**/uat/set_1/*.rubric.toml"
+```
+
+Example — E1-mmr, Mallinckrodt:
+
+```bash
+AIR_ASSIST_EXPERIMENT_CID_SECRET=<secret> AIR_ASSIST_FUSION=mmr \
+uv run air-assist-evals eval-flow --full-evals \
+    --dataset mallinckrodt \
+    --model-version 3.13 \
+    --experiment-name "DSAS-2836/E1-mmr-mallinckrodt" \
+    --generate-report
+```
+
+Each call creates a separate MLflow run within the named experiment, enabling per-run and
+cross-run comparison.
+
+### 9.5 Statistical analysis
 
 Each of the 3 datasets is evaluated in a separate MLflow experiment with its own traces and
 quality report. With 11 experiments per dataset:
@@ -875,7 +942,7 @@ beyond p-values.
 **Multiple comparisons:** Bonferroni or Holm-Bonferroni correction when comparing many
 experiment pairs simultaneously within a dataset.
 
-### 9.5 Feature selection methodology
+### 9.6 Feature selection methodology
 
 After the initial 11-experiment matrix is evaluated:
 
