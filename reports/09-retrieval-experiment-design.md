@@ -445,6 +445,54 @@ MMR strategy). The branch isolates the selection method while holding
 signals, output format, reasoning, and hop strategy identical to each experiment's RRF
 counterpart.
 
+**Why the index design drives retrieval architecture.** The following design decisions in this
+report are direct consequences of the nested index type chosen in
+`08-index-design-and-ingestion.md` (§2). Understanding the constraint is useful for interpreting
+the pipeline described in §7.4.
+
+*Nested query mechanics.* The index stores one ES document per Relativity document, with chunks
+as a `nested` array. Nested queries therefore rank **documents**, not chunks. Each document is
+scored according to its chunk matches via `score_mode`. Available modes: `max` — document score
+= its highest-scoring chunk (used throughout this report; appropriate for RAG because a document
+is relevant if *any* passage matches); `avg` — average over all matching chunks (rewards
+consistently relevant documents); `sum` — sum of all matching chunk scores (rewards documents
+with many relevant passages); `min` — document score = its weakest matching chunk (most
+conservative); `none` — chunk scores do not propagate to the parent (used for filtering only).
+The returned unit is a parent document with `inner_hits` — a per-document, score-ordered, capped
+subset of its matching chunks (`inner_hits.size` bounded by the index setting
+`max_inner_result_window = 100`, so at most 100 chunks per document per signal reach the
+client). There is no native ES mechanism to produce a global cross-document chunk ranking in a
+single query; the client must flatten and re-sort `inner_hits` across all returned documents —
+provably complete under `score_mode: max` (see `08-index-design-and-ingestion.md` §13.5).
+Document-level fields (`title`, `summary`, `topic`, and their sparse counterparts) are queried
+directly at the parent level and produce a **document ranking**, not a chunk ranking; their
+contribution to chunk-level fusion is mediated by broadcasting each document's rank to all its
+chunks, as described in §7.4.
+
+*Alternative index designs (terse; see `08-index-design-and-ingestion.md` §2 for the full
+evaluation).* **Flat denormalized** (one ES document per chunk, parent metadata copied onto
+every chunk) is the current production model. Chunks are first-class ES documents, so native
+global chunk ranking is trivial — no client-side flatten, no broadcast, no inner_hits cap — and
+a single `multi_match` or hybrid retriever scores each chunk on both text and metadata in one
+round-trip. Adjacent-chunk concatenation is equally straightforward: each chunk document carries
+`document_artifact_id`, `chunk_index`, and `leading_overlap_chars`, so the client groups by
+document, sorts by index, and concatenates consecutive runs — the same client-side step required
+in the nested model, adding no meaningful complexity. The primary cost is metadata duplication
+across all chunks (storage and update overhead); document grouping for presentation requires
+`collapse` or an application-side step. **`join` field (parent-child):** parents and children
+are separate ES documents linked by a declared relation and must be routed to the same shard.
+Children update independently. ES provides `has_parent`/`has_child` queries but explicitly
+discourages this pattern: it is 5–10x slower than nested at query time, imposes a single-shard
+routing constraint, and does not compose with kNN or `rrf` retrievers. Not viable for this use
+case.
+
+*Trade-off summary.* The nested model was chosen because it eliminates metadata duplication
+(parent fields stored once), keeps chunks atomically co-located with their parent, preserves the
+document as the citation and grouping unit (natural for e-discovery), and composes cleanly with
+parent-level pre-filters. The cost — global chunk ranking and metadata-to-chunk contribution
+both require client-side orchestration — is the direct source of the Phase 1–2–3 pipeline
+architecture described in §7.4.
+
 ---
 
 ## 6. Experiment Matrix
