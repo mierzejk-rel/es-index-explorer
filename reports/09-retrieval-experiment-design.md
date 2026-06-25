@@ -216,14 +216,13 @@ All sparse fields have index-time token pruning: `prune: true`,
       "inner_hits": {
         "name": "ranked_chunks",
         "size": 50,
-        "_source": { "includes": ["chunks.chunk_index", "chunks.text", "chunks.leading_overlap_chars", "chunks.embedding"] }
+        "_source": { "includes": ["chunks.chunk_index", "chunks.text", "chunks.leading_overlap_chars"] }
       }
     } } ]
   } }
 }
 ```
 `inner_hits.size` = `min(100, 2 × result_count)` (50 for 25-chunk experiments, 100 for 60-chunk).
-`chunks.embedding` is included only when `AIR_ASSIST_FUSION=mmr`.
 
 **Chunk kNN signal (nested, score_mode max):**
 ```json
@@ -242,7 +241,7 @@ All sparse fields have index-time token pruning: `prune: true`,
       "inner_hits": {
         "name": "ranked_chunks",
         "size": 50,
-        "_source": { "includes": ["chunks.chunk_index", "chunks.text", "chunks.leading_overlap_chars", "chunks.embedding"] }
+        "_source": { "includes": ["chunks.chunk_index", "chunks.text", "chunks.leading_overlap_chars"] }
       }
     } } ]
   } }
@@ -467,14 +466,13 @@ complex multi-hop questions — are not excluded from retrieval.
 **MMR as an alternative selection method.** A parallel branch (E0-mmr, E1-mmr, E2a-med-mmr)
 replaces the client-side RRF fusion step with Maximum Marginal Relevance (MMR) selection. This
 is an orthogonal dimension that spans tiers: instead of fusing the per-signal ranked lists by
-reciprocal rank, MMR obtains a dense vector for each candidate chunk directly from Elasticsearch
-`inner_hits._source` (`chunks.embedding`, included in the Phase 1/2 `_source` projection when
-`AIR_ASSIST_FUSION=mmr`). Because every candidate in the pool originates from a chunk-level
-signal (Phase 1 chunk BM25/kNN or Phase 2 scoped follow-up), all candidates carry an ES
-embedding — no client-side passage encoding is needed. The query vector is always encoded
-client-side (`"query: "` prefix). MMR then greedily selects chunks that are relevant to the
-query while penalizing redundancy with already-selected chunks
-(`λ·sim(q,d) − (1−λ)·max_s sim(d,s)`, λ = 0.5, mirroring the qna-service production
+reciprocal rank, MMR encodes each candidate's chunk text client-side using the dense E5 model
+(`intfloat/multilingual-e5-small`) with the `"passage: "` prefix to obtain a dense vector.
+`chunks.embedding` is excluded from `_source` at index time and cannot be retrieved regardless
+of the `_source.includes` projection, so client-side passage encoding is the only viable path.
+The query vector is always encoded client-side with the `"query: "` prefix. MMR then greedily
+selects chunks that are relevant to the query while penalizing redundancy with already-selected
+chunks (`λ·sim(q,d) − (1−λ)·max_s sim(d,s)`, λ = 0.5, mirroring the qna-service production
 MMR strategy). The branch isolates the selection method while holding signals, output format,
 reasoning, and hop strategy identical to each experiment's RRF counterpart.
 
@@ -644,8 +642,8 @@ These three experiments form a parallel branch that replaces the client-side ord
 step with MMR selection (λ = 0.5). The candidate pool is assembled identically to the RRF
 counterpart (same four-signal queries, same conditional scoped follow-up, same ordinal rank
 assignment). MMR then selects the final top-k over the pooled chunks using embedding similarity,
-with candidate vectors read from Elasticsearch `inner_hits._source` (all candidates originate
-from chunk-level signals and therefore always carry an ES embedding; see §7.4).
+with candidate vectors encoded client-side from each candidate's `chunks.text` using the E5
+model with `"passage: "` prefix (`chunks.embedding` is not retrievable from `_source`; see §7.4).
 Everything else is held identical to the named RRF counterpart, making each pair a clean
 single-dimension (RRF vs MMR) swap.
 
@@ -757,7 +755,7 @@ elasticsearch-py Elasticsearch client
 │  Phase 2 — conditional scoped follow-up (only if metadata_only_docs non-empty):
 │    chunk BM25 + kNN filtered to document_artifact_id ∈ metadata_only_docs
 │  Client: union pool → ordinal RRF or MMR → top result_count chunks
-│  (text/overlap/embedding returned inline in Phase 1/2 inner_hits; no separate fetch phase)
+│  (text/overlap returned inline in Phase 1/2 inner_hits; MMR encodes candidate passages client-side; no separate fetch phase)
 │  or single ES-side rrf retriever (E2c, no Phase 2)
     ▼
 Elasticsearch (as-* nested index)
@@ -775,6 +773,11 @@ at agent startup with bearer auth (CID token). Concurrent ES calls are issued vi
 instances:
 - Dense: `intfloat/multilingual-e5-small` with `"query: "` prefix → 384-dim vector
 - Sparse: `opensearch-neural-sparse-encoding-v2-distill` → `{token: weight}` map
+
+**Passage encoding (MMR branch only):** when `AIR_ASSIST_FUSION=mmr`, all candidates in the
+pool are also encoded client-side using the same dense E5 model with the `"passage: "` prefix
+(`DenseQueryEncoder.encode_passages`). `chunks.embedding` is excluded from `_source` at index
+time and cannot be retrieved, making client-side encoding the only option.
 
 Models are loaded lazily and cached for the process lifetime, mirroring the `E5Embedder` /
 `SparseEmbedder` pattern in `es-index-explorer/indexing/embedding.py`.
@@ -835,7 +838,7 @@ Per tool call, retrieval proceeds in up to three phases.
    experiments, 100 for 60-chunk experiments; bounded by the index setting
    `max_inner_result_window = 100`). Returns per-document inner hits sorted by descending
    chunk BM25 score. `inner_hits` field selection: `chunks.chunk_index`, `chunks.text`,
-   `chunks.leading_overlap_chars`, and (for MMR) `chunks.embedding`.
+   `chunks.leading_overlap_chars`.
 
 2. **Chunk kNN signal.** Nested kNN on `chunks.embedding`, `score_mode: max`, `k` = 100,
    `num_candidates` = 250, same parent `size` and `inner_hits.size` as above. Returns
@@ -917,11 +920,11 @@ known effect, acceptable during the experimental phase; later ablation can asses
 summing only over signals that contribute (no-contribution signals are skipped). Take the top
 `result_count` chunks by fused score.
 
-**Inline field projection.** `chunks.text`, `chunks.leading_overlap_chars`, and (when
-`AIR_ASSIST_FUSION=mmr`) `chunks.embedding` are included in the `inner_hits._source` of the
-Phase 1 and Phase 2 chunk-level queries. There is no separate fetch phase. Chunk payload per
-query is bounded: `inner_hits.size` ≤ 100 per document, 100 documents returned, so at most
-~10 MB of text in the worst case across all signals — comfortably within network limits.
+**Inline field projection.** `chunks.text` and `chunks.leading_overlap_chars` are included in
+the `inner_hits._source` of the Phase 1 and Phase 2 chunk-level queries. There is no separate
+fetch phase. Chunk payload per query is bounded: `inner_hits.size` ≤ 100 per document,
+100 documents returned, so at most ~10 MB of text in the worst case across all signals —
+comfortably within network limits.
 
 #### Flat output (Tier 0, Tier 1)
 
@@ -973,13 +976,14 @@ When `AIR_ASSIST_FUSION=mmr`, the ordinal RRF fusion step is replaced by Maximum
 Relevance selection:
 
 1. Assemble the same candidate pool (Phases 1–2) as the RRF counterpart.
-2. Obtain a dense vector for each candidate chunk. Every candidate in the pool originates from
-   a chunk-level signal (Phase 1 chunk BM25/kNN or Phase 2 scoped follow-up), so every
-   candidate carries a `chunks.embedding` read directly from Elasticsearch via
-   `inner_hits._source` (included in the `_source` projection when `AIR_ASSIST_FUSION=mmr`).
-   No client-side passage encoding is needed or performed. Vectors from Elasticsearch are raw
-   float32 values as indexed (BBQ-HNSW quantization applies only to ES's internal search graph,
-   not to `_source`). The query vector is always encoded client-side (`"query: "` prefix).
+2. Obtain a dense vector for each candidate chunk. Every candidate originates from a chunk-level
+   signal (Phase 1 chunk BM25/kNN or Phase 2 scoped follow-up), so every candidate has
+   `chunks.text` available from the inline `inner_hits._source` projection. Each text is encoded
+   client-side using the dense E5 model (`intfloat/multilingual-e5-small`) with the
+   `"passage: "` prefix via `DenseQueryEncoder.encode_passages`. `chunks.embedding` is excluded
+   from `_source` at index time and cannot be retrieved regardless of the `_source.includes`
+   projection, making client-side encoding the only viable path. The query vector is always
+   encoded client-side with the `"query: "` prefix.
 3. Run MMR over the **full candidate pool** (MMR is greedy and must score all remaining
    candidates at each step): first select the chunk most similar to the query, then iteratively
    select the chunk maximizing `λ·sim(q,d) − (1−λ)·max_s sim(d,s)` until top-`result_count`
