@@ -203,15 +203,22 @@ All sparse fields have index-time token pruning: `prune: true`,
 ```json
 {
   "size": 100,
-  "query": { "nested": {
-    "path": "chunks",
-    "query": { "match": { "chunks.text": "<q>" } },
-    "score_mode": "max",
-    "inner_hits": {
-      "name": "ranked_chunks",
-      "size": 50,
-      "_source": { "includes": ["chunks.chunk_index", "chunks.text", "chunks.leading_overlap_chars", "chunks.embedding"] }
-    }
+  "_source": ["document_artifact_id", "control_number", "title", "summary", "topic"],
+  "query": { "bool": {
+    "filter": [ /* subset/date/email/size filters */,
+      { "nested": { "path": "chunks", "query": { "term": { "chunks.chunk_index": 0 } },
+        "inner_hits": { "name": "first_chunk", "size": 1, "_source": { "includes": ["chunks.text"] } } } }
+    ],
+    "must": [ { "nested": {
+      "path": "chunks",
+      "query": { "match": { "chunks.text": "<q>" } },
+      "score_mode": "max",
+      "inner_hits": {
+        "name": "ranked_chunks",
+        "size": 50,
+        "_source": { "includes": ["chunks.chunk_index", "chunks.text", "chunks.leading_overlap_chars", "chunks.embedding"] }
+      }
+    } } ]
   } }
 }
 ```
@@ -222,15 +229,22 @@ All sparse fields have index-time token pruning: `prune: true`,
 ```json
 {
   "size": 100,
-  "query": { "nested": {
-    "path": "chunks",
-    "query": { "knn": { "field": "chunks.embedding", "query_vector": [/*384*/], "k": 100, "num_candidates": 250 } },
-    "score_mode": "max",
-    "inner_hits": {
-      "name": "ranked_chunks",
-      "size": 50,
-      "_source": { "includes": ["chunks.chunk_index", "chunks.text", "chunks.leading_overlap_chars", "chunks.embedding"] }
-    }
+  "_source": ["document_artifact_id", "control_number", "title", "summary", "topic"],
+  "query": { "bool": {
+    "filter": [ /* subset/date/email/size filters */,
+      { "nested": { "path": "chunks", "query": { "term": { "chunks.chunk_index": 0 } },
+        "inner_hits": { "name": "first_chunk", "size": 1, "_source": { "includes": ["chunks.text"] } } } }
+    ],
+    "must": [ { "nested": {
+      "path": "chunks",
+      "query": { "knn": { "field": "chunks.embedding", "query_vector": [/*384*/], "k": 100, "num_candidates": 250 } },
+      "score_mode": "max",
+      "inner_hits": {
+        "name": "ranked_chunks",
+        "size": 50,
+        "_source": { "includes": ["chunks.chunk_index", "chunks.text", "chunks.leading_overlap_chars", "chunks.embedding"] }
+      }
+    } } ]
   } }
 }
 ```
@@ -251,7 +265,12 @@ All sparse fields have index-time token pruning: `prune: true`,
 ```
 `title` is included in `fields` only when `title_enabled` is true (EMC2); omitted for Mallinckrodt.
 All fields use equal weight (`combined_fields` requires field boosts ≥ 1.0; default is 1.0).
-The `first_chunk` inner_hits filter is present to support Tier 0/1 first-chunk output decoration.
+The `first_chunk` inner_hits filter is present in **all four** signal queries (both chunk-level and
+document-level), not only in document-level queries. For chunk-only experiments (E0, E0-mmr) no
+document-level signal queries are issued, so `first_chunk` text must be obtainable from chunk-level
+query responses. The filter therefore appears in the `bool.filter` of every signal query sent to
+Elasticsearch, ensuring `GroupedChunks.first_chunk` can always be populated regardless of which
+signals are active.
 
 **Document sparse signal (`bool/should` sum, 0 inner hits):**
 ```json
@@ -276,8 +295,13 @@ only when `title_enabled` is true.
 ```json
 {
   "size": 100,
+  "_source": ["document_artifact_id", "control_number", "title", "summary", "topic"],
   "query": { "bool": {
-    "filter": [ { "terms": { "document_artifact_id": [/* metadata_only_docs */] } } ],
+    "filter": [ /* subset/date/email/size filters */,
+      { "terms": { "document_artifact_id": [/* metadata_only_docs */] } },
+      { "nested": { "path": "chunks", "query": { "term": { "chunks.chunk_index": 0 } },
+        "inner_hits": { "name": "first_chunk", "size": 1, "_source": { "includes": ["chunks.text"] } } } }
+    ],
     "must": [ { "nested": {
       "path": "chunks",
       "query": { "match": { "chunks.text": "<q>" } },
