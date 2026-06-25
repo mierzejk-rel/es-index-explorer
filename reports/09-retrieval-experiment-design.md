@@ -95,13 +95,17 @@ DocumentProviderV2 → LaunchDarkly strategy selection
 Elasticsearch (flat chunk index: {tenant}-{workspace}-qna-subsetting)
     │  returns ranked chunks
     ▼
-Post-processing: security trim → top-25 → first-chunk fetch → group by document
+Post-processing: security trim → top-25 → first-chunk fetch → group by document (production)
     │
     ▼
 GroupedDocumentSearchResult → agent (XML for LLM)
 ```
 
 Source: `03-retrieval-strategies.md` §1; `rag_agent.py` lines 136–194.
+
+*Note:* the production "first-chunk fetch" (always adding chunk 0 for each returned document)
+is preserved in the experiment Tier 0 and Tier 1 as an **output-only decoration** step that
+does not affect ranking or fusion. It is not present in Tier 2. See §7.4.
 
 ### 2.2 Production tools
 
@@ -157,12 +161,18 @@ Mallinckrodt), both with identical mapping.
 
 ### 3.1 Available retrieval signals
 
-| Signal | Field(s) | Query type | Scope |
-|---|---|---|---|
-| **BM25 on chunks** | `chunks.text` | `nested` → `match` | Chunk |
-| **BM25 on parent metadata** | `title`, `summary`, `topic` | `multi_match` | Parent |
-| **Dense kNN on chunks** | `chunks.embedding` (384-dim, cosine, bbq_hnsw) | `nested` → `knn` | Chunk |
-| **Sparse on parent metadata** | `title_sparse`, `summary_sparse`, `topic_sparse` | `sparse_vector` query | Parent |
+There are two kinds of signals. **Chunk-level signals** return ranked chunks directly via
+`inner_hits`; their scores are globally comparable across documents (single shard, global
+IDF / absolute cosine). **Document-level signals** return ranked parent documents (0 inner
+hits); each document's rank is broadcast identically to every chunk of that document at
+client-side fusion time.
+
+| Signal | Kind | Field(s) | Query type | Returns |
+|---|---|---|---|---|
+| **BM25 on chunks** | Chunk-level | `chunks.text` | `nested` → `match`, `score_mode: max` | Ranked chunks via `inner_hits` |
+| **Dense kNN on chunks** | Chunk-level | `chunks.embedding` (384-dim, cosine, bbq_hnsw) | `nested` → `knn`, `score_mode: max` | Ranked chunks via `inner_hits` |
+| **BM25 on parent metadata** | Document-level | `topic`, `summary`, `title` (equal weights) | `combined_fields`, 0 inner hits | Ranked documents; rank broadcast to all their chunks |
+| **Sparse on parent metadata** | Document-level | `title_sparse`, `summary_sparse`, `topic_sparse` | `bool/should` (sum), 0 inner hits | Ranked documents; rank broadcast to all their chunks |
 
 ### 3.2 Fusion mechanisms (ES-native)
 
@@ -189,38 +199,110 @@ All sparse fields have index-time token pruning: `prune: true`,
 
 ### 3.4 Query examples
 
-**BM25 on parent metadata:**
-```json
-{ "query": { "multi_match": { "query": "<q>", "fields": ["summary", "topic", "title^0.5"] } } }
-```
-`summary` and `topic` use the default field weight of `1.0`. `title^0.5` is included only when `title_enabled` is true (EMC2); omitted for Mallinckrodt.
-
-**Dense kNN on chunks (nested):**
+**Chunk BM25 signal (nested, score_mode max):**
 ```json
 {
+  "size": 100,
+  "query": { "nested": {
+    "path": "chunks",
+    "query": { "match": { "chunks.text": "<q>" } },
+    "score_mode": "max",
+    "inner_hits": {
+      "name": "ranked_chunks",
+      "size": 50,
+      "_source": { "includes": ["chunks.chunk_index", "chunks.text", "chunks.leading_overlap_chars", "chunks.embedding"] }
+    }
+  } }
+}
+```
+`inner_hits.size` = `min(100, 2 × result_count)` (50 for 25-chunk experiments, 100 for 60-chunk).
+`chunks.embedding` is included only when `AIR_ASSIST_FUSION=mmr`.
+
+**Chunk kNN signal (nested, score_mode max):**
+```json
+{
+  "size": 100,
   "query": { "nested": {
     "path": "chunks",
     "query": { "knn": { "field": "chunks.embedding", "query_vector": [/*384*/], "k": 100, "num_candidates": 250 } },
     "score_mode": "max",
-    "inner_hits": { "size": 25 }
+    "inner_hits": {
+      "name": "ranked_chunks",
+      "size": 50,
+      "_source": { "includes": ["chunks.chunk_index", "chunks.text", "chunks.leading_overlap_chars", "chunks.embedding"] }
+    }
   } }
 }
 ```
 
-**Sparse on parent metadata:**
+**Document BM25 signal (`combined_fields`, equal weights, 0 inner hits):**
 ```json
-{ "query": { "sparse_vector": { "field": "summary_sparse", "query_vector": {"token_a": 1.23, "token_b": 0.45} } } }
+{
+  "size": 25,
+  "_source": ["document_artifact_id", "control_number", "title", "summary", "topic"],
+  "query": { "bool": {
+    "filter": [ /* subset/date/email filters */,
+      { "nested": { "path": "chunks", "query": { "term": { "chunks.chunk_index": 0 } },
+        "inner_hits": { "name": "first_chunk", "size": 1, "_source": { "includes": ["chunks.text"] } } } }
+    ],
+    "must": [ { "combined_fields": { "query": "<q>", "fields": ["topic", "summary", "title"] } } ]
+  } }
+}
 ```
+`title` is included in `fields` only when `title_enabled` is true (EMC2); omitted for Mallinckrodt.
+All fields use equal weight (`combined_fields` requires field boosts ≥ 1.0; default is 1.0).
+The `first_chunk` inner_hits filter is present to support Tier 0/1 first-chunk output decoration.
 
-**Hybrid RRF (BM25 + dense on chunks):**
+**Document sparse signal (`bool/should` sum, 0 inner hits):**
+```json
+{
+  "size": 25,
+  "_source": ["document_artifact_id", "control_number", "title", "summary", "topic"],
+  "query": { "bool": {
+    "filter": [ /* same filters + first_chunk inner_hits clause as above */ ],
+    "should": [
+      { "sparse_vector": { "field": "topic_sparse",   "query_vector": {"token_a": 1.23} } },
+      { "sparse_vector": { "field": "summary_sparse", "query_vector": {"token_a": 1.23} } },
+      { "sparse_vector": { "field": "title_sparse",   "query_vector": {"token_a": 1.23} } }
+    ],
+    "minimum_should_match": 1
+  } }
+}
+```
+ES sums the per-field sparse scores into a single document score. `title_sparse` is included
+only when `title_enabled` is true.
+
+**Scoped follow-up (chunk signals filtered to metadata_only_docs, Option 1):**
+```json
+{
+  "size": 100,
+  "query": { "bool": {
+    "filter": [ { "terms": { "document_artifact_id": [/* metadata_only_docs */] } } ],
+    "must": [ { "nested": {
+      "path": "chunks",
+      "query": { "match": { "chunks.text": "<q>" } },
+      "score_mode": "max",
+      "inner_hits": { "name": "ranked_chunks", "size": 50, "_source": { "includes": ["chunks.chunk_index", "chunks.text", "chunks.leading_overlap_chars"] } }
+    } } ]
+  } }
+}
+```
+Issued as two queries (BM25 and kNN), **only when `metadata_only_docs` is non-empty**.
+The `terms` filter is placed in `bool.filter` (not `post_filter`) so only the target documents
+are scored, not merely filtered after scoring.
+
+**ES-side RRF (E2c — all four sub-retrievers):**
 ```json
 {
   "retriever": { "rrf": { "rank_window_size": 100, "retrievers": [
-    { "standard": { "query": { "nested": { "path": "chunks", "query": { "match": { "chunks.text": "<q>" } }, "score_mode": "max" } } } },
-    { "knn": { "field": "chunks.embedding", "query_vector": [/*384*/], "k": 100, "num_candidates": 250 } }
+    { "standard": { "query": { "nested": { "path": "chunks", "query": { "match": { "chunks.text": "<q>" } }, "score_mode": "max", "inner_hits": { "name": "bm25_chunks", "size": 50 } } } } },
+    { "knn": { "field": "chunks.embedding", "query_vector": [/*384*/], "k": 100, "num_candidates": 250, "inner_hits": { "name": "knn_chunks", "size": 50 } } },
+    { "standard": { "query": { "combined_fields": { "query": "<q>", "fields": ["topic", "summary", "title"] } } } },
+    { "standard": { "query": { "bool": { "should": [ { "sparse_vector": { "field": "topic_sparse", "query_vector": {/*...*/} } }, { "sparse_vector": { "field": "summary_sparse", "query_vector": {/*...*/} } } ] } } } }
   ] } }
 }
 ```
+ES fuses at the document level. Client reads named `inner_hits` from returned documents.
 
 Full query catalogue: `08-index-design-and-ingestion.md` §13.1–§13.9.
 
@@ -274,15 +356,20 @@ anchor, enabling clean attribution of any quality change.
 
 | Tier | Description | Output format | Reasoning effort |
 |---|---|---|---|
-| **Tier 0** | Production parity: reproduce current qna-service behaviour on the nested index | Flat chunk list | `low` |
-| **Tier 1** | Metadata-enriched retrieval: add parent-field signals, keep flat output | Flat chunk list | `low` |
-| **Tier 2** | Nested document format: full document groups with metadata and concatenated chunks | Nested doc groups | `low` or `medium` |
+| **Tier 0** | Production parity: reproduce current qna-service behaviour on the nested index | Flat chunk list with first-chunk decoration | `low` |
+| **Tier 1** | Metadata-enriched retrieval: add document-level signals, keep flat output | Flat chunk list with first-chunk decoration | `low` |
+| **Tier 2** | Nested document format: full document groups with concatenated adjacent chunks | Nested doc groups | `low` or `medium` |
+
+First-chunk decoration (adding chunk 0 per returned document to the output, matching qna-service
+behaviour) applies to **Tier 0 and Tier 1 only**. It is an output-only step that does not affect
+ranking or fusion. Tier 2 uses adjacent-chunk concatenation instead. Implementation of the
+first-chunk decoration is handled by a separate Tier 0/1 plan/branch.
 
 ### 5.2 Variable dimensions
 
 | Dimension | Tier 0 | Tier 1 | Tier 2 |
 |---|---|---|---|
-| **Retrieval signals** | BM25-chunks + kNN-chunks | BM25-chunks + kNN-chunks + BM25-parent + sparse-parent | BM25-chunks + kNN-chunks + BM25-parent + sparse-parent (always ON) |
+| **Retrieval signals** | 2 chunk-level: BM25-chunks + kNN-chunks | 4 signals: 2 chunk-level (BM25-chunks + kNN-chunks) + 2 document-level (BM25-parent + sparse-parent) | 4 signals (always ON): same 2 chunk-level + 2 document-level |
 | **Metadata for generation** | OFF | OFF | ON or OFF |
 | **Fusion location** | Client-side RRF | Client-side RRF | Client-side RRF or ES-side RRF |
 | **Final selection method** | RRF or MMR | RRF or MMR | RRF or MMR |
@@ -315,18 +402,30 @@ how much raw chunk context the model already has.
 **Title toggle.** The EMC2 workspace has meaningful document titles (email subjects, file
 names); the Mallinckrodt corpus has less reliable titles. Title is therefore included as a
 retrieval signal for EMC2 but excluded for Mallinckrodt. This is implemented as a per-eval-set
-configuration flag passed to the tool at runtime, not as a separate experiment dimension.
-When included, `title` is assigned a field weight of `0.5` in the BM25 `multi_match` query —
-half the default weight of `summary` and `topic` — reflecting its lower reliability as a
-standalone retrieval signal relative to AI-generated metadata.
+configuration flag (`title_enabled`) passed to the tool at runtime, not as a separate experiment
+dimension. When included, `title` contributes with equal weight alongside `summary` and `topic`
+in `combined_fields` and its corresponding `title_sparse` field is added to the sparse `bool/should`.
 
-**Client-side vs ES-side fusion.** When fusion is performed on the client, each signal
-(BM25-chunks, kNN-chunks, BM25-parent, sparse-parent) is issued as a separate ES query and the
-returned chunk-level results are fused via RRF in Python. When fusion is ES-side, a single ES
-request with a nested RRF retriever is issued; ES fuses at the **document level** (each
-document is scored by its best matching chunk via `score_mode: max`) and the client reads
-chunks from `inner_hits`. ES-side fusion cannot rank chunks across documents globally — that
-distinction is explored by E2a-med vs E2c.
+**Client-side vs ES-side fusion.** In the client-side path, four independent ES queries are
+issued (two chunk-level with `inner_hits`, two document-level with 0 inner hits), followed by
+a conditional scoped follow-up for documents found only by metadata signals. Client-side code
+forms a unified chunk pool, assigns ordinal ranks per signal (document-level ranks are broadcast
+to every chunk of the matched document; chunks outside a document-level top-`N_doc` receive a
+fallback rank of `last_ranked_position + 1`), and fuses via ordinal RRF across all four ranks.
+Metadata-only documents — those matched by document-level signals whose chunks were not surfaced
+by chunk-level signals — can surface through the conditional scoped follow-up, which is bounded
+to `N_doc × inner_hits.size` additional candidates.
+
+In the ES-side path (E2c), a single `rrf` retriever over all four sub-retrievers fuses at the
+**document level** (each document is scored by its best inner chunk via `score_mode: max`); the
+client reads named `inner_hits` from returned documents without cross-document chunk re-ranking.
+ES-side fusion has no MMR variant.
+
+**Large-document-rank broadcast.** Because all chunks of a document receive the same
+document-level ordinal rank, a document that is a strong metadata match and has many chunks
+may contribute several chunks near the top of the fused ranking, mildly reducing document
+diversity in the final result set. This effect is accepted during the experimental phase;
+ablation in the follow-up grid can quantify its impact (see §9.6).
 
 **5 MB size filter in Tier 2.** The 5 MB size filter (`workspace_extracted_text_size <= 5,242,880`)
 is applied in Tier 0 and Tier 1 to match current production behaviour. It is disabled for all
@@ -336,10 +435,13 @@ complex multi-hop questions — are not excluded from retrieval.
 **MMR as an alternative selection method.** A parallel branch (E0-mmr, E1-mmr, E2a-med-mmr)
 replaces the client-side RRF fusion step with Maximum Marginal Relevance (MMR) selection. This
 is an orthogonal dimension that spans tiers: instead of fusing the per-signal ranked lists by
-reciprocal rank, MMR embeds the candidate chunks and the query with the dense e5 model and
-greedily selects chunks that are relevant to the query while penalizing redundancy with
-already-selected chunks (`λ·sim(q,d) − (1−λ)·max_s sim(d,s)`, λ = 0.5, mirroring the
-qna-service production MMR strategy). The branch isolates the selection method while holding
+reciprocal rank, MMR obtains a dense vector for each candidate chunk (read from
+Elasticsearch `inner_hits._source` for chunk-level candidates; encoded client-side only
+for any candidates arriving exclusively via document-level signals) and the query
+(`"query: "` prefix, always client-side), then greedily selects chunks that are relevant
+to the query while penalizing redundancy with already-selected chunks
+(`λ·sim(q,d) − (1−λ)·max_s sim(d,s)`, λ = 0.5, mirroring the qna-service production
+MMR strategy). The branch isolates the selection method while holding
 signals, output format, reasoning, and hop strategy identical to each experiment's RRF
 counterpart.
 
@@ -353,13 +455,13 @@ counterpart.
 
 **E0** — Production parity on nested index.
 
-Run two nested ES queries independently (BM25 on `chunks.text`, kNN on `chunks.embedding`),
-flatten the returned `inner_hits` chunks, apply client-side RRF, take top 25 by score. Filter
-`byte_size <= 5 MB`. No parent metadata fields involved in retrieval or generation. Uses
-the production config (`rag_agent_v3/013.toml`, version 3.13) with no prompt changes. The
-experiment eval runner restricts retrieval to BM25-chunks + kNN-chunks only; the tool pair
-presented to the LLM is unchanged. Output is a flat chunk list in the same XML format as
-current production.
+Run two chunk-level ES queries independently (nested BM25 on `chunks.text` and nested kNN on
+`chunks.embedding`, both `score_mode: max`), flatten the returned `inner_hits` into a global
+chunk pool, apply client-side ordinal RRF, take top 25 by fused score. No document-level
+metadata signals; no scoped follow-up. Filter `byte_size <= 5 MB`. Chunk 0 of each
+represented document is added to the output group as a decoration step (first-chunk algorithm,
+Tier 0/1 only; does not affect ranking). Uses the production config (`rag_agent_v3/013.toml`,
+version 3.13) with no prompt changes. Output is a flat grouped-chunk list.
 
 *Purpose:* confirm the new direct-ES Python tool reproduces current qna-service behavior.
 
@@ -369,15 +471,18 @@ current production.
 
 **E1** — Add parent-field retrieval signals, keep flat output.
 
-Same as E0 plus: BM25 `multi_match` on `title`/`summary`/`topic` and `sparse_vector` queries
-on `title_sparse`/`summary_sparse`/`topic_sparse`. All four signal results (BM25-chunks,
-kNN-chunks, BM25-parent, sparse-parent) are issued as separate ES queries and fused
-client-side via RRF to produce the top 25 chunks. Filter `byte_size <= 5 MB`. Title included
-for EMC2, excluded for Mallinckrodt. Output remains a flat chunk list; the LLM does not see
-document metadata directly.
+Same as E0 plus two document-level signals: `combined_fields` on `topic`/`summary`/`title`
+(equal weights; title when `title_enabled`) and a sparse-sum `bool/should` on the corresponding
+`*_sparse` fields. Four ES queries are issued: two chunk-level (with `inner_hits`) and two
+document-level (0 inner hits, top 25 documents each). A conditional scoped follow-up retrieves
+chunk-level scores for any documents matched only by the document-level signals. All four
+signal ranks are broadcast/assigned per chunk (document-level ranks broadcast to all chunks of
+the matched document; fallback rank `last+1` for unmatched documents). Ordinal RRF fuses the
+four per-chunk ranks; top 25 chunks are selected. Filter `byte_size <= 5 MB`. Title signals
+enabled for EMC2, omitted for Mallinckrodt. Output is a flat chunk list with first-chunk
+decoration (Tier 1); the LLM does not see document metadata directly.
 
-*Purpose:* does adding BM25 + sparse signals on parent metadata fields improve chunk
-selection quality?
+*Purpose:* does adding document-level metadata signals improve chunk selection quality?
 
 ---
 
@@ -394,9 +499,10 @@ TOML config is created for Tier 2 (see §8).
 
 **E2a-low** — Minimum viable Tier 2 configuration.
 
-Retrieval: all four signals, client-side RRF, top 25 chunks. Generation context: document
-groups with metadata fields **omitted** (metadata gen OFF). `reasoning_effort: low`.
-Single-hop (exactly one retrieval iteration). Title toggle: EMC2 ON / Mallinckrodt OFF.
+Retrieval: all four signals (2 chunk-level + 2 document-level), client-side ordinal RRF,
+top 25 chunks including conditional scoped follow-up. Generation context: document groups with
+metadata fields **omitted** (metadata gen OFF). `reasoning_effort: low`. Single-hop (exactly
+one retrieval iteration). Title signals enabled for EMC2, omitted for Mallinckrodt.
 
 *Purpose:* does the nested document structure alone — without metadata visible to the LLM,
 without medium reasoning, without multi-hop — beat flat output? Establishes the minimum
@@ -415,16 +521,19 @@ upgrading to medium reasoning, and switching from single-hop to multi-hop.
 
 **E2c** — Same as E2a-med but ES-side fusion.
 
-A single ES request with a nested RRF retriever fuses all signals. ES returns documents ranked
-by their best chunk score; the client reads `inner_hits` and groups. No cross-document chunk
-ranking by the client.
+A single ES `rrf` retriever over all four sub-retrievers (nested BM25 chunks, nested kNN
+chunks, `combined_fields` parent BM25, sparse-sum parent) fuses at the **document level** (each
+document scored by its best inner chunk via `score_mode: max`). The client reads named
+`inner_hits` from the returned documents and groups/concatenates. No cross-document global chunk
+re-ranking by the client; no scoped follow-up needed (all signals travel together).
 
-*Purpose:* isolates fusion location (client-side global chunk ranking vs ES-side document
-ranking).
+*Purpose:* isolates fusion location (client-side global chunk ranking with document-level
+metadata broadcast vs ES-side document ranking).
 
 **E2d** — Same as E2a-med but 60 chunks.
 
-Retrieval returns 60 chunks instead of 25. Inner-hits sizes scaled accordingly.
+`result_count` = 60. All depth parameters scale: `inner_hits.size` = 100 (= `min(100, 2 × 60)`),
+`N_doc` = 60. Scoped follow-up uses the same `inner_hits.size` = 100.
 
 *Purpose:* isolates the effect of providing more retrieved context to the LLM.
 
@@ -450,10 +559,13 @@ what a single richer retrieval provides?
 
 **MMR branch — alternative final selection**
 
-These three experiments form a parallel branch that replaces the client-side RRF fusion step
-with MMR selection (λ = 0.5). Each signal fetches a larger candidate pool (up to 100) so MMR
-has room to diversify; MMR then selects the final top-k. Everything else is held identical to
-the named RRF counterpart, making each pair a clean single-dimension (RRF vs MMR) swap.
+These three experiments form a parallel branch that replaces the client-side ordinal RRF fusion
+step with MMR selection (λ = 0.5). The candidate pool is assembled identically to the RRF
+counterpart (same four-signal queries, same conditional scoped follow-up, same ordinal rank
+assignment). MMR then selects the final top-k over the pooled chunks using embedding similarity,
+with candidate vectors read from Elasticsearch `inner_hits._source` where available (see §7.4).
+Everything else is held identical to the named RRF counterpart, making each pair a clean
+single-dimension (RRF vs MMR) swap.
 
 **E0-mmr** — E0 with MMR instead of RRF (baseline of the MMR branch).
 
@@ -464,9 +576,10 @@ final 25 chunks. Flat output, low reasoning, multi-hop. Identical to E0 otherwis
 
 **E1-mmr** — E1 with MMR instead of RRF.
 
-All four signals (BM25-chunks, kNN-chunks, BM25-parent, sparse-parent) build the candidate
-pool; MMR selects the final 25 chunks. Flat output, low reasoning, multi-hop. Identical to E1
-otherwise. Title included for EMC2, excluded for Mallinckrodt.
+All four signals (2 chunk-level + 2 document-level) build the candidate pool via the same
+pipeline as E1 (including the conditional scoped follow-up); MMR selects the final 25 chunks.
+Flat output, low reasoning, multi-hop. Identical to E1 otherwise. Title signals enabled for
+EMC2, omitted for Mallinckrodt.
 
 *Purpose:* does MMR's diversity-aware selection beat RRF once parent-metadata signals are added?
 
@@ -553,21 +666,28 @@ air-assist-agent (LangGraph v3)
 New tool (Pydantic model + async handler)
     │  routed by ExperimentToolProvider (eval runner selects flat vs nested)
     ▼
-elasticsearch-py AsyncElasticsearch client
-    │  separate queries per signal (client-side fusion)
-    │  or single RRF retriever (ES-side fusion)
+elasticsearch-py Elasticsearch client
+    │  Phase 1 — four concurrent ES queries:
+    │    ├─ chunk BM25: nested match on chunks.text (score_mode max, inner_hits)
+    │    ├─ chunk kNN:  nested kNN on chunks.embedding (score_mode max, inner_hits)
+    │    ├─ doc BM25:   combined_fields over topic/summary/[title] (0 inner hits)
+    │    └─ doc sparse: bool/should over *_sparse fields (0 inner hits)
+    │  Phase 2 — conditional scoped follow-up (only if metadata_only_docs non-empty):
+    │    chunk BM25 + kNN filtered to document_artifact_id ∈ metadata_only_docs
+    │  Client: union pool → ordinal RRF or MMR → top result_count chunks
+    │  Phase 3 — full-field fetch for selected chunks only
+    │  or single ES-side rrf retriever (E2c, no Phases 2–3)
     ▼
 Elasticsearch (as-* nested index)
     │
     ▼
-Post-processing: inner_hits flatten + chunk ranking + grouping + concatenation
-    │
-    ▼
-Flat chunk list (Tier 0/1) or Nested doc groups (Tier 2) → XML for LLM
+Flat chunk list + first-chunk decoration (Tier 0/1)
+or Nested doc groups with adjacent-chunk concatenation (Tier 2) → XML for LLM
 ```
 
-**Client lifecycle:** a single `AsyncElasticsearch` instance, created at agent startup with
-bearer auth (CID token), shared across all tool calls within a request.
+**Client lifecycle:** a single synchronous `Elasticsearch` instance (connection-pooled), created
+at agent startup with bearer auth (CID token). Concurrent ES calls are issued via
+`asyncio.to_thread`, sharing one client instance safely across threads.
 
 **Query embedding:** the tool handler embeds the query string at call time using cached model
 instances:
@@ -593,8 +713,8 @@ routes calls to the appropriate Python retriever, bypassing MCP entirely. No cha
 
 | Retrieval mode | Retriever called | Used by |
 |---|---|---|
-| Flat — 2 signals (BM25-chunks + kNN-chunks) | `handle_search_documents` (signals restricted) | E0 |
-| Flat — 4 signals (all) | `handle_search_documents` (default signals) | E1 |
+| Flat — 2 chunk-level signals (BM25-chunks + kNN-chunks) | `handle_search_documents` (signals restricted) | E0 |
+| Flat — 4 signals (2 chunk-level + 2 document-level) | `handle_search_documents` (default signals) | E1 |
 | Nested — client-side RRF | `handle_search_documents_nested` | E2a-low, E2a-med, E2d, E2d-nometa, E2e |
 | Nested — ES-side RRF | future `handle_search_documents_nested_es_rrf` | E2c |
 
@@ -622,67 +742,172 @@ per-experiment flag (not exposed to the LLM as a tool parameter).
 
 ### 7.4 Post-retrieval processing
 
+#### Candidate pool construction
+
+Per tool call, retrieval proceeds in up to three phases.
+
+**Phase 1 — four concurrent ES queries.**
+
+1. **Chunk BM25 signal.** Nested `match` on `chunks.text`, `score_mode: max`, `size` = 100
+   parent documents, `inner_hits.size` = `min(100, 2 × result_count)` (50 for 25-chunk
+   experiments, 100 for 60-chunk experiments; bounded by the index setting
+   `max_inner_result_window = 100`). Returns per-document inner hits sorted by descending
+   chunk BM25 score. `inner_hits` field selection: `chunks.chunk_index`, `chunks.text`,
+   `chunks.leading_overlap_chars`, and (for MMR) `chunks.embedding`.
+
+2. **Chunk kNN signal.** Nested kNN on `chunks.embedding`, `score_mode: max`, `k` = 100,
+   `num_candidates` = 250, same parent `size` and `inner_hits.size` as above. Returns
+   per-document inner hits sorted by descending cosine similarity.
+
+3. **Document BM25 signal.** `combined_fields` over `topic`, `summary`, and (when
+   `title_enabled`) `title`, all fields with equal weight. **0 inner hits.** Returns top
+   `N_doc = result_count` parent documents by lexical score. A first-chunk nested filter
+   (`chunk_index = 0`, named `first_chunk`, size 1) is included in `bool.filter` to enable
+   the first-chunk decoration step in Tier 0/1 output.
+
+4. **Document sparse signal.** One `bool/should` over `summary_sparse`, `topic_sparse`,
+   and (when `title_enabled`) `title_sparse`; ES sums the per-field scores into a single
+   document score. **0 inner hits.** Returns top `N_doc = result_count` parent documents
+   by sparse score. Same first-chunk filter as signal 3.
+
+All chunk-level inner-hit scores are globally comparable across documents because the index
+has `number_of_shards: 1` (global IDF for BM25; cosine similarity is absolute for kNN).
+See `08-index-design-and-ingestion.md` §13.5.
+
+From the chunk-level signals, flatten all inner-hit `(document_artifact_id, chunk_index)`
+pairs into the initial candidate pool. Let `C` denote the set of documents represented by
+at least one chunk-level candidate, and `M` the union of documents from the document-level
+top-`N_doc` results.
+
+**Phase 2 — conditional scoped follow-up.**
+
+Compute `metadata_only_docs = M \ C`. If this set is **non-empty**, re-run the same two
+chunk-level queries (BM25 and kNN) with an added `terms` filter on
+`document_artifact_id ∈ metadata_only_docs`. This recovers real BM25 and kNN chunk scores
+for those documents (capped at `inner_hits.size` per document) and merges their chunks into
+the global candidate pool. If `metadata_only_docs` is empty, this step is skipped entirely
+(no extra round trip).
+
+*Option 2 (optimization, not implemented by default):* a single `bool/should` with two named
+nested inner_hits (BM25 and kNN) filtered to `metadata_only_docs`, discarding the parent
+score. Per-chunk BM25 and kNN scores are **semantically identical** to Option 1; the
+difference is one round trip instead of two. Implementing Option 2 requires additional code
+for the combined query construction and two named inner_hits sets.
+
+**Per-chunk ordinal scoring.**
+
+Each pooled chunk `(document_artifact_id, chunk_index)` receives up to four ordinal ranks,
+computed by global **dense_rank**: equal scores share the same position and there are no gaps
+after a tie group (a group of N tied items at rank 1 is followed by rank 2, not rank N+1).
+
+*Dense_rank vs standard rank.* Standard (competition) ranking also assigns equal ranks to
+tied items, but leaves a gap after each tie group: N items tied at rank 1 are followed by
+rank N+1, penalising items below any large tie group by pushing their rank number up
+proportionally. Dense_rank avoids this gap, so items below a tie group receive a slightly
+higher (better) rank and correspondingly higher RRF contribution. For the chunk-level signals
+(BM25, kNN) ties on continuous floating-point scores are rare and the choice is practically
+immaterial. For the document-level signals, where tied scores are more common (e.g., multiple
+documents matching the same sparse tokens with similar weights), dense_rank distributes the
+signal's influence more evenly across the ranking and gives metadata signals a slightly
+stronger effect in fusion — which is the intended behaviour. The alternative (standard rank)
+is more conservative, penalising items after large tie groups more heavily; it can be
+substituted as a follow-up ablation parameter if the metadata signal contribution proves
+too strong.
+
+- **Chunk BM25 rank:** global ordinal rank across all chunks from Phase 1 and Phase 2 chunk
+  BM25 queries, by BM25 score descending. A chunk absent from this signal → no contribution.
+- **Chunk kNN rank:** same logic, by kNN score descending.
+- **Document BM25 rank:** the rank of the chunk's parent document in the Phase 1
+  `combined_fields` result set, **broadcast identically to every chunk of that document**.
+  If the document is outside the document BM25 top-`N_doc` → fallback rank = `last_ranked_position + 1`.
+- **Document sparse rank:** the rank of the parent document in the Phase 1 sparse-sum
+  result set, broadcast to all its chunks. Same fallback logic.
+
+*Note on document-rank broadcast.* Because all chunks of a document receive the same
+document-level rank, a document that is a strong metadata match and has many chunks may place
+several of them high in the fused ranking, mildly reducing document diversity. This is a
+known effect, acceptable during the experimental phase; later ablation can assess its impact.
+
+#### Fusion and selection
+
+**Ordinal RRF (default).** For each candidate chunk, compute
+`RRF(chunk) = Σ_r 1 / (k + rank_r(chunk))` using ordinal ranks, standard constant `k = 60`,
+summing only over signals that contribute (no-contribution signals are skipped). Take the top
+`result_count` chunks by fused score.
+
+**Two-phase fetch.** Phases 1–2 use minimal field projections (`document_artifact_id`,
+`chunk_index`, scores). After the top `result_count` chunks are selected by fusion, a targeted
+ES query fetches full fields (`chunks.text`, `chunks.leading_overlap_chars`, `control_number`,
+parent metadata fields when needed) for the selected chunks only. This avoids downloading large
+text payloads for chunks that are ultimately not returned.
+
 #### Flat output (Tier 0, Tier 1)
 
-1. Issue separate ES queries for each active signal. The signal set is controlled by the
-   `signals: list[SignalType]` parameter on the retriever method — defaults to all four
-   signals; E0 passes only `[BM25_CHUNKS, KNN_CHUNKS]`.
-2. Collect all chunks from `inner_hits` across all queries.
-3. Apply client-side RRF: for each chunk `(document_artifact_id, chunk_index)`, sum
-   reciprocal ranks across signals. Take top-k by fused score.
-4. Serialize as flat `<passage>` XML elements matching the current qna-service format.
+1. Assemble the candidate pool (Phases 1–2), apply ordinal RRF, take top `result_count` chunks.
+2. Two-phase fetch: retrieve `chunks.text` and `control_number` for the selected chunks.
+3. Group selected chunks by `document_artifact_id`.
+4. **First-chunk decoration (Tier 0/1, output-only).** For each represented document, chunk 0
+   is added to the output group even if it was not selected by fusion — matching the
+   qna-service production behaviour. Chunk 0 is retrieved at query time via the named
+   `first_chunk` inner_hits filter (size 1) already present in the document-level signal
+   queries. This step is purely an output decoration: chunk 0 is **never a fusion candidate**
+   and does not affect ranking in any way. First-chunk decoration applies to Tier 0 and Tier 1
+   experiments only; implementation is handled by a dedicated Tier 0/1 plan/branch.
+5. Serialize as flat `<grouped_chunks>` XML elements.
 
 #### Nested output (Tier 2)
 
-1. Same multi-signal queries as Tier 1 (client-side RRF) or a single ES RRF retriever
-   (ES-side RRF, E2c).
-2. Group result chunks by `document_artifact_id`.
-3. For each group, determine which parent fields are included in the LLM-facing XML:
-   - **LLM-facing XML** (`<document_group>` elements): carries only `title` / `summary` /
-     `topic` when metadata for generation is ON (`title` further gated by `title_enabled`:
-     ON for EMC2, OFF for Mallinckrodt). When metadata for generation is OFF (E2a-low,
-     E2d-nometa), these fields are omitted entirely.
-   - **`control_number`** is carried in the structured `GroupedChunks` output returned
-     alongside the XML. This is the channel used by eval scorers and citation
-     post-processing (`citation_validation.py`). It is not emitted in the LLM-facing XML.
-   - **`primary_date_time`** is used solely for ES-side filtering (a `range` query clause
-     in `filters.py`). It is neither extracted into `_source` nor serialized into the XML.
-4. **Adjacent chunk concatenation.** `chunk_index` values are 0-based. Within each
-   document group, detect runs of consecutive `chunk_index` values. For a run of chunks
-   with indices `[i, i+1, ..., j]`:
-   - Start with the full text of chunk `i`.
-   - For each subsequent chunk `i+1, ..., j`, strip the first `leading_overlap_chars`
-     characters from its text before appending (this removes the duplicated overlap
-     without losing any unique content).
-   - The resulting concatenated passage is assigned the range-style chunk ID `"i:j"`
-     (inclusive), e.g. `"1:3"` means chunks 1, 2, and 3 were merged. A single
-     non-concatenated chunk retains its plain integer ID (e.g. `"5"`).
-   - In the XML, the concatenated chunk appears as a single `<chunk>` element with
-     `<chunk_id>1:3</chunk_id>` and the de-duplicated text as `<content>`. The LLM
-     cites it as `[doc_id-1:3]`.
-5. Serialize as `<document_group>` XML elements containing per-document metadata and
-   chunk list.
+1. Assemble the candidate pool (Phases 1–2), apply ordinal RRF, take top `result_count` chunks.
+2. Two-phase fetch: retrieve `chunks.text`, `chunks.leading_overlap_chars`, `control_number`,
+   and (when metadata gen ON) `title`, `summary`, `topic` for the selected chunks.
+3. Group selected chunks by `document_artifact_id`. No first-chunk decoration in Tier 2.
+4. Determine which parent fields appear in the LLM-facing XML per group:
+   - **LLM-facing XML** (`<document_group>` elements): carries `title` / `summary` / `topic`
+     when metadata for generation is ON (`title` further gated by `title_enabled`: ON for
+     EMC2, OFF for Mallinckrodt). When metadata for generation is OFF (E2a-low, E2d-nometa),
+     these fields are omitted entirely.
+   - **`control_number`** is carried in the structured `GroupedChunks` output alongside the
+     XML (used by eval scorers and citation post-processing). It is not emitted in the
+     LLM-facing XML.
+   - **`primary_date_time`** is used solely for ES-side filtering (a `range` query clause)
+     and is never serialized into the XML.
+5. **Adjacent chunk concatenation.** Within each document group, detect runs of consecutive
+   `chunk_index` values. For a run `[i, i+1, ..., j]`: start with chunk `i`'s full text;
+   for each subsequent chunk strip the first `leading_overlap_chars` characters before
+   appending (removes duplicated overlap without losing unique content). The resulting passage
+   is assigned range-style chunk ID `"i:j"` (e.g. `"1:3"`); a single non-concatenated chunk
+   retains its plain integer ID (e.g. `"5"`). In the XML, the concatenated chunk appears as a
+   single `<chunk>` element; the LLM cites it as `[doc_id-1:3]`.
+6. Serialize as `<document_group>` XML elements.
 
 #### MMR selection (MMR branch)
 
-When `AIR_ASSIST_FUSION=mmr`, the client-side RRF step is replaced by Maximum Marginal
+When `AIR_ASSIST_FUSION=mmr`, the ordinal RRF fusion step is replaced by Maximum Marginal
 Relevance selection:
 
-1. Issue the same per-signal ES queries as the RRF counterpart and collect the deduplicated
-   union of candidate chunks `(document_artifact_id, chunk_index)`. Each signal fetches a
-   larger pool (up to 100) so MMR has room to diversify.
-2. Embed the query and each candidate chunk's text with the dense e5 model
-   (`intfloat/multilingual-e5-small`, `"passage: "` prefix for chunks), reusing the cached
-   encoder; these reproduce the index-time chunk vectors.
+1. Assemble the same candidate pool (Phases 1–2) as the RRF counterpart.
+2. Obtain a dense vector for each candidate chunk. For candidates from the chunk-level signals,
+   index-time vectors are read directly from Elasticsearch via `inner_hits._source`
+   (`chunks.embedding`), avoiding client-side encoding. For any candidates that arrive
+   exclusively via the document-level signals (after deduplication), the vector is encoded
+   client-side with the dense e5 model (`intfloat/multilingual-e5-small`, `"passage: "`
+   prefix). The query vector is always encoded client-side (`"query: "` prefix). Vectors from
+   Elasticsearch are raw float32 values as indexed (BBQ-HNSW quantization applies only to
+   ES's internal search graph, not to `_source`), matching client-side encoding exactly.
 3. Run MMR with λ = 0.5: first select the chunk most similar to the query, then iteratively
-   select the chunk maximizing `λ·sim(q,d) − (1−λ)·max_s sim(d,s)` until top-k are chosen.
-4. Feed the selected chunks into the same flat (Tier 0/1) or nested (Tier 2) serialization as
-   the RRF path.
+   select the chunk maximizing `λ·sim(q,d) − (1−λ)·max_s sim(d,s)` until top-`result_count`
+   chunks are chosen.
+4. Feed the selected chunks into flat (Tier 0/1) or nested (Tier 2) output assembly.
+   Two-phase fetch and first-chunk decoration (Tier 0/1 only) apply identically to the RRF path.
 
-This mirrors qna-service's `MaximumMarginalRelevanceSelector` and `Bm25SearchWithMmrSettings`
-(λ = 0.5, candidate fetch 100, top-k 25). MMR is additive to the experiment toolkit — a new
-`mmr_select` function alongside `rrf_fuse` — so no existing `air_assist_experiments` code is
-invalidated; the RRF path is unchanged.
+#### ES-side RRF (E2c only)
+
+For E2c, a single ES request with an `rrf` retriever over all four sub-retrievers is issued.
+Each sub-retriever has its own named `inner_hits`. ES fuses at the **document level** (each
+document is scored by its best inner chunk via `score_mode: max`) and the client reads
+`inner_hits` from the returned documents — there is no cross-document global chunk re-ranking
+by the client. The client groups each returned document's chunks and applies adjacent-chunk
+concatenation as in the standard Tier 2 nested path. ES-side fusion has no MMR variant.
 
 ### 7.5 Metadata filter mapping
 
@@ -707,7 +932,7 @@ that shared root — the root itself remains identical for every experiment.
 
 | Dimension | Control mechanism | What changes per experiment branch |
 |---|---|---|
-| Retrieval signals (2 vs 4) | `signals: list[SignalType]` param on retriever (default: all 4) | `tool.py` handler sets signal list per experiment |
+| Retrieval signals (2 vs 4) | `signals: list[SignalType]` param on retriever (default: all 4 — 2 chunk-level + 2 document-level) | `tool.py` handler passes `[BM25_CHUNKS, KNN_CHUNKS]` for E0; default (all 4) for E1 and Tier 2 |
 | Metadata for generation (ON/OFF) | `include_metadata: bool` param on `retrieve_nested` / `handle_search_documents_nested` (default `False`) — implemented on root branch | `tool.py` handler passes `include_metadata=True` for metadata-ON experiments (E2a-med, E2d, E2e, E2a-med-mmr) |
 | Fusion location (ES-side RRF) | Separate `nested_docs_es_rrf` retriever module | `air_assist_experiments` new retriever (E2c branch only) |
 | Final selection method (RRF/MMR) | `AIR_ASSIST_FUSION` env var (default `rrf`) | Env var only — no code change |
@@ -802,18 +1027,38 @@ examples). The CLI parameters and environment variables below govern each run:
   Resolved in `air_assist_experiments/retrieval/flat_retriever.py` and
   `nested_retriever.py` via `_get_fusion_method()`.
 
+**Retrieval depth parameters** — stored in `EXPERIMENT_CONFIG["retrieval"]` (root branch,
+`air_assist_experiments/config.py`); all are tunable. Depth parameters scale with
+`result_count` as shown:
+
+| Parameter | 25-chunk experiments | 60-chunk experiments | Rule |
+|---|---|---|---|
+| `result_count` | 25 | 60 | per-experiment (see table above) |
+| chunk-signal `size` (documents) | 100 | 100 | fixed at 100; `size ≥ result_count` always holds (see §13.5 of `08-index-design-and-ingestion.md`) |
+| chunk-signal `inner_hits.size` | 50 | 100 | `min(100, 2 × result_count)` |
+| `N_doc` (document-level signals, top-k documents) | 25 | 60 | `= result_count` |
+| scoped follow-up `inner_hits.size` | 50 | 100 | `min(100, 2 × result_count)` |
+
+**Ceiling:** `inner_hits.size` cannot exceed `max_inner_result_window = 100` (index setting,
+`from + size ≤ 100`). Supporting `result_count > 100` would require raising that index setting
+first.
+
+**Fusion parameters:** sparse-parent signal = `bool/should` sum (ES sums per-field scores);
+document-level BM25 = `combined_fields` with equal field weights; RRF constant `k = 60`
+(ordinal ranks); MMR `λ = 0.5`. E2c uses ES-side `rrf` retriever (no client fusion).
+
 | Experiment | Config (version) | Retrieval mode | Fusion | Chunks | Metadata gen | Reasoning | Hop policy | 5 MB filter |
 |---|---|---|---|---|---|---|---|---|
-| E0 | `rag_agent_v3/013.toml` (3.13) | Flat — 2 signals | Client-side RRF | 25 | OFF | low | Multi | ON |
-| E1 | `rag_agent_v3/013.toml` (3.13) | Flat — 4 signals | Client-side RRF | 25 | OFF | low | Multi | ON |
+| E0 | `rag_agent_v3/013.toml` (3.13) | Flat — 2 chunk-level signals | Client-side RRF | 25 | OFF | low | Multi | ON |
+| E1 | `rag_agent_v3/013.toml` (3.13) | Flat — 4 signals (2 chunk + 2 doc-level) | Client-side RRF | 25 | OFF | low | Multi | ON |
 | E2a-low | `DSAS-2836/092.toml` (3.92) | Nested — client-side RRF | Client-side RRF | 25 | OFF | low | Single (capped) | OFF |
 | E2a-med | `DSAS-2836/093.toml` (3.93) | Nested — client-side RRF | Client-side RRF | 25 | ON | medium | Multi | OFF |
 | E2c | `DSAS-2836/093.toml` (3.93) | Nested — ES-side RRF | ES-side RRF | 25 | ON | medium | Multi | OFF |
 | E2d | `DSAS-2836/093.toml` (3.93) | Nested — client-side RRF | Client-side RRF | 60 | ON | medium | Multi | OFF |
 | E2d-nometa | `DSAS-2836/093.toml` (3.93) | Nested — client-side RRF | Client-side RRF | 60 | OFF | medium | Multi | OFF |
 | E2e | `DSAS-2836/093.toml` (3.93) | Nested — client-side RRF | Client-side RRF | 60 | ON | medium | Single (capped) | OFF |
-| E0-mmr | `rag_agent_v3/013.toml` (3.13) | Flat — 2 signals | Client-side MMR (`AIR_ASSIST_FUSION=mmr`) | 25 | OFF | low | Multi | ON |
-| E1-mmr | `rag_agent_v3/013.toml` (3.13) | Flat — 4 signals | Client-side MMR (`AIR_ASSIST_FUSION=mmr`) | 25 | OFF | low | Multi | ON |
+| E0-mmr | `rag_agent_v3/013.toml` (3.13) | Flat — 2 chunk-level signals | Client-side MMR (`AIR_ASSIST_FUSION=mmr`) | 25 | OFF | low | Multi | ON |
+| E1-mmr | `rag_agent_v3/013.toml` (3.13) | Flat — 4 signals (2 chunk + 2 doc-level) | Client-side MMR (`AIR_ASSIST_FUSION=mmr`) | 25 | OFF | low | Multi | ON |
 | E2a-med-mmr | `DSAS-2836/093.toml` (3.93) | Nested — client-side RRF | Client-side MMR (`AIR_ASSIST_FUSION=mmr`) | 25 | ON | medium | Multi | OFF |
 
 ### 8.3 Prompt changes summary
@@ -952,7 +1197,8 @@ After the initial 11-experiment matrix is evaluated:
    dimension reverted to its E0 baseline. If performance drops significantly, the dimension
    contributes; if not, it can be dropped.
 4. **Follow-up grid:** once dominant dimensions are identified, a targeted follow-up grid can
-   explore secondary parameters (field boosts, RRF k, chunk concatenation policy) without
+   explore secondary parameters (RRF k, `combined_fields` field weight tuning, document-rank
+   broadcast vs per-chunk scoring, chunk concatenation policy, scoped follow-up depth) without
    running the full cross-product.
 
 This produces a Pareto-optimal retrieval configuration balancing quality and complexity.
