@@ -362,8 +362,16 @@ anchor, enabling clean attribution of any quality change.
 
 First-chunk decoration (adding chunk 0 per returned document to the output, matching qna-service
 behaviour) applies to **Tier 0 and Tier 1 only**. It is an output-only step that does not affect
-ranking or fusion. Tier 2 uses adjacent-chunk concatenation instead. Implementation of the
-first-chunk decoration is handled by a separate Tier 0/1 plan/branch.
+ranking or fusion. Tier 2 uses adjacent-chunk concatenation instead.
+
+The first-chunk support is split across two branches:
+- **Root branch (`DSAS-2836/experiments`):** the `first_chunk` named inner_hits filter (size 1,
+  `chunk_index = 0`) is present in all document-level signal queries. The root branch reads the
+  resulting chunk 0 text and stores it in `GroupedChunks.first_chunk` — the field used by the
+  eval scorers and XML serialiser.
+- **Dedicated Tier 0/1 plan/branch:** adds the **decoration** step — forcing chunk 0 into each
+  group's `retrieved_chunks` list even when it was not selected by fusion. This is the only part
+  deferred to that branch.
 
 ### 5.2 Variable dimensions
 
@@ -435,15 +443,16 @@ complex multi-hop questions — are not excluded from retrieval.
 **MMR as an alternative selection method.** A parallel branch (E0-mmr, E1-mmr, E2a-med-mmr)
 replaces the client-side RRF fusion step with Maximum Marginal Relevance (MMR) selection. This
 is an orthogonal dimension that spans tiers: instead of fusing the per-signal ranked lists by
-reciprocal rank, MMR obtains a dense vector for each candidate chunk (read from
-Elasticsearch `inner_hits._source` for chunk-level candidates; encoded client-side only
-for any candidates arriving exclusively via document-level signals) and the query
-(`"query: "` prefix, always client-side), then greedily selects chunks that are relevant
-to the query while penalizing redundancy with already-selected chunks
+reciprocal rank, MMR obtains a dense vector for each candidate chunk directly from Elasticsearch
+`inner_hits._source` (`chunks.embedding`, included in the Phase 1/2 `_source` projection when
+`AIR_ASSIST_FUSION=mmr`). Because every candidate in the pool originates from a chunk-level
+signal (Phase 1 chunk BM25/kNN or Phase 2 scoped follow-up), all candidates carry an ES
+embedding — no client-side passage encoding is needed. The query vector is always encoded
+client-side (`"query: "` prefix). MMR then greedily selects chunks that are relevant to the
+query while penalizing redundancy with already-selected chunks
 (`λ·sim(q,d) − (1−λ)·max_s sim(d,s)`, λ = 0.5, mirroring the qna-service production
-MMR strategy). The branch isolates the selection method while holding
-signals, output format, reasoning, and hop strategy identical to each experiment's RRF
-counterpart.
+MMR strategy). The branch isolates the selection method while holding signals, output format,
+reasoning, and hop strategy identical to each experiment's RRF counterpart.
 
 **Why the index design drives retrieval architecture.** The following design decisions in this
 report are direct consequences of the nested index type chosen in
@@ -611,7 +620,8 @@ These three experiments form a parallel branch that replaces the client-side ord
 step with MMR selection (λ = 0.5). The candidate pool is assembled identically to the RRF
 counterpart (same four-signal queries, same conditional scoped follow-up, same ordinal rank
 assignment). MMR then selects the final top-k over the pooled chunks using embedding similarity,
-with candidate vectors read from Elasticsearch `inner_hits._source` where available (see §7.4).
+with candidate vectors read from Elasticsearch `inner_hits._source` (all candidates originate
+from chunk-level signals and therefore always carry an ES embedding; see §7.4).
 Everything else is held identical to the named RRF counterpart, making each pair a clean
 single-dimension (RRF vs MMR) swap.
 
@@ -715,16 +725,16 @@ New tool (Pydantic model + async handler)
     │  routed by ExperimentToolProvider (eval runner selects flat vs nested)
     ▼
 elasticsearch-py Elasticsearch client
-    │  Phase 1 — four concurrent ES queries:
-    │    ├─ chunk BM25: nested match on chunks.text (score_mode max, inner_hits)
-    │    ├─ chunk kNN:  nested kNN on chunks.embedding (score_mode max, inner_hits)
-    │    ├─ doc BM25:   combined_fields over topic/summary/[title] (0 inner hits)
-    │    └─ doc sparse: bool/should over *_sparse fields (0 inner hits)
-    │  Phase 2 — conditional scoped follow-up (only if metadata_only_docs non-empty):
-    │    chunk BM25 + kNN filtered to document_artifact_id ∈ metadata_only_docs
-    │  Client: union pool → ordinal RRF or MMR → top result_count chunks
-    │  Phase 3 — full-field fetch for selected chunks only
-    │  or single ES-side rrf retriever (E2c, no Phases 2–3)
+│  Phase 1 — four concurrent ES queries:
+│    ├─ chunk BM25: nested match on chunks.text (score_mode max, inner_hits)
+│    ├─ chunk kNN:  nested kNN on chunks.embedding (score_mode max, inner_hits)
+│    ├─ doc BM25:   combined_fields over topic/summary/[title] (0 inner hits)
+│    └─ doc sparse: bool/should over *_sparse fields (0 inner hits)
+│  Phase 2 — conditional scoped follow-up (only if metadata_only_docs non-empty):
+│    chunk BM25 + kNN filtered to document_artifact_id ∈ metadata_only_docs
+│  Client: union pool → ordinal RRF or MMR → top result_count chunks
+│  (text/overlap/embedding returned inline in Phase 1/2 inner_hits; no separate fetch phase)
+│  or single ES-side rrf retriever (E2c, no Phase 2)
     ▼
 Elasticsearch (as-* nested index)
     │
@@ -883,31 +893,36 @@ known effect, acceptable during the experimental phase; later ablation can asses
 summing only over signals that contribute (no-contribution signals are skipped). Take the top
 `result_count` chunks by fused score.
 
-**Two-phase fetch.** Phases 1–2 use minimal field projections (`document_artifact_id`,
-`chunk_index`, scores). After the top `result_count` chunks are selected by fusion, a targeted
-ES query fetches full fields (`chunks.text`, `chunks.leading_overlap_chars`, `control_number`,
-parent metadata fields when needed) for the selected chunks only. This avoids downloading large
-text payloads for chunks that are ultimately not returned.
+**Inline field projection.** `chunks.text`, `chunks.leading_overlap_chars`, and (when
+`AIR_ASSIST_FUSION=mmr`) `chunks.embedding` are included in the `inner_hits._source` of the
+Phase 1 and Phase 2 chunk-level queries. There is no separate fetch phase. Chunk payload per
+query is bounded: `inner_hits.size` ≤ 100 per document, 100 documents returned, so at most
+~10 MB of text in the worst case across all signals — comfortably within network limits.
 
 #### Flat output (Tier 0, Tier 1)
 
 1. Assemble the candidate pool (Phases 1–2), apply ordinal RRF, take top `result_count` chunks.
-2. Two-phase fetch: retrieve `chunks.text` and `control_number` for the selected chunks.
+2. `chunks.text` and `control_number` are already available from Phase 1/2 `inner_hits._source`
+   (inline projection; no separate fetch).
 3. Group selected chunks by `document_artifact_id`.
-4. **First-chunk decoration (Tier 0/1, output-only).** For each represented document, chunk 0
-   is added to the output group even if it was not selected by fusion — matching the
-   qna-service production behaviour. Chunk 0 is retrieved at query time via the named
-   `first_chunk` inner_hits filter (size 1) already present in the document-level signal
-   queries. This step is purely an output decoration: chunk 0 is **never a fusion candidate**
-   and does not affect ranking in any way. First-chunk decoration applies to Tier 0 and Tier 1
-   experiments only; implementation is handled by a dedicated Tier 0/1 plan/branch.
+4. **First-chunk decoration (Tier 0/1, output-only).** For each document that has at least one
+   fusion-selected chunk (i.e., each document group already present in the output), chunk 0 is
+   added to that group even if it was not itself selected by fusion — matching the qna-service
+   production behaviour. Documents with no fusion-selected chunks are not represented in the
+   output at all and therefore receive no decoration. The `first_chunk` named inner_hits filter
+   (size 1, present in all document-level signal queries) supplies chunk 0 text: the root branch
+   reads it and populates `GroupedChunks.first_chunk`. The step that **forces** chunk 0 into
+   `retrieved_chunks` (making it appear in the output list even when not fusion-selected) is
+   implemented on the dedicated Tier 0/1 plan/branch. Chunk 0 is **never a fusion candidate**
+   and does not affect ranking in any way.
 5. Serialize as flat `<grouped_chunks>` XML elements.
 
 #### Nested output (Tier 2)
 
 1. Assemble the candidate pool (Phases 1–2), apply ordinal RRF, take top `result_count` chunks.
-2. Two-phase fetch: retrieve `chunks.text`, `chunks.leading_overlap_chars`, `control_number`,
-   and (when metadata gen ON) `title`, `summary`, `topic` for the selected chunks.
+2. `chunks.text`, `chunks.leading_overlap_chars`, `control_number`, and (when metadata gen ON)
+   `title`, `summary`, `topic` are already available from Phase 1/2 `inner_hits._source` and
+   parent `_source` (inline projection; no separate fetch).
 3. Group selected chunks by `document_artifact_id`. No first-chunk decoration in Tier 2.
 4. Determine which parent fields appear in the LLM-facing XML per group:
    - **LLM-facing XML** (`<document_group>` elements): carries `title` / `summary` / `topic`
@@ -934,19 +949,19 @@ When `AIR_ASSIST_FUSION=mmr`, the ordinal RRF fusion step is replaced by Maximum
 Relevance selection:
 
 1. Assemble the same candidate pool (Phases 1–2) as the RRF counterpart.
-2. Obtain a dense vector for each candidate chunk. For candidates from the chunk-level signals,
-   index-time vectors are read directly from Elasticsearch via `inner_hits._source`
-   (`chunks.embedding`), avoiding client-side encoding. For any candidates that arrive
-   exclusively via the document-level signals (after deduplication), the vector is encoded
-   client-side with the dense e5 model (`intfloat/multilingual-e5-small`, `"passage: "`
-   prefix). The query vector is always encoded client-side (`"query: "` prefix). Vectors from
-   Elasticsearch are raw float32 values as indexed (BBQ-HNSW quantization applies only to
-   ES's internal search graph, not to `_source`), matching client-side encoding exactly.
-3. Run MMR with λ = 0.5: first select the chunk most similar to the query, then iteratively
+2. Obtain a dense vector for each candidate chunk. Every candidate in the pool originates from
+   a chunk-level signal (Phase 1 chunk BM25/kNN or Phase 2 scoped follow-up), so every
+   candidate carries a `chunks.embedding` read directly from Elasticsearch via
+   `inner_hits._source` (included in the `_source` projection when `AIR_ASSIST_FUSION=mmr`).
+   No client-side passage encoding is needed or performed. Vectors from Elasticsearch are raw
+   float32 values as indexed (BBQ-HNSW quantization applies only to ES's internal search graph,
+   not to `_source`). The query vector is always encoded client-side (`"query: "` prefix).
+3. Run MMR over the **full candidate pool** (MMR is greedy and must score all remaining
+   candidates at each step): first select the chunk most similar to the query, then iteratively
    select the chunk maximizing `λ·sim(q,d) − (1−λ)·max_s sim(d,s)` until top-`result_count`
-   chunks are chosen.
+   chunks are chosen. λ = 0.5.
 4. Feed the selected chunks into flat (Tier 0/1) or nested (Tier 2) output assembly.
-   Two-phase fetch and first-chunk decoration (Tier 0/1 only) apply identically to the RRF path.
+   First-chunk decoration (Tier 0/1 only) applies identically to the RRF path.
 
 #### ES-side RRF (E2c only)
 
