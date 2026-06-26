@@ -741,6 +741,16 @@ Tier 0/1. Each group corresponds to one retrieved document and contains one or m
 elements produced by adjacent-chunk concatenation (see §6.5.2). No first-chunk decoration
 is applied in Tier 2 — chunk 0 is included only if it was selected by fusion.
 
+**XML delivery to the LLM (Tier-2 base branch).** The `<document_group>` XML is built by
+`retrieve_nested` / `_build_nested_output` inside `air_assist_experiments` and returned as the
+`content` text of the `ToolCallResult`. The v3 graph (`_get_documents`) uses this provider text
+directly as the tool-call message delivered to the LLM — it does **not** re-serialise via
+`GroupedChunks.to_xml()`. As a consequence, `GroupedChunks.to_xml()` on the Tier-2 base branch
+has also been simplified: it emits all selected chunks as plain `<chunk>` elements in start-index
+order with no `<first_chunk>` block. This ensures the snippet-generation and grounding contexts
+(which do call `to_xml()` internally) are also decoration-free and consistent with the LLM-facing
+output.
+
 **Metadata gen ON** (E2a-med, E2c, E2d, E2e, E2a-med-mmr): parent fields `title`, `summary`,
 `topic` are emitted inside the group (`title` only for indices with `title_enabled = true`,
 e.g. EMC2; omitted for Mallinckrodt). `control_number` and `primary_date_time` are never
@@ -1074,7 +1084,9 @@ comfortably within network limits.
    for each subsequent chunk strip the first `leading_overlap_chars` characters before
    appending (removes duplicated overlap without losing unique content). The chunk ID and
    citation format for the resulting passage are defined in §6.5.2.
-6. Serialize as `<document_group>` XML elements (canonical structure in §6.5.1).
+6. Serialize as `<document_group>` XML elements (canonical structure in §6.5.1) and return
+   the XML as the `ToolCallResult.content` text. The v3 graph delivers this text verbatim as
+   the tool-call message to the LLM — see §6.5.1 for the XML delivery mechanism.
 
 #### MMR selection (MMR branch)
 
