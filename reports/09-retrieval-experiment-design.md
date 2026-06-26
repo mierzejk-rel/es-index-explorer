@@ -419,11 +419,12 @@ necessary to fully exploit that richer context. However, E2a-low deliberately us
 reasoning and single-hop — it is the minimum viable Tier 2 configuration, testing whether the
 nested structure alone (with no metadata visible to the LLM) adds value over the flat output at
 the cheapest operational settings. The E2a-low → E2a-med comparison captures the combined
-value of switching to medium reasoning and multi-hop.
+value of switching to medium reasoning and multi-hop. (Mechanism: see §6.5.5–6.5.6.)
 
 **Metadata retrieval always ON in Tier 2.** Once the nested document structure is adopted,
 excluding parent-field signals would waste the indexed metadata. All Tier 2 experiments use
-the full signal set. The value of metadata retrieval signals is assessed at Tier 1 (E0 vs E1).
+the full four-signal set; the value of metadata retrieval signals is assessed at Tier 1
+(E0 vs E1). (Mechanism: see §6.5.3.)
 
 **Metadata for generation tested at both chunk counts.** E2a-low (25 chunks, low reasoning)
 has metadata gen OFF, and E2d-nometa (60 chunks, medium reasoning) also has metadata gen OFF.
@@ -461,7 +462,7 @@ ablation in the follow-up grid can quantify its impact (see §9.6).
 **5 MB size filter in Tier 2.** The 5 MB size filter (`workspace_extracted_text_size <= 5,242,880`)
 is applied in Tier 0 and Tier 1 to match current production behaviour. It is disabled for all
 Tier 2 experiments so that larger documents — which may contain the most relevant context for
-complex multi-hop questions — are not excluded from retrieval.
+complex questions — are not excluded from retrieval. (Mechanism: see §6.5.3.)
 
 **MMR as an alternative selection method.** A parallel branch (E0-mmr, E1-mmr, E2a-med-mmr)
 replaces the client-side RRF fusion step with Maximum Marginal Relevance (MMR) selection. This
@@ -567,14 +568,10 @@ decoration (Tier 1); the LLM does not see document metadata directly.
 
 **Tier 2 — Nested document format**
 
-All Tier 2 experiments return document groups: each group contains a list of retrieved
-chunks with adjacent chunks concatenated where `chunk_index` values are consecutive
-(each concatenated run identified by a range-style chunk ID, e.g. `"1:3"`). In experiments
-marked "metadata gen ON", the LLM-facing `<document_group>` XML also carries
-`title`, `summary`, and `topic` (`title` only for indices where `title_enabled` is true,
-e.g. EMC2). In experiments marked "metadata gen OFF" (`E2a-low`, `E2d-nometa`), those
-fields are omitted from the XML. The 5 MB size filter is disabled for all Tier 2 experiments. A new
-TOML config is created for Tier 2 (see §8).
+All Tier 2 experiments share a common output format, retrieval configuration, citation scheme,
+prompt structure, and code base. See **§6.5** for the complete shared design. What varies per
+experiment (metadata gen, reasoning, hops, chunk count, fusion) is noted in each definition
+below and summarised in §6.2.
 
 **E2a-low** — Minimum viable Tier 2 configuration.
 
@@ -729,6 +726,117 @@ The MMR branch runs after its RRF counterparts so each pair can be compared dire
 E1-mmr → E2a-med-mmr
 [E0-mmr deferred alongside E0]
 ```
+
+### 6.5 Tier 2 — shared design (applies to all Tier 2 experiments)
+
+> **Scope.** Every item in this section applies exclusively to Tier 2 (E2a-low, E2a-med, E2c,
+> E2d, E2d-nometa, E2e, E2a-med-mmr). Tier 0 and Tier 1 are unaffected. What varies *between*
+> Tier 2 experiments (metadata gen, reasoning effort, hop count, chunk count, fusion location) is
+> captured in §6.2 and §8.2.
+
+#### 6.5.1 Output format
+
+Tier 2 returns `<document_group>` XML elements instead of the flat `<grouped_chunks>` used in
+Tier 0/1. Each group corresponds to one retrieved document and contains one or more `<chunk>`
+elements produced by adjacent-chunk concatenation (see §6.5.2). No first-chunk decoration
+is applied in Tier 2 — chunk 0 is included only if it was selected by fusion.
+
+**Metadata gen ON** (E2a-med, E2c, E2d, E2e, E2a-med-mmr): parent fields `title`, `summary`,
+`topic` are emitted inside the group (`title` only for indices with `title_enabled = true`,
+e.g. EMC2; omitted for Mallinckrodt). `control_number` and `primary_date_time` are never
+emitted in the LLM-facing XML (`control_number` is carried in the structured output for eval
+scorers; `primary_date_time` is used only for ES filtering).
+
+**Metadata gen OFF** (E2a-low, E2d-nometa): parent fields are omitted from the XML entirely.
+
+Canonical output structure:
+```xml
+<!-- metadata gen ON -->
+<document_group>
+  <doc_id>{document_artifact_id}</doc_id>
+  <title>{title}</title>       <!-- omitted if title_enabled=false or metadata gen OFF -->
+  <summary>{summary}</summary> <!-- omitted if metadata gen OFF -->
+  <topic>{topic}</topic>       <!-- omitted if metadata gen OFF -->
+  <chunk><chunk_id>1:3</chunk_id><content>{concatenated text}</content></chunk>
+  <chunk><chunk_id>5</chunk_id><content>{single chunk text}</content></chunk>
+</document_group>
+```
+
+#### 6.5.2 Adjacent-chunk concatenation and range chunk IDs
+
+Within each document group, detect runs of consecutive `chunk_index` values. For a run
+`[i, i+1, ..., j]`: start with chunk `i`'s full text; for each subsequent chunk strip the
+first `leading_overlap_chars` characters before appending (removes duplicated overlap without
+losing unique content).
+
+**Chunk ID scheme (Tier 2 only):** a concatenated run is assigned the range-style identifier
+`"i:j"` (e.g. `"1:3"`). A single non-concatenated chunk retains its plain integer identifier
+(e.g. `"5"`). Because the identifier can be a range string, `Document.chunk_id` and
+`Snippet.chunk_id` are **string-typed** in Tier 2 code paths (not integers as in Tier 0/1).
+
+**Citation format (Tier 2 only):** `[doc_id-1:3]` for a concatenated run; `[doc_id-5]` for a
+single chunk. In-agent citation-validation regexes and the r1-evals citation scorers must
+accept the range form for Tier 2 traces. Tier 0/1 continue to use plain integer chunk IDs and
+`[doc_id-N]` citations; those scorers and regexes are unaffected.
+
+#### 6.5.3 Retrieval configuration
+
+All Tier 2 experiments use:
+- **All four retrieval signals** (BM25-chunks, kNN-chunks, BM25-parent, sparse-parent) — metadata
+  retrieval is always ON. The value of metadata retrieval signals is assessed at Tier 1 (E0 vs E1).
+- **5 MB size filter OFF** — larger documents are not excluded from retrieval.
+- **`apply_size_filter=False`** passed to `retrieve_nested`; `include_metadata` and
+  `result_count` vary per experiment (see §6.2).
+
+#### 6.5.4 Hybrid retrieval and query guidance
+
+Every query string issued by the agent is matched **simultaneously** by all active signals:
+lexical BM25 on chunk text, dense kNN on chunk embeddings, lexical `combined_fields` BM25 on
+parent metadata, and sparse-vector matching on parent metadata. The tool backend is **not**
+keyword-only — production tool docstrings that claim "keyword search (e.g., BM25), NOT semantic
+vectors" are incorrect for these experiments.
+
+Consequently, Tier 2 system prompts correct this guidance:
+- Inform the model that results combine lexical and semantic matching across the query.
+- **Single-hop experiments** (E2a-low, E2e): instruct the model to issue several varied parallel
+  queries in the single allowed iteration — mixing keyword-dense and natural-language/semantic
+  phrasings maximizes recall across all signal types in one round.
+- **Multi-hop experiments**: instruct the model to mix query phrasings within each hop and to
+  use subsequent hops for following leads discovered in results, not for switching retrieval
+  modality (each hop already covers all modalities).
+
+Tier 0/1 deliberately keep `013.toml` unchanged — the keyword framing is retained as an experimental
+control and the retrieval backend matches the production qna-service behaviour the prompt was
+written for.
+
+#### 6.5.5 TOML configs and base branch
+
+All Tier 2 TOML configs are placed under
+`air_assist_core/registry/configs/DSAS-2836/` and auto-discovered by the registry via
+`rglob("*.toml")`. Version numbers 92–93 are used (no collision with existing configs in
+`rag_agent_v3/`, range 8–24).
+
+Tier 2 experiment branches share a **common Tier-2 base branch** (`DSAS-2836/tier2-base`) that
+sits between the root `DSAS-2836/experiments` and individual experiment branches.
+
+The nested `<document_group>` output (`retrieve_nested`) and the range-style `"i:j"` chunk-ID
+rendering already live on **root**. Placing them there is harmless to Tier 0/1 — those tiers use
+the flat output path and never invoke the nested retriever — and is warranted because the nested
+output is common to all Tier 2 experiments and should be available as early as possible.
+
+`DSAS-2836/tier2-base` adds only the Tier-2-specific changes layered on top of root's nested
+retriever: provider routing from flat to nested, string-typed `Document.chunk_id`/`Snippet.chunk_id`
+with matching citation-validation regex and r1-evals scorer updates (so citations carry the range
+form end-to-end), and the config-driven hop cap. Each experiment branch then adds only its
+per-experiment TOML and runner wiring.
+
+#### 6.5.6 Config-driven hop cap (single-hop experiments)
+
+For single-hop experiments (E2a-low, E2e), `tool_choice` is capped at `"none"` after iteration 0
+via a TOML-configurable field read by `get_tool_choice()` in `rag_agent.py`. The field defaults
+to the current multi-hop behaviour so all other experiments are unaffected. This replaces
+per-branch `rag_agent.py` edits — the cap is expressed entirely in the TOML and the base-branch
+`rag_agent.py` reads it.
 
 ---
 
@@ -964,11 +1072,9 @@ comfortably within network limits.
 5. **Adjacent chunk concatenation.** Within each document group, detect runs of consecutive
    `chunk_index` values. For a run `[i, i+1, ..., j]`: start with chunk `i`'s full text;
    for each subsequent chunk strip the first `leading_overlap_chars` characters before
-   appending (removes duplicated overlap without losing unique content). The resulting passage
-   is assigned range-style chunk ID `"i:j"` (e.g. `"1:3"`); a single non-concatenated chunk
-   retains its plain integer ID (e.g. `"5"`). In the XML, the concatenated chunk appears as a
-   single `<chunk>` element; the LLM cites it as `[doc_id-1:3]`.
-6. Serialize as `<document_group>` XML elements.
+   appending (removes duplicated overlap without losing unique content). The chunk ID and
+   citation format for the resulting passage are defined in §6.5.2.
+6. Serialize as `<document_group>` XML elements (canonical structure in §6.5.1).
 
 #### MMR selection (MMR branch)
 
@@ -1016,10 +1122,19 @@ index's first-class parent fields:
 
 ### 7.6 Per-experiment changes required
 
-All experiment branches fork from the shared root branch (`DSAS-2836/experiments`), which
-provides retriever methods with parameterised signals, chunk count, size filter, and fusion
-method (RRF/MMR). The table below shows what must change in each experiment branch relative to
-that shared root — the root itself remains identical for every experiment.
+**Tier 0/1 experiment branches** (E0, E0-mmr, E1, E1-mmr) fork directly from the shared root
+branch (`DSAS-2836/experiments`). Root provides all parameterised retriever methods (signals,
+chunk count, size filter, fusion method), and also carries the nested `<document_group>` output
+path (`retrieve_nested`) and range-style chunk-ID rendering — both of which are shared by all
+Tier 2 experiments but are harmless to Tier 0/1 (those tiers use the flat output path only).
+
+**Tier 2 experiment branches** (E2a-low, E2a-med, E2c, E2d, E2d-nometa, E2e, E2a-med-mmr)
+fork from the Tier-2 base branch (`DSAS-2836/tier2-base`), which itself forks from root (see
+§6.5.5). The base branch adds the Tier-2-specific changes on top of root. Each individual
+experiment branch then adds only its per-experiment TOML and runner wiring.
+
+The table below shows what must change in each experiment branch relative to its parent (root
+for Tier 0/1; `tier2-base` for Tier 2).
 
 | Dimension | Control mechanism | What changes per experiment branch |
 |---|---|---|
@@ -1028,9 +1143,9 @@ that shared root — the root itself remains identical for every experiment.
 | Fusion location (ES-side RRF) | Separate `nested_docs_es_rrf` retriever module | `air_assist_experiments` new retriever (E2c branch only) |
 | Final selection method (RRF/MMR) | `AIR_ASSIST_FUSION` env var (default `rrf`) | Env var only — no code change |
 | Chunk count (25/60) | `result_count: int` method param (default 25) | `tool.py` handler passes override per experiment |
-| 5 MB size filter (ON/OFF) | `size_limit_bytes: int \| None` method param | `tool.py` handler passes `None` for all Tier 2 experiments |
+| 5 MB size filter (ON/OFF) | `apply_size_filter: bool` param on `retrieve_flat` / `retrieve_nested` | `tool.py` handler passes `apply_size_filter=False` for all Tier 2 experiments |
 | Reasoning effort (low/medium) | TOML `reasoning_effort` field | New TOML file only — no code change |
-| Hop strategy (multi/single) | System prompt wording + `get_tool_choice()` in `rag_agent.py` | `air_assist_core/src` rag_agent.py (experiment branch) |
+| Hop strategy (multi/single) | TOML-configurable `max_tool_iterations` field read by `get_tool_choice()` in `rag_agent.py` (see §6.5.6) | TOML only — no per-branch `rag_agent.py` edit; all Tier 2 single-hop experiments set the field in their TOML |
 | Title in retrieval | `title_enabled` in per-index config dict | Already implemented on root — no change |
 | Tool registration + dispatch | `ExperimentToolProvider` injected by the eval runner (no code change in `air_assist_core`) | Eval runner script selects provider per experiment |
 
@@ -1061,20 +1176,21 @@ range is 8–24 in `rag_agent_v3/`).
 
 **E2a-low** uses `DSAS-2836/092.toml` (version 3.92) with:
 - `reasoning_effort: low`
-- System prompt updated for nested document format (metadata gen OFF variant — metadata
-  fields omitted from XML, so the format explanation does not mention them)
-- Single-hop: tool_choice capped at `none` after iteration 0
+- System prompt: nested format explanation (metadata gen OFF variant; see §6.5.1) +
+  hybrid retrieval + single-hop parallel-query guidance (see §6.5.4)
+- Single-hop: `max_tool_iterations = 1` (see §6.5.6)
 
-**E2a-med, E2c, E2d, E2d-nometa, E2e** use `DSAS-2836/093.toml` (version 3.93) with:
+**E2a-med, E2c, E2d, E2d-nometa** use `DSAS-2836/093.toml` (version 3.93) with:
 - `reasoning_effort: medium`
-- System prompt updated for nested document format with metadata visible: "Each result
-  contains document-level metadata (title, summary, topic) followed by the most relevant
-  passages. Use the metadata to orient your understanding before citing passages."
-- E2e additionally: prompt instructs exactly one retrieval iteration; tool_choice capped at
-  `none` after iteration 0
+- System prompt: nested format explanation (metadata gen ON variant; see §6.5.1) +
+  hybrid retrieval + multi-hop phrasing-mix guidance (see §6.5.4)
 
-The TOML schema is not extended. Retrieval parameters (signals, chunk count, fusion,
-metadata-gen flag) are controlled by the `ExperimentToolProvider` and companion Python
+**E2e** uses `DSAS-2836/093.toml` (version 3.93) with the same prompt as E2a-med plus:
+- Single-hop: `max_tool_iterations = 1` (see §6.5.6)
+
+The TOML schema is extended with one optional integer field `max_tool_iterations` (default:
+`None`, retaining current unlimited-hop behaviour). Retrieval parameters (signals, chunk count,
+fusion, metadata-gen flag) are controlled by the `ExperimentToolProvider` and companion Python
 configuration, not via the TOML.
 
 **MMR branch configs.** E0-mmr and E1-mmr add no new TOML files — they reuse
@@ -1156,11 +1272,11 @@ document-level BM25 = `combined_fields` with equal field weights; RRF constant `
 
 | Config | Experiment(s) | Changes from 013.toml |
 |---|---|---|
-| `rag_agent_v3/013.toml` (3.13) | E0, E1, E0-mmr, E1-mmr | **No changes.** System prompt, tool descriptions, and all guidance are identical to production. Retrieval backend is swapped at eval runner level only. |
-| `DSAS-2836/092.toml` (3.92) | E2a-low | Nested format explanation (no metadata fields mentioned, as they are omitted from XML); single-hop instruction: "Perform exactly one retrieval call per turn. Issue all necessary queries simultaneously." |
-| `DSAS-2836/093.toml` (3.93) | E2a-med, E2c, E2d, E2d-nometa | Nested format explanation with metadata visible: "Each result contains document-level metadata (title, summary, topic) followed by the most relevant passages. Use the metadata to orient your understanding before citing passages."; `reasoning_effort = "medium"` |
-| `DSAS-2836/093.toml` (3.93) | E2e | Same as above + single-hop instruction |
-| `DSAS-2836/093.toml` (3.93) | E2a-med-mmr | Identical to E2a-med (MMR set via `AIR_ASSIST_FUSION=mmr`; no prompt change) |
+| `rag_agent_v3/013.toml` (3.13) | E0, E1, E0-mmr, E1-mmr | **No changes.** System prompt, tool descriptions, and all guidance are identical to production. Retrieval backend is swapped at eval runner level only. Keyword-only framing is retained as an experimental control. |
+| `DSAS-2836/092.toml` (3.92) | E2a-low | Nested format explanation, metadata gen OFF variant (see §6.5.1); corrected hybrid retrieval guidance + single-hop parallel-query instruction (see §6.5.4); single-hop cap via config-driven `max_tool_iterations` (see §6.5.6). |
+| `DSAS-2836/093.toml` (3.93) | E2a-med, E2c, E2d, E2d-nometa | Nested format explanation, metadata gen ON variant (see §6.5.1); corrected hybrid retrieval guidance + multi-hop phrasing-mix instruction (see §6.5.4); `reasoning_effort = "medium"`. |
+| `DSAS-2836/093.toml` (3.93) | E2e | Same as E2a-med/E2c/E2d above + single-hop parallel-query instruction and `max_tool_iterations` cap (see §6.5.6). |
+| `DSAS-2836/093.toml` (3.93) | E2a-med-mmr | Identical to E2a-med (MMR set via `AIR_ASSIST_FUSION=mmr`; no prompt change). |
 
 ---
 
