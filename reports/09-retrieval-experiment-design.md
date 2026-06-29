@@ -1183,7 +1183,7 @@ Tier 2 experiments require new TOML files because the system prompt genuinely ch
 explain the nested document format to the LLM. These are placed under
 `air-assist-agent/packages/air_assist_core/src/air_assist_core/registry/configs/DSAS-2836/`
 alongside the existing `rag_agent_v3/` folder. The registry discovers them automatically via
-`rglob("*.toml")`. Version numbers 92–93 have no collision with any existing config (current
+`rglob("*.toml")`. Version numbers 92–96 have no collision with any existing config (current
 range is 8–24 in `rag_agent_v3/`).
 
 **E2a-low** uses `DSAS-2836/092.toml` (version 3.92) with:
@@ -1192,18 +1192,51 @@ range is 8–24 in `rag_agent_v3/`).
   hybrid retrieval + single-hop parallel-query guidance (see §6.5.4)
 - Single-hop: `max_tool_iterations = 1` (see §6.5.6)
 
-**E2a-med, E2c, E2d, E2d-nometa** use `DSAS-2836/093.toml` (version 3.93) with:
-- `reasoning_effort: medium`
+Each Tier 2 experiment is fully identified by its own TOML file; no CLI switches are needed
+for retrieval or generation parameters. The TOML schema is extended with three optional fields
+(defaults in parentheses):
+
+- `max_tool_iterations` (`None` — unlimited, i.e. multi-hop by default; see §6.5.6)
+- `include_metadata` (`false` — metadata fields omitted from LLM-facing XML)
+- `result_count` (`None` — defers to `EXPERIMENT_CONFIG["retrieval"]["result_count"]` = 25)
+
+Retrieval signals and fusion method are not TOML fields; signals default to all four active and
+fusion is set via the `AIR_ASSIST_FUSION` env var as before. Safe defaults ensure that
+`013.toml`, `092.toml`, and all executed experiments are unaffected.
+
+**`max_completion_tokens` rule:** `60_000` for any experiment with `reasoning_effort = "medium"`
+OR `result_count = 60` (logical OR); `30_000` otherwise (Tier 0/1 and E2a-low).
+
+| TOML | Version | Experiments | Metadata gen | Reasoning | Hop policy | Chunks | `max_completion_tokens` |
+|---|---|---|---|---|---|---|---|
+| `092.toml` | 3.92 | E2a-low (frozen — executed) | OFF | low | Single | 25 | 30 000 |
+| `093.toml` | 3.93 | E2a-med, E2c, E2a-med-mmr | ON | medium | Multi | 25 | 60 000 |
+| `094.toml` | 3.94 | E2d | ON | medium | Multi | 60 | 60 000 |
+| `095.toml` | 3.95 | E2d-nometa | OFF | medium | Multi | 60 | 60 000 |
+| `096.toml` | 3.96 | E2e | ON | medium | Single | 60 | 60 000 |
+
+**E2a-med, E2c** use `DSAS-2836/093.toml` (version 3.93) with:
+- `include_metadata = true`, `result_count = 25`
+- `reasoning_effort = "medium"`, `max_completion_tokens = 60_000`
 - System prompt: nested format explanation (metadata gen ON variant; see §6.5.1) +
   hybrid retrieval + multi-hop phrasing-mix guidance (see §6.5.4)
+- Multi-hop: `max_tool_iterations` absent (default unlimited)
 
-**E2e** uses `DSAS-2836/093.toml` (version 3.93) with the same prompt as E2a-med plus:
+**E2d** uses `DSAS-2836/094.toml` (version 3.94) with:
+- `include_metadata = true`, `result_count = 60`
+- Same system prompt as `093.toml`; `reasoning_effort = "medium"`, `max_completion_tokens = 60_000`
+- Multi-hop: `max_tool_iterations` absent
+
+**E2d-nometa** uses `DSAS-2836/095.toml` (version 3.95) with:
+- `include_metadata = false`, `result_count = 60`
+- System prompt: metadata gen OFF variant (same hybrid + multi-hop structure as E2a-med but
+  metadata fields omitted from the context-format and metadata-use guidance)
+- `reasoning_effort = "medium"`, `max_completion_tokens = 60_000`
+
+**E2e** uses `DSAS-2836/096.toml` (version 3.96) with:
+- `include_metadata = true`, `result_count = 60`
+- Same system prompt as `093.toml`; `reasoning_effort = "medium"`, `max_completion_tokens = 60_000`
 - Single-hop: `max_tool_iterations = 1` (see §6.5.6)
-
-The TOML schema is extended with one optional integer field `max_tool_iterations` (default:
-`None`, retaining current unlimited-hop behaviour). Retrieval parameters (signals, chunk count,
-fusion, metadata-gen flag) are controlled by the `ExperimentToolProvider` and companion Python
-configuration, not via the TOML.
 
 **MMR branch configs.** E0-mmr and E1-mmr add no new TOML files — they reuse
 `rag_agent_v3/013.toml` (version 3.13), identical to their RRF counterparts, differing only by
@@ -1231,7 +1264,8 @@ examples). The CLI parameters and environment variables below govern each run:
 
 **CLI parameter `--model-version`** (required)
 : Model version string in `<type>.<config>` format. For all Tier 0/1 experiments: `3.13`
-  (resolves to `rag_agent_v3/013.toml`). For Tier 2: `3.92` or `3.93`.
+  (resolves to `rag_agent_v3/013.toml`). For Tier 2: `3.92` (E2a-low), `3.93` (E2a-med, E2c,
+  E2a-med-mmr), `3.94` (E2d), `3.95` (E2d-nometa), `3.96` (E2e).
 
 **`AIR_ASSIST_EXPERIMENT_CID_SECRET`** (required, env)
 : CID client secret for authenticating the Elasticsearch bearer token.
@@ -1273,9 +1307,9 @@ document-level BM25 = `combined_fields` with equal field weights; RRF constant `
 | E2a-low | `DSAS-2836/092.toml` (3.92) | Nested — client-side RRF | Client-side RRF | 25 | OFF | low | Single (capped) | OFF |
 | E2a-med | `DSAS-2836/093.toml` (3.93) | Nested — client-side RRF | Client-side RRF | 25 | ON | medium | Multi | OFF |
 | E2c | `DSAS-2836/093.toml` (3.93) | Nested — ES-side RRF | ES-side RRF | 25 | ON | medium | Multi | OFF |
-| E2d | `DSAS-2836/093.toml` (3.93) | Nested — client-side RRF | Client-side RRF | 60 | ON | medium | Multi | OFF |
-| E2d-nometa | `DSAS-2836/093.toml` (3.93) | Nested — client-side RRF | Client-side RRF | 60 | OFF | medium | Multi | OFF |
-| E2e | `DSAS-2836/093.toml` (3.93) | Nested — client-side RRF | Client-side RRF | 60 | ON | medium | Single (capped) | OFF |
+| E2d | `DSAS-2836/094.toml` (3.94) | Nested — client-side RRF | Client-side RRF | 60 | ON | medium | Multi | OFF |
+| E2d-nometa | `DSAS-2836/095.toml` (3.95) | Nested — client-side RRF | Client-side RRF | 60 | OFF | medium | Multi | OFF |
+| E2e | `DSAS-2836/096.toml` (3.96) | Nested — client-side RRF | Client-side RRF | 60 | ON | medium | Single (capped) | OFF |
 | E0-mmr | `rag_agent_v3/013.toml` (3.13) | Flat — 2 chunk-level signals | Client-side MMR (`AIR_ASSIST_FUSION=mmr`) | 25 | OFF | low | Multi | ON |
 | E1-mmr | `rag_agent_v3/013.toml` (3.13) | Flat — 4 signals (2 chunk + 2 doc-level) | Client-side MMR (`AIR_ASSIST_FUSION=mmr`) | 25 | OFF | low | Multi | ON |
 | E2a-med-mmr | `DSAS-2836/093.toml` (3.93) | Nested — client-side RRF | Client-side MMR (`AIR_ASSIST_FUSION=mmr`) | 25 | ON | medium | Multi | OFF |
@@ -1286,9 +1320,10 @@ document-level BM25 = `combined_fields` with equal field weights; RRF constant `
 |---|---|---|
 | `rag_agent_v3/013.toml` (3.13) | E0, E1, E0-mmr, E1-mmr | **No changes.** System prompt, tool descriptions, and all guidance are identical to production. Retrieval backend is swapped at eval runner level only. Keyword-only framing is retained as an experimental control. |
 | `DSAS-2836/092.toml` (3.92) | E2a-low | Nested format explanation, metadata gen OFF variant (see §6.5.1); corrected hybrid retrieval guidance + single-hop parallel-query instruction (see §6.5.4); single-hop cap via config-driven `max_tool_iterations` (see §6.5.6). |
-| `DSAS-2836/093.toml` (3.93) | E2a-med, E2c, E2d, E2d-nometa | Nested format explanation, metadata gen ON variant (see §6.5.1); corrected hybrid retrieval guidance + multi-hop phrasing-mix instruction (see §6.5.4); `reasoning_effort = "medium"`. |
-| `DSAS-2836/093.toml` (3.93) | E2e | Same as E2a-med/E2c/E2d above + single-hop parallel-query instruction and `max_tool_iterations` cap (see §6.5.6). |
-| `DSAS-2836/093.toml` (3.93) | E2a-med-mmr | Identical to E2a-med (MMR set via `AIR_ASSIST_FUSION=mmr`; no prompt change). |
+| `DSAS-2836/093.toml` (3.93) | E2a-med, E2c, E2a-med-mmr | Nested format explanation, metadata gen ON variant (see §6.5.1); hybrid retrieval + multi-hop phrasing-mix guidance + metadata-as-hint instruction (see §6.5.4); `reasoning_effort = "medium"`; `include_metadata = true`; `result_count = 25`; `max_completion_tokens = 60_000`. E2a-med-mmr identical + `AIR_ASSIST_FUSION=mmr`. |
+| `DSAS-2836/094.toml` (3.94) | E2d | Same prompt as `093.toml`; `include_metadata = true`, `result_count = 60`, `max_completion_tokens = 60_000`. |
+| `DSAS-2836/095.toml` (3.95) | E2d-nometa | Metadata gen OFF variant of `093.toml` prompt (metadata context-format and metadata-use guidance omitted); `include_metadata = false`, `result_count = 60`, `max_completion_tokens = 60_000`. |
+| `DSAS-2836/096.toml` (3.96) | E2e | Same prompt as `093.toml` + single-hop cap; `include_metadata = true`, `result_count = 60`, `max_completion_tokens = 60_000`; `max_tool_iterations = 1` (see §6.5.6). |
 
 ---
 
