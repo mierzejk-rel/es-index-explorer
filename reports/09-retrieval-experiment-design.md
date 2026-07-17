@@ -1096,12 +1096,48 @@ Relevance selection:
 1. Assemble the same candidate pool (Phases 1–2) as the RRF counterpart.
 2. Obtain a dense vector for each candidate chunk. Every candidate originates from a chunk-level
    signal (Phase 1 chunk BM25/kNN or Phase 2 scoped follow-up), so every candidate has
-   `chunks.text` available from the inline `inner_hits._source` projection. Each text is encoded
-   client-side using the dense E5 model (`intfloat/multilingual-e5-small`) with the
-   `"passage: "` prefix via `DenseQueryEncoder.encode_passages`. `chunks.embedding` is excluded
-   from `_source` at index time and cannot be retrieved regardless of the `_source.includes`
-   projection, making client-side encoding the only viable path. The query vector is always
-   encoded client-side with the `"query: "` prefix.
+   `chunks.text` available from the inline `inner_hits._source` projection. `chunks.embedding`
+   is excluded from `_source` at index time and cannot be retrieved regardless of the
+   `_source.includes` projection, making client-side encoding the only viable path. The query
+   vector is always encoded client-side with the `"query: "` prefix.
+
+   **Candidate ordering.** Before encoding, the candidate pool is sorted ascending by
+   `(document_artifact_id, chunk_index)` — this is the deterministic MMR order used by
+   `_fuse_with_mmr` and is not the raw Elasticsearch hit/inner-hit response order.
+
+   **MMR passage-embedding cache.** To avoid redundant encoding across concurrent and sequential
+   rubric-variant invocations that share the same Elasticsearch index, each raw candidate vector
+   is memoized in a bounded, process-local synchronized LRU cache (`DenseQueryEncoder`) keyed by
+   `(index_name, document_artifact_id, chunk_index)`. `index_name` is included so that the
+   process-singleton encoder can be safely reused across multiple datasets (e.g. EMC2 and
+   Mallinckrodt) in one evaluation run without key collisions. The cache is an in-process
+   `OrderedDict`-backed true LRU: every hit promotes the entry to the most-recently-used
+   position; every insertion places the new entry at the most-recently-used end; exceeding the
+   capacity of 250,000 entries evicts the least-recently-used entry. The cache is empty at
+   process start and expires when the evaluation process exits.
+
+   **Batch hit/miss algorithm.** All cache operations for one MMR candidate batch are performed
+   under a single `threading.RLock` critical section so that concurrent rubric variants cannot
+   duplicate encoding work. Within the lock, the sorted candidate list is partitioned:
+
+   - **Cache hits:** the compact float32 vector is read from the LRU and the entry is promoted
+     (marked most-recently-used). The vector is placed at the candidate's original output
+     position.
+   - **Cache misses:** the key, raw text, and original output position are recorded; no encoding
+     occurs yet.
+
+   After partitioning, all miss texts are encoded in one batched `SentenceTransformer.encode`
+   call with the `"passage: "` prefix, matching the encoding used before caching was introduced.
+   Each resulting vector is stored as a compact `array('f')` (float32), inserted into the LRU,
+   and placed at its recorded original output position. After the batch, hits and newly encoded
+   misses are merged back index-for-index into the original sorted MMR candidate order. The
+   returned sequence is identical to what `encode_passages` would produce for all candidates,
+   preserving candidate-to-vector alignment and all MMR tie-breaking exactly.
+
+   The cache does not change the candidate pool, the candidate order, the E5 model, the passage
+   prefix, vector normalization, MMR selection, or λ. It is a pure performance optimization that
+   has no effect on retrieval or fusion semantics.
+
 3. Run MMR over the **full candidate pool** (MMR is greedy and must score all remaining
    candidates at each step): first select the chunk most similar to the query, then iteratively
    select the chunk maximizing `λ·sim(q,d) − (1−λ)·max_s sim(d,s)` until top-`result_count`
