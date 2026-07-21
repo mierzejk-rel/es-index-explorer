@@ -248,10 +248,14 @@ compare query-relative scores, and performs no client reranking.
 
 ### 5.2 `current_union` — literal current control
 
-Use current `merge_chunks()` behavior: preserve first-seen document order, deduplicate chunks,
-sort chunks inside each document by start index, and retain the full unique union up to each
-call's `simple_per_call_fetch_count` cap. Context can grow to roughly
+Preserve first-seen document order, deduplicate chunks by `(doc_id, chunk_id)`, sort chunks
+inside each document by start index, and retain the full unique union up to each call's
+`simple_per_call_fetch_count` cap. Context can grow to roughly
 `actual_call_count × simple_per_call_fetch_count`.
+
+After the union is built, adjacent selected chunks within each document are concatenated into
+range IDs (`"i:j"`) using the same overlap-trimming algorithm as `round_robin`. Output format
+(flat-concatenated grouped chunks) is held constant across both merge policies.
 
 The implementation logs both configured counts, the actual unique chunk count, and the estimated
 prompt-context size. This arm is an intentional control, not a clean merge-only comparison: it
@@ -279,14 +283,13 @@ Examples:
 - `S-A-bm25-c1-rr-f20-g10-rnone`
 - `S-A-hybrid-c3-rr-f20-g10-rnone`
 - `S-B-hybrid-c3-union-f20-rnone`
-- `S-C-hybrid-c3-rr-f20-g20-rnone`
-- `S-D-hybrid-c3-rr-f20-g15-rlow`
+- `S-C-hybrid-c3-rr-f20-g15-rlow`
 
 ### 6.2 Full experiment table
 
 Stage A fixes `simple_per_call_fetch_count = 20` for all arms. The global context budget
 (`simple_global_context_chunk_count`) is selected per individual experiment and is shown in the
-`g` part of each arm's ID; typical choices are `g10`, `g15`, or `g20` and are chosen at run time
+`g` part of each arm's ID. It is designed to be `g10`, `g15`, or `g20`, selected at run time
 rather than pre-declared as a mandatory full cross-product. Stage B arms use `current_union` and
 carry no `g` segment because that policy does not apply a global selection cap.
 
@@ -296,8 +299,7 @@ carry no `g` segment because that policy does not apply a global selection cap.
 | A | `S-A-dense-c{1,2,3}-rr-f20-g{chosen}-rnone` | dense only | 1, 2, 3 | round-robin | 20 | chosen per run | none | Semantic/call-count screen |
 | A | `S-A-hybrid-c{1,2,3}-rr-f20-g{chosen}-rnone` | ES RRF BM25+dense | 1, 2, 3 | round-robin | 20 | chosen per run | none | Hybrid/call-count screen |
 | B | `S-B-<selected>-union-f20-rnone` | selected Stage A setup | selected | current union | 20 per call | full union | none | Context-volume control |
-| C | `S-C-<selected>-rr-f20-g20-rnone` | selected setup | selected | round-robin | 20 | 20 | none | Context-depth comparison vs Stage A g-value |
-| D | `S-D-<selected>-rr-f20-g{chosen}-rlow` | selected setup | selected | round-robin | 20 | same as a completed `rnone` counterpart | low | Reasoning at chosen global context |
+| C | `S-C-<selected>-rr-f20-g{chosen}-rlow` | selected Stage A setup | selected | round-robin | 20 | same as a completed Stage A `rnone` counterpart | low | Reasoning at chosen global context |
 
 All rows hold constant: one code-enforced retrieval round, generated metadata OFF, no parent
 metadata ranking, no first chunk, flat-concatenated output, date/email filters only under the
@@ -311,8 +313,8 @@ policy above, 5 MiB filter OFF, and invocation concurrency 1.
 | `S-A-dense-cN` vs `S-A-hybrid-cN` | dense vs server-side hybrid RRF | Value of combining chunk lexical+dense signals |
 | `S-A-<mode>-c1/c2/c3` | requested call count | Value of query diversity; actual count recorded separately |
 | `S-A/B selected rr` vs `union` | merge plus context volume | Intentionally confounded control |
-| `S-A gX` vs `S-C g20` | global context budget at fixed f20 | Value of more passages at fixed merge policy |
-| `S-D gX none vs low` | reasoning effort at any selected global context `gX` | Value of GPT-5.1 reasoning tokens |
+| `S-A gX` vs `S-A gY` | global context budget at fixed f20, mode, and call count | Value of more passages at fixed merge policy |
+| `S-A gX rnone` vs `S-C gX rlow` | reasoning effort at any selected global context `gX` | Value of GPT-5.1 reasoning tokens |
 | E0 vs selected S arm | full baseline vs Simple Mode | Quality/latency trade-off; multi-dimensional comparison |
 
 ### 6.4 Execution order and stop/go gates
@@ -323,14 +325,13 @@ Execute from lowest expected latency to highest:
 2. Stage A two-call BM25, dense, hybrid;
 3. Stage A three-call BM25, dense, hybrid;
 4. Stage B current-union control for Stage A Pareto candidate(s);
-5. Stage C g20 comparison for selected candidate(s);
-6. Stage D `low` arms for any selected global context, each paired with an already completed
-   like-for-like `rnone` arm from Stage A or Stage C.
+5. Stage C `low` arms for any selected global context, each paired with an already completed
+   like-for-like `rnone` arm from Stage A.
 
-Stage D can contain as many selected `g` values as needed. Each `low` arm requires a like-for-like
-`none` counterpart (from Stage A or C), isolating reasoning effort without replacing a screening
-arm or conflating effort with context budget. GPT-5.1 supports custom tool calling for both `none`
-and `low`; the chosen effort remains constant across all LLM calls in one run.
+Stage C can contain as many selected `g` values as needed. Each `low` arm requires a like-for-like
+Stage A `none` counterpart, isolating reasoning effort without replacing a screening arm or
+conflating effort with context budget. GPT-5.1 supports custom tool calling for both `none` and
+`low`; the chosen effort remains constant across all LLM calls in one run.
 
 Advance a candidate only if it has acceptable rubric/citation/retrieval quality relative to E0 and
 demonstrates a latency benefit at concurrency 1. Retain the complete Stage A matrix even when a
@@ -378,7 +379,7 @@ simple_per_call_fetch_count = 20       # candidates returned by each retrieval c
 simple_global_context_chunk_count = 10 # unique chunks selected after round_robin merging; chosen per experiment (e.g. 10, 15, 20)
 include_metadata = false
 max_tool_iterations = 1
-reasoning_effort = "none"              # Stage D comparison uses "low"
+reasoning_effort = "none"              # Stage C comparison uses "low"
 max_completion_tokens = 12_000
 ```
 
@@ -405,7 +406,10 @@ extraction/repair, and structured output after the single retrieval round.
 All retrieval calls emitted by the model during that round run concurrently. Each receives a tool
 ordinal and configuration attributes. Once all are complete, Simple Mode applies the configured
 cross-call merge policy, concatenates adjacent chunks, emits flat grouped XML, and invokes final
-answer generation.
+answer generation. To preserve OpenAI tool-response pairing without duplicating context, the full
+merged XML is returned only for the first emitted retrieval tool-call ID. Every later retrieval
+tool-call ID receives the acknowledgement `Results merged into the first retrieval response.`
+The final-answer LLM therefore receives one authoritative retrieval context.
 
 ### 7.3 Simple retrieval adapter
 
@@ -505,8 +509,9 @@ metrics produce one row per distinct `simple.operation` value present in the tra
 The generic rate limiter remains independent from MLflow. In `r1_rate_limiter`, measure immediately
 around each underlying `await func(...)` API attempt. On success, store final-attempt duration and
 attempt count in context-local state so concurrent calls cannot overwrite each other. OpenAI SDK
-retries remain disabled. `LlmModel.complete` reads the final-attempt value and sets it plus the
-operation label on the active MLflow LLM span.
+retries remain disabled. `air_assist_core` declares `r1-rate-limiter` as an explicit dependency;
+`LlmModel.complete` consumes the final-attempt value and sets it plus the operation label on the
+active MLflow LLM span.
 
 Failed attempts and retry waits remain visible through observed child-span and root-trace
 durations but are absent from successful-attempt latency.
