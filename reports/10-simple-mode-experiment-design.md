@@ -458,6 +458,9 @@ Every LLM span stores an operation label:
 Every retrieval span stores:
 
 - `simple.retrieval_generic` or `simple.retrieval_metadata_filter`;
+- E-tier-equivalent tool inputs: `args`, tool provider, request context, and resolved model config;
+- complete raw per-call retrieved `GroupedChunks` output, including chunk XML/content;
+- raw Elasticsearch chunk rank order plus retrieved/relevant document IDs;
 - tool ordinal;
 - signal mode;
 - configured per-call fetch count and actual returned count;
@@ -523,6 +526,12 @@ the ES transient/auth retry helpers to retain final-success attempt duration and
 while keeping total tool duration as a separate attribute. Hybrid ES RRF is one ES request per
 tool call; BM25/dense are also one request. If a technical fallback needs multiple internal ES
 requests, record every successful request and the call critical-path maximum.
+
+Simple retrieval spans intentionally retain the same complete raw tool inputs and per-call chunk
+outputs as E-tier `_get_documents` spans, so retrieval/scorer debugging has trace parity. These
+raw outputs represent the unmerged per-call result. The first retrieval tool response and root
+trace separately represent the merged, flat-concatenated context delivered to the final-answer
+LLM.
 
 ### 8.5 MLflow data and later analysis
 
