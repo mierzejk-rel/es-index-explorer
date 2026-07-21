@@ -78,16 +78,23 @@ reasoning design to measure a low-latency alternative.
 | Generation metadata | OFF: no title, summary, or topic in LLM context |
 | Hard filters | Mandatory `subset_ids`; explicit date/email filters when allowed by call policy |
 | Empty filtered result | No fallback generic query |
-| Size filter | ON, E0-aligned: `workspace_extracted_text_size <= 5 MiB` |
+| Size filter | OFF: search the full existing index; no document is excluded by `workspace_extracted_text_size` |
 | First chunk | No query/fetch/decorate algorithm |
 | Invocation concurrency | 1 |
 | Output format | Flat-concatenated grouped chunks |
 | Citation format | `[doc_id-N]` or `[doc_id-i:j]` for a concatenated run |
-| Output token budget | 8,000 `max_completion_tokens` |
+| Output token budget | 12,000 `max_completion_tokens` |
 
 The one-hop rule is both prompt guidance and a code rule. At iteration 0 the graph requires a tool
 call. After that tool round, `max_tool_iterations = 1` makes the next LLM call use
 `tool_choice="none"`, so no second retrieval round can occur.
+
+E0 uses 30,000 `max_completion_tokens` because it permits multi-hop, low-reasoning planning and
+its structured output can follow a broader retrieval context. Simple Mode instead has one retrieval
+round, default `reasoning_effort = "none"`, a 10/20-chunk context, and a 100–600 word answer
+target. A 12,000-token cap is therefore 60% below E0 while preserving headroom for the structured
+response and exact source snippets. An 8,000-token cap would likely work but adds unnecessary
+length-finish risk when a 20-chunk answer cites several passages.
 
 ### 2.3 Flat-concatenated output
 
@@ -117,9 +124,11 @@ Initial Simple Mode supports only chunk-level retrieval:
 | `dense` | Nested kNN on `chunks.embedding` | Natural-language information need |
 | `hybrid_es_rrf` | One server-side RRF request combining nested BM25 and nested kNN | Blended, keyword-oriented, semantic, or mixed phrasing by call budget |
 
-The dense query embedding is still computed client-side using the existing E5 query prefix. No
-candidate passage embedding, sparse query encoding, parent BM25, sparse parent signal, client
-RRF, or client MMR is used in the initial suite.
+Dense/hybrid calls compute only the E5 **query** embedding client-side, using the existing query
+prefix; BM25-only calls do not. This local query-embedding time is part of measured retrieval
+latency. Simple Mode never calculates client-side candidate/passage embeddings: it performs no
+MMR, client-side reranking, or passage-vector caching. Sparse query encoding, parent BM25, sparse
+parent signals, client RRF, and client MMR are also absent from the initial suite.
 
 ### 3.2 Elasticsearch 9.4 server-side RRF feasibility
 
@@ -152,11 +161,27 @@ deterministically without client reranking:
 3. deduplicate `(document_artifact_id, chunk_index)`;
 4. stop at the configured per-call depth of 10 or 20 chunks.
 
-This is an extraction policy, not a fusion/reranking stage. A required pre-suite integration smoke
-test validates the exact ES 9.4 payload, named-inner-hit propagation, and this extraction policy
-against both indices.
+This is an extraction policy, not a fusion/reranking stage.
 
-### 3.4 First-chunk removal
+### 3.4 ES RRF integration smoke test
+
+Before running any S experiment, run a credentials-gated live integration test against the deployed
+Elasticsearch 9.4 cluster. The test:
+
+1. builds the two-child `standard`/nested RRF payload with nested BM25 and nested kNN, uniquely
+   named inner hits, and the mandatory `subset_ids` filter;
+2. executes the request once against each EMC2 and Mallinckrodt experiment index;
+3. asserts a successful response, parent hits, both named inner-hit sections, and usable
+   `chunk_index`/`text` fields;
+4. runs the deterministic extraction routine and asserts 10/20 unique chunk identities in the
+   documented order, without a first-chunk query or fetch;
+5. reports only structural counts and identifiers—never document text.
+
+The mapping and Elasticsearch documentation prove API capability, but only this live request proves
+the exact nested-kNN-in-standard-retriever syntax, named-inner-hit propagation, and response shape
+for the deployed cluster.
+
+### 3.5 First-chunk removal
 
 Simple Mode query builders must omit `_first_chunk_filter_clause()` entirely. This avoids both the
 extra nested inner-hit work and the E0/Tier 0 first-chunk output behavior. Chunk 0 appears only
@@ -260,11 +285,12 @@ Examples:
 | A | `S-A-hybrid-c{1,2,3}-rr-d10-rnone` | ES RRF BM25+dense | 1, 2, 3 | round-robin | 10 global | none | Hybrid/call-count screen |
 | B | `S-B-<selected>-union-d10-rnone` | selected Stage A setup | selected | current union | 10 per call | none | Context-volume control |
 | C | `S-C-<selected>-rr-d20-rnone` | selected setup | selected | round-robin | 20 global | none | Context-depth comparison |
-| D | `S-D-<selected>-rr-d{10,20}-rlow` | selected setup | selected | round-robin | selected | low | Reasoning comparison |
+| D | `S-D-<selected>-rr-d10-rlow` | selected setup | selected | round-robin | 10 global | low | 10-chunk reasoning pair |
+| D | `S-D-<selected>-rr-d20-rlow` | selected setup | selected | round-robin | 20 global | low | 20-chunk reasoning pair |
 
 All rows hold constant: one code-enforced retrieval round, generated metadata OFF, no parent
 metadata ranking, no first chunk, flat-concatenated output, date/email filters only under the
-policy above, 5 MiB filter ON, and invocation concurrency 1.
+policy above, 5 MiB filter OFF, and invocation concurrency 1.
 
 ### 6.3 Comparison map
 
@@ -275,7 +301,8 @@ policy above, 5 MiB filter ON, and invocation concurrency 1.
 | `S-A-<mode>-c1/c2/c3` | requested call count | Value of query diversity; actual count recorded separately |
 | `S-A/B selected rr` vs `union` | merge plus context volume | Intentionally confounded control |
 | `S-C` 10 vs 20 | global context depth | Value of more passages at fixed merge policy |
-| `S-D` none vs low | reasoning effort | Value of GPT-5.1 reasoning tokens |
+| `S-D` d10 none vs low | reasoning effort at 10 chunks | Value of GPT-5.1 reasoning tokens |
+| `S-D` d20 none vs low | reasoning effort at 20 chunks | Value of GPT-5.1 reasoning tokens |
 | E0 vs selected S arm | full baseline vs Simple Mode | Quality/latency trade-off; multi-dimensional comparison |
 
 ### 6.4 Execution order and stop/go gates
@@ -287,7 +314,12 @@ Execute from lowest expected latency to highest:
 3. Stage A three-call BM25, dense, hybrid;
 4. Stage B current-union control for Stage A Pareto candidate(s);
 5. Stage C 20-chunk comparison for selected candidate(s);
-6. Stage D `low` reasoning comparison only for selected candidate(s).
+6. Stage D 10-chunk `low` arm paired with the selected Stage A/B 10-chunk `none` arm.
+7. Stage D 20-chunk `low` arm paired with the selected Stage C 20-chunk `none` arm.
+
+Each Stage D arm has a like-for-like `none` counterpart, isolating reasoning effort without
+replacing a screening arm or conflating effort with depth. GPT-5.1 supports custom tool calling
+for both `none` and `low`; the chosen effort remains constant across all LLM calls in one run.
 
 Advance a candidate only if it has acceptable rubric/citation/retrieval quality relative to E0 and
 demonstrates a latency benefit at concurrency 1. Retain the complete Stage A matrix even when a
@@ -335,7 +367,7 @@ result_count = 10 # 10 or 20 by arm
 include_metadata = false
 max_tool_iterations = 1
 reasoning_effort = "none" # Stage D comparison uses "low"
-max_completion_tokens = 8_000
+max_completion_tokens = 12_000
 ```
 
 `ModelConfig` gains a typed, validated Simple Mode configuration section rather than untyped
@@ -407,6 +439,10 @@ Every retrieval span stores:
 - ES request count and attempt count;
 - observed duration and successful-attempt duration.
 
+Dense/hybrid retrieval additionally records a child `EMBEDDING` span and
+`simple.query_embedding_duration_ms` for the local E5 query embedding. This duration contributes
+to observed retrieval-call latency; it is not an external successful-attempt metric.
+
 ### 8.3 Retry-aware LLM measurement
 
 The generic rate limiter remains independent from MLflow. In `r1_rate_limiter`, measure immediately
@@ -461,16 +497,24 @@ MLflow must retain enough information for later:
 | Project | Branch/base | Future purpose |
 |---|---|---|
 | `es-index-explorer` | Stay on `experiments` at `2496796` | Add this report only; no new branch |
-| `air-assist-agent` | `DSAS-2836/simple-mode-base` from `DSAS-2836/tier2-base` at `89e65180` | Simple graph/provider/retriever/config/tracing implementation |
+| `air-assist-agent` | `DSAS-2836/simple-mode-base` from `DSAS-2836/tier2-base` at `89e65180` | Shared Simple graph/provider/retriever/config/tracing implementation |
 | `r1_rate_limiter` | `DSAS-2836/simple-mode-timing` from local `main` `bda88cd904e81fdc164088f0c63d55331b4048c2` | Generic context-local successful-attempt timing hook |
 | `r1-evals-new` | `DSAS-2836/simple-mode-evals` from `2a5cad9e387e12062b598bf8b96453fd3b4c9133`, then cherry-pick required range-citation changes | Range scorer audit/fixes and optional child-span timing aggregation |
 
 The air-assist-agent Simple base retains direct ES, range citations, and existing experiment
-infrastructure. Its original main base is `fa50a3198d16971056f578c48e239f0209b43810`
-(2026-06-18). The r1-evals original DSAS base is `2a5cad9e387e12062b598bf8b96453fd3b4c9133`
-(2026-06-18). The es-index experiments base is `b4a96446f1b932ecbad4aa3a0f7a284587d6eb47`
-(2026-06-04). `r1_rate_limiter` was not on a DSAS experiment branch; its current local main base
-is `bda88cd…` from 2026-04-24.
+infrastructure. It is the required common root for strict tool allowlisting, code-enforced
+single-hop, concurrent retrieval-call execution, chunk-only ES retrieval, server-side RRF
+extraction, flat-concatenated output, the no-first-chunk path, and timing spans. Its original main
+base is `fa50a3198d16971056f578c48e239f0209b43810` (2026-06-18).
+
+After this shared implementation exists, individual S experiment branches normally add only their
+v3 model TOML/config values. S experiments are therefore TOML-configurable after the common root
+is complete, but they are not TOML-only today.
+
+The r1-evals original DSAS base is `2a5cad9e387e12062b598bf8b96453fd3b4c9133` (2026-06-18).
+The es-index experiments base is `b4a96446f1b932ecbad4aa3a0f7a284587d6eb47` (2026-06-04).
+`r1_rate_limiter` was not on a DSAS experiment branch; its current local main base is
+`bda88cd…` from 2026-04-24.
 
 No Elasticsearch mapping, index, or ingestion branch/change is planned.
 
