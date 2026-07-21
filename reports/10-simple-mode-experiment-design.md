@@ -443,6 +443,42 @@ Dense/hybrid retrieval additionally records a child `EMBEDDING` span and
 `simple.query_embedding_duration_ms` for the local E5 query embedding. This duration contributes
 to observed retrieval-call latency; it is not an external successful-attempt metric.
 
+#### Span attribute key contract
+
+The attribute keys below are the literal strings consumed by
+`r1_evals.mlflow_logging.log_simple_span_time_percentiles` in `r1-evals-new`. Because
+`air_assist_core` intentionally has no dependency on `r1_evals` (production package,
+dependency-minimization rule), these strings cannot be shared via import. Any future
+instrumentation in `LlmModel.complete` or the Simple retrieval spans must reproduce them
+character-for-character; a mismatch causes `log_simple_span_time_percentiles` to silently
+aggregate zero metrics rather than raise an error.
+
+| Attribute key | Set by | Canonical values / notes |
+|---|---|---|
+| `simple.operation` | Every Simple Mode LLM and retrieval span | See operation labels listed above |
+| `llm.successful_attempt_latency_ms` | LLM spans (from `r1_rate_limiter` timing hook via `LlmModel.complete`) | Wall time of the final successful `await func(...)` attempt only, in ms |
+| `simple.es_success_duration_ms` | Retrieval spans | Wall time of the final successful ES request attempt, in ms |
+| `simple.query_embedding_duration_ms` | Dense/hybrid retrieval spans | Local E5 query-embedding wall time, in ms; not a successful-attempt metric |
+
+#### Run-level metric naming convention
+
+`log_simple_span_time_percentiles` aggregates span attributes into run-level MLflow metrics. The
+operation label value (e.g. `simple.query_plan`) is normalised to lowercase with
+non-alphanumeric characters replaced by `_`, and the redundant leading `simple_` prefix is
+stripped before the outer `simple_` prefix is applied, so each metric is prefixed with a single
+`simple_`:
+
+| Metric key pattern | Source | Example |
+|---|---|---|
+| `simple_<operation>_observed_duration_ms_p{N}` | Span wall time (`end_time_ns - start_time_ns`) | `simple_query_plan_observed_duration_ms_p50` |
+| `simple_<operation>_successful_attempt_ms_p{N}` | `llm.successful_attempt_latency_ms` attribute | `simple_query_plan_successful_attempt_ms_p95` |
+| `simple_<operation>_es_success_ms_p{N}` | `simple.es_success_duration_ms` attribute | `simple_retrieval_generic_es_success_ms_p90` |
+| `simple_query_embedding_duration_ms_p{N}` | `simple.query_embedding_duration_ms` attribute | `simple_query_embedding_duration_ms_p50` |
+
+`{N}` is one of `50`, `90`, or `95`. The embedding metric is not operation-keyed because it is
+recorded on a child `EMBEDDING` span, not on the retrieval operation span itself. All other
+metrics produce one row per distinct `simple.operation` value present in the traces.
+
 ### 8.3 Retry-aware LLM measurement
 
 The generic rate limiter remains independent from MLflow. In `r1_rate_limiter`, measure immediately
