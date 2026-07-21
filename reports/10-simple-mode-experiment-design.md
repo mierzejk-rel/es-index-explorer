@@ -91,10 +91,10 @@ call. After that tool round, `max_tool_iterations = 1` makes the next LLM call u
 
 E0 uses 30,000 `max_completion_tokens` because it permits multi-hop, low-reasoning planning and
 its structured output can follow a broader retrieval context. Simple Mode instead has one retrieval
-round, default `reasoning_effort = "none"`, a 10/20-chunk context, and a 100–600 word answer
-target. A 12,000-token cap is therefore 60% below E0 while preserving headroom for the structured
-response and exact source snippets. An 8,000-token cap would likely work but adds unnecessary
-length-finish risk when a 20-chunk answer cites several passages.
+round, default `reasoning_effort = "none"`, a small global-context chunk budget, and a 100–600
+word answer target. A 12,000-token cap is therefore 60% below E0 while preserving headroom for
+the structured response and exact source snippets. An 8,000-token cap would likely work but adds
+unnecessary length-finish risk when a 20-chunk answer cites several passages.
 
 ### 2.3 Flat-concatenated output
 
@@ -147,7 +147,7 @@ The hybrid request must use two `standard` retrievers, each wrapping a nested qu
 
 The direct kNN retriever does not itself accept the required `inner_hits`; the nested-standard
 wrapper is therefore mandatory. The RRF request uses `rank_window_size >= size`, a fixed
-`rank_constant`, and a request `size` sufficient for the configured per-call passage depth.
+`rank_constant`, and a request `size` equal to `simple_per_call_fetch_count`.
 
 ### 3.3 Parent-ranking limitation and extraction
 
@@ -159,7 +159,7 @@ deterministically without client reranking:
 2. consume the uniquely named child inner-hit lists in fixed child order (BM25 then kNN), each in
    returned rank order;
 3. deduplicate `(document_artifact_id, chunk_index)`;
-4. stop at the configured per-call depth of 10 or 20 chunks.
+4. stop at `simple_per_call_fetch_count` chunks.
 
 This is an extraction policy, not a fusion/reranking stage.
 
@@ -173,8 +173,8 @@ Elasticsearch 9.4 cluster. The test:
 2. executes the request once against each EMC2 and Mallinckrodt experiment index;
 3. asserts a successful response, parent hits, both named inner-hit sections, and usable
    `chunk_index`/`text` fields;
-4. runs the deterministic extraction routine and asserts 10/20 unique chunk identities in the
-   documented order, without a first-chunk query or fetch;
+4. runs the deterministic extraction routine and asserts at most `simple_per_call_fetch_count`
+   unique chunk identities in the documented order, without a first-chunk query or fetch;
 5. reports only structural counts and identifiers—never document text.
 
 The mapping and Elasticsearch documentation prove API capability, but only this live request proves
@@ -240,8 +240,8 @@ strings: BM25 scores, dense similarities, and per-query RRF scores are query-rel
 ### 5.1 `round_robin` — fixed global context budget
 
 Consume rank 1 from every actual call in emitted-call order, then rank 2 from every call, and so
-on. Skip duplicate chunk identities until exactly 10 or 20 unique chunks are selected, or every
-list is exhausted.
+on. Skip duplicate chunk identities until exactly `simple_global_context_chunk_count` unique
+chunks are selected, or every list is exhausted.
 
 This policy is deterministic, gives every query an equal opportunity to contribute, does not
 compare query-relative scores, and performs no client reranking.
@@ -249,12 +249,13 @@ compare query-relative scores, and performs no client reranking.
 ### 5.2 `current_union` — literal current control
 
 Use current `merge_chunks()` behavior: preserve first-seen document order, deduplicate chunks,
-sort chunks inside each document by start index, and retain the full unique union. Here 10/20 is a
-**per-call** retrieval depth, so context can grow to roughly `actual_call_count × depth`.
+sort chunks inside each document by start index, and retain the full unique union up to each
+call's `simple_per_call_fetch_count` cap. Context can grow to roughly
+`actual_call_count × simple_per_call_fetch_count`.
 
-The implementation logs actual unique chunks and estimated prompt-context size. This arm is an
-intentional control, not a clean merge-only comparison: it changes both merge policy and context
-volume.
+The implementation logs both configured counts, the actual unique chunk count, and the estimated
+prompt-context size. This arm is an intentional control, not a clean merge-only comparison: it
+changes both merge policy and context volume relative to `round_robin`.
 
 ---
 
@@ -264,29 +265,39 @@ volume.
 
 Simple Mode experiments use `S` instead of `E`. IDs encode stage and dimensions:
 
-`S-<stage>-<mode>-c<requested_calls>-<merge>-d<depth>-r<reasoning>`
+`S-<stage>-<mode>-c<requested_calls>-<merge>-f<per_call_fetch>-g<global_context>-r<reasoning>`
 
-Examples:
-
-- `S-A-bm25-c1-rr-d10-rnone`
-- `S-A-hybrid-c3-rr-d10-rnone`
-- `S-B-hybrid-c3-union-d10-rnone`
-- `S-C-hybrid-c3-rr-d20-rnone`
-- `S-D-hybrid-c3-rr-d20-rlow`
+`f<per_call_fetch>` is the `simple_per_call_fetch_count` value used by every retrieval call.
+`g<global_context>` is the `simple_global_context_chunk_count` limit applied after `round_robin`
+cross-call merging. `g` is omitted from `current_union` arms because that policy retains the full
+per-call-capped union without a global budget.
 
 `rr` is rank-preserving round-robin, not reciprocal-rank fusion.
 
+Examples:
+
+- `S-A-bm25-c1-rr-f20-g10-rnone`
+- `S-A-hybrid-c3-rr-f20-g10-rnone`
+- `S-B-hybrid-c3-union-f20-rnone`
+- `S-C-hybrid-c3-rr-f20-g20-rnone`
+- `S-D-hybrid-c3-rr-f20-g15-rlow`
+
 ### 6.2 Full experiment table
 
-| Stage | ID pattern | Retrieval | Requested calls | Merge | Depth | Reasoning | Purpose |
-|---|---|---|---:|---|---:|---|---|
-| A | `S-A-bm25-c{1,2,3}-rr-d10-rnone` | BM25 only | 1, 2, 3 | round-robin | 10 global | none | Lexical/call-count screen |
-| A | `S-A-dense-c{1,2,3}-rr-d10-rnone` | dense only | 1, 2, 3 | round-robin | 10 global | none | Semantic/call-count screen |
-| A | `S-A-hybrid-c{1,2,3}-rr-d10-rnone` | ES RRF BM25+dense | 1, 2, 3 | round-robin | 10 global | none | Hybrid/call-count screen |
-| B | `S-B-<selected>-union-d10-rnone` | selected Stage A setup | selected | current union | 10 per call | none | Context-volume control |
-| C | `S-C-<selected>-rr-d20-rnone` | selected setup | selected | round-robin | 20 global | none | Context-depth comparison |
-| D | `S-D-<selected>-rr-d10-rlow` | selected setup | selected | round-robin | 10 global | low | 10-chunk reasoning pair |
-| D | `S-D-<selected>-rr-d20-rlow` | selected setup | selected | round-robin | 20 global | low | 20-chunk reasoning pair |
+Stage A fixes `simple_per_call_fetch_count = 20` for all arms. The global context budget
+(`simple_global_context_chunk_count`) is selected per individual experiment and is shown in the
+`g` part of each arm's ID; typical choices are `g10`, `g15`, or `g20` and are chosen at run time
+rather than pre-declared as a mandatory full cross-product. Stage B arms use `current_union` and
+carry no `g` segment because that policy does not apply a global selection cap.
+
+| Stage | ID pattern | Retrieval | Requested calls | Merge | Per-call fetch | Global context | Reasoning | Purpose |
+|---|---|---|---:|---|---:|---|---|---|
+| A | `S-A-bm25-c{1,2,3}-rr-f20-g{chosen}-rnone` | BM25 only | 1, 2, 3 | round-robin | 20 | chosen per run | none | Lexical/call-count screen |
+| A | `S-A-dense-c{1,2,3}-rr-f20-g{chosen}-rnone` | dense only | 1, 2, 3 | round-robin | 20 | chosen per run | none | Semantic/call-count screen |
+| A | `S-A-hybrid-c{1,2,3}-rr-f20-g{chosen}-rnone` | ES RRF BM25+dense | 1, 2, 3 | round-robin | 20 | chosen per run | none | Hybrid/call-count screen |
+| B | `S-B-<selected>-union-f20-rnone` | selected Stage A setup | selected | current union | 20 per call | full union | none | Context-volume control |
+| C | `S-C-<selected>-rr-f20-g20-rnone` | selected setup | selected | round-robin | 20 | 20 | none | Context-depth comparison vs Stage A g-value |
+| D | `S-D-<selected>-rr-f20-g{chosen}-rlow` | selected setup | selected | round-robin | 20 | same as a completed `rnone` counterpart | low | Reasoning at chosen global context |
 
 All rows hold constant: one code-enforced retrieval round, generated metadata OFF, no parent
 metadata ranking, no first chunk, flat-concatenated output, date/email filters only under the
@@ -300,26 +311,26 @@ policy above, 5 MiB filter OFF, and invocation concurrency 1.
 | `S-A-dense-cN` vs `S-A-hybrid-cN` | dense vs server-side hybrid RRF | Value of combining chunk lexical+dense signals |
 | `S-A-<mode>-c1/c2/c3` | requested call count | Value of query diversity; actual count recorded separately |
 | `S-A/B selected rr` vs `union` | merge plus context volume | Intentionally confounded control |
-| `S-C` 10 vs 20 | global context depth | Value of more passages at fixed merge policy |
-| `S-D` d10 none vs low | reasoning effort at 10 chunks | Value of GPT-5.1 reasoning tokens |
-| `S-D` d20 none vs low | reasoning effort at 20 chunks | Value of GPT-5.1 reasoning tokens |
+| `S-A gX` vs `S-C g20` | global context budget at fixed f20 | Value of more passages at fixed merge policy |
+| `S-D gX none vs low` | reasoning effort at any selected global context `gX` | Value of GPT-5.1 reasoning tokens |
 | E0 vs selected S arm | full baseline vs Simple Mode | Quality/latency trade-off; multi-dimensional comparison |
 
 ### 6.4 Execution order and stop/go gates
 
 Execute from lowest expected latency to highest:
 
-1. Stage A one-call BM25, dense, hybrid;
+1. Stage A one-call BM25, dense, hybrid (at chosen g-value);
 2. Stage A two-call BM25, dense, hybrid;
 3. Stage A three-call BM25, dense, hybrid;
 4. Stage B current-union control for Stage A Pareto candidate(s);
-5. Stage C 20-chunk comparison for selected candidate(s);
-6. Stage D 10-chunk `low` arm paired with the selected Stage A/B 10-chunk `none` arm.
-7. Stage D 20-chunk `low` arm paired with the selected Stage C 20-chunk `none` arm.
+5. Stage C g20 comparison for selected candidate(s);
+6. Stage D `low` arms for any selected global context, each paired with an already completed
+   like-for-like `rnone` arm from Stage A or Stage C.
 
-Each Stage D arm has a like-for-like `none` counterpart, isolating reasoning effort without
-replacing a screening arm or conflating effort with depth. GPT-5.1 supports custom tool calling
-for both `none` and `low`; the chosen effort remains constant across all LLM calls in one run.
+Stage D can contain as many selected `g` values as needed. Each `low` arm requires a like-for-like
+`none` counterpart (from Stage A or C), isolating reasoning effort without replacing a screening
+arm or conflating effort with context budget. GPT-5.1 supports custom tool calling for both `none`
+and `low`; the chosen effort remains constant across all LLM calls in one run.
 
 Advance a candidate only if it has acceptable rubric/citation/retrieval quality relative to E0 and
 demonstrates a latency benefit at concurrency 1. Retain the complete Stage A matrix even when a
@@ -360,18 +371,25 @@ Every initial config includes:
 
 ```toml
 simple_mode = true
-requested_retrieval_calls = 1 # 1, 2, or 3 by arm
-simple_retrieval_mode = "bm25" # "dense" or "hybrid_es_rrf"
-simple_merge_policy = "round_robin" # or "current_union"
-result_count = 10 # 10 or 20 by arm
+requested_retrieval_calls = 1          # 1, 2, or 3 by arm
+simple_retrieval_mode = "bm25"         # "dense" or "hybrid_es_rrf"
+simple_merge_policy = "round_robin"    # or "current_union"
+simple_per_call_fetch_count = 20       # candidates returned by each retrieval call; fixed at 20 for all Stage A arms
+simple_global_context_chunk_count = 10 # unique chunks selected after round_robin merging; chosen per experiment (e.g. 10, 15, 20)
 include_metadata = false
 max_tool_iterations = 1
-reasoning_effort = "none" # Stage D comparison uses "low"
+reasoning_effort = "none"              # Stage D comparison uses "low"
 max_completion_tokens = 12_000
 ```
 
-`ModelConfig` gains a typed, validated Simple Mode configuration section rather than untyped
-TOML access. Existing E/TOMLs retain their current behavior through defaults.
+`simple_per_call_fetch_count` controls the ES request `size` / per-call extraction cap; it feeds
+the merge step. `simple_global_context_chunk_count` is the maximum unique chunks delivered to the
+LLM after `round_robin` selection and adjacent-chunk concatenation; it is not used by
+`current_union` arms. Neither replaces the existing `result_count` field, which continues to
+control legacy E/Tier 2 retrievers.
+
+`ModelConfig` gains typed, validated Simple Mode fields rather than untyped TOML access. Existing
+E/TOMLs retain their current behavior through defaults.
 
 ### 7.2 Tool allowlist and one-hop execution
 
@@ -393,10 +411,10 @@ answer generation.
 
 Add a dedicated Simple provider/retriever rather than altering established E0/Tier 2 behavior. It:
 
-1. issues chunk-only BM25, dense, or ES-RRF retrieval;
+1. issues chunk-only BM25, dense, or ES-RRF retrieval with ES `size = simple_per_call_fetch_count`;
 2. disables the first-chunk query;
-3. returns per-call ranked chunk lists;
-4. merges lists with `round_robin` or `current_union`;
+3. returns per-call ranked chunk lists capped at `simple_per_call_fetch_count`;
+4. merges lists with `round_robin` (capping at `simple_global_context_chunk_count`) or `current_union`;
 5. concatenates adjacent selected chunks into range-ID flat chunks;
 6. returns `GroupedChunks`, flat XML, retrieved document IDs, and final relevant document IDs.
 
@@ -419,7 +437,9 @@ No candidate passage MMR encoding is present in this path.
 Every trace stores:
 
 - requested/actual generic and metadata-filter tool-call counts;
-- retrieval mode, merge policy, depth, actual selected chunks, actual context size;
+- retrieval mode, merge policy, configured per-call fetch count (`simple_per_call_fetch_count`),
+  configured global context budget (`simple_global_context_chunk_count`), actual selected chunk
+  count, and actual serialized context size;
 - invocation concurrency (`1`);
 - Simple Mode config/model version;
 - total root trace duration.
@@ -436,6 +456,7 @@ Every retrieval span stores:
 - `simple.retrieval_generic` or `simple.retrieval_metadata_filter`;
 - tool ordinal;
 - signal mode;
+- configured per-call fetch count and actual returned count;
 - ES request count and attempt count;
 - observed duration and successful-attempt duration.
 
@@ -502,8 +523,9 @@ requests, record every successful request and the call critical-path maximum.
 
 Store raw per-variation measurements in traces and aggregate run-level p50/p90/p95 metrics for
 the three timing layers. Store quality, retrieval, citation, retry/failure, requested/actual
-call-count, and context-size data. Do not generate experiment reports during S execution; reporting
-and Pareto analysis happen after all configured S experiments complete.
+call-count, both configured depth values, actual selected chunks, and serialized context-size
+data. Do not generate experiment reports during S execution; reporting and Pareto analysis happen
+after all configured S experiments complete.
 
 ---
 
@@ -520,7 +542,8 @@ MLflow must retain enough information for later:
 
 - quality and citation validity by rubric/use case;
 - retrieval recall/precision;
-- full simple-config identity;
+- full simple-config identity (including both `simple_per_call_fetch_count` and
+  `simple_global_context_chunk_count`);
 - requested vs actual calls;
 - actual chunks/context delivered to the LLM;
 - all three latency layers by operation;
@@ -561,13 +584,16 @@ No Elasticsearch mapping, index, or ingestion branch/change is planned.
 Before the first S run, verify:
 
 1. ES-side RRF nested BM25/kNN returns uniquely named, usable inner hits.
-2. Simple extraction preserves a deterministic per-call order without client reranking.
+2. Simple extraction preserves a deterministic per-call order without client reranking, capped at `simple_per_call_fetch_count`.
 3. Retrieval calls emitted in one tool round execute concurrently.
 4. The first-chunk query/fetch/decorate path is absent.
 5. Parent metadata fields/signals are absent from ranking and generation XML.
 6. File tools are absent from the Simple Mode OpenAI tool schema.
 7. The root trace excludes scoring and successful-attempt timing excludes waits/retries.
 8. Flat-concatenated range citations pass all enabled scorers.
+9. A multi-call `round_robin` run with `simple_per_call_fetch_count = 20` and
+   `simple_global_context_chunk_count = 10` delivers at most 10 unique chunks to the LLM, with
+   each call's ranked candidate list capped independently at 20.
 
 Non-goals:
 
