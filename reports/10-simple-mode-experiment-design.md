@@ -466,6 +466,96 @@ No candidate passage MMR encoding is present in this path.
 
 ## 8. Latency and MLflow observability
 
+### 8.0 Timing measurement overview
+
+Every Simple Mode rubric variation produces one invocation trace. Invocation concurrency is fixed
+at `1`, so the measured root trace starts **after** the evaluation semaphore is acquired and ends
+after the final structured response. The semaphore queue and all scorer work are deliberately
+outside that trace. Compare timings only within the same dataset and invocation-concurrency
+setting.
+
+The following table gathers the timing contract in execution order. Later subsections define the
+literal attribute keys and metric names.
+
+| What | Where and when | What is measured | Stored result |
+|---|---|---|---|
+| Invocation queue | Before the evaluation semaphore is acquired | Queue time only | Deliberately not measured |
+| End-to-end invocation | Root r1-evals trace, from semaphore acquisition through final structured response | All agent work, including LLM calls, retrieval, merge, normalization, and structured output | Root `execution_duration`; `execution_time_p50_s`, `execution_time_p90_s`, and `execution_time_p95_s` |
+| Query-plan LLM | `simple.query_plan` LLM child span, before the single tool round | Observed wall time including rate-limit waits and retries; final successful API attempt separately | Span wall duration; `llm.successful_attempt_latency_ms` |
+| Retrieval call | One concurrent `simple.retrieval_generic` or `simple.retrieval_metadata_filter` TOOL span per emitted call | Observed wall time for the complete retrieval operation, including local embedding when applicable, ES work, retries, and backoff | Span wall duration; final successful ES duration and transient-search attempt count |
+| Query embedding | `simple.query_embedding` EMBEDDING child span for dense/hybrid retrieval only | Local E5 query-embedding wall time | `simple.query_embedding_duration_ms` on the EMBEDDING span only |
+| Merge and context delivery | `evals_complete` AGENT span, after all retrieval calls complete | No independent Simple operation duration; this work is included in end-to-end and AGENT-span wall time | Merge/call-count attributes, selected chunks, and serialized context size |
+| Answer and output LLMs | `simple.answer_generation`, `simple.structured_output`, and optional `simple.snippet_repair` LLM child spans | Observed wall time and final successful API attempt time per operation | Span wall duration; `llm.successful_attempt_latency_ms` |
+| Run aggregation | After invocation traces flush and before scorers execute | p50/p90/p95 over recorded operation spans | Run-level MLflow timing metrics |
+| Scoring | After aggregation | Scorer work and scorer LLM calls | Deliberately excluded from all invocation timing layers |
+
+```mermaid
+flowchart TD
+    queue{{"Semaphore queue: excluded"}}
+
+    subgraph traceLayer ["Per-invocation trace: one rubric variation"]
+        direction TB
+        rootStart(["Root trace starts after semaphore acquisition"])
+        queryPlan["LLM span: simple.query_plan; attribute: llm.successful_attempt_latency_ms"]
+        toolRound["Concurrent TOOL spans: simple.retrieval_generic or simple.retrieval_metadata_filter; attributes: simple.es_success_duration_ms and simple.es_success_attempt_count"]
+        embedding["EMBEDDING child span: simple.query_embedding; attribute: simple.query_embedding_duration_ms"]
+        es["ES request with transient retry and auth retry"]
+        merge["AGENT span: merge and context delivery; attributes: calls, chunks, and context size"]
+        answer["LLM span: simple.answer_generation; attribute: llm.successful_attempt_latency_ms"]
+        structured["LLM span: simple.structured_output; attribute: llm.successful_attempt_latency_ms"]
+        repair["Optional LLM span: simple.snippet_repair; attribute: llm.successful_attempt_latency_ms"]
+        rootEnd(["Root trace closes; trace.info.execution_duration"])
+
+        rootStart --> queryPlan
+        queryPlan --> toolRound
+        toolRound -->|"dense or hybrid"| embedding
+        toolRound -->|"BM25"| es
+        embedding --> es
+        es --> merge
+        merge --> answer
+        answer --> structured
+        structured -->|"when repair is needed"| repair
+        structured -->|"otherwise"| rootEnd
+        repair --> rootEnd
+    end
+
+    subgraph runMetrics ["Run-level MLflow metrics: post-flush and pre-scoring"]
+        direction TB
+        aggregate["Aggregate root and Simple-operation span timings"]
+        endToEnd[("execution_time_p50_s; execution_time_p90_s; execution_time_p95_s")]
+        observedMetrics[("simple_query_plan_observed_duration_ms_p50-p95; analogous per Simple operation")]
+        llmMetrics[("simple_query_plan_successful_attempt_ms_p50-p95; analogous per LLM operation")]
+        esMetrics[("simple_retrieval_generic_es_success_ms_p50-p95; metadata-filter equivalent when present")]
+        embeddingMetrics[("simple_query_embedding_duration_ms_p50-p95")]
+        aggregate --> endToEnd
+        aggregate --> observedMetrics
+        aggregate --> llmMetrics
+        aggregate --> esMetrics
+        aggregate --> embeddingMetrics
+    end
+
+    scoring{{"Scoring: excluded from invocation timings"}}
+
+    queue -.-> rootStart
+    rootEnd --> aggregate
+    endToEnd --> scoring
+    observedMetrics --> scoring
+    llmMetrics --> scoring
+    esMetrics --> scoring
+    embeddingMetrics --> scoring
+```
+
+Shapes: stadiums are root-trace boundaries and root timing; rectangles are child spans and their
+span attributes; cylinders are run-level MLflow metrics; hexagons are work excluded from invocation
+timing. Find the rectangle values in **Experiment → Run → Traces → trace detail → Spans →
+Attributes**. Find the cylinder values in **Experiment → Run → Metrics**. Observed span wall times
+include waits and retries; successful-attempt attributes do not.
+
+`round_robin` retrieval records a configured global-context cap; `current_union` has no global
+cap and omits it when absent. Successful-attempt timings intentionally exclude prior failures,
+retry backoff, and token waits. Observed child-span and root-trace timings retain those costs, so
+they describe the latency experienced by the caller.
+
 ### 8.1 Timing layers
 
 | Metric | Definition | Includes | Excludes |
@@ -474,17 +564,22 @@ No candidate passage MMR encoding is present in this path.
 | Observed operation latency | Child LLM/tool span wall duration | token waits, retries, backoff, all internal work | scoring |
 | Successful-attempt latency | Explicit child-span attribute for final successful external request | only final API/ES request attempt | token wait, prior failures, retry backoff, pauses |
 
-### 8.2 Required per-trace attributes
+### 8.2 Required trace-tree and run attributes
 
-Every trace stores:
+The invocation trace tree and its evaluation run together store:
 
-- requested/actual generic and metadata-filter tool-call counts;
-- retrieval mode, merge policy, configured per-call fetch count (`simple_per_call_fetch_count`),
-  configured global context budget (`simple_global_context_chunk_count`), actual selected chunk
-  count, and actual serialized context size;
-- invocation concurrency (`1`);
-- Simple Mode config/model version;
-- total root trace duration.
+- the `evals_complete` AGENT span stores requested/actual generic and metadata-filter tool-call
+  counts, retrieval mode, merge policy, configured per-call fetch count
+  (`simple_per_call_fetch_count`), configured global context budget when applicable
+  (`simple_global_context_chunk_count`), actual selected chunk count, and serialized context size;
+- run parameters store invocation concurrency (`1`), Simple Mode config/model version, retrieval
+  mode, merge policy, configured per-call fetch count, and the global context budget when
+  configured;
+- the root trace stores the end-to-end invocation duration as `execution_duration`, which
+  `log_execution_time_percentiles` aggregates into `execution_time_p{50,90,95}_s`.
+
+`log_simple_span_time_percentiles` separately aggregates the operation spans marked with
+`simple.operation`. Root-duration and Simple-operation percentiles are distinct metric paths.
 
 Every LLM span stores an operation label:
 
@@ -502,12 +597,14 @@ Every retrieval span stores:
 - tool ordinal;
 - signal mode;
 - configured per-call fetch count and actual returned count;
-- ES request count and attempt count;
+- final successful ES duration and transient-search successful-attempt count. An authentication
+  refresh can retry the full search but does not increment this transient-search count;
 - observed duration and successful-attempt duration.
 
 Dense/hybrid retrieval additionally records a child `EMBEDDING` span and
 `simple.query_embedding_duration_ms` for the local E5 query embedding. This duration contributes
-to observed retrieval-call latency; it is not an external successful-attempt metric.
+to observed retrieval-call latency; it is not an external successful-attempt metric and is not
+duplicated on the parent TOOL span.
 
 #### Span attribute key contract
 
@@ -524,7 +621,7 @@ aggregate zero metrics rather than raise an error.
 | `simple.operation` | Every Simple Mode LLM and retrieval span | See operation labels listed above |
 | `llm.successful_attempt_latency_ms` | LLM spans (from `r1_rate_limiter` timing hook via `LlmModel.complete`) | Wall time of the final successful `await func(...)` attempt only, in ms |
 | `simple.es_success_duration_ms` | Retrieval spans | Wall time of the final successful ES request attempt, in ms |
-| `simple.query_embedding_duration_ms` | Dense/hybrid retrieval spans | Local E5 query-embedding wall time, in ms; not a successful-attempt metric |
+| `simple.query_embedding_duration_ms` | Dense/hybrid `EMBEDDING` child spans | Local E5 query-embedding wall time, in ms; not a successful-attempt metric |
 
 #### Run-level metric naming convention
 
@@ -559,11 +656,12 @@ durations but are absent from successful-attempt latency.
 
 ### 8.4 Retry-aware retrieval measurement
 
-Create one MLflow TOOL/RETRIEVER span per concurrently executed Simple retrieval call. Instrument
-the ES transient/auth retry helpers to retain final-success attempt duration and attempt count,
-while keeping total tool duration as a separate attribute. Hybrid ES RRF is one ES request per
-tool call; BM25/dense are also one request. If a technical fallback needs multiple internal ES
-requests, record every successful request and the call critical-path maximum.
+Create one MLflow TOOL span per concurrently executed Simple retrieval call. The transient ES
+retry helper retains final-success attempt duration and count for connection/timeout retries,
+while the TOOL span wall duration retains the complete observed retrieval cost. Authentication
+refresh can retry the full search separately; it is included in observed latency but not in the
+transient-search attempt count. Hybrid ES RRF is one ES request per tool call; BM25/dense are also
+one request.
 
 Simple retrieval spans intentionally retain the same complete raw tool inputs and per-call chunk
 outputs as E-tier `_get_documents` spans, so retrieval/scorer debugging has trace parity. These
@@ -575,9 +673,40 @@ LLM.
 
 Store raw per-variation measurements in traces and aggregate run-level p50/p90/p95 metrics for
 the three timing layers. Store quality, retrieval, citation, retry/failure, requested/actual
-call-count, both configured depth values, actual selected chunks, and serialized context-size
-data. Do not generate experiment reports during S execution; reporting and Pareto analysis happen
-after all configured S experiments complete.
+call-count, configured per-call fetch, the global context cap when configured, actual selected
+chunks, and serialized context-size data. Attempt counts remain diagnostic span attributes rather
+than run-level percentile metrics. Do not generate experiment reports during S execution; reporting
+and Pareto analysis happen after all configured S experiments complete.
+
+### 8.6 Cross-arm performance comparison
+
+Use run-level MLflow metrics for arm-to-arm screening and trace/span values for drill-down. The
+headline caller-experienced latency is `execution_time_p50_s`; inspect
+`execution_time_p90_s` and `execution_time_p95_s` for tail latency. These root-duration metrics
+include all invocation work after semaphore acquisition, including waits, retries, and backoff.
+
+| Metric key family | Use for comparison |
+|---|---|
+| `execution_time_p{50,90,95}_s` | Primary end-to-end latency: compare median and tail caller experience |
+| `simple_query_plan_observed_duration_ms_p{N}` | Query-planning cost, including waits and retries |
+| `simple_retrieval_generic_observed_duration_ms_p{N}` | Generic retrieval-call wall time; use metadata-filter equivalent only for filter-call arms |
+| `simple_query_embedding_duration_ms_p{N}` | Dense/hybrid local embedding cost |
+| `simple_answer_generation_observed_duration_ms_p{N}` and `simple_structured_output_observed_duration_ms_p{N}` | Generation/output bottlenecks |
+| `simple_<llm_operation>_successful_attempt_ms_p{N}` | Final successful LLM API-attempt time, separated from waits/retries |
+| `simple_<retrieval_operation>_es_success_ms_p{N}` | Final successful ES-attempt time, separated from retries/backoff |
+| `simple_snippet_repair_*_p{N}` | Optional repair cost; compare only when that operation occurs |
+
+`{N}` is `50`, `90`, or `95`. Prefer **observed** metrics for user-perceived latency. Use
+successful-attempt metrics to determine whether an observed difference originates in LLM/ES
+service time or in waits and retries. Actual/requested call counts, successful-attempt counts,
+retrieval mode, merge policy, fetch/context values, selected chunks, and context size are
+span-level diagnostics—not percentile comparison metrics.
+
+Hold constant the dataset, invocation concurrency (`1`), rubric variations and repetitions, seed,
+scorer configuration, and all experiment dimensions other than the intended comparison in §6.3.
+Do not pool timing across datasets. `round_robin` versus `current_union` remains intentionally
+confounded by merge policy and context volume; E0 versus S remains a multi-dimensional comparison.
+Assess latency together with the quality, citation, and retrieval gates in §6.4 and §9.
 
 ---
 
@@ -594,8 +723,8 @@ MLflow must retain enough information for later:
 
 - quality and citation validity by rubric/use case;
 - retrieval recall/precision;
-- full simple-config identity (including both `simple_per_call_fetch_count` and
-  `simple_global_context_chunk_count`);
+- full Simple Mode config identity, including `simple_per_call_fetch_count` and
+  `simple_global_context_chunk_count` when the merge policy uses a global cap;
 - requested vs actual calls;
 - actual chunks/context delivered to the LLM;
 - all three latency layers by operation;
