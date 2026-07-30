@@ -373,6 +373,9 @@ The first suite intentionally excludes:
 Follow-up experiments may add generated metadata to retrieval and/or generation after the initial
 no-metadata suite is complete.
 
+Appendix A documents separate, future foundation-model follow-up options; it does not change this
+initial suite's baseline, stages, matrix, execution order, or implementation.
+
 ---
 
 ## 7. Agent/config implementation design
@@ -792,6 +795,85 @@ Non-goals:
 
 ---
 
+## Appendix A. Foundation-model follow-up candidates
+
+This appendix is reference and future-design material only. The initial S suite remains pinned to
+`gpt-5.1-2025-11-13`; it does not schedule or require a model replacement. A later model-swap
+experiment must retain the Simple Mode architecture and compare one pinned, Azure-available model
+version against a completed GPT-5.1 S arm.
+
+### A.1 Evidence, compatibility, and limits
+
+Microsoft Foundry currently catalogs GPT-5.2 through GPT-5.6 variants, but catalog presence does
+not guarantee that a model is deployable for this team: availability depends on the deployment
+region, deployment type, quota, and supported API version. Confirm all of these, plus the exact
+snapshot/version, before creating any future arm. [Microsoft Foundry catalog][azure-model-catalog]
+and [regional availability][azure-region-availability] are the authoritative starting points.
+
+The GPT-5.6, GPT-5.4 mini, and GPT-5.4 nano candidates below support Chat Completions, structured
+outputs, function/tool calling, and configurable reasoning, so they can be tested without changing
+the one-hop direct-tool architecture. [GPT-5.6 model guidance][openai-gpt-56-guidance],
+[GPT-5.4 mini][openai-gpt-54-mini], and [GPT-5.4 nano][openai-gpt-54-nano] document those
+capabilities. This is a compatibility statement, not a quality or latency claim.
+
+OpenAI's public GPT-5.6 evidence emphasizes general professional, coding, browsing, and agentic
+work. Its system card and public benchmarks do **not** measure grounded, citation-constrained,
+single-hop e-discovery retrieval QA. Treat that evidence as directional only; the existing S
+rubrics, citation checks, retrieval metrics, and latency measurements remain the decision source.
+[GPT-5.6 system card][openai-gpt-56-system-card]
+
+### A.2 Priority future candidates
+
+These are candidates for a separate model-swap follow-up only. Prices are published OpenAI API
+prices per million input/output tokens, included to form a cost hypothesis rather than to predict
+the Azure-billed price.
+
+| Model | Published positioning and price | Simple Mode hypothesis | Source |
+|---|---|---|---|
+| `gpt-5.4-nano` | Simple high-volume tasks; `$0.20` / `$1.25` | Aggressive cost/latency screen at `none`; advance only if grounded quality survives. | [OpenAI GPT-5.4 nano][openai-gpt-54-nano] |
+| `gpt-5.4-mini` | Faster, efficient high-volume work; `$0.75` / `$4.50` | Lower-cost quality/cost screen at `none`. | [OpenAI GPT-5.4 mini][openai-gpt-54-mini] |
+| `gpt-5.6-luna` | Cost-sensitive, high-volume GPT-5.6 tier; `$1.00` / `$6.00` | Test whether a newer efficient tier improves quality, latency, or cost relative to GPT-5.1. | [OpenAI GPT-5.6 Luna][openai-gpt-56-luna] |
+| `gpt-5.6-terra` | GPT-5.6 intelligence/cost balance; `$2.50` / `$15.00` | Balanced quality/latency/cost screen after efficient candidates. | [OpenAI GPT-5.6 Terra][openai-gpt-56-terra] |
+| `gpt-5.6-sol` | Frontier GPT-5.6 tier; `$5.00` / `$30.00` | Quality ceiling on selected difficult rubrics; not a presumed latency candidate. | [OpenAI model guidance][openai-gpt-56-guidance] |
+
+The first future screen should test GPT-5.4 nano, GPT-5.4 mini, and GPT-5.6 Luna at
+`reasoning_effort = "none"`. Test `low` only when a candidate is quality-competitive at `none`.
+Test GPT-5.6 Terra at `none`, then `low` only if justified. Reserve GPT-5.6 Sol for difficult
+rubrics where a quality ceiling is useful. This optional order is not an amendment to §6.4.
+
+### A.3 Azure-listed but non-priority or excluded variants
+
+The following catalog review documents why the first follow-up should not expand into every
+available GPT-5 variant. The disposition is specific to Simple Mode's grounded, latency-sensitive
+e-discovery objective—not a general statement about model quality.
+
+| Azure-listed model or variant | Status and disposition for the first follow-up | Sources |
+|---|---|---|
+| `gpt-5.2` | Available, but OpenAI labels it a previous frontier model and recommends GPT-5.6. Its published `$1.75` / `$14.00` price does not create a clearer Simple Mode hypothesis than the GPT-5.1 baseline, GPT-5.4 mini/nano, or GPT-5.6 candidates. Do not prioritize. | [Azure catalog][azure-model-catalog]; [OpenAI GPT-5.2][openai-gpt-52] |
+| `gpt-5.2-codex`; preview `gpt-5.2-chat` | Azure-listed, but Codex is coding-specialized and the chat variant is preview. Exclude from this grounded-retrieval screen. | [Azure catalog][azure-model-catalog] |
+| `gpt-5.3-codex`; preview `gpt-5.3-chat` | Codex is coding-specialized. OpenAI declares GPT-5.3 Chat deprecated, so exclude both from new Simple Mode experiments. | [Azure catalog][azure-model-catalog]; [OpenAI GPT-5.3 Chat][openai-gpt-53-chat]; [OpenAI GPT-5.3 Codex][openai-gpt-53-codex] |
+| `gpt-5.4` | Available, but its published `$2.50` / `$15.00` price and frontier-work positioning provide no clearer first-screen hypothesis than the newer GPT-5.6 Terra at the same published price. Do not prioritize. | [Azure catalog][azure-model-catalog]; [OpenAI GPT-5.4][openai-gpt-54] |
+| `gpt-5.4-pro` | Exclude: it is quality-first, slow, Responses-only, lacks structured outputs, and does not support `none` or `low` reasoning. | [OpenAI GPT-5.4 Pro][openai-gpt-54-pro] |
+| `gpt-5.5` | Available, but its published `$5.00` / `$30.00` price matches GPT-5.6 Sol and OpenAI's current guidance recommends evaluating GPT-5.6 for latest-model work. Do not prioritize. | [Azure catalog][azure-model-catalog]; [OpenAI GPT-5.5][openai-gpt-55]; [OpenAI model guidance][openai-gpt-56-guidance] |
+
+### A.4 Controlled follow-up boundary and selection gate
+
+Every future arm must pin a concrete Azure-available model version/snapshot; do not compare moving
+aliases. Hold constant the one-hop graph, direct tools, retrieval mode, call count, merge policy,
+fetch/context parameters, prompt except model-specific compatibility wording, dataset, rubric
+variations, repetitions, seed, scorer configuration, and invocation concurrency `1`.
+
+Programmatic Tool Calling, Responses-API migration, multi-agent features, pro mode, and persisted
+reasoning are excluded from this appendix. They alter the workflow and require separate experiments.
+
+Reuse the quality/citation/retrieval gates in §6.4 and the timing comparison method in §8.6. Record
+input, output, and reasoning-token usage plus Azure billed cost in addition to the existing MLflow
+measurements. Promote a candidate only when it preserves or improves the established quality,
+citation, and retrieval gates and demonstrates a measured latency and/or cost benefit on the same
+rubric cohort. Retain GPT-5.6 Sol only when a measured quality gain justifies its resource cost.
+
+---
+
 ## 12. References
 
 - [Elasticsearch RRF retriever](https://www.elastic.co/docs/reference/elasticsearch/rest-apis/reciprocal-rank-fusion)
@@ -803,4 +885,31 @@ Non-goals:
 - [MLflow spans](https://mlflow.org/docs/latest/genai/concepts/span.md) and
   [manual tracing](https://mlflow.org/docs/latest/genai/tracing/app-instrumentation/manual-tracing.md):
   trace root spans, manual child spans, span attributes, and timing fields.
+- [OpenAI model guidance][openai-gpt-56-guidance] and [GPT-5.6 system card][openai-gpt-56-system-card]:
+  current GPT-5.6 positioning, migration guidance, capabilities, and benchmark limitations.
+- [OpenAI GPT-5.2][openai-gpt-52], [GPT-5.3 Chat][openai-gpt-53-chat],
+  [GPT-5.3 Codex][openai-gpt-53-codex], [GPT-5.4][openai-gpt-54],
+  [GPT-5.4 mini][openai-gpt-54-mini], [GPT-5.4 nano][openai-gpt-54-nano],
+  [GPT-5.4 Pro][openai-gpt-54-pro], [GPT-5.5][openai-gpt-55],
+  [GPT-5.6 Luna][openai-gpt-56-luna], and [GPT-5.6 Terra][openai-gpt-56-terra]:
+  model positioning, supported capabilities, and published OpenAI API prices.
+- [Microsoft Foundry catalog][azure-model-catalog], [regional availability][azure-region-availability],
+  and [reasoning-model guidance][azure-reasoning]:
+  Azure model catalog, deployment prerequisites, regional availability, and reasoning compatibility.
 - `08-index-design-and-ingestion.md` and `09-retrieval-experiment-design.md`.
+
+[azure-model-catalog]: https://learn.microsoft.com/en-us/azure/foundry/foundry-models/concepts/models-sold-directly-by-azure
+[azure-region-availability]: https://learn.microsoft.com/en-us/azure/foundry/foundry-models/concepts/models-sold-directly-by-azure-region-availability
+[azure-reasoning]: https://learn.microsoft.com/en-us/azure/foundry/openai/how-to/reasoning
+[openai-gpt-56-guidance]: https://developers.openai.com/api/docs/guides/latest-model
+[openai-gpt-56-system-card]: https://deploymentsafety.openai.com/gpt-5-6
+[openai-gpt-52]: https://developers.openai.com/api/docs/models/gpt-5.2
+[openai-gpt-53-chat]: https://developers.openai.com/api/docs/models/gpt-5.3-chat-latest
+[openai-gpt-53-codex]: https://developers.openai.com/api/docs/models/gpt-5.3-codex
+[openai-gpt-54]: https://developers.openai.com/api/docs/models/gpt-5.4
+[openai-gpt-54-mini]: https://developers.openai.com/api/docs/models/gpt-5.4-mini
+[openai-gpt-54-nano]: https://developers.openai.com/api/docs/models/gpt-5.4-nano
+[openai-gpt-54-pro]: https://developers.openai.com/api/docs/models/gpt-5.4-pro
+[openai-gpt-55]: https://developers.openai.com/api/docs/models/gpt-5.5
+[openai-gpt-56-luna]: https://developers.openai.com/api/docs/models/gpt-5.6-luna
+[openai-gpt-56-terra]: https://developers.openai.com/api/docs/models/gpt-5.6-terra
