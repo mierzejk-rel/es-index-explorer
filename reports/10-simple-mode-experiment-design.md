@@ -273,7 +273,8 @@ Simple Mode experiments use `S` instead of `E`. IDs encode stage and dimensions:
 
 `f<per_call_fetch>` is the `simple_per_call_fetch_count` value used by each retrieval call. Its
 value is **mode-dependent**: for `bm25` and `dense` arms it equals `g` (the actual chosen global
-context value, e.g. `f10` when `g10`); for `hybrid_es_rrf` and `current_union` arms it is `20`.
+context value, e.g. `f10` when `g10`); for `hybrid_es_rrf` it is `30`; for `current_union` it is
+`20`.
 `g<global_context>` is the `simple_global_context_chunk_count` limit applied after `round_robin`
 cross-call merging. `g` is omitted from `current_union` arms because that policy retains the full
 per-call-capped union without a global budget.
@@ -284,10 +285,10 @@ Examples:
 
 - `S-A-bm25-c1-rr-f10-g10-rnone` (bm25: f = g = 10)
 - `S-A-dense-c2-rr-f15-g15-rnone` (dense: f = g = 15)
-- `S-A-hybrid-c3-rr-f20-g10-rnone` (hybrid: f = 20, g = 10)
+- `S-A-hybrid-c3-rr-f30-g10-rnone` (hybrid: f = 30, g = 10)
 - `S-B-hybrid-c3-union-f20-rnone` (current_union: f = 20, no g segment)
 - `S-C-bm25-c1-rr-f10-g10-rlow` (Stage C bm25: f = g = 10, reasoning low)
-- `S-C-hybrid-c3-rr-f20-g15-rlow` (Stage C hybrid: f = 20, g = 15, reasoning low)
+- `S-C-hybrid-c3-rr-f30-g30-rlow` (Stage C hybrid: f = 30, g = 30, reasoning low)
 
 ### 6.2 Full experiment table
 
@@ -296,7 +297,7 @@ Per-call fetch (`simple_per_call_fetch_count`) is mode-dependent across all stag
 - **`bm25` and `dense` arms (Stage A and C):** `f = g`. Per-call fetch equals the global context
   budget: ES returns exactly as many ranked candidates as the round-robin cap will select into
   context, with no wasted tail.
-- **`hybrid_es_rrf` arms (Stage A and C):** `f = 20` (fixed). The full 20-candidate RRF rank
+- **`hybrid_es_rrf` arms (Stage A and C):** `f = 30` (fixed). The full 30-candidate RRF rank
   window is preserved regardless of `g`; the round-robin cap then selects up to `g` chunks into
   context.
 - **Stage B (`current_union`):** `f = 20`. The `current_union` policy retains the complete
@@ -306,17 +307,17 @@ Stage C arms inherit the fetch rule of their paired Stage A counterpart, ensurin
 is the sole changed dimension.
 
 The global context budget (`simple_global_context_chunk_count`) is chosen per individual
-experiment run — `g10`, `g15`, or `g20` — rather than being declared as a mandatory full
-cross-product in advance.
+experiment run rather than being declared as a mandatory full cross-product in advance. BM25/dense
+arms use `g10`, `g15`, or `g20`; hybrid arms may additionally use `g30`.
 
 | Stage | ID pattern | Retrieval | Requested calls | Merge | Per-call fetch | Global context | Reasoning | Purpose |
 |---|---|---|---:|---|---|---|---|---|
 | A | `S-A-bm25-c{1,2,3}-rr-f{g}-g{chosen}-rnone` | BM25 only | 1, 2, 3 | round-robin | = g (chosen per run) | chosen per run | none | Lexical/call-count screen |
 | A | `S-A-dense-c{1,2,3}-rr-f{g}-g{chosen}-rnone` | dense only | 1, 2, 3 | round-robin | = g (chosen per run) | chosen per run | none | Semantic/call-count screen |
-| A | `S-A-hybrid-c{1,2,3}-rr-f20-g{chosen}-rnone` | ES RRF BM25+dense | 1, 2, 3 | round-robin | 20 (fixed) | chosen per run | none | Hybrid/call-count screen |
+| A | `S-A-hybrid-c{1,2,3}-rr-f30-g{chosen}-rnone` | ES RRF BM25+dense | 1, 2, 3 | round-robin | 30 (fixed) | chosen per run, including g30 | none | Hybrid/call-count screen |
 | B | `S-B-<selected>-union-f20-rnone` | selected Stage A setup | selected | current union | 20 per call | full union | none | Context-volume control |
 | C | `S-C-<selected-bm25/dense>-rr-f{g}-g{chosen}-rlow` | selected bm25 or dense Stage A arm | selected | round-robin | = g (inherited from paired Stage A) | same as paired Stage A arm | low | Reasoning for single-signal arms |
-| C | `S-C-<selected-hybrid>-rr-f20-g{chosen}-rlow` | selected hybrid Stage A arm | selected | round-robin | 20 (inherited from paired Stage A) | same as paired Stage A arm | low | Reasoning for hybrid arm |
+| C | `S-C-<selected-hybrid>-rr-f30-g{chosen}-rlow` | selected hybrid Stage A arm | selected | round-robin | 30 (inherited from paired Stage A) | same as paired Stage A arm, including g30 | low | Reasoning for hybrid arm |
 
 All rows hold constant: one code-enforced retrieval round, generated metadata OFF, no parent
 metadata ranking, no first chunk, flat-concatenated output, date/email filters only under the
@@ -330,7 +331,7 @@ policy above, 5 MiB filter OFF, and invocation concurrency 1.
 | `S-A-dense-cN` vs `S-A-hybrid-cN` | dense vs server-side hybrid RRF | Value of combining chunk lexical+dense signals |
 | `S-A-<mode>-c1/c2/c3` | requested call count | Value of query diversity; actual count recorded separately |
 | `S-A/B selected rr` vs `union` | merge plus context volume | Intentionally confounded control |
-| `S-A-hybrid gX` vs `S-A-hybrid gY` | global context budget at fixed f=20, mode, and call count | Value of more passages to the LLM at constant ES retrieval depth |
+| `S-A-hybrid gX` vs `S-A-hybrid gY` | global context budget at fixed f=30, mode, and call count | Value of more passages to the LLM at constant ES retrieval depth |
 | `S-A-bm25/dense gX` vs `S-A-bm25/dense gY` | co-varying ES fetch depth and context budget (f = g for both) | Combined effect of deeper ES retrieval and larger LLM context in single-signal mode |
 | `S-A gX rnone` vs `S-C gX rlow` | reasoning effort at chosen `gX`; fetch rule inherited from paired Stage A arm, so only reasoning changes | Value of GPT-5.1 reasoning tokens |
 | E0 vs selected S arm | full baseline vs Simple Mode | Quality/latency trade-off; multi-dimensional comparison |
@@ -349,7 +350,7 @@ Execute from lowest expected latency to highest:
 Stage C can contain as many selected `g` values as needed. Each `low` arm requires a like-for-like
 Stage A `none` counterpart, isolating reasoning effort without replacing a screening arm or
 conflating effort with context budget. The Stage C arm inherits its paired Stage A arm's fetch
-configuration: `f = g` for bm25/dense arms and `f = 20` for hybrid arms; reasoning effort is
+configuration: `f = g` for bm25/dense arms and `f = 30` for hybrid arms; reasoning effort is
 therefore the sole changed dimension. GPT-5.1 supports custom tool calling for both `none` and
 `low`; the chosen effort remains constant across all LLM calls in one run.
 
@@ -409,15 +410,15 @@ reasoning_effort = "none"              # Stage C uses "low"
 max_completion_tokens = 12_000
 ```
 
-**`hybrid_es_rrf` arms (Stage A and C) — `f = 20`:**
+**`hybrid_es_rrf` arms (Stage A and C) — `f = 30`:**
 
 ```toml
 simple_mode = true
 requested_retrieval_calls = 1          # 1, 2, or 3 by arm
 simple_retrieval_mode = "hybrid_es_rrf"
 simple_merge_policy = "round_robin"
-simple_per_call_fetch_count = 20       # fixed at 20; preserves the full RRF rank-window depth
-simple_global_context_chunk_count = 10 # unique chunks selected after round_robin merging; chosen per experiment (e.g. 10, 15, 20)
+simple_per_call_fetch_count = 30       # fixed at 30; preserves the full RRF rank-window depth
+simple_global_context_chunk_count = 10 # unique chunks selected after round_robin merging; hybrid may use 10, 15, 20, or 30
 include_metadata = false
 max_tool_iterations = 1
 reasoning_effort = "none"              # Stage C uses "low"
@@ -778,9 +779,9 @@ Before the first S run, verify:
 9. For `bm25` and `dense` arms: a `round_robin` run with `simple_per_call_fetch_count = g` and
    `simple_global_context_chunk_count = g` (e.g. `g = 10`) delivers at most `g` unique chunks to
    the LLM, each call's candidate list capped independently at `g`. For `hybrid_es_rrf` arms:
-   `simple_per_call_fetch_count = 20` and `simple_global_context_chunk_count = g` (e.g. `g = 10`)
+   `simple_per_call_fetch_count = 30` and `simple_global_context_chunk_count = g` (e.g. `g = 30`)
    delivers at most `g` unique chunks to the LLM, each call's candidate list capped
-   independently at 20.
+   independently at 30.
 
 Non-goals:
 
