@@ -308,16 +308,16 @@ is the sole changed dimension.
 
 The global context budget (`simple_global_context_chunk_count`) is chosen per individual
 experiment run rather than being declared as a mandatory full cross-product in advance. BM25/dense
-arms use `g10`, `g15`, or `g20`; hybrid arms may additionally use `g30`.
+arms use `g10`, `g15`, or `g20`; hybrid arms may additionally use `g25` or `g30`.
 
 | Stage | ID pattern | Retrieval | Requested calls | Merge | Per-call fetch | Global context | Reasoning | Purpose |
 |---|---|---|---:|---|---|---|---|---|
 | A | `S-A-bm25-c{1,2,3}-rr-f{g}-g{chosen}-rnone` | BM25 only | 1, 2, 3 | round-robin | = g (chosen per run) | chosen per run | none | Lexical/call-count screen |
 | A | `S-A-dense-c{1,2,3}-rr-f{g}-g{chosen}-rnone` | dense only | 1, 2, 3 | round-robin | = g (chosen per run) | chosen per run | none | Semantic/call-count screen |
-| A | `S-A-hybrid-c{1,2,3}-rr-f30-g{chosen}-rnone` | ES RRF BM25+dense | 1, 2, 3 | round-robin | 30 (fixed) | chosen per run, including g30 | none | Hybrid/call-count screen |
+| A | `S-A-hybrid-c{1,2,3}-rr-f30-g{chosen}-rnone` | ES RRF BM25+dense | 1, 2, 3 | round-robin | 30 (fixed) | chosen per run: g10, g15, g20, g25, or g30 | none | Hybrid/call-count screen |
 | B | `S-B-<selected>-union-f20-rnone` | selected Stage A setup | selected | current union | 20 per call | full union | none | Context-volume control |
 | C | `S-C-<selected-bm25/dense>-rr-f{g}-g{chosen}-rlow` | selected bm25 or dense Stage A arm | selected | round-robin | = g (inherited from paired Stage A) | same as paired Stage A arm | low | Reasoning for single-signal arms |
-| C | `S-C-<selected-hybrid>-rr-f30-g{chosen}-rlow` | selected hybrid Stage A arm | selected | round-robin | 30 (inherited from paired Stage A) | same as paired Stage A arm, including g30 | low | Reasoning for hybrid arm |
+| C | `S-C-<selected-hybrid>-rr-f30-g{chosen}-rlow` | selected hybrid Stage A arm | selected | round-robin | 30 (inherited from paired Stage A) | same as paired Stage A arm (any hybrid g value) | low | Reasoning for hybrid arm |
 
 All rows hold constant: one code-enforced retrieval round, generated metadata OFF, no parent
 metadata ranking, no first chunk, flat-concatenated output, date/email filters only under the
@@ -418,7 +418,7 @@ requested_retrieval_calls = 1          # 1, 2, or 3 by arm
 simple_retrieval_mode = "hybrid_es_rrf"
 simple_merge_policy = "round_robin"
 simple_per_call_fetch_count = 30       # fixed at 30; preserves the full RRF rank-window depth
-simple_global_context_chunk_count = 10 # unique chunks selected after round_robin merging; hybrid may use 10, 15, 20, or 30
+simple_global_context_chunk_count = 10 # unique chunks selected after round_robin merging; hybrid may use 10, 15, 20, 25, or 30
 include_metadata = false
 max_tool_iterations = 1
 reasoning_effort = "none"              # Stage C uses "low"
