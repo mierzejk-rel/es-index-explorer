@@ -1,9 +1,18 @@
-"""Export privacy-reduced MLflow snapshots and analyze them offline."""
+"""Export privacy-reduced MLflow snapshots and analyze them offline.
+
+Exports are resumable. Each export session stores atomic per-run shards under
+``checkpoint-{unix_epoch}/``. A matching interrupted export resumes completed
+shards; changed remote runs invalidate only that run's shard and re-download it.
+Final root artifacts are published atomically after every planned run commits.
+"""
 
 import hashlib
 import json
 import logging
 import os
+import shutil
+import tempfile
+import time
 from concurrent.futures import ThreadPoolExecutor
 from dataclasses import asdict, dataclass
 from datetime import UTC, datetime
@@ -12,6 +21,7 @@ from typing import Any
 
 DEFAULT_EXPERIMENT_FOLDER = "/Users/krzysztof.mierzejewski@relativity.com/DSAS-2836/SimpleMode/"
 SCHEMA_VERSION = 1
+CHECKPOINT_KIND = "mlflow_snapshot_export"
 DEFAULT_TRACE_FETCH_CONCURRENCY = 10
 logger = logging.getLogger(__name__)
 
@@ -85,6 +95,22 @@ _SPAN_TIMING_COLUMNS = [
     "es_success_attempt_count",
     "query_embedding_duration_ms",
 ]
+_PRIVACY_EXCLUSIONS = [
+    "raw_messages",
+    "generated_answers",
+    "search_query_text",
+    "document_chunk_content",
+    "retrieval_xml",
+    "scorer_rationales",
+]
+_SNAPSHOT_PARQUET_FILES = (
+    "experiments.parquet",
+    "runs.parquet",
+    "run_metrics.parquet",
+    "trace_quality.parquet",
+    "trace_retrieval.parquet",
+    "span_timings.parquet",
+)
 
 
 @dataclass(frozen=True, slots=True)
@@ -144,12 +170,20 @@ def export_snapshot(
     output_dir: Path,
     all_runs: bool,
     trace_fetch_concurrency: int = DEFAULT_TRACE_FETCH_CONCURRENCY,
+    resume: bool = True,
+    fresh: bool = False,
+    checkpoint_epoch: int | None = None,
 ) -> Path:
     """Export a sanitized MLflow snapshot using an explicit Databricks profile.
 
     The export uses MLflow read APIs only. It does not persist raw user prompts,
     search queries, model answers, document/chunk content, XML, or scorer
     rationales.
+
+    Progress is checkpointed per experiment run under
+    ``output_dir/checkpoint-{unix_epoch}/``. Resume requires the same
+    ``output_dir`` and matching CLI identity (profile, selector, all_runs,
+    concurrency). Changed remote runs invalidate only that run's shard.
 
     Parameters
     ----------
@@ -158,13 +192,19 @@ def export_snapshot(
     selector
         Experiment selector.
     output_dir
-        Directory receiving the immutable local snapshot.
+        Directory receiving the immutable local snapshot and checkpoints.
     all_runs
         If true, include all finished runs; otherwise include only the latest
         finished run from each selected experiment.
     trace_fetch_concurrency
         Maximum simultaneous full-trace downloads. Must be between 1 and 10
         so the exporter does not exceed MLflow's default connection-pool size.
+    resume
+        When true (default), resume the newest matching incomplete checkpoint.
+    fresh
+        When true, ignore matching checkpoints and start a new session.
+    checkpoint_epoch
+        Resume a specific ``checkpoint-{epoch}`` directory when present.
 
     Returns
     -------
@@ -176,10 +216,28 @@ def export_snapshot(
             "trace_fetch_concurrency must be between 1 and "
             f"{DEFAULT_TRACE_FETCH_CONCURRENCY}."
         )
+    if fresh and checkpoint_epoch is not None:
+        raise ValueError("fresh and checkpoint_epoch are mutually exclusive.")
 
     client, pandas = _load_mlflow_dependencies(profile)
     output_dir = output_dir.expanduser().resolve()
     output_dir.mkdir(parents=True, exist_ok=True)
+
+    cli_identity = _cli_identity(
+        profile=profile,
+        selector=selector,
+        all_runs=all_runs,
+        trace_fetch_concurrency=trace_fetch_concurrency,
+    )
+    checkpoint_dir = _resolve_checkpoint_session(
+        output_dir=output_dir,
+        cli_identity=cli_identity,
+        resume=resume,
+        fresh=fresh,
+        checkpoint_epoch=checkpoint_epoch,
+    )
+    checkpoint = _read_checkpoint(checkpoint_dir)
+    _cleanup_incomplete_tmp_dirs(checkpoint_dir)
 
     logger.info("Discovering MLflow experiments.")
     # MLflow entity types differ across client versions, so third-party payloads
@@ -198,108 +256,149 @@ def export_snapshot(
         }
         for experiment in experiments
     ]
-
-    run_rows: list[dict[str, object]] = []
-    metric_rows: list[dict[str, object]] = []
-    trace_quality_rows: list[dict[str, object]] = []
-    retrieval_rows: list[dict[str, object]] = []
-    span_timing_rows: list[dict[str, object]] = []
-    selected_run_ids: list[str] = []
-
-    for experiment_ordinal, experiment in enumerate(experiments, start=1):
-        logger.info(
-            "Exporting experiment %d/%d: %s",
-            experiment_ordinal,
-            len(experiments),
-            experiment.name,
-        )
-        runs = [
-            run
-            for run in client.search_runs([experiment.experiment_id], max_results=10_000)
-            if str(run.info.status) == "FINISHED"
-        ]
-        if not all_runs and runs:
-            runs = [max(runs, key=lambda run: run.info.start_time or 0)]
-
-        logger.info("Selected %d finished run(s).", len(runs))
-        for run_ordinal, run in enumerate(runs, start=1):
-            logger.info(
-                "Exporting run %d/%d with trace downloads limited to %d concurrent requests.",
-                run_ordinal,
-                len(runs),
-                trace_fetch_concurrency,
-            )
-            selected_run_ids.append(run.info.run_id)
-            run_rows.append(_sanitize_run(experiment, run))
-            metric_rows.extend(_sanitize_metrics(experiment, run))
-            traces = _fetch_traces_bounded(
-                client=client,
-                experiment_id=str(experiment.experiment_id),
-                run_id=run.info.run_id,
-                trace_fetch_concurrency=trace_fetch_concurrency,
-            )
-            for trace in traces:
-                quality, retrieval, timings = _sanitize_trace(
-                    experiment_id=str(experiment.experiment_id),
-                    run_id=run.info.run_id,
-                    trace=trace,
-                )
-                trace_quality_rows.extend(quality)
-                retrieval_rows.extend(retrieval)
-                span_timing_rows.extend(timings)
-
-    logger.info("Writing sanitized snapshot tables.")
-    _write_parquet(pandas, output_dir / "experiments.parquet", experiment_rows, _EXPERIMENT_COLUMNS)
-    _write_parquet(pandas, output_dir / "runs.parquet", run_rows, _RUN_COLUMNS)
-    _write_parquet(pandas, output_dir / "run_metrics.parquet", metric_rows, _METRIC_COLUMNS)
     _write_parquet(
         pandas,
-        output_dir / "trace_quality.parquet",
-        trace_quality_rows,
-        _TRACE_QUALITY_COLUMNS,
-    )
-    _write_parquet(
-        pandas,
-        output_dir / "trace_retrieval.parquet",
-        retrieval_rows,
-        _RETRIEVAL_COLUMNS,
-    )
-    _write_parquet(
-        pandas,
-        output_dir / "span_timings.parquet",
-        span_timing_rows,
-        _SPAN_TIMING_COLUMNS,
+        checkpoint_dir / "experiments.parquet",
+        experiment_rows,
+        _EXPERIMENT_COLUMNS,
     )
 
-    manifest = {
-        "schema_version": SCHEMA_VERSION,
-        "exported_at_utc": datetime.now(UTC).isoformat(),
-        "tracking_uri": f"databricks://{profile}",
-        "profile": profile,
-        "selector": asdict(selector),
-        "all_runs": all_runs,
-        "trace_fetch_concurrency": trace_fetch_concurrency,
-        "experiment_count": len(experiment_rows),
-        "run_count": len(selected_run_ids),
-        "run_ids": selected_run_ids,
-        "privacy_exclusions": [
-            "raw_messages",
-            "generated_answers",
-            "search_query_text",
-            "document_chunk_content",
-            "retrieval_xml",
-            "scorer_rationales",
-        ],
-        "files": _file_manifest(output_dir),
+    planned_runs = _discover_planned_runs(
+        client=client,
+        experiments=experiments,
+        all_runs=all_runs,
+    )
+    planned_run_ids = [run_id for _, _, run_id in planned_runs]
+    completed_run_ids = set(checkpoint.get("discovery", {}).get("completed_run_ids", []))
+    failed_run_ids = list(checkpoint.get("discovery", {}).get("failed_run_ids", []))
+
+    # Drop completed shards for runs no longer in the remote selection.
+    remote_run_ids = set(planned_run_ids)
+    for stale_run_id in sorted(completed_run_ids - remote_run_ids):
+        logger.info("Omitting remote-deleted run shard %s.", stale_run_id)
+        _delete_run_shard(checkpoint_dir, stale_run_id)
+        completed_run_ids.discard(stale_run_id)
+
+    checkpoint["discovery"] = {
+        "experiment_ids": [str(experiment.experiment_id) for experiment in experiments],
+        "planned_run_ids": planned_run_ids,
+        "completed_run_ids": sorted(completed_run_ids),
+        "failed_run_ids": failed_run_ids,
+        "invalidated_run_ids": list(
+            checkpoint.get("discovery", {}).get("invalidated_run_ids", [])
+        ),
     }
-    (output_dir / "manifest.json").write_text(
-        json.dumps(manifest, indent=2, sort_keys=True),
-        encoding="utf-8",
+    checkpoint["status"] = "in_progress"
+    _write_checkpoint(checkpoint_dir, checkpoint)
+
+    invalidated_run_ids: list[str] = list(
+        checkpoint["discovery"].get("invalidated_run_ids", [])
     )
     logger.info(
-        "Snapshot complete: %d experiments and %d runs.",
+        "Checkpoint %s: %d planned runs, %d already committed.",
+        checkpoint_dir.name,
+        len(planned_run_ids),
+        len(completed_run_ids),
+    )
+
+    try:
+        for run_ordinal, (experiment, run, run_id) in enumerate(planned_runs, start=1):
+            logger.info(
+                "Processing run %d/%d (%s).",
+                run_ordinal,
+                len(planned_runs),
+                run_id,
+            )
+            remote_fingerprint = _compute_remote_fingerprint(
+                client=client,
+                experiment=experiment,
+                run=run,
+                trace_fetch_concurrency=trace_fetch_concurrency,
+            )
+            if run_id in completed_run_ids and _run_shard_is_committed(checkpoint_dir, run_id):
+                local_fingerprint = _read_run_fingerprint(checkpoint_dir, run_id)
+                if local_fingerprint is not None and _fingerprints_match(
+                    local_fingerprint, remote_fingerprint
+                ):
+                    logger.info("Reusing committed run shard %s.", run_id)
+                    continue
+                logger.info(
+                    "Invalidating changed run shard %s (metadata fingerprint mismatch).",
+                    run_id,
+                )
+                _delete_run_shard(checkpoint_dir, run_id)
+                completed_run_ids.discard(run_id)
+                if run_id not in invalidated_run_ids:
+                    invalidated_run_ids.append(run_id)
+                checkpoint["discovery"]["completed_run_ids"] = sorted(completed_run_ids)
+                checkpoint["discovery"]["invalidated_run_ids"] = invalidated_run_ids
+                _write_checkpoint(checkpoint_dir, checkpoint)
+
+            logger.info(
+                "Downloading run %s with trace downloads limited to %d concurrent requests.",
+                run_id,
+                trace_fetch_concurrency,
+            )
+            _export_single_run(
+                client=client,
+                pandas=pandas,
+                checkpoint_dir=checkpoint_dir,
+                experiment=experiment,
+                run=run,
+                remote_fingerprint=remote_fingerprint,
+                trace_fetch_concurrency=trace_fetch_concurrency,
+            )
+            completed_run_ids.add(run_id)
+            if run_id in failed_run_ids:
+                failed_run_ids = [item for item in failed_run_ids if item != run_id]
+            checkpoint["discovery"]["completed_run_ids"] = sorted(completed_run_ids)
+            checkpoint["discovery"]["failed_run_ids"] = failed_run_ids
+            checkpoint["discovery"]["invalidated_run_ids"] = invalidated_run_ids
+            _write_checkpoint(checkpoint_dir, checkpoint)
+            logger.info(
+                "Committed run shard %s (%d/%d complete).",
+                run_id,
+                len(completed_run_ids),
+                len(planned_run_ids),
+            )
+    except KeyboardInterrupt:
+        checkpoint["status"] = "interrupted"
+        checkpoint["discovery"]["completed_run_ids"] = sorted(completed_run_ids)
+        checkpoint["discovery"]["failed_run_ids"] = failed_run_ids
+        checkpoint["discovery"]["invalidated_run_ids"] = invalidated_run_ids
+        _write_checkpoint(checkpoint_dir, checkpoint)
+        logger.info(
+            "Interrupted; checkpoint retained at %s with %d/%d runs committed.",
+            checkpoint_dir,
+            len(completed_run_ids),
+            len(planned_run_ids),
+        )
+        raise
+
+    if completed_run_ids != set(planned_run_ids):
+        missing = sorted(set(planned_run_ids) - completed_run_ids)
+        raise RuntimeError(
+            "Export incomplete; missing committed run shards: " + ", ".join(missing)
+        )
+
+    logger.info(
+        "Aggregating %d committed run shards into final snapshot.",
+        len(planned_run_ids),
+    )
+    checkpoint["status"] = "aggregating"
+    _write_checkpoint(checkpoint_dir, checkpoint)
+    _aggregate_and_publish(
+        pandas=pandas,
+        output_dir=output_dir,
+        checkpoint_dir=checkpoint_dir,
+        cli_identity=cli_identity,
+        planned_run_ids=planned_run_ids,
+        experiment_rows=experiment_rows,
+    )
+    logger.info(
+        "Snapshot complete: %d experiments and %d runs. Checkpoint cleaned up.",
         len(experiment_rows),
-        len(selected_run_ids),
+        len(planned_run_ids),
     )
     return output_dir
 
@@ -368,6 +467,550 @@ def analyze_snapshot(*, snapshot_dir: Path, selector: SnapshotSelector) -> Path:
         encoding="utf-8",
     )
     return analysis_dir
+
+
+def _cli_identity(
+    *,
+    profile: str,
+    selector: SnapshotSelector,
+    all_runs: bool,
+    trace_fetch_concurrency: int,
+) -> dict[str, object]:
+    """Return the reproducible export identity used for checkpoint matching."""
+    return {
+        "schema_version": SCHEMA_VERSION,
+        "checkpoint_kind": CHECKPOINT_KIND,
+        "profile": profile,
+        "tracking_uri": f"databricks://{profile}",
+        "selector": asdict(selector),
+        "all_runs": all_runs,
+        "trace_fetch_concurrency": trace_fetch_concurrency,
+    }
+
+
+def _resolve_checkpoint_session(
+    *,
+    output_dir: Path,
+    cli_identity: dict[str, object],
+    resume: bool,
+    fresh: bool,
+    checkpoint_epoch: int | None,
+) -> Path:
+    """Create or resume a matching incomplete checkpoint session."""
+    if fresh or not resume:
+        checkpoint_dir = _create_checkpoint_session(output_dir, cli_identity)
+        logger.info("Created fresh checkpoint session %s.", checkpoint_dir.name)
+        return checkpoint_dir
+
+    if checkpoint_epoch is not None:
+        checkpoint_dir = output_dir / f"checkpoint-{checkpoint_epoch}"
+        if not checkpoint_dir.is_dir():
+            raise ValueError(f"Checkpoint epoch {checkpoint_epoch} not found under {output_dir}.")
+        checkpoint = _read_checkpoint(checkpoint_dir)
+        if not _cli_identity_matches(checkpoint.get("cli_identity", {}), cli_identity):
+            raise ValueError(
+                f"Checkpoint {checkpoint_dir.name} does not match the current export identity."
+            )
+        if checkpoint.get("status") == "completed":
+            raise ValueError(
+                f"Checkpoint {checkpoint_dir.name} is already completed; use --fresh."
+            )
+        logger.info("Resuming requested checkpoint session %s.", checkpoint_dir.name)
+        return checkpoint_dir
+
+    matching = _find_newest_matching_checkpoint(output_dir, cli_identity)
+    if matching is None:
+        checkpoint_dir = _create_checkpoint_session(output_dir, cli_identity)
+        logger.info("Created checkpoint session %s.", checkpoint_dir.name)
+        return checkpoint_dir
+
+    logger.info("Resuming matching checkpoint session %s.", matching.name)
+    return matching
+
+
+def _create_checkpoint_session(output_dir: Path, cli_identity: dict[str, object]) -> Path:
+    """Create a new checkpoint directory and process metadata file."""
+    epoch = int(time.time())
+    while True:
+        checkpoint_dir = output_dir / f"checkpoint-{epoch}"
+        if not checkpoint_dir.exists():
+            break
+        epoch += 1
+    checkpoint_dir.mkdir(parents=True, exist_ok=False)
+    (checkpoint_dir / "runs").mkdir()
+    now = datetime.now(UTC).isoformat()
+    checkpoint = {
+        "schema_version": SCHEMA_VERSION,
+        "checkpoint_kind": CHECKPOINT_KIND,
+        "created_at_utc": now,
+        "updated_at_utc": now,
+        "status": "in_progress",
+        "cli_identity": cli_identity,
+        "discovery": {
+            "experiment_ids": [],
+            "planned_run_ids": [],
+            "completed_run_ids": [],
+            "failed_run_ids": [],
+            "invalidated_run_ids": [],
+        },
+        "integrity_boundary": (
+            "Metadata fingerprints detect run config/metric changes, trace "
+            "membership, assessment/status/timing changes, and exported trace "
+            "metadata changes. In-place span payload changes without corresponding "
+            "trace metadata changes are not guaranteed detectable without "
+            "re-fetching full spans."
+        ),
+    }
+    _write_checkpoint(checkpoint_dir, checkpoint)
+    return checkpoint_dir
+
+
+def _find_newest_matching_checkpoint(
+    output_dir: Path,
+    cli_identity: dict[str, object],
+) -> Path | None:
+    """Return the newest incomplete checkpoint matching the CLI identity."""
+    candidates: list[tuple[int, Path]] = []
+    for path in output_dir.glob("checkpoint-*"):
+        if not path.is_dir():
+            continue
+        suffix = path.name.removeprefix("checkpoint-")
+        if not suffix.isdigit():
+            continue
+        checkpoint_path = path / "checkpoint.json"
+        if not checkpoint_path.exists():
+            continue
+        try:
+            checkpoint = _read_checkpoint(path)
+        except (OSError, json.JSONDecodeError, ValueError):
+            logger.warning("Skipping unreadable checkpoint %s.", path.name)
+            continue
+        if checkpoint.get("status") == "completed":
+            continue
+        if not _cli_identity_matches(checkpoint.get("cli_identity", {}), cli_identity):
+            continue
+        candidates.append((int(suffix), path))
+    if not candidates:
+        return None
+    return max(candidates, key=lambda item: item[0])[1]
+
+
+def _cli_identity_matches(stored: object, expected: dict[str, object]) -> bool:
+    """Compare stored and expected CLI identities by canonical JSON."""
+    if not isinstance(stored, dict):
+        return False
+    return _canonical_json(stored) == _canonical_json(expected)
+
+
+def _read_checkpoint(checkpoint_dir: Path) -> dict[str, Any]:
+    """Load checkpoint process metadata."""
+    path = checkpoint_dir / "checkpoint.json"
+    payload = json.loads(path.read_text(encoding="utf-8"))
+    if not isinstance(payload, dict):
+        raise ValueError(f"Invalid checkpoint metadata at {path}.")
+    return payload
+
+
+def _write_checkpoint(checkpoint_dir: Path, checkpoint: dict[str, Any]) -> None:
+    """Atomically rewrite checkpoint process metadata."""
+    checkpoint = dict(checkpoint)
+    checkpoint["updated_at_utc"] = datetime.now(UTC).isoformat()
+    _atomic_write_text(
+        checkpoint_dir / "checkpoint.json",
+        json.dumps(checkpoint, indent=2, sort_keys=True),
+    )
+
+
+def _cleanup_incomplete_tmp_dirs(checkpoint_dir: Path) -> None:
+    """Remove incomplete temporary run directories left by prior interruptions."""
+    for path in checkpoint_dir.glob(".tmp-*"):
+        if path.is_dir():
+            logger.info("Removing incomplete temporary directory %s.", path.name)
+            shutil.rmtree(path, ignore_errors=True)
+
+
+def _discover_planned_runs(
+    *,
+    client: Any,
+    experiments: list[Any],
+    all_runs: bool,
+) -> list[tuple[Any, Any, str]]:
+    """Discover selected finished runs in stable experiment/run order."""
+    planned: list[tuple[Any, Any, str]] = []
+    for experiment in experiments:
+        runs = [
+            run
+            for run in client.search_runs([experiment.experiment_id], max_results=10_000)
+            if str(run.info.status) == "FINISHED"
+        ]
+        if not all_runs and runs:
+            runs = [max(runs, key=lambda run: run.info.start_time or 0)]
+        logger.info(
+            "Selected %d finished run(s) for experiment %s.",
+            len(runs),
+            experiment.name,
+        )
+        for run in runs:
+            planned.append((experiment, run, str(run.info.run_id)))
+    return planned
+
+
+def _export_single_run(
+    *,
+    client: Any,
+    pandas: Any,
+    checkpoint_dir: Path,
+    experiment: Any,
+    run: Any,
+    remote_fingerprint: dict[str, Any],
+    trace_fetch_concurrency: int,
+) -> None:
+    """Download, sanitize, and atomically commit one experiment-run shard."""
+    run_id = str(run.info.run_id)
+    experiment_id = str(experiment.experiment_id)
+    run_row = _sanitize_run(experiment, run)
+    metric_rows = _sanitize_metrics(experiment, run)
+    traces = _fetch_traces_bounded(
+        client=client,
+        experiment_id=experiment_id,
+        run_id=run_id,
+        trace_fetch_concurrency=trace_fetch_concurrency,
+    )
+    quality_rows: list[dict[str, object]] = []
+    retrieval_rows: list[dict[str, object]] = []
+    timing_rows: list[dict[str, object]] = []
+    for trace in traces:
+        quality, retrieval, timings = _sanitize_trace(
+            experiment_id=experiment_id,
+            run_id=run_id,
+            trace=trace,
+        )
+        quality_rows.extend(quality)
+        retrieval_rows.extend(retrieval)
+        timing_rows.extend(timings)
+
+    tmp_dir = checkpoint_dir / f".tmp-{run_id}-{os.getpid()}"
+    if tmp_dir.exists():
+        shutil.rmtree(tmp_dir)
+    tmp_dir.mkdir(parents=True, exist_ok=False)
+    try:
+        _write_parquet(pandas, tmp_dir / "run.parquet", [run_row], _RUN_COLUMNS)
+        _write_parquet(pandas, tmp_dir / "metrics.parquet", metric_rows, _METRIC_COLUMNS)
+        _write_parquet(
+            pandas,
+            tmp_dir / "trace_quality.parquet",
+            quality_rows,
+            _TRACE_QUALITY_COLUMNS,
+        )
+        _write_parquet(
+            pandas,
+            tmp_dir / "trace_retrieval.parquet",
+            retrieval_rows,
+            _RETRIEVAL_COLUMNS,
+        )
+        _write_parquet(
+            pandas,
+            tmp_dir / "span_timings.parquet",
+            timing_rows,
+            _SPAN_TIMING_COLUMNS,
+        )
+        fingerprint_payload = {
+            **remote_fingerprint,
+            "exported_at_utc": datetime.now(UTC).isoformat(),
+            "trace_count": len(traces),
+        }
+        _atomic_write_text(
+            tmp_dir / "fingerprint.json",
+            json.dumps(fingerprint_payload, indent=2, sort_keys=True),
+        )
+        (tmp_dir / ".committed").write_text("1\n", encoding="utf-8")
+        _fsync_directory(tmp_dir)
+        final_dir = checkpoint_dir / "runs" / run_id
+        if final_dir.exists():
+            shutil.rmtree(final_dir)
+        os.replace(tmp_dir, final_dir)
+        _fsync_directory(checkpoint_dir / "runs")
+    except Exception:
+        shutil.rmtree(tmp_dir, ignore_errors=True)
+        raise
+
+
+def _compute_remote_fingerprint(
+    *,
+    client: Any,
+    experiment: Any,
+    run: Any,
+    trace_fetch_concurrency: int,
+) -> dict[str, Any]:
+    """Build a read-only remote fingerprint for selective shard invalidation."""
+    run_payload = {
+        "run_id": str(run.info.run_id),
+        "experiment_id": str(experiment.experiment_id),
+        "experiment_name": experiment.name,
+        "status": str(run.info.status),
+        "start_time": getattr(run.info, "start_time", None),
+        "end_time": getattr(run.info, "end_time", None),
+        "lifecycle_stage": getattr(run.info, "lifecycle_stage", None),
+        "params": dict(sorted(run.data.params.items())),
+        "metrics": {
+            key: value
+            for key, value in sorted(run.data.metrics.items(), key=lambda item: item[0])
+        },
+    }
+    run_digest = _stable_object_hash(run_payload)
+    trace_records = _collect_trace_inventory(
+        client=client,
+        experiment_id=str(experiment.experiment_id),
+        run_id=str(run.info.run_id),
+        page_size=trace_fetch_concurrency,
+    )
+    per_trace = [
+        {
+            "trace_id": record["trace_id"],
+            "digest": _stable_object_hash(record),
+            "record": record,
+        }
+        for record in trace_records
+    ]
+    trace_set_digest = _stable_object_hash(
+        [{"trace_id": item["trace_id"], "digest": item["digest"]} for item in per_trace]
+    )
+    return {
+        "run_digest": run_digest,
+        "trace_set_digest": trace_set_digest,
+        "trace_count": len(per_trace),
+        "run_payload": run_payload,
+        "per_trace": per_trace,
+    }
+
+
+def _collect_trace_inventory(
+    *,
+    client: Any,
+    experiment_id: str,
+    run_id: str,
+    page_size: int,
+) -> list[dict[str, Any]]:
+    """Paginate lightweight trace metadata for fingerprinting."""
+    records: list[dict[str, Any]] = []
+    page_token: str | None = None
+    while True:
+        page = client.search_traces(
+            locations=[experiment_id],
+            run_id=run_id,
+            include_spans=False,
+            max_results=page_size,
+            page_token=page_token,
+        )
+        for trace in page:
+            info = trace.info
+            assessments = []
+            for assessment in getattr(info, "assessments", []) or []:
+                assessments.append(
+                    {
+                        "name": str(getattr(assessment, "name", "")),
+                        "value": _assessment_value(getattr(assessment, "value", None)),
+                        "metadata": _sanitized_assessment_metadata(
+                            _as_mapping(getattr(assessment, "metadata", {}))
+                        ),
+                    }
+                )
+            tags = _as_mapping(getattr(info, "tags", {}))
+            attributes = _as_mapping(getattr(info, "attributes", {}))
+            records.append(
+                {
+                    "trace_id": str(info.trace_id),
+                    "status": str(getattr(info, "status", "")),
+                    "request_time": getattr(info, "request_time", None)
+                    or getattr(info, "timestamp_ms", None),
+                    "execution_duration": getattr(info, "execution_duration", None),
+                    "tags": {
+                        key: tags[key]
+                        for key in sorted(tags)
+                        if key
+                        in {
+                            "mlflow.traceName",
+                            "mlflow.trace.status",
+                        }
+                        or key.startswith("eval.")
+                    },
+                    "attributes": {
+                        key: attributes.get(key)
+                        for key in (
+                            "use_case",
+                            "dataset_id",
+                            "evalset_variant",
+                            "row_id",
+                        )
+                    },
+                    "assessments": sorted(assessments, key=lambda item: item["name"]),
+                }
+            )
+        page_token = page.token
+        if not page_token:
+            break
+    records.sort(key=lambda item: str(item["trace_id"]))
+    return records
+
+
+def _sanitized_assessment_metadata(metadata: dict[str, Any]) -> dict[str, Any]:
+    """Keep assessment identity metadata while dropping rationale text."""
+    modes = metadata.get("detected_error_modes", [])
+    sanitized_modes: list[dict[str, Any]] = []
+    if isinstance(modes, list):
+        for item in modes:
+            if isinstance(item, dict):
+                sanitized_modes.append(
+                    {
+                        "name": item.get("name"),
+                        "detected": item.get("detected"),
+                    }
+                )
+    return {
+        "detected_error_modes": sanitized_modes,
+        "updated_at": metadata.get("updated_at"),
+        "source": metadata.get("source"),
+    }
+
+
+def _fingerprints_match(local: dict[str, Any], remote: dict[str, Any]) -> bool:
+    """Return whether local and remote metadata fingerprints agree."""
+    return (
+        local.get("run_digest") == remote.get("run_digest")
+        and local.get("trace_set_digest") == remote.get("trace_set_digest")
+    )
+
+
+def _read_run_fingerprint(checkpoint_dir: Path, run_id: str) -> dict[str, Any] | None:
+    """Load a committed run fingerprint when present."""
+    path = checkpoint_dir / "runs" / run_id / "fingerprint.json"
+    if not path.exists():
+        return None
+    payload = json.loads(path.read_text(encoding="utf-8"))
+    return payload if isinstance(payload, dict) else None
+
+
+def _run_shard_is_committed(checkpoint_dir: Path, run_id: str) -> bool:
+    """Return whether a run shard directory contains the commit sentinel."""
+    return (checkpoint_dir / "runs" / run_id / ".committed").exists()
+
+
+def _delete_run_shard(checkpoint_dir: Path, run_id: str) -> None:
+    """Delete only one experiment-run shard, leaving the parent checkpoint intact."""
+    shard = checkpoint_dir / "runs" / run_id
+    if shard.exists():
+        shutil.rmtree(shard)
+
+
+def _aggregate_and_publish(
+    *,
+    pandas: Any,
+    output_dir: Path,
+    checkpoint_dir: Path,
+    cli_identity: dict[str, object],
+    planned_run_ids: list[str],
+    experiment_rows: list[dict[str, object]],
+) -> None:
+    """Aggregate committed shards into validated root snapshot artifacts."""
+    staging_dir = Path(
+        tempfile.mkdtemp(prefix=".final-staging-", dir=str(output_dir))
+    )
+    try:
+        run_rows: list[dict[str, object]] = []
+        metric_rows: list[dict[str, object]] = []
+        quality_rows: list[dict[str, object]] = []
+        retrieval_rows: list[dict[str, object]] = []
+        timing_rows: list[dict[str, object]] = []
+
+        for run_id in planned_run_ids:
+            shard = checkpoint_dir / "runs" / run_id
+            if not (shard / ".committed").exists():
+                raise RuntimeError(f"Missing committed shard for run {run_id}.")
+            run_rows.extend(_dataframe_records(pandas.read_parquet(shard / "run.parquet")))
+            metric_rows.extend(
+                _dataframe_records(pandas.read_parquet(shard / "metrics.parquet"))
+            )
+            quality_rows.extend(
+                _dataframe_records(pandas.read_parquet(shard / "trace_quality.parquet"))
+            )
+            retrieval_rows.extend(
+                _dataframe_records(pandas.read_parquet(shard / "trace_retrieval.parquet"))
+            )
+            timing_rows.extend(
+                _dataframe_records(pandas.read_parquet(shard / "span_timings.parquet"))
+            )
+
+        _write_parquet(
+            pandas,
+            staging_dir / "experiments.parquet",
+            experiment_rows,
+            _EXPERIMENT_COLUMNS,
+        )
+        _write_parquet(pandas, staging_dir / "runs.parquet", run_rows, _RUN_COLUMNS)
+        _write_parquet(
+            pandas, staging_dir / "run_metrics.parquet", metric_rows, _METRIC_COLUMNS
+        )
+        _write_parquet(
+            pandas,
+            staging_dir / "trace_quality.parquet",
+            quality_rows,
+            _TRACE_QUALITY_COLUMNS,
+        )
+        _write_parquet(
+            pandas,
+            staging_dir / "trace_retrieval.parquet",
+            retrieval_rows,
+            _RETRIEVAL_COLUMNS,
+        )
+        _write_parquet(
+            pandas,
+            staging_dir / "span_timings.parquet",
+            timing_rows,
+            _SPAN_TIMING_COLUMNS,
+        )
+
+        for filename in _SNAPSHOT_PARQUET_FILES:
+            if not (staging_dir / filename).exists():
+                raise RuntimeError(f"Aggregation missing required file {filename}.")
+
+        for filename in _SNAPSHOT_PARQUET_FILES:
+            target = output_dir / filename
+            if target.exists():
+                target.unlink()
+            os.replace(staging_dir / filename, target)
+
+        manifest = {
+            "schema_version": SCHEMA_VERSION,
+            "exported_at_utc": datetime.now(UTC).isoformat(),
+            "tracking_uri": cli_identity["tracking_uri"],
+            "profile": cli_identity["profile"],
+            "selector": cli_identity["selector"],
+            "all_runs": cli_identity["all_runs"],
+            "trace_fetch_concurrency": cli_identity["trace_fetch_concurrency"],
+            "experiment_count": len(experiment_rows),
+            "run_count": len(planned_run_ids),
+            "run_ids": planned_run_ids,
+            "privacy_exclusions": _PRIVACY_EXCLUSIONS,
+            "checkpoint_epoch": int(checkpoint_dir.name.removeprefix("checkpoint-")),
+            "files": _file_manifest(output_dir),
+        }
+        _atomic_write_text(
+            output_dir / "manifest.json",
+            json.dumps(manifest, indent=2, sort_keys=True),
+        )
+        _validate_snapshot(output_dir)
+        checkpoint = _read_checkpoint(checkpoint_dir)
+        checkpoint["status"] = "completed"
+        _write_checkpoint(checkpoint_dir, checkpoint)
+        shutil.rmtree(checkpoint_dir)
+    finally:
+        if staging_dir.exists():
+            shutil.rmtree(staging_dir, ignore_errors=True)
+
+
+def _dataframe_records(dataframe: Any) -> list[dict[str, object]]:
+    """Convert a pandas DataFrame into plain dictionaries."""
+    return [dict(row) for row in dataframe.to_dict(orient="records")]
 
 
 def _load_mlflow_dependencies(profile: str) -> tuple[Any, Any]:
@@ -636,6 +1279,50 @@ def _write_parquet(
     """Write a normalized table with stable empty-table columns."""
     dataframe = pandas.DataFrame(rows, columns=columns)
     dataframe.to_parquet(path, index=False)
+    _fsync_file(path)
+
+
+def _atomic_write_text(path: Path, content: str) -> None:
+    """Write text via a same-directory temporary file and atomic replace."""
+    path.parent.mkdir(parents=True, exist_ok=True)
+    fd, tmp_name = tempfile.mkstemp(prefix=f".{path.name}.", dir=str(path.parent))
+    tmp_path = Path(tmp_name)
+    try:
+        with os.fdopen(fd, "w", encoding="utf-8") as handle:
+            handle.write(content)
+            handle.flush()
+            os.fsync(handle.fileno())
+        os.replace(tmp_path, path)
+        _fsync_file(path)
+        _fsync_directory(path.parent)
+    except Exception:
+        tmp_path.unlink(missing_ok=True)
+        raise
+
+
+def _fsync_file(path: Path) -> None:
+    """Flush file contents to durable storage when the OS supports it."""
+    with path.open("rb") as handle:
+        os.fsync(handle.fileno())
+
+
+def _fsync_directory(path: Path) -> None:
+    """Flush directory metadata when the OS supports it."""
+    directory_fd = os.open(str(path), os.O_RDONLY)
+    try:
+        os.fsync(directory_fd)
+    finally:
+        os.close(directory_fd)
+
+
+def _stable_object_hash(value: object) -> str:
+    """Return a SHA-256 digest of a canonical JSON encoding."""
+    return hashlib.sha256(_canonical_json(value).encode("utf-8")).hexdigest()
+
+
+def _canonical_json(value: object) -> str:
+    """Serialize a value with stable key ordering for fingerprinting."""
+    return json.dumps(value, sort_keys=True, separators=(",", ":"), default=str)
 
 
 def _file_manifest(snapshot_dir: Path) -> list[dict[str, object]]:
@@ -656,12 +1343,7 @@ def _validate_snapshot(snapshot_dir: Path) -> None:
     """Raise when a directory is not a completed sanitized snapshot."""
     required_files = {
         "manifest.json",
-        "experiments.parquet",
-        "runs.parquet",
-        "run_metrics.parquet",
-        "trace_quality.parquet",
-        "trace_retrieval.parquet",
-        "span_timings.parquet",
+        *_SNAPSHOT_PARQUET_FILES,
     }
     missing = sorted(
         filename for filename in required_files if not (snapshot_dir / filename).exists()
