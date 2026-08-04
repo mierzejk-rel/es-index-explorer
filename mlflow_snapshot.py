@@ -108,9 +108,10 @@ def _default_output_dir() -> Path:
 def main() -> None:
     """Run export or offline analysis."""
     logging.basicConfig(
-        level=logging.INFO,
+        level=logging.WARNING,
         format="%(asctime)s %(levelname)s %(message)s",
     )
+    logging.getLogger("es_index_explorer").setLevel(logging.INFO)
     try:
         args = parse_args()
         selector = _selector_from_args(args)
