@@ -221,3 +221,4 @@ __marimo__/
 /.agents/
 /skills-lock.json
 /*.jsonl
+artifacts/

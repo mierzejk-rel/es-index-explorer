@@ -6,6 +6,7 @@ from pathlib import Path
 
 from es_index_explorer.mlflow_analysis.snapshot import (
     DEFAULT_EXPERIMENT_FOLDER,
+    DEFAULT_TRACE_FETCH_CONCURRENCY,
     SnapshotSelector,
     analyze_snapshot,
     export_snapshot,
@@ -39,6 +40,16 @@ def parse_args() -> argparse.Namespace:
         "--all-runs",
         action="store_true",
         help="Export all finished runs instead of only the latest finished run per experiment.",
+    )
+    export_parser.add_argument(
+        "--trace-fetch-concurrency",
+        type=int,
+        choices=range(1, DEFAULT_TRACE_FETCH_CONCURRENCY + 1),
+        default=DEFAULT_TRACE_FETCH_CONCURRENCY,
+        help=(
+            "Maximum simultaneous full-trace downloads. Defaults to 10, "
+            "matching MLflow's default connection-pool size."
+        ),
     )
 
     analyze_parser = subparsers.add_parser(
@@ -103,6 +114,7 @@ def main() -> None:
             selector=selector,
             output_dir=output_dir,
             all_runs=args.all_runs,
+            trace_fetch_concurrency=args.trace_fetch_concurrency,
         )
         print(f"Exported sanitized MLflow snapshot to {snapshot_dir}")
         return

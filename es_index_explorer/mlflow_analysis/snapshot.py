@@ -2,6 +2,7 @@
 
 import hashlib
 import json
+from concurrent.futures import ThreadPoolExecutor
 from dataclasses import asdict, dataclass
 from datetime import UTC, datetime
 from pathlib import Path
@@ -9,6 +10,7 @@ from typing import Any
 
 DEFAULT_EXPERIMENT_FOLDER = "/Users/krzysztof.mierzejewski@relativity.com/DSAS-2836/SimpleMode/"
 SCHEMA_VERSION = 1
+DEFAULT_TRACE_FETCH_CONCURRENCY = 10
 
 _EXPERIMENT_COLUMNS = ["experiment_id", "experiment_name", "lifecycle_stage"]
 _RUN_COLUMNS = [
@@ -138,6 +140,7 @@ def export_snapshot(
     selector: SnapshotSelector,
     output_dir: Path,
     all_runs: bool,
+    trace_fetch_concurrency: int = DEFAULT_TRACE_FETCH_CONCURRENCY,
 ) -> Path:
     """Export a sanitized MLflow snapshot using an explicit Databricks profile.
 
@@ -156,13 +159,22 @@ def export_snapshot(
     all_runs
         If true, include all finished runs; otherwise include only the latest
         finished run from each selected experiment.
+    trace_fetch_concurrency
+        Maximum simultaneous full-trace downloads. Must be between 1 and 10
+        so the exporter does not exceed MLflow's default connection-pool size.
 
     Returns
     -------
     Path
         Resolved snapshot directory.
     """
-    mlflow, client, pandas = _load_mlflow_dependencies(profile)
+    if not 1 <= trace_fetch_concurrency <= DEFAULT_TRACE_FETCH_CONCURRENCY:
+        raise ValueError(
+            "trace_fetch_concurrency must be between 1 and "
+            f"{DEFAULT_TRACE_FETCH_CONCURRENCY}."
+        )
+
+    client, pandas = _load_mlflow_dependencies(profile)
     output_dir = output_dir.expanduser().resolve()
     output_dir.mkdir(parents=True, exist_ok=True)
 
@@ -202,12 +214,11 @@ def export_snapshot(
             selected_run_ids.append(run.info.run_id)
             run_rows.append(_sanitize_run(experiment, run))
             metric_rows.extend(_sanitize_metrics(experiment, run))
-            traces = mlflow.search_traces(
-                experiment_ids=[experiment.experiment_id],
+            traces = _fetch_traces_bounded(
+                client=client,
+                experiment_id=str(experiment.experiment_id),
                 run_id=run.info.run_id,
-                max_results=100_000,
-                include_spans=True,
-                return_type="list",
+                trace_fetch_concurrency=trace_fetch_concurrency,
             )
             for trace in traces:
                 quality, retrieval, timings = _sanitize_trace(
@@ -248,6 +259,7 @@ def export_snapshot(
         "profile": profile,
         "selector": asdict(selector),
         "all_runs": all_runs,
+        "trace_fetch_concurrency": trace_fetch_concurrency,
         "experiment_count": len(experiment_rows),
         "run_count": len(selected_run_ids),
         "run_ids": selected_run_ids,
@@ -334,10 +346,9 @@ def analyze_snapshot(*, snapshot_dir: Path, selector: SnapshotSelector) -> Path:
     return analysis_dir
 
 
-def _load_mlflow_dependencies(profile: str) -> tuple[Any, Any, Any]:
+def _load_mlflow_dependencies(profile: str) -> tuple[Any, Any]:
     """Load optional export dependencies and configure profile-aware MLflow."""
     try:
-        import mlflow
         import pandas
         from mlflow import MlflowClient
     except ImportError as exc:
@@ -346,8 +357,44 @@ def _load_mlflow_dependencies(profile: str) -> tuple[Any, Any, Any]:
             "uv sync --group mlflow"
         ) from exc
 
-    mlflow.set_tracking_uri(f"databricks://{profile}")
-    return mlflow, MlflowClient(), pandas
+    return MlflowClient(tracking_uri=f"databricks://{profile}"), pandas
+
+
+def _fetch_traces_bounded(
+    *,
+    client: Any,
+    experiment_id: str,
+    run_id: str,
+    trace_fetch_concurrency: int,
+) -> list[Any]:
+    """Fetch all traces in pages without exceeding the default pool size.
+
+    The metadata page is requested without spans, then complete traces are
+    fetched with a bounded worker pool. This avoids MLflow's unbounded
+    artifact fan-out and uses ``locations`` rather than deprecated
+    ``experiment_ids``.
+    """
+    traces: list[Any] = []
+    page_token: str | None = None
+    while True:
+        page = client.search_traces(
+            locations=[experiment_id],
+            run_id=run_id,
+            include_spans=False,
+            max_results=trace_fetch_concurrency,
+            page_token=page_token,
+        )
+        trace_ids = [trace.info.trace_id for trace in page]
+        with ThreadPoolExecutor(max_workers=trace_fetch_concurrency) as executor:
+            traces.extend(
+                executor.map(
+                    lambda trace_id: client.get_trace(trace_id, display=False),
+                    trace_ids,
+                )
+            )
+        page_token = page.token
+        if not page_token:
+            return traces
 
 
 def _load_pandas() -> Any:
