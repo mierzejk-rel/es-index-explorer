@@ -2,6 +2,8 @@
 
 import hashlib
 import json
+import logging
+import os
 from concurrent.futures import ThreadPoolExecutor
 from dataclasses import asdict, dataclass
 from datetime import UTC, datetime
@@ -11,6 +13,7 @@ from typing import Any
 DEFAULT_EXPERIMENT_FOLDER = "/Users/krzysztof.mierzejewski@relativity.com/DSAS-2836/SimpleMode/"
 SCHEMA_VERSION = 1
 DEFAULT_TRACE_FETCH_CONCURRENCY = 10
+logger = logging.getLogger(__name__)
 
 _EXPERIMENT_COLUMNS = ["experiment_id", "experiment_name", "lifecycle_stage"]
 _RUN_COLUMNS = [
@@ -178,6 +181,7 @@ def export_snapshot(
     output_dir = output_dir.expanduser().resolve()
     output_dir.mkdir(parents=True, exist_ok=True)
 
+    logger.info("Discovering MLflow experiments.")
     # MLflow entity types differ across client versions, so third-party payloads
     # are intentionally handled as Any at this I/O boundary.
     experiments: list[Any] = [
@@ -185,6 +189,7 @@ def export_snapshot(
         for experiment in client.search_experiments(max_results=10_000)
         if selector.matches(experiment.name)
     ]
+    logger.info("Selected %d MLflow experiments.", len(experiments))
     experiment_rows = [
         {
             "experiment_id": str(experiment.experiment_id),
@@ -201,7 +206,13 @@ def export_snapshot(
     span_timing_rows: list[dict[str, object]] = []
     selected_run_ids: list[str] = []
 
-    for experiment in experiments:
+    for experiment_ordinal, experiment in enumerate(experiments, start=1):
+        logger.info(
+            "Exporting experiment %d/%d: %s",
+            experiment_ordinal,
+            len(experiments),
+            experiment.name,
+        )
         runs = [
             run
             for run in client.search_runs([experiment.experiment_id], max_results=10_000)
@@ -210,7 +221,14 @@ def export_snapshot(
         if not all_runs and runs:
             runs = [max(runs, key=lambda run: run.info.start_time or 0)]
 
-        for run in runs:
+        logger.info("Selected %d finished run(s).", len(runs))
+        for run_ordinal, run in enumerate(runs, start=1):
+            logger.info(
+                "Exporting run %d/%d with trace downloads limited to %d concurrent requests.",
+                run_ordinal,
+                len(runs),
+                trace_fetch_concurrency,
+            )
             selected_run_ids.append(run.info.run_id)
             run_rows.append(_sanitize_run(experiment, run))
             metric_rows.extend(_sanitize_metrics(experiment, run))
@@ -230,6 +248,7 @@ def export_snapshot(
                 retrieval_rows.extend(retrieval)
                 span_timing_rows.extend(timings)
 
+    logger.info("Writing sanitized snapshot tables.")
     _write_parquet(pandas, output_dir / "experiments.parquet", experiment_rows, _EXPERIMENT_COLUMNS)
     _write_parquet(pandas, output_dir / "runs.parquet", run_rows, _RUN_COLUMNS)
     _write_parquet(pandas, output_dir / "run_metrics.parquet", metric_rows, _METRIC_COLUMNS)
@@ -276,6 +295,11 @@ def export_snapshot(
     (output_dir / "manifest.json").write_text(
         json.dumps(manifest, indent=2, sort_keys=True),
         encoding="utf-8",
+    )
+    logger.info(
+        "Snapshot complete: %d experiments and %d runs.",
+        len(experiment_rows),
+        len(selected_run_ids),
     )
     return output_dir
 
@@ -348,7 +372,11 @@ def analyze_snapshot(*, snapshot_dir: Path, selector: SnapshotSelector) -> Path:
 
 def _load_mlflow_dependencies(profile: str) -> tuple[Any, Any]:
     """Load optional export dependencies and configure profile-aware MLflow."""
+    # `MlflowClient(tracking_uri=...)` selects the profile for REST calls, but
+    # MLflow's Databricks SDK helpers also consult this environment variable.
+    os.environ["DATABRICKS_CONFIG_PROFILE"] = profile
     try:
+        import mlflow
         import pandas
         from mlflow import MlflowClient
     except ImportError as exc:
@@ -357,7 +385,9 @@ def _load_mlflow_dependencies(profile: str) -> tuple[Any, Any]:
             "uv sync --group mlflow"
         ) from exc
 
-    return MlflowClient(tracking_uri=f"databricks://{profile}"), pandas
+    tracking_uri = f"databricks://{profile}"
+    mlflow.set_tracking_uri(tracking_uri)
+    return MlflowClient(tracking_uri=tracking_uri), pandas
 
 
 def _fetch_traces_bounded(
@@ -376,7 +406,9 @@ def _fetch_traces_bounded(
     """
     traces: list[Any] = []
     page_token: str | None = None
+    page_number = 0
     while True:
+        page_number += 1
         page = client.search_traces(
             locations=[experiment_id],
             run_id=run_id,
@@ -385,13 +417,25 @@ def _fetch_traces_bounded(
             page_token=page_token,
         )
         trace_ids = [trace.info.trace_id for trace in page]
-        with ThreadPoolExecutor(max_workers=trace_fetch_concurrency) as executor:
+        logger.info(
+            "Fetching trace page %d: %d traces.",
+            page_number,
+            len(trace_ids),
+        )
+        executor = ThreadPoolExecutor(max_workers=trace_fetch_concurrency)
+        try:
             traces.extend(
                 executor.map(
                     lambda trace_id: client.get_trace(trace_id, display=False),
                     trace_ids,
                 )
             )
+        except KeyboardInterrupt:
+            executor.shutdown(wait=False, cancel_futures=True)
+            logger.info("Trace download interrupted; cancelling queued requests.")
+            raise
+        else:
+            executor.shutdown(wait=True)
         page_token = page.token
         if not page_token:
             return traces

@@ -1,6 +1,7 @@
 """CLI for read-only MLflow snapshot export and offline analysis."""
 
 import argparse
+import logging
 from datetime import UTC, datetime
 from pathlib import Path
 
@@ -11,6 +12,8 @@ from es_index_explorer.mlflow_analysis.snapshot import (
     analyze_snapshot,
     export_snapshot,
 )
+
+logger = logging.getLogger(__name__)
 
 
 def parse_args() -> argparse.Namespace:
@@ -104,23 +107,31 @@ def _default_output_dir() -> Path:
 
 def main() -> None:
     """Run export or offline analysis."""
-    args = parse_args()
-    selector = _selector_from_args(args)
+    logging.basicConfig(
+        level=logging.INFO,
+        format="%(asctime)s %(levelname)s %(message)s",
+    )
+    try:
+        args = parse_args()
+        selector = _selector_from_args(args)
 
-    if args.command == "export":
-        output_dir = args.output_dir or _default_output_dir()
-        snapshot_dir = export_snapshot(
-            profile=args.profile,
-            selector=selector,
-            output_dir=output_dir,
-            all_runs=args.all_runs,
-            trace_fetch_concurrency=args.trace_fetch_concurrency,
-        )
-        print(f"Exported sanitized MLflow snapshot to {snapshot_dir}")
-        return
+        if args.command == "export":
+            output_dir = args.output_dir or _default_output_dir()
+            snapshot_dir = export_snapshot(
+                profile=args.profile,
+                selector=selector,
+                output_dir=output_dir,
+                all_runs=args.all_runs,
+                trace_fetch_concurrency=args.trace_fetch_concurrency,
+            )
+            print(f"Exported sanitized MLflow snapshot to {snapshot_dir}")
+            return
 
-    analysis_dir = analyze_snapshot(snapshot_dir=args.snapshot, selector=selector)
-    print(f"Wrote offline analysis to {analysis_dir}")
+        analysis_dir = analyze_snapshot(snapshot_dir=args.snapshot, selector=selector)
+        print(f"Wrote offline analysis to {analysis_dir}")
+    except KeyboardInterrupt:
+        logger.info("Interrupted; no completed snapshot manifest was written.")
+        raise SystemExit(130) from None
 
 
 if __name__ == "__main__":
