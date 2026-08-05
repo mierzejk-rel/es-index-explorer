@@ -6,19 +6,21 @@ so interruption/resume never changes the type or value of a sanitized row. Final
 root artifacts are published atomically after every planned run commits.
 """
 
-import pickle
 import hashlib
 import json
 import logging
 import os
+import pickle
+import random
 import shutil
+import sys
 import tempfile
 import time
 from concurrent.futures import ThreadPoolExecutor
 from dataclasses import asdict, dataclass
 from datetime import UTC, datetime
 from pathlib import Path
-from typing import Any
+from typing import Any, Callable
 
 DEFAULT_EXPERIMENT_FOLDER = "/Users/krzysztof.mierzejewski@relativity.com/DSAS-2836/SimpleMode/"
 SCHEMA_VERSION = 1
@@ -28,6 +30,18 @@ logger = logging.getLogger(__name__)
 
 _PICKLE_PROTOCOL = 5
 _RUN_PAYLOAD_FILE = "run_payload.pickle"
+_MAX_TRACE_REQUEST_ATTEMPTS = 5
+_MAX_AUTH_RECOVERY_CYCLES = 2
+_RETRY_BASE_DELAY_SECONDS = 2.0
+_RETRY_MAX_DELAY_SECONDS = 30.0
+
+
+class _AuthenticationRecoveryRequired(RuntimeError):
+    """Signal that retries require interactive Databricks authentication."""
+
+
+class _TraceRequestRetryExhausted(RuntimeError):
+    """Signal that bounded retries could not complete an MLflow request."""
 
 _EXPERIMENT_COLUMNS = ["experiment_id", "experiment_name", "lifecycle_stage"]
 _RUN_COLUMNS = [
@@ -348,9 +362,9 @@ def export_snapshot(
                 run_id,
                 trace_fetch_concurrency,
             )
-            _export_single_run(
+            client = _export_single_run(
                 client=client,
-                pandas=pandas,
+                profile=profile,
                 checkpoint_dir=checkpoint_dir,
                 experiment=experiment,
                 run=run,
@@ -667,13 +681,13 @@ def _discover_planned_runs(
 def _export_single_run(
     *,
     client: Any,
-    pandas: Any,
+    profile: str,
     checkpoint_dir: Path,
     experiment: Any,
     run: Any,
     remote_fingerprint: dict[str, Any],
     trace_fetch_concurrency: int,
-) -> None:
+) -> Any:
     """Download, sanitize, and atomically commit one experiment-run shard.
 
     The shard stores a Python-native payload so the in-memory data is not
@@ -683,8 +697,9 @@ def _export_single_run(
     experiment_id = str(experiment.experiment_id)
     run_row = _sanitize_run(experiment, run)
     metric_rows = _sanitize_metrics(experiment, run)
-    traces = _fetch_traces_bounded(
+    traces, active_client = _fetch_traces_bounded(
         client=client,
+        profile=profile,
         experiment_id=experiment_id,
         run_id=run_id,
         trace_fetch_concurrency=trace_fetch_concurrency,
@@ -736,6 +751,7 @@ def _export_single_run(
     except Exception:
         shutil.rmtree(tmp_dir, ignore_errors=True)
         raise
+    return active_client
 
 
 def _compute_remote_fingerprint(
@@ -1115,12 +1131,23 @@ def decode_quality_value(row: dict[str, object]) -> object:
 
 def _load_mlflow_dependencies(profile: str) -> tuple[Any, Any]:
     """Load optional export dependencies and configure profile-aware MLflow."""
+    try:
+        import pandas
+    except ImportError as exc:
+        raise RuntimeError(
+            "Install the optional dependency group before exporting: "
+            "uv sync --group mlflow"
+        ) from exc
+    return _create_mlflow_client(profile), pandas
+
+
+def _create_mlflow_client(profile: str) -> Any:
+    """Create a fresh MLflow client using the current Databricks profile credentials."""
     # `MlflowClient(tracking_uri=...)` selects the profile for REST calls, but
     # MLflow's Databricks SDK helpers also consult this environment variable.
     os.environ["DATABRICKS_CONFIG_PROFILE"] = profile
     try:
         import mlflow
-        import pandas
         from mlflow import MlflowClient
     except ImportError as exc:
         raise RuntimeError(
@@ -1130,58 +1157,239 @@ def _load_mlflow_dependencies(profile: str) -> tuple[Any, Any]:
 
     tracking_uri = f"databricks://{profile}"
     mlflow.set_tracking_uri(tracking_uri)
-    return MlflowClient(tracking_uri=tracking_uri), pandas
+    return MlflowClient(tracking_uri=tracking_uri)
 
 
 def _fetch_traces_bounded(
     *,
     client: Any,
+    profile: str,
     experiment_id: str,
     run_id: str,
     trace_fetch_concurrency: int,
-) -> list[Any]:
-    """Fetch all traces in pages without exceeding the default pool size.
+    client_factory: Callable[[], Any] | None = None,
+    sleep: Callable[[float], None] = time.sleep,
+    input_reader: Callable[[str], str] = input,
+    is_interactive: Callable[[], bool] | None = None,
+) -> tuple[list[Any], Any]:
+    """Fetch all traces with bounded retries and interactive auth recovery.
 
     The metadata page is requested without spans, then complete traces are
     fetched with a bounded worker pool. This avoids MLflow's unbounded
     artifact fan-out and uses ``locations`` rather than deprecated
-    ``experiment_ids``.
+    ``experiment_ids``. A full run remains atomic: traces from a failed run
+    stay in memory and are discarded unless every page completes.
     """
     traces: list[Any] = []
     page_token: str | None = None
     page_number = 0
+    auth_recovery_cycles = 0
+    active_client = client
+    client_factory = client_factory or (lambda: _create_mlflow_client(profile))
+    is_interactive = is_interactive or sys.stdin.isatty
+
     while True:
+        try:
+            page = _retry_trace_request(
+                operation=f"trace metadata page {page_number + 1} for run {run_id}",
+                request=lambda: active_client.search_traces(
+                    locations=[experiment_id],
+                    run_id=run_id,
+                    include_spans=False,
+                    max_results=trace_fetch_concurrency,
+                    page_token=page_token,
+                ),
+                sleep=sleep,
+            )
+        except _AuthenticationRecoveryRequired as exc:
+            auth_recovery_cycles += 1
+            active_client = _recover_interactive_authentication(
+                profile=profile,
+                recovery_cycle=auth_recovery_cycles,
+                source_error=exc,
+                client_factory=client_factory,
+                input_reader=input_reader,
+                is_interactive=is_interactive,
+            )
+            continue
+
         page_number += 1
-        page = client.search_traces(
-            locations=[experiment_id],
-            run_id=run_id,
-            include_spans=False,
-            max_results=trace_fetch_concurrency,
-            page_token=page_token,
-        )
         trace_ids = [trace.info.trace_id for trace in page]
         logger.info(
             "Fetching trace page %d: %d traces.",
             page_number,
             len(trace_ids),
         )
-        executor = ThreadPoolExecutor(max_workers=trace_fetch_concurrency)
-        try:
-            traces.extend(
-                executor.map(
-                    lambda trace_id: client.get_trace(trace_id, display=False),
-                    trace_ids,
+        while True:
+            page_client = active_client
+            executor = ThreadPoolExecutor(max_workers=trace_fetch_concurrency)
+            try:
+                page_traces = list(
+                    executor.map(
+                        lambda trace_id: _retry_trace_request(
+                            operation=f"trace {trace_id} for run {run_id}",
+                            request=lambda: page_client.get_trace(trace_id, display=False),
+                            sleep=sleep,
+                        ),
+                        trace_ids,
+                    )
                 )
-            )
-        except KeyboardInterrupt:
-            executor.shutdown(wait=False, cancel_futures=True)
-            logger.info("Trace download interrupted; cancelling queued requests.")
-            raise
-        else:
-            executor.shutdown(wait=True)
+            except KeyboardInterrupt:
+                executor.shutdown(wait=False, cancel_futures=True)
+                logger.info("Trace download interrupted; cancelling queued requests.")
+                raise
+            except _AuthenticationRecoveryRequired as exc:
+                executor.shutdown(wait=True)
+                auth_recovery_cycles += 1
+                active_client = _recover_interactive_authentication(
+                    profile=profile,
+                    recovery_cycle=auth_recovery_cycles,
+                    source_error=exc,
+                    client_factory=client_factory,
+                    input_reader=input_reader,
+                    is_interactive=is_interactive,
+                )
+                continue
+            else:
+                executor.shutdown(wait=True)
+                traces.extend(page_traces)
+                break
+
         page_token = page.token
         if not page_token:
-            return traces
+            return traces, active_client
+
+
+def _retry_trace_request(
+    *,
+    operation: str,
+    request: Callable[[], Any],
+    sleep: Callable[[float], None],
+) -> Any:
+    """Execute one MLflow request with bounded transient-failure retries."""
+    for attempt in range(1, _MAX_TRACE_REQUEST_ATTEMPTS + 1):
+        try:
+            return request()
+        except KeyboardInterrupt:
+            raise
+        except Exception as exc:
+            if not _is_retryable_trace_error(exc):
+                raise
+            if attempt == _MAX_TRACE_REQUEST_ATTEMPTS:
+                if _is_authentication_error(exc):
+                    raise _AuthenticationRecoveryRequired(
+                        f"Authentication retries exhausted for {operation}: "
+                        f"{_safe_exception_summary(exc)}"
+                    ) from exc
+                raise _TraceRequestRetryExhausted(
+                    f"Transient retries exhausted for {operation}: "
+                    f"{_safe_exception_summary(exc)}"
+                ) from exc
+            delay = _retry_delay_seconds(attempt)
+            logger.warning(
+                "Retrying %s after attempt %d/%d failed (%s); waiting %.1fs.",
+                operation,
+                attempt,
+                _MAX_TRACE_REQUEST_ATTEMPTS,
+                _safe_exception_summary(exc),
+                delay,
+            )
+            sleep(delay)
+    raise AssertionError("retry loop should always return or raise")
+
+
+def _recover_interactive_authentication(
+    *,
+    profile: str,
+    recovery_cycle: int,
+    source_error: _AuthenticationRecoveryRequired,
+    client_factory: Callable[[], Any],
+    input_reader: Callable[[str], str],
+    is_interactive: Callable[[], bool],
+) -> Any:
+    """Pause for user-managed profile refresh and return a newly created client."""
+    command = f"databricks auth login --profile {profile}"
+    if recovery_cycle > _MAX_AUTH_RECOVERY_CYCLES:
+        raise RuntimeError(
+            "Databricks authentication did not recover after "
+            f"{_MAX_AUTH_RECOVERY_CYCLES} manual refresh cycles. Run `{command}` "
+            "and resume the same export command."
+        ) from source_error
+    if not is_interactive():
+        raise RuntimeError(
+            f"Databricks authentication needs refresh. Run `{command}` and resume "
+            "the same export command; non-interactive execution cannot pause for login."
+        ) from source_error
+
+    logger.error(
+        "Databricks authentication retries are exhausted. In another terminal, run `%s`. "
+        "Then return here and press Enter to recreate the MLflow client (recovery %d/%d).",
+        command,
+        recovery_cycle,
+        _MAX_AUTH_RECOVERY_CYCLES,
+    )
+    response = input_reader("Press Enter after successful Databricks login, or type 'q' to stop: ")
+    if response.strip().lower() in {"q", "quit", "stop"}:
+        raise RuntimeError(
+            f"Authentication recovery cancelled. Run `{command}` and resume the same export command."
+        ) from source_error
+    return client_factory()
+
+
+def _is_retryable_trace_error(error: Exception) -> bool:
+    """Return whether a trace API error is appropriate for bounded retry."""
+    message = str(error).lower()
+    status_code = getattr(error, "status_code", None)
+    if status_code in {401, 429} or isinstance(status_code, int) and status_code >= 500:
+        return True
+    return any(
+        marker in message
+        for marker in (
+            "timeout",
+            "timed out",
+            "connection",
+            "credential was not sent",
+            "unsupported type for this api",
+            "access token",
+            "token refresh",
+            "oidc",
+            "rate limit",
+            "too many requests",
+            "service unavailable",
+            "bad gateway",
+            "gateway timeout",
+        )
+    )
+
+
+def _is_authentication_error(error: Exception) -> bool:
+    """Return whether a retryable error requires profile refresh on exhaustion."""
+    message = str(error).lower()
+    status_code = getattr(error, "status_code", None)
+    return status_code == 401 or any(
+        marker in message
+        for marker in (
+            "credential was not sent",
+            "unsupported type for this api",
+            "access token",
+            "token refresh",
+            "oidc",
+            "authentication",
+        )
+    )
+
+
+def _retry_delay_seconds(attempt: int) -> float:
+    """Return capped exponential backoff with bounded jitter."""
+    base_delay = min(_RETRY_BASE_DELAY_SECONDS * (2 ** (attempt - 1)), _RETRY_MAX_DELAY_SECONDS)
+    return base_delay + random.uniform(0.0, base_delay * 0.2)
+
+
+def _safe_exception_summary(error: Exception) -> str:
+    """Return a content-free exception summary suitable for terminal logs."""
+    status_code = getattr(error, "status_code", None)
+    status = f" status={status_code}" if status_code is not None else ""
+    return f"{type(error).__name__}{status}"
 
 
 def _load_pandas() -> Any:

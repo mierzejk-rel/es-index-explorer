@@ -1,18 +1,32 @@
 """Unit tests for the MLflow snapshot lossless checkpoint and assessment encoding."""
 
 from pathlib import Path
+from types import SimpleNamespace
 
 import pandas as pd
 import pytest
 
 from es_index_explorer.mlflow_analysis.snapshot import (
+    _AuthenticationRecoveryRequired,
     _encode_quality_row,
+    _fetch_traces_bounded,
+    _recover_interactive_authentication,
     _read_run_payload,
+    _retry_trace_request,
     _atomic_write_pickle,
     decode_quality_value,
 )
 
 pytestmark = pytest.mark.unit
+
+
+class FakeRestError(Exception):
+    """Represent a status-bearing transient MLflow REST error."""
+
+    def __init__(self, status_code: int, message: str = "request failed") -> None:
+        """Initialize a fake MLflow REST error."""
+        super().__init__(message)
+        self.status_code = status_code
 
 
 @pytest.mark.parametrize(
@@ -245,3 +259,121 @@ def test_missing_payload_raises_integrity_error(tmp_path: Path) -> None:
     (shard_dir / ".committed").write_text("1\n", encoding="utf-8")
     with pytest.raises(RuntimeError):
         _read_run_payload(checkpoint_dir, "run-1")
+
+
+def test_retry_trace_request_retries_transient_failure() -> None:
+    """A transient trace request retries and returns its successful result."""
+    attempts = 0
+    delays: list[float] = []
+
+    def request() -> str:
+        nonlocal attempts
+        attempts += 1
+        if attempts < 3:
+            raise TimeoutError("temporary network timeout")
+        return "success"
+
+    result = _retry_trace_request(
+        operation="trace trace-1 for run run-1",
+        request=request,
+        sleep=delays.append,
+    )
+
+    assert result == "success"
+    assert attempts == 3
+    assert len(delays) == 2
+
+
+def test_retry_trace_request_requires_authentication_after_exhaustion() -> None:
+    """An exhausted 401 is escalated to interactive authentication recovery."""
+    with pytest.raises(_AuthenticationRecoveryRequired):
+        _retry_trace_request(
+            operation="trace trace-1 for run run-1",
+            request=lambda: (_ for _ in ()).throw(
+                FakeRestError(401, "Credential was not sent")
+            ),
+            sleep=lambda _: None,
+        )
+
+
+def test_retry_trace_request_preserves_keyboard_interrupt() -> None:
+    """Cancellation is never converted into a transient request retry."""
+    with pytest.raises(KeyboardInterrupt):
+        _retry_trace_request(
+            operation="trace trace-1 for run run-1",
+            request=lambda: (_ for _ in ()).throw(KeyboardInterrupt()),
+            sleep=lambda _: None,
+        )
+
+
+def test_fetch_traces_recovers_after_interactive_authentication() -> None:
+    """A successful manual login recreates the client and resumes the trace page."""
+
+    class Page(list[SimpleNamespace]):
+        """Expose MLflow's page token contract."""
+
+        token = None
+
+    class UnauthenticatedClient:
+        """Return trace metadata but reject full trace downloads."""
+
+        def search_traces(self, **_: object) -> Page:
+            """Return one page of trace metadata."""
+            return Page([SimpleNamespace(info=SimpleNamespace(trace_id="trace-1"))])
+
+        def get_trace(self, _: str, display: bool) -> object:
+            """Reject full trace download while credentials are expired."""
+            assert display is False
+            raise FakeRestError(401, "Credential was not sent")
+
+    class AuthenticatedClient:
+        """Return one trace after authentication refresh."""
+
+        def search_traces(self, **_: object) -> Page:
+            """Return one page of trace metadata."""
+            return Page([SimpleNamespace(info=SimpleNamespace(trace_id="trace-1"))])
+
+        def get_trace(self, trace_id: str, display: bool) -> dict[str, str]:
+            """Return a full trace."""
+            assert display is False
+            return {"trace_id": trace_id}
+
+    initial_client = UnauthenticatedClient()
+    replacement_client = AuthenticatedClient()
+    prompts: list[str] = []
+    factory_calls = 0
+
+    def client_factory() -> AuthenticatedClient:
+        nonlocal factory_calls
+        factory_calls += 1
+        return replacement_client
+
+    traces, active_client = _fetch_traces_bounded(
+        client=initial_client,
+        profile="applied-science",
+        experiment_id="experiment-1",
+        run_id="run-1",
+        trace_fetch_concurrency=1,
+        client_factory=client_factory,
+        sleep=lambda _: None,
+        input_reader=lambda prompt: prompts.append(prompt) or "",
+        is_interactive=lambda: True,
+    )
+
+    assert traces == [{"trace_id": "trace-1"}]
+    assert active_client is replacement_client
+    assert factory_calls == 1
+    assert len(prompts) == 1
+
+
+def test_authentication_recovery_fails_without_interactive_terminal() -> None:
+    """A non-interactive exporter fails clearly instead of blocking for login."""
+    with pytest.raises(RuntimeError, match="non-interactive"):
+        _recover_interactive_authentication(
+            profile="applied-science",
+            recovery_cycle=1,
+            source_error=_AuthenticationRecoveryRequired("authentication expired"),
+            client_factory=lambda: object(),
+            input_reader=lambda _: "",
+            is_interactive=lambda: False,
+        )
