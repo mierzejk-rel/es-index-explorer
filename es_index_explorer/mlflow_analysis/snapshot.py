@@ -1,11 +1,12 @@
 """Export privacy-reduced MLflow snapshots and analyze them offline.
 
 Exports are resumable. Each export session stores atomic per-run shards under
-``checkpoint-{unix_epoch}/``. A matching interrupted export resumes completed
-shards; changed remote runs invalidate only that run's shard and re-download it.
-Final root artifacts are published atomically after every planned run commits.
+``checkpoint-{unix_epoch}/``. Each shard is a trusted-local Python-native payload
+so interruption/resume never changes the type or value of a sanitized row. Final
+root artifacts are published atomically after every planned run commits.
 """
 
+import pickle
 import hashlib
 import json
 import logging
@@ -24,6 +25,9 @@ SCHEMA_VERSION = 1
 CHECKPOINT_KIND = "mlflow_snapshot_export"
 DEFAULT_TRACE_FETCH_CONCURRENCY = 10
 logger = logging.getLogger(__name__)
+
+_PICKLE_PROTOCOL = 5
+_RUN_PAYLOAD_FILE = "run_payload.pickle"
 
 _EXPERIMENT_COLUMNS = ["experiment_id", "experiment_name", "lifecycle_stage"]
 _RUN_COLUMNS = [
@@ -57,7 +61,11 @@ _TRACE_QUALITY_COLUMNS = [
     "evalset_variant",
     "row_id",
     "assessment_name",
-    "assessment_value",
+    "assessment_value_type",
+    "assessment_value_string",
+    "assessment_value_bool",
+    "assessment_value_int",
+    "assessment_value_float",
     "ordinal_grade",
     "detected_error_modes",
 ]
@@ -181,9 +189,10 @@ def export_snapshot(
     rationales.
 
     Progress is checkpointed per experiment run under
-    ``output_dir/checkpoint-{unix_epoch}/``. Resume requires the same
-    ``output_dir`` and matching CLI identity (profile, selector, all_runs,
-    concurrency). Changed remote runs invalidate only that run's shard.
+    ``output_dir/checkpoint-{unix_epoch}/``. Each checkpoint is a trusted-local
+    Python-native payload. Resume requires the same ``output_dir`` and matching
+    CLI identity (profile, selector, all_runs, concurrency). Changed remote
+    runs invalidate only that run's shard.
 
     Parameters
     ----------
@@ -665,7 +674,11 @@ def _export_single_run(
     remote_fingerprint: dict[str, Any],
     trace_fetch_concurrency: int,
 ) -> None:
-    """Download, sanitize, and atomically commit one experiment-run shard."""
+    """Download, sanitize, and atomically commit one experiment-run shard.
+
+    The shard stores a Python-native payload so the in-memory data is not
+    coerced by any intermediate Parquet/JSON conversion during interruption.
+    """
     run_id = str(run.info.run_id)
     experiment_id = str(experiment.experiment_id)
     run_row = _sanitize_run(experiment, run)
@@ -694,26 +707,16 @@ def _export_single_run(
         shutil.rmtree(tmp_dir)
     tmp_dir.mkdir(parents=True, exist_ok=False)
     try:
-        _write_parquet(pandas, tmp_dir / "run.parquet", [run_row], _RUN_COLUMNS)
-        _write_parquet(pandas, tmp_dir / "metrics.parquet", metric_rows, _METRIC_COLUMNS)
-        _write_parquet(
-            pandas,
-            tmp_dir / "trace_quality.parquet",
-            quality_rows,
-            _TRACE_QUALITY_COLUMNS,
-        )
-        _write_parquet(
-            pandas,
-            tmp_dir / "trace_retrieval.parquet",
-            retrieval_rows,
-            _RETRIEVAL_COLUMNS,
-        )
-        _write_parquet(
-            pandas,
-            tmp_dir / "span_timings.parquet",
-            timing_rows,
-            _SPAN_TIMING_COLUMNS,
-        )
+        payload = {
+            "schema_version": SCHEMA_VERSION,
+            "run_id": run_id,
+            "run_row": run_row,
+            "metric_rows": metric_rows,
+            "quality_rows": quality_rows,
+            "retrieval_rows": retrieval_rows,
+            "timing_rows": timing_rows,
+        }
+        _atomic_write_pickle(tmp_dir / _RUN_PAYLOAD_FILE, payload)
         fingerprint_payload = {
             **remote_fingerprint,
             "exported_at_utc": datetime.now(UTC).isoformat(),
@@ -809,7 +812,9 @@ def _collect_trace_inventory(
                 assessments.append(
                     {
                         "name": str(getattr(assessment, "name", "")),
-                        "value": _assessment_value(getattr(assessment, "value", None)),
+                        "value": _fingerprint_assessment_value(
+                            getattr(assessment, "value", None)
+                        ),
                         "metadata": _sanitized_assessment_metadata(
                             _as_mapping(getattr(assessment, "metadata", {}))
                         ),
@@ -851,6 +856,15 @@ def _collect_trace_inventory(
             break
     records.sort(key=lambda item: str(item["trace_id"]))
     return records
+
+
+def _fingerprint_assessment_value(value: object) -> object:
+    """Normalize an assessment value for fingerprinting without JSON conversion."""
+    if value is None:
+        return None
+    if isinstance(value, str | bool | int | float):
+        return value
+    return str(value)
 
 
 def _sanitized_assessment_metadata(metadata: dict[str, Any]) -> dict[str, Any]:
@@ -902,6 +916,31 @@ def _delete_run_shard(checkpoint_dir: Path, run_id: str) -> None:
         shutil.rmtree(shard)
 
 
+def _read_run_payload(checkpoint_dir: Path, run_id: str) -> dict[str, Any]:
+    """Deserialize a committed run payload without pandas coercion.
+
+    Raises
+    ------
+    RuntimeError
+        If the payload is missing or unreadable.
+    """
+    payload_path = checkpoint_dir / "runs" / run_id / _RUN_PAYLOAD_FILE
+    if not payload_path.exists():
+        raise RuntimeError(
+            f"Committed run shard {run_id} is missing payload file {payload_path.name}."
+        )
+    try:
+        with payload_path.open("rb") as handle:
+            payload = pickle.load(handle)
+    except Exception as exc:
+        raise RuntimeError(
+            f"Failed to read committed run payload for {run_id}: {exc}"
+        ) from exc
+    if not isinstance(payload, dict):
+        raise RuntimeError(f"Invalid payload structure for run {run_id}.")
+    return payload
+
+
 def _aggregate_and_publish(
     *,
     pandas: Any,
@@ -926,19 +965,14 @@ def _aggregate_and_publish(
             shard = checkpoint_dir / "runs" / run_id
             if not (shard / ".committed").exists():
                 raise RuntimeError(f"Missing committed shard for run {run_id}.")
-            run_rows.extend(_dataframe_records(pandas.read_parquet(shard / "run.parquet")))
-            metric_rows.extend(
-                _dataframe_records(pandas.read_parquet(shard / "metrics.parquet"))
-            )
-            quality_rows.extend(
-                _dataframe_records(pandas.read_parquet(shard / "trace_quality.parquet"))
-            )
-            retrieval_rows.extend(
-                _dataframe_records(pandas.read_parquet(shard / "trace_retrieval.parquet"))
-            )
-            timing_rows.extend(
-                _dataframe_records(pandas.read_parquet(shard / "span_timings.parquet"))
-            )
+            payload = _read_run_payload(checkpoint_dir, run_id)
+            run_rows.append(payload["run_row"])
+            metric_rows.extend(payload["metric_rows"])
+            quality_rows.extend(payload["quality_rows"])
+            retrieval_rows.extend(payload["retrieval_rows"])
+            timing_rows.extend(payload["timing_rows"])
+
+        quality_rows = [_encode_quality_row(row) for row in quality_rows]
 
         _write_parquet(
             pandas,
@@ -1008,9 +1042,75 @@ def _aggregate_and_publish(
             shutil.rmtree(staging_dir, ignore_errors=True)
 
 
-def _dataframe_records(dataframe: Any) -> list[dict[str, object]]:
-    """Convert a pandas DataFrame into plain dictionaries."""
-    return [dict(row) for row in dataframe.to_dict(orient="records")]
+def _encode_quality_row(row: dict[str, object]) -> dict[str, object]:
+    """Encode a quality row's value into type-tagged final columns."""
+    encoded: dict[str, object] = {
+        "experiment_id": row["experiment_id"],
+        "run_id": row["run_id"],
+        "trace_id": row["trace_id"],
+        "trace_status": row["trace_status"],
+        "execution_time_ms": row["execution_time_ms"],
+        "use_case": row["use_case"],
+        "dataset_id": row["dataset_id"],
+        "evalset_variant": row["evalset_variant"],
+        "row_id": row["row_id"],
+        "assessment_name": row["assessment_name"],
+        "assessment_value_type": None,
+        "assessment_value_string": None,
+        "assessment_value_bool": None,
+        "assessment_value_int": None,
+        "assessment_value_float": None,
+        "ordinal_grade": row["ordinal_grade"],
+        "detected_error_modes": row["detected_error_modes"],
+    }
+    value = row["assessment_value"]
+    if value is None:
+        return encoded
+    if isinstance(value, bool):
+        encoded["assessment_value_type"] = "bool"
+        encoded["assessment_value_bool"] = value
+    elif isinstance(value, int):
+        encoded["assessment_value_type"] = "int"
+        encoded["assessment_value_int"] = value
+    elif isinstance(value, float):
+        encoded["assessment_value_type"] = "float"
+        encoded["assessment_value_float"] = value
+    elif isinstance(value, str):
+        encoded["assessment_value_type"] = "string"
+        encoded["assessment_value_string"] = value
+    else:
+        raise TypeError(
+            f"Unsupported assessment value type {type(value).__name__}: "
+            f"{value!r} for assessment {row.get('assessment_name')!r}"
+        )
+    return encoded
+
+
+def decode_quality_value(row: dict[str, object]) -> object:
+    """Reconstruct the original assessment value from a type-tagged final row.
+
+    Parameters
+    ----------
+    row
+        A dictionary or pandas row with one of the typed quality columns set.
+
+    Returns
+    -------
+    object
+        The original bool, int, float, str, or None value.
+    """
+    value_type = row.get("assessment_value_type")
+    if value_type is None:
+        return None
+    if value_type == "bool":
+        return row["assessment_value_bool"]
+    if value_type == "int":
+        return row["assessment_value_int"]
+    if value_type == "float":
+        return row["assessment_value_float"]
+    if value_type == "string":
+        return row["assessment_value_string"]
+    raise ValueError(f"Unknown assessment_value_type: {value_type!r}")
 
 
 def _load_mlflow_dependencies(profile: str) -> tuple[Any, Any]:
@@ -1186,7 +1286,7 @@ def _sanitize_trace(
                 "evalset_variant": trace_attributes.get("evalset_variant"),
                 "row_id": trace_attributes.get("row_id"),
                 "assessment_name": name,
-                "assessment_value": _assessment_value(value),
+                "assessment_value": value,
                 "ordinal_grade": None,
                 "detected_error_modes": "[]",
             }
@@ -1280,6 +1380,24 @@ def _write_parquet(
     dataframe = pandas.DataFrame(rows, columns=columns)
     dataframe.to_parquet(path, index=False)
     _fsync_file(path)
+
+
+def _atomic_write_pickle(path: Path, payload: object) -> None:
+    """Write a pickle payload via a same-directory temporary file and atomic replace."""
+    path.parent.mkdir(parents=True, exist_ok=True)
+    fd, tmp_name = tempfile.mkstemp(prefix=f".{path.name}.", dir=str(path.parent))
+    tmp_path = Path(tmp_name)
+    try:
+        with os.fdopen(fd, "wb") as handle:
+            pickle.dump(payload, handle, protocol=_PICKLE_PROTOCOL)
+            handle.flush()
+            os.fsync(handle.fileno())
+        os.replace(tmp_path, path)
+        _fsync_file(path)
+        _fsync_directory(path.parent)
+    except Exception:
+        tmp_path.unlink(missing_ok=True)
+        raise
 
 
 def _atomic_write_text(path: Path, content: str) -> None:
@@ -1452,13 +1570,6 @@ def _render_summary_markdown(summary: dict[str, object], pareto: Any) -> str:
 def _as_mapping(value: object) -> dict[str, Any]:
     """Return a third-party metadata value as a mapping when possible."""
     return value if isinstance(value, dict) else {}
-
-
-def _assessment_value(value: object) -> str | float | int | bool | None:
-    """Retain primitive assessment values while excluding rich rationale data."""
-    if isinstance(value, str | float | int | bool) or value is None:
-        return value
-    return str(value)
 
 
 def _span_duration_ms(span: Any) -> float | None:
