@@ -18,6 +18,7 @@ from es_index_explorer.mlflow_analysis.snapshot import (
     analyze_snapshot,
     export_snapshot,
 )
+from es_index_explorer.mlflow_analysis.stage_a import analyze_stage_a_snapshot
 
 logger = logging.getLogger(__name__)
 
@@ -106,6 +107,25 @@ def parse_args() -> argparse.Namespace:
         type=Path,
         help="Existing snapshot directory created by the export command.",
     )
+    stage_a_parser = subparsers.add_parser(
+        "analyze-stage-a",
+        help=(
+            "Produce auditable Stage A comparisons, Pareto sets, retrieval overlap, "
+            "and Stage B recommendations without contacting MLflow."
+        ),
+    )
+    stage_a_parser.add_argument(
+        "--snapshot",
+        required=True,
+        type=Path,
+        help="Completed 54-run Stage A snapshot directory.",
+    )
+    stage_a_parser.add_argument(
+        "--report",
+        type=Path,
+        default=Path("reports") / "11-stage-a-results-stage-b-redesign.md",
+        help="Markdown report path.",
+    )
     return parser.parse_args()
 
 
@@ -154,9 +174,9 @@ def main() -> None:
     logging.getLogger("es_index_explorer").setLevel(logging.INFO)
     try:
         args = parse_args()
-        selector = _selector_from_args(args)
 
         if args.command == "export":
+            selector = _selector_from_args(args)
             if args.fresh and args.checkpoint_epoch is not None:
                 raise SystemExit("error: --fresh and --checkpoint-epoch are mutually exclusive")
             output_dir = args.output_dir or _default_output_dir()
@@ -173,6 +193,15 @@ def main() -> None:
             print(f"Exported sanitized MLflow snapshot to {snapshot_dir}")
             return
 
+        if args.command == "analyze-stage-a":
+            analysis_dir = analyze_stage_a_snapshot(
+                snapshot_dir=args.snapshot,
+                report_path=args.report,
+            )
+            print(f"Wrote auditable Stage A analysis to {analysis_dir}")
+            return
+
+        selector = _selector_from_args(args)
         analysis_dir = analyze_snapshot(snapshot_dir=args.snapshot, selector=selector)
         print(f"Wrote offline analysis to {analysis_dir}")
     except KeyboardInterrupt:
