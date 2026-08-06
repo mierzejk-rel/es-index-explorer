@@ -23,7 +23,7 @@ from pathlib import Path
 from typing import Any, Callable
 
 DEFAULT_EXPERIMENT_FOLDER = "/Users/krzysztof.mierzejewski@relativity.com/DSAS-2836/SimpleMode/"
-SCHEMA_VERSION = 1
+SCHEMA_VERSION = 2
 CHECKPOINT_KIND = "mlflow_snapshot_export"
 DEFAULT_TRACE_FETCH_CONCURRENCY = 10
 logger = logging.getLogger(__name__)
@@ -55,9 +55,9 @@ _RUN_COLUMNS = [
     "start_weekday_utc",
     "dataset",
     "model_version",
-    "simple_retrieval_mode",
+    "simple_required_tools",
+    "configured_retrieval_call_count",
     "simple_merge_policy",
-    "requested_retrieval_calls",
     "simple_per_call_fetch_count",
     "simple_global_context_chunk_count",
     "reasoning_effort",
@@ -83,17 +83,28 @@ _TRACE_QUALITY_COLUMNS = [
     "ordinal_grade",
     "detected_error_modes",
 ]
+_TRACE_FAILURE_COLUMNS = [
+    "experiment_id",
+    "run_id",
+    "trace_id",
+    "trace_status",
+    "failure_type",
+    "failure_reason",
+    "required_tool_multiset",
+    "actual_tool_multiset",
+]
 _RETRIEVAL_COLUMNS = [
     "experiment_id",
     "run_id",
     "trace_id",
     "span_name",
     "simple_operation",
-    "tool_ordinal",
+    "tool_name",
     "retrieval_mode",
     "per_call_fetch_count",
     "returned_chunk_count",
-    "requested_retrieval_calls",
+    "required_tool_multiset",
+    "actual_tool_multiset",
     "actual_retrieval_calls",
     "generic_retrieval_calls",
     "metadata_filter_retrieval_calls",
@@ -130,6 +141,7 @@ _SNAPSHOT_PARQUET_FILES = (
     "runs.parquet",
     "run_metrics.parquet",
     "trace_quality.parquet",
+    "trace_failures.parquet",
     "trace_retrieval.parquet",
     "span_timings.parquet",
 )
@@ -455,11 +467,13 @@ def analyze_snapshot(*, snapshot_dir: Path, selector: SnapshotSelector) -> Path:
     runs = pandas.read_parquet(snapshot_dir / "runs.parquet")
     metrics = pandas.read_parquet(snapshot_dir / "run_metrics.parquet")
     quality = pandas.read_parquet(snapshot_dir / "trace_quality.parquet")
+    failures = pandas.read_parquet(snapshot_dir / "trace_failures.parquet")
     retrieval = pandas.read_parquet(snapshot_dir / "trace_retrieval.parquet")
 
     runs = runs[runs["experiment_id"].astype(str).isin(selected_ids)].copy()
     metrics = metrics[metrics["experiment_id"].astype(str).isin(selected_ids)].copy()
     quality = quality[quality["experiment_id"].astype(str).isin(selected_ids)].copy()
+    failures = failures[failures["experiment_id"].astype(str).isin(selected_ids)].copy()
     retrieval = retrieval[retrieval["experiment_id"].astype(str).isin(selected_ids)].copy()
 
     run_summary = _build_run_summary(pandas, runs, metrics, quality, retrieval)
@@ -469,12 +483,14 @@ def analyze_snapshot(*, snapshot_dir: Path, selector: SnapshotSelector) -> Path:
     run_summary.to_csv(analysis_dir / "run_summary.csv", index=False)
     pareto.to_csv(analysis_dir / "pareto_candidates.csv", index=False)
     grade_distribution.to_csv(analysis_dir / "grade_distribution.csv", index=False)
+    failures.to_csv(analysis_dir / "plan_validation_failures.csv", index=False)
 
     summary = {
         "schema_version": SCHEMA_VERSION,
         "snapshot_dir": str(snapshot_dir),
         "selected_experiment_count": len(selected_experiments),
         "selected_run_count": len(runs),
+        "plan_validation_failure_count": len(failures),
         "pareto_candidate_count": len(pareto),
         "time_of_day_caveat": (
             "Latency is retained with UTC start times. Do not attribute small "
@@ -705,15 +721,17 @@ def _export_single_run(
         trace_fetch_concurrency=trace_fetch_concurrency,
     )
     quality_rows: list[dict[str, object]] = []
+    failure_rows: list[dict[str, object]] = []
     retrieval_rows: list[dict[str, object]] = []
     timing_rows: list[dict[str, object]] = []
     for trace in traces:
-        quality, retrieval, timings = _sanitize_trace(
+        quality, failures, retrieval, timings = _sanitize_trace(
             experiment_id=experiment_id,
             run_id=run_id,
             trace=trace,
         )
         quality_rows.extend(quality)
+        failure_rows.extend(failures)
         retrieval_rows.extend(retrieval)
         timing_rows.extend(timings)
 
@@ -728,6 +746,7 @@ def _export_single_run(
             "run_row": run_row,
             "metric_rows": metric_rows,
             "quality_rows": quality_rows,
+            "failure_rows": failure_rows,
             "retrieval_rows": retrieval_rows,
             "timing_rows": timing_rows,
         }
@@ -974,6 +993,7 @@ def _aggregate_and_publish(
         run_rows: list[dict[str, object]] = []
         metric_rows: list[dict[str, object]] = []
         quality_rows: list[dict[str, object]] = []
+        failure_rows: list[dict[str, object]] = []
         retrieval_rows: list[dict[str, object]] = []
         timing_rows: list[dict[str, object]] = []
 
@@ -985,6 +1005,7 @@ def _aggregate_and_publish(
             run_rows.append(payload["run_row"])
             metric_rows.extend(payload["metric_rows"])
             quality_rows.extend(payload["quality_rows"])
+            failure_rows.extend(payload["failure_rows"])
             retrieval_rows.extend(payload["retrieval_rows"])
             timing_rows.extend(payload["timing_rows"])
 
@@ -1005,6 +1026,12 @@ def _aggregate_and_publish(
             staging_dir / "trace_quality.parquet",
             quality_rows,
             _TRACE_QUALITY_COLUMNS,
+        )
+        _write_parquet(
+            pandas,
+            staging_dir / "trace_failures.parquet",
+            failure_rows,
+            _TRACE_FAILURE_COLUMNS,
         )
         _write_parquet(
             pandas,
@@ -1422,9 +1449,11 @@ def _sanitize_run(experiment: Any, run: Any) -> dict[str, object]:
         "start_weekday_utc": start_time.weekday() if start_time else None,
         "dataset": params.get("dataset"),
         "model_version": params.get("model_version"),
-        "simple_retrieval_mode": params.get("simple_retrieval_mode"),
+        "simple_required_tools": params.get("simple_required_tools"),
+        "configured_retrieval_call_count": _simple_required_tool_count(
+            params.get("simple_required_tools")
+        ),
         "simple_merge_policy": params.get("simple_merge_policy"),
-        "requested_retrieval_calls": _to_int(params.get("requested_retrieval_calls")),
         "simple_per_call_fetch_count": _to_int(
             params.get("simple_per_call_fetch_count")
         ),
@@ -1454,8 +1483,13 @@ def _sanitize_trace(
     experiment_id: str,
     run_id: str,
     trace: Any,
-) -> tuple[list[dict[str, object]], list[dict[str, object]], list[dict[str, object]]]:
-    """Return privacy-reduced assessment, retrieval, and timing rows for a trace."""
+) -> tuple[
+    list[dict[str, object]],
+    list[dict[str, object]],
+    list[dict[str, object]],
+    list[dict[str, object]],
+]:
+    """Return privacy-reduced assessment, failure, retrieval, and timing rows."""
     info = trace.info
     trace_id = str(info.trace_id)
     trace_attributes = _as_mapping(getattr(info, "attributes", {}))
@@ -1505,10 +1539,29 @@ def _sanitize_trace(
         row["detected_error_modes"] = detected_error_modes
 
     retrieval_rows: list[dict[str, object]] = []
+    failure_rows: list[dict[str, object]] = []
     timing_rows: list[dict[str, object]] = []
     for span in getattr(trace.data, "spans", []) or []:
         attributes = _as_mapping(getattr(span, "attributes", {}))
         operation = attributes.get("simple.operation")
+        plan_failure = attributes.get("simple.retrieval_plan_failure")
+        if plan_failure is not None:
+            failure_rows.append(
+                {
+                    "experiment_id": experiment_id,
+                    "run_id": run_id,
+                    "trace_id": trace_id,
+                    "trace_status": str(getattr(info, "status", "")),
+                    "failure_type": "simple_retrieval_plan_validation",
+                    "failure_reason": plan_failure,
+                    "required_tool_multiset": attributes.get(
+                        "simple.required_tool_multiset"
+                    ),
+                    "actual_tool_multiset": attributes.get(
+                        "simple.actual_tool_multiset"
+                    ),
+                }
+            )
         timing_rows.append(
             {
                 "experiment_id": experiment_id,
@@ -1544,7 +1597,7 @@ def _sanitize_trace(
                     "trace_id": trace_id,
                     "span_name": getattr(span, "name", None),
                     "simple_operation": operation,
-                    "tool_ordinal": attributes.get("simple.tool_ordinal"),
+                    "tool_name": attributes.get("simple.tool_name"),
                     "retrieval_mode": attributes.get("simple.retrieval_mode"),
                     "per_call_fetch_count": attributes.get(
                         "simple.per_call_fetch_count"
@@ -1552,8 +1605,11 @@ def _sanitize_trace(
                     "returned_chunk_count": attributes.get(
                         "simple.returned_chunk_count"
                     ),
-                    "requested_retrieval_calls": attributes.get(
-                        "simple.requested_retrieval_calls"
+                    "required_tool_multiset": attributes.get(
+                        "simple.required_tool_multiset"
+                    ),
+                    "actual_tool_multiset": attributes.get(
+                        "simple.actual_tool_multiset"
                     ),
                     "actual_retrieval_calls": attributes.get(
                         "simple.actual_retrieval_calls"
@@ -1575,7 +1631,7 @@ def _sanitize_trace(
                     "ranked_chunk_ids": _ranked_chunk_ids(span),
                 }
             )
-    return quality_rows, retrieval_rows, timing_rows
+    return quality_rows, failure_rows, retrieval_rows, timing_rows
 
 
 def _write_parquet(
@@ -1762,6 +1818,7 @@ def _render_summary_markdown(summary: dict[str, object], pareto: Any) -> str:
         "",
         f"- Selected experiments: {summary['selected_experiment_count']}",
         f"- Selected runs: {summary['selected_run_count']}",
+        f"- Simple retrieval plan-validation failures: {summary['plan_validation_failure_count']}",
         f"- Pareto candidates: {summary['pareto_candidate_count']}",
         f"- Latency caveat: {summary['time_of_day_caveat']}",
         "",
@@ -1815,3 +1872,14 @@ def _to_int(value: object) -> int | None:
         return int(str(value))
     except ValueError:
         return None
+
+
+def _simple_required_tool_count(value: object) -> int | None:
+    """Return the configured Simple Mode call count from a JSON tool multiset."""
+    if not isinstance(value, str):
+        return None
+    try:
+        parsed = json.loads(value)
+    except json.JSONDecodeError:
+        return None
+    return len(parsed) if isinstance(parsed, list) else None

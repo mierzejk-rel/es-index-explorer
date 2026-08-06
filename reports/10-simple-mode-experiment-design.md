@@ -191,23 +191,24 @@ when it is returned/selected by the active retrieval mode.
 
 ## 4. One-hop tool-call policy
 
-The experiment config supplies a requested call count of 1 through 4. Stage A/C use 1, 2, or 3;
-the approved Stage B breadth arm uses 4. The foundation model is prompted to make that many
-retrieval calls, but the implementation accepts and executes every
-retrieval call it actually emits in the sole tool round. MLflow stores:
+The `[[required_tools]]` TOML multiset is the sole call-plan contract. Its length is the required
+call count (1–4), and each entry names the retrieval mode that must be called. Stage A/C use one
+repeated mode-specific tool one to three times; the approved Stage B breadth arm uses four entries.
+The foundation model must emit exactly that multiset in the sole retrieval round. Before any
+retrieval executes, the backend compares the emitted and configured tool-name `Counter`s. A
+missing, extra, or wrong-mode call produces a `SimpleRetrievalPlanValidationError`, marks the
+active span `ERROR`, and preserves the failed trace in MLflow for inspection or deletion.
 
-- requested call count;
-- actual emitted retrieval-call count;
-- generic versus metadata-filtered call counts;
-- deviation between requested and actual counts.
+MLflow stores the configured required-tool multiset, emitted tool multiset, plan-valid flag or
+failure reason, actual emitted retrieval-call count, and generic versus filtered retrieval-call
+counts. No separate `requested_retrieval_calls` field exists.
 
-All calls from the one tool round execute concurrently. The current v3 `_call_tools` loop executes
-them sequentially, so Simple Mode needs a dedicated concurrent path that preserves emitted-call
-ordinal for later merge and trace labels.
+All calls from the one tool round execute concurrently. Their completion order and the order in
+which the model emitted them do not select the retrieval mode or affect the merge order.
 
 ### 4.1 Query style
 
-| Retrieval mode | 1 requested call | 2 requested calls | 3 requested calls |
+| Retrieval mode | 1 required tool call | 2 required tool calls | 3 required tool calls |
 |---|---|---|---|
 | BM25 | Compact keyword query | Distinct keyword/entity angles | Three distinct keyword/alias/aspect angles |
 | Dense | One natural-language information need | Distinct semantic formulations | Three semantic/relationship/timeframe formulations |
@@ -220,15 +221,15 @@ that the agent can conduct a second retrieval round.
 
 Date and email participant fields are allowed only as hard filters:
 
-| Mode / requested calls | Metadata-filter tool availability |
+| Mode / required-tool multiset | Metadata-filter availability |
 |---|---|
-| Any mode, 1 call | Not exposed; generic retrieval only |
-| BM25 or dense, 2–3 calls | At most one filter call, only when user supplied explicit date/email values |
-| Hybrid, 2 calls | Not exposed |
-| Hybrid, 3 calls | At most one filter call, only when user supplied explicit date/email values |
+| Any one-tool arm | Not allowed |
+| BM25 or dense, two or three same-mode tool entries | At most one call may supply filters, only when the user supplied explicit date/email values |
+| Two ES-RRF tool entries | Not allowed |
+| Three ES-RRF entries or any Stage B BM25/dense multiset | At most one call may supply filters, only when the user supplied explicit date/email values |
 
-All remaining calls are generic. An empty filtered result stays empty; it does not trigger an
-unfiltered fallback query.
+The mode-specific tools accept optional date/email fields when this policy allows them. An empty
+filtered result stays empty; it does not trigger an unfiltered fallback query.
 
 ---
 
@@ -254,11 +255,12 @@ inside each document by start index, and retain the full unique union up to each
 `simple_per_call_fetch_count` cap. Context can grow to roughly
 `actual_call_count × simple_per_call_fetch_count`.
 
-Stage B assigns retrieval mode by emitted-call ordinal through an ordered branch sequence, for
-example `[bm25, dense, bm25]`. The first branch is always BM25; later branches may be BM25 or
-dense. Calls remain concurrent, but their ordinal defines both branch assignment and deterministic
-first-seen union order. Stage A/C remain single-mode arms: every call uses their one configured
-mode.
+Stage B declares an exact multiset of explicit mode-specific tools, for example two
+`GetRelevantDocumentsBm25` calls and one `GetRelevantDocumentsDense` call. The backend validates
+that multiset before retrieval. Calls remain concurrent and their emitted order is immaterial:
+`current_union` uses canonical mode ordering (BM25, then dense, then ES-RRF when configured)
+before applying the normal first-seen union. Stage A/C likewise declare repeated instances of their
+single explicit tool.
 
 After the union is built, adjacent selected chunks within each document are concatenated into
 range IDs (`"i:j"`) using the same overlap-trimming algorithm as `round_robin`. Output format
@@ -368,7 +370,7 @@ dimension, so retrieval-branch, call-count, and fetch effects remain interpretab
 |---|---|---|
 | `S-A-bm25-cN` vs `S-A-dense-cN` | lexical vs dense | Query-representation/retrieval-mode effect |
 | `S-A-dense-cN` vs `S-A-hybrid-cN` | dense vs server-side hybrid RRF | Value of combining chunk lexical+dense signals |
-| `S-A-<mode>-c1/c2/c3` | requested call count | Value of query diversity; actual count recorded separately |
+| `S-A-<mode>-c1/c2/c3` | required tool-call count | Value of query diversity; actual count recorded separately |
 | B1 vs B6 | per-call fetch 15 vs 20 | Heterogeneous c2 depth/context-volume effect (≤30 vs ≤40 candidates) |
 | B2 vs B6 | `[bm25, bm25]` vs `[bm25, dense]` | Homogeneous versus heterogeneous c2/f20 branch effect |
 | B3 vs B4 | per-call fetch 15 vs 20 | Heterogeneous c3 depth/context-volume effect (≤45 vs ≤60 candidates) |
@@ -441,8 +443,8 @@ DSAS-2836 `092`–`095` namespace.
 
 Each TOML derives from E0 `013.toml`. It retains evidence, citation, legal-language, error, and
 structured-response requirements but removes multi-hop research and note/signature instructions.
-It explains flat-concatenated range chunks, no generated metadata, the requested call count,
-allowed query styles, and one-hop final-answer behavior.
+It explains flat-concatenated range chunks, no generated metadata, the exact required
+mode-specific tool multiset, allowed query styles, and one-hop final-answer behavior.
 
 Every initial config includes the following fields. The value of `simple_per_call_fetch_count`
 **depends on retrieval mode** and must match the rules enforced by the model config validator.
@@ -451,8 +453,6 @@ Every initial config includes the following fields. The value of `simple_per_cal
 
 ```toml
 simple_mode = true
-requested_retrieval_calls = 1          # 1, 2, or 3 by arm
-simple_retrieval_mode = "bm25"         # or "dense"
 simple_merge_policy = "round_robin"
 simple_per_call_fetch_count = 10       # must equal simple_global_context_chunk_count (10, 15, or 20)
 simple_global_context_chunk_count = 10 # unique chunks selected after round_robin merging; chosen per experiment
@@ -460,14 +460,19 @@ include_metadata = false
 max_tool_iterations = 1
 reasoning_effort = "none"              # Stage C uses "low"
 max_completion_tokens = 12_000
+
+[[required_tools]]
+name = "get_relevant_documents_bm25"   # use dense tool name for dense arms
+mcp_api_version = "v2"
 ```
+
+Repeat the same `[[required_tools]]` entry exactly c1, c2, or c3 times. The repeated entries are
+the required call count and mode contract.
 
 **`hybrid_es_rrf` arms (Stage A and C) — `f = 30`:**
 
 ```toml
 simple_mode = true
-requested_retrieval_calls = 1          # 1, 2, or 3 by arm
-simple_retrieval_mode = "hybrid_es_rrf"
 simple_merge_policy = "round_robin"
 simple_per_call_fetch_count = 30       # fixed at 30; preserves the full RRF rank-window depth
 simple_global_context_chunk_count = 10 # unique chunks selected after round_robin merging; hybrid may use 10, 15, 20, 25, or 30
@@ -475,28 +480,44 @@ include_metadata = false
 max_tool_iterations = 1
 reasoning_effort = "none"              # Stage C uses "low"
 max_completion_tokens = 12_000
+
+[[required_tools]]
+name = "get_relevant_documents_es_rrf"
+mcp_api_version = "v2"
 ```
 
-**Stage B `current_union` arms — ordered branches, f = 15 or 20, no global cap:**
+Repeat the ES-RRF entry exactly c1, c2, or c3 times.
+
+**Stage B `current_union` arms — explicit tool multiset, f = 15 or 20, no global cap:**
 
 ```toml
 simple_mode = true
-requested_retrieval_calls = 3
-simple_retrieval_modes = ["bm25", "dense", "bm25"] # length must equal requested_retrieval_calls
 simple_merge_policy = "current_union"
 simple_per_call_fetch_count = 15
 include_metadata = false
 max_tool_iterations = 1
 reasoning_effort = "none"              # low remains Stage C only
 max_completion_tokens = 12_000
+
+[[required_tools]]
+name = "get_relevant_documents_bm25"
+mcp_api_version = "v2"
+
+[[required_tools]]
+name = "get_relevant_documents_dense"
+mcp_api_version = "v2"
+
+[[required_tools]]
+name = "get_relevant_documents_bm25"
+mcp_api_version = "v2"
 ```
 
-`simple_retrieval_modes` is required for Stage B and preserves branch order. It must contain one
-of `bm25` or `dense` for every requested call, begin with `bm25`, and have length equal to
-`requested_retrieval_calls`. Stage B permits c2, c3, and c4; the core validator permits c1–c4.
-Stage A/C retain the existing singular `simple_retrieval_mode` field and c1–c3 matrices. Stage B
-does not configure `simple_global_context_chunk_count`: `current_union` keeps the full
-deduplicated union up to `c × f` candidates before adjacent-chunk concatenation.
+`required_tools` must contain only `get_relevant_documents_bm25`,
+`get_relevant_documents_dense`, or `get_relevant_documents_es_rrf`, with one to four entries. It
+is a multiset: duplicate entries require duplicate calls. Stage B permits c2, c3, and c4
+BM25/dense multisets; Stage A/C retain c1–c3 same-mode multisets. Stage B does not configure
+`simple_global_context_chunk_count`: `current_union` keeps the full deduplicated union up to
+`c × f` candidates before adjacent-chunk concatenation.
 
 `simple_per_call_fetch_count` controls the ES request `size` / per-call extraction cap; it feeds
 the merge step. `simple_global_context_chunk_count` is the maximum unique chunks delivered to the
@@ -511,17 +532,18 @@ E/TOMLs retain their current behavior through defaults.
 
 Simple Mode has a config-driven tool allowlist. It exposes:
 
-- generic retrieval in every arm;
-- metadata-filter retrieval only in arms allowed by the policy in section 4.2.
+- one explicit retrieval tool schema for each configured `required_tools` mode;
+- the same schema may be supplied repeatedly in the TOML, requiring the model to call that mode
+  the corresponding number of times;
+- optional date/email fields only in arms allowed by the policy in section 4.2.
 
 `WriteFile` and `ReadFile` are absent from the OpenAI tool schema, not merely unmentioned in the
 prompt. The graph still performs current answer cleaning, citation normalization, snippet
 extraction/repair, and structured output after the single retrieval round.
 
-All retrieval calls emitted by the model during that round run concurrently. Each receives a tool
-ordinal, configured branch mode, and configuration attributes. In Stage B, the ordinal selects its
-entry from `simple_retrieval_modes`; in Stage A/C, every ordinal uses the singular configured
-mode. Once all are complete, Simple Mode applies the configured
+All retrieval calls emitted by the model during that round run concurrently. Before retrieval, the
+backend validates their mode-specific tool multiset against `required_tools`; it rejects the trace
+before any ES call if they differ. Once all valid calls complete, Simple Mode applies the configured
 cross-call merge policy, concatenates adjacent chunks, emits flat grouped XML, and invokes final
 answer generation. To preserve OpenAI tool-response pairing without duplicating context, the full
 merged XML is returned only for the first emitted retrieval tool-call ID. Every later retrieval
@@ -534,8 +556,8 @@ Add a dedicated Simple provider/retriever rather than altering established E0/Ti
 
 1. issues chunk-only BM25, dense, or ES-RRF retrieval with ES `size = simple_per_call_fetch_count`;
 2. disables the first-chunk query;
-3. returns per-call ranked chunk lists capped at `simple_per_call_fetch_count`, selecting the
-   Stage B BM25/dense mode by call ordinal when an ordered branch sequence is configured;
+3. returns per-call ranked chunk lists capped at `simple_per_call_fetch_count`, with mode selected
+   directly by the called tool;
 4. merges lists with `round_robin` (capping at `simple_global_context_chunk_count`) or `current_union`;
 5. concatenates adjacent selected chunks into range-ID flat chunks;
 6. returns `GroupedChunks`, flat XML, retrieved document IDs, and final relevant document IDs.
@@ -648,16 +670,19 @@ they describe the latency experienced by the caller.
 
 The invocation trace tree and its evaluation run together store:
 
-- the `evals_complete` AGENT span stores requested/actual generic and metadata-filter tool-call
-  counts, singular retrieval mode when configured, ordered Stage B branch sequence when configured,
-  merge policy, configured per-call fetch count
+- the `evals_complete` AGENT span stores the required and actual tool multisets, plan-valid flag
+  (or safe failure reason), actual generic and metadata-filter tool-call counts, merge policy,
+  configured per-call fetch count
   (`simple_per_call_fetch_count`), configured global context budget when applicable
   (`simple_global_context_chunk_count`), actual selected chunk count, and serialized context size;
 - run parameters store invocation concurrency (`1`), Simple Mode config/model version, retrieval
-  mode or ordered branch sequence, merge policy, configured per-call fetch count, and the global
-  context budget when configured;
-- every retrieval TOOL span stores its emitted ordinal, its actual selected branch mode, timing,
-  returned/selected chunk counts, and its contribution to the deduplicated merged context;
+  tool multiset, merge policy, configured per-call fetch count, and the global context budget when
+  configured;
+- every retrieval TOOL span stores its explicit retrieval mode, timing, returned/selected chunk
+  counts, and its contribution to the deduplicated merged context;
+- a failed plan-validation span stores `simple.retrieval_plan_valid = false`,
+  `simple.required_tool_multiset`, `simple.actual_tool_multiset`, and the safe
+  `simple.retrieval_plan_failure` reason; it is marked `ERROR` before any retrieval executes;
 - the root trace stores the end-to-end invocation duration as `execution_duration`, which
   `log_execution_time_percentiles` aggregates into `execution_time_p{50,90,95}_s`.
 
@@ -677,9 +702,7 @@ Every retrieval span stores:
 - E-tier-equivalent tool inputs: `args`, tool provider, request context, and resolved model config;
 - complete raw per-call retrieved `GroupedChunks` output, including chunk XML/content;
 - raw Elasticsearch chunk rank order plus retrieved/relevant document IDs;
-- tool ordinal;
-- configured ordered branch sequence when applicable and the actual signal mode selected for this
-  ordinal;
+- the mode-specific tool name and actual signal mode;
 - configured per-call fetch count and actual returned count;
 - final successful ES duration and transient-search successful-attempt count. An authentication
   refresh can retry the full search but does not increment this transient-search count;
@@ -756,12 +779,12 @@ LLM.
 ### 8.5 MLflow data and later analysis
 
 Store raw per-variation measurements in traces and aggregate run-level p50/p90/p95 metrics for
-the three timing layers. Store quality, retrieval, citation, retry/failure, requested/actual
-call-count, configured ordered branch sequence, actual per-call branch mode and ordinal, configured
-per-call fetch, the global context cap when configured, actual selected chunks, each branch's
-contribution, and serialized context-size data. Attempt counts remain diagnostic span attributes
-rather than run-level percentile metrics. Do not generate experiment reports during S execution;
-reporting and Pareto analysis happen after all configured S experiments complete.
+the three timing layers. Store quality, retrieval, citation, retry/failure, required/actual tool
+multisets, actual per-call mode, configured per-call fetch, the global context cap when configured,
+actual selected chunks, each branch's contribution, and serialized context-size data. Attempt
+counts remain diagnostic span attributes rather than run-level percentile metrics. Do not generate
+experiment reports during S execution; reporting and Pareto analysis happen after all configured S
+experiments complete.
 
 ### 8.6 Cross-arm performance comparison
 
@@ -783,9 +806,8 @@ include all invocation work after semaphore acquisition, including waits, retrie
 
 `{N}` is `50`, `90`, or `95`. Prefer **observed** metrics for user-perceived latency. Use
 successful-attempt metrics to determine whether an observed difference originates in LLM/ES
-service time or in waits and retries. Actual/requested call counts, successful-attempt counts,
-retrieval mode or ordered branch sequence, actual per-call branch modes, merge policy, fetch/context
-values, selected chunks, and context size are
+service time or in waits and retries. Required/actual tool multisets, successful-attempt counts,
+actual per-call modes, merge policy, fetch/context values, selected chunks, and context size are
 span-level diagnostics—not percentile comparison metrics.
 
 Hold constant the dataset, invocation concurrency (`1`), rubric variations and repetitions, seed,
@@ -811,7 +833,7 @@ MLflow must retain enough information for later:
 - retrieval recall/precision;
 - full Simple Mode config identity, including `simple_per_call_fetch_count` and
   `simple_global_context_chunk_count` when the merge policy uses a global cap;
-- requested vs actual calls;
+- required versus actual tool multisets and plan-validation failures;
 - actual chunks/context delivered to the LLM;
 - all three latency layers by operation;
 - retry/failure rates separate from happy-path metrics.
@@ -833,10 +855,10 @@ single-hop, concurrent retrieval-call execution, chunk-only ES retrieval, server
 extraction, flat-concatenated output, the no-first-chunk path, and timing spans. Its original main
 base is `fa50a3198d16971056f578c48e239f0209b43810` (2026-06-18).
 
-After this shared implementation exists, Stage A/C branches normally add only v3 model TOML/config
-values. Stage B is explicitly code-changing: it adds c4 validation, ordered
-`simple_retrieval_modes` configuration, ordinal-to-branch routing, and branch contribution
-telemetry before adding its six TOMLs. S experiments are therefore not TOML-only today.
+After this shared implementation exists, Stage A/C and Stage B add v3 TOMLs with their explicit
+`required_tools` multisets. The shared runtime validates the same multiset contract for every
+stage, supports c1–c4, and records branch contribution telemetry without ordinal routing. S
+experiments are therefore not TOML-only today.
 
 The r1-evals original DSAS base is `2a5cad9e387e12062b598bf8b96453fd3b4c9133` (2026-06-18).
 The es-index experiments base is `b4a96446f1b932ecbad4aa3a0f7a284587d6eb47` (2026-06-04).
@@ -865,11 +887,10 @@ Before the first S run, verify:
    `simple_per_call_fetch_count = 30` and `simple_global_context_chunk_count = g` (e.g. `g = 30`)
    delivers at most `g` unique chunks to the LLM, each call's candidate list capped
    independently at 30.
-10. For Stage B `current_union`: `requested_retrieval_calls` accepts c2, c3, and c4; ordered
-    `simple_retrieval_modes` begins with BM25, has exactly one entry per call, selects the matching
-    mode for every concurrent tool ordinal, and delivers the complete deduplicated union without a
-    global-context cap. f15/f20 caps each individual list, so pre-deduplication candidates are at
-    most `c × f`.
+10. For Stage B `current_union`: the `required_tools` multiset encodes c2, c3, or c4 exact
+    BM25/dense calls. The backend rejects any emitted tool multiset that differs before retrieval,
+    and the valid calls deliver the complete deduplicated union without a global-context cap.
+    f15/f20 caps each individual list, so pre-deduplication candidates are at most `c × f`.
 
 Non-goals:
 

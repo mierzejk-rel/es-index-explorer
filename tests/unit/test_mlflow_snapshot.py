@@ -13,6 +13,7 @@ from es_index_explorer.mlflow_analysis.snapshot import (
     _recover_interactive_authentication,
     _read_run_payload,
     _retry_trace_request,
+    _sanitize_trace,
     _atomic_write_pickle,
     decode_quality_value,
 )
@@ -158,7 +159,7 @@ def test_round_trip_quality_rows_through_parquet(tmp_path: Path) -> None:
 def test_run_payload_round_trip_preserves_object_types(tmp_path: Path) -> None:
     """Checkpoint pickle round-trip preserves list/dict/string/bool/numeric values."""
     payload = {
-        "schema_version": 1,
+        "schema_version": 2,
         "run_id": "run-1",
         "run_row": {
             "experiment_id": "exp-1",
@@ -171,9 +172,9 @@ def test_run_payload_round_trip_preserves_object_types(tmp_path: Path) -> None:
             "start_weekday_utc": 1,
             "dataset": "ds",
             "model_version": "3.61",
-            "simple_retrieval_mode": "bm25",
+            "simple_required_tools": '["get_relevant_documents_bm25"]',
+            "configured_retrieval_call_count": 1,
             "simple_merge_policy": "round_robin",
-            "requested_retrieval_calls": 1,
             "simple_per_call_fetch_count": 10,
             "simple_global_context_chunk_count": 10,
             "reasoning_effort": "none",
@@ -206,11 +207,12 @@ def test_run_payload_round_trip_preserves_object_types(tmp_path: Path) -> None:
                 "trace_id": "trace-1",
                 "span_name": "simple.retrieval_generic",
                 "simple_operation": "simple.retrieval_generic",
-                "tool_ordinal": 0,
+                "tool_name": "GetRelevantDocumentsBm25",
                 "retrieval_mode": "bm25",
                 "per_call_fetch_count": 10,
                 "returned_chunk_count": 10,
-                "requested_retrieval_calls": 1,
+                "required_tool_multiset": '{"get_relevant_documents_bm25": 1}',
+                "actual_tool_multiset": '{"get_relevant_documents_bm25": 1}',
                 "actual_retrieval_calls": 1,
                 "generic_retrieval_calls": 1,
                 "metadata_filter_retrieval_calls": 0,
@@ -221,6 +223,7 @@ def test_run_payload_round_trip_preserves_object_types(tmp_path: Path) -> None:
                 "ranked_chunk_ids": "[]",
             }
         ],
+        "failure_rows": [],
         "timing_rows": [
             {
                 "experiment_id": "exp-1",
@@ -249,6 +252,62 @@ def test_run_payload_round_trip_preserves_object_types(tmp_path: Path) -> None:
     assert loaded == payload
     assert loaded["quality_rows"][0]["assessment_value"] is True
     assert loaded["metric_rows"][0]["metric_value"] == 1.5
+
+
+def test_sanitize_trace_exports_simple_plan_validation_failure() -> None:
+    """Export a safe plan-validation failure even without scorer assessments."""
+    trace = SimpleNamespace(
+        info=SimpleNamespace(
+            trace_id="trace-1",
+            status="ERROR",
+            assessments=[],
+            attributes={},
+        ),
+        data=SimpleNamespace(
+            spans=[
+                SimpleNamespace(
+                    name="evals_complete",
+                    span_type="AGENT",
+                    start_time_ns=1,
+                    end_time_ns=2,
+                    attributes={
+                        "simple.retrieval_plan_valid": False,
+                        "simple.required_tool_multiset": (
+                            '{"get_relevant_documents_bm25": 1}'
+                        ),
+                        "simple.actual_tool_multiset": (
+                            '{"get_relevant_documents_dense": 1}'
+                        ),
+                        "simple.retrieval_plan_failure": (
+                            "emitted retrieval tool multiset does not match configured plan"
+                        ),
+                    },
+                )
+            ]
+        ),
+    )
+
+    quality, failures, retrieval, timings = _sanitize_trace(
+        experiment_id="experiment-1",
+        run_id="run-1",
+        trace=trace,
+    )
+
+    assert quality == []
+    assert retrieval == []
+    assert len(timings) == 1
+    assert failures == [
+        {
+            "experiment_id": "experiment-1",
+            "run_id": "run-1",
+            "trace_id": "trace-1",
+            "trace_status": "ERROR",
+            "failure_type": "simple_retrieval_plan_validation",
+            "failure_reason": "emitted retrieval tool multiset does not match configured plan",
+            "required_tool_multiset": '{"get_relevant_documents_bm25": 1}',
+            "actual_tool_multiset": '{"get_relevant_documents_dense": 1}',
+        }
+    ]
 
 
 def test_missing_payload_raises_integrity_error(tmp_path: Path) -> None:
