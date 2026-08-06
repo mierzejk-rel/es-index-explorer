@@ -191,8 +191,9 @@ when it is returned/selected by the active retrieval mode.
 
 ## 4. One-hop tool-call policy
 
-The experiment config supplies a requested call count of 1, 2, or 3. The foundation model is
-prompted to make that many retrieval calls, but the implementation accepts and executes every
+The experiment config supplies a requested call count of 1 through 4. Stage A/C use 1, 2, or 3;
+the approved Stage B breadth arm uses 4. The foundation model is prompted to make that many
+retrieval calls, but the implementation accepts and executes every
 retrieval call it actually emits in the sole tool round. MLflow stores:
 
 - requested call count;
@@ -253,6 +254,12 @@ inside each document by start index, and retain the full unique union up to each
 `simple_per_call_fetch_count` cap. Context can grow to roughly
 `actual_call_count × simple_per_call_fetch_count`.
 
+Stage B assigns retrieval mode by emitted-call ordinal through an ordered branch sequence, for
+example `[bm25, dense, bm25]`. The first branch is always BM25; later branches may be BM25 or
+dense. Calls remain concurrent, but their ordinal defines both branch assignment and deterministic
+first-seen union order. Stage A/C remain single-mode arms: every call uses their one configured
+mode.
+
 After the union is built, adjacent selected chunks within each document are concatenated into
 range IDs (`"i:j"`) using the same overlap-trimming algorithm as `round_robin`. Output format
 (flat-concatenated grouped chunks) is held constant across both merge policies.
@@ -269,12 +276,12 @@ changes both merge policy and context volume relative to `round_robin`.
 
 Simple Mode experiments use `S` instead of `E`. IDs encode stage and dimensions:
 
-`S-<stage>-<mode>-c<requested_calls>-<merge>-f<per_call_fetch>-g<global_context>-r<reasoning>`
+`S-<stage>-<branch-sequence>-c<requested_calls>-<merge>-f<per_call_fetch>-g<global_context>-r<reasoning>`
 
 `f<per_call_fetch>` is the `simple_per_call_fetch_count` value used by each retrieval call. Its
-value is **mode-dependent**: for `bm25` and `dense` arms it equals `g` (the actual chosen global
-context value, e.g. `f10` when `g10`); for `hybrid_es_rrf` it is `30`; for `current_union` it is
-`20`.
+value is **stage- and mode-dependent**: for Stage A/C `bm25` and `dense` arms it equals `g` (the
+actual chosen global-context value, e.g. `f10` when `g10`); for Stage A/C `hybrid_es_rrf` it is
+`30`; for Stage B `current_union` it is deliberately either `15` or `20`.
 `g<global_context>` is the `simple_global_context_chunk_count` limit applied after `round_robin`
 cross-call merging. `g` is omitted from `current_union` arms because that policy retains the full
 per-call-capped union without a global budget.
@@ -286,7 +293,7 @@ Examples:
 - `S-A-bm25-c1-rr-f10-g10-rnone` (bm25: f = g = 10)
 - `S-A-dense-c2-rr-f15-g15-rnone` (dense: f = g = 15)
 - `S-A-hybrid-c3-rr-f30-g10-rnone` (hybrid: f = 30, g = 10)
-- `S-B-hybrid-c3-union-f20-rnone` (current_union: f = 20, no g segment)
+- `S-B-bm25-dense-bm25-c3-union-f15-rnone` (ordered Stage B branches; f = 15, no g segment)
 - `S-C-bm25-c1-rr-f10-g10-rlow` (Stage C bm25: f = g = 10, reasoning low)
 - `S-C-hybrid-c3-rr-f30-g30-rlow` (Stage C hybrid: f = 30, g = 30, reasoning low)
 
@@ -300,8 +307,9 @@ Per-call fetch (`simple_per_call_fetch_count`) is mode-dependent across all stag
 - **`hybrid_es_rrf` arms (Stage A and C):** `f = 30` (fixed). The full 30-candidate RRF rank
   window is preserved regardless of `g`; the round-robin cap then selects up to `g` chunks into
   context.
-- **Stage B (`current_union`):** `f = 20`. The `current_union` policy retains the complete
-  per-call-capped union without a global budget; Stage B arm IDs carry no `g` segment.
+- **Stage B (`current_union`):** `f = 15` or `f = 20`. The `current_union` policy retains the
+  complete per-call-capped union without a global budget; Stage B arm IDs carry no `g` segment.
+  The branch-sequence segment records each call's ordered retrieval mode.
 
 Stage C arms inherit the fetch rule of their paired Stage A counterpart, ensuring reasoning effort
 is the sole changed dimension.
@@ -315,13 +323,44 @@ arms use `g10`, `g15`, or `g20`; hybrid arms may additionally use `g25` or `g30`
 | A | `S-A-bm25-c{1,2,3}-rr-f{g}-g{chosen}-rnone` | BM25 only | 1, 2, 3 | round-robin | = g (chosen per run) | chosen per run | none | Lexical/call-count screen |
 | A | `S-A-dense-c{1,2,3}-rr-f{g}-g{chosen}-rnone` | dense only | 1, 2, 3 | round-robin | = g (chosen per run) | chosen per run | none | Semantic/call-count screen |
 | A | `S-A-hybrid-c{1,2,3}-rr-f30-g{chosen}-rnone` | ES RRF BM25+dense | 1, 2, 3 | round-robin | 30 (fixed) | chosen per run: g10, g15, g20, g25, or g30 | none | Hybrid/call-count screen |
-| B | `S-B-<selected>-union-f20-rnone` | selected Stage A setup | selected | current union | 20 per call | full union | none | Context-volume control |
+| B1 | `S-B-bm25-dense-c2-union-f15-rnone` | `[bm25, dense]` | 2 | current union | 15 | full union, ≤30 pre-dedup candidates | none | Heterogeneous lower-depth baseline |
+| B2 | `S-B-bm25-bm25-c2-union-f20-rnone` | `[bm25, bm25]` | 2 | current union | 20 | full union, ≤40 pre-dedup candidates | none | Homogeneous BM25 baseline |
+| B3 | `S-B-bm25-dense-bm25-c3-union-f15-rnone` | `[bm25, dense, bm25]` | 3 | current union | 15 | full union, ≤45 pre-dedup candidates | none | Three-call mixed lower-depth arm |
+| B4 | `S-B-bm25-dense-bm25-c3-union-f20-rnone` | `[bm25, dense, bm25]` | 3 | current union | 20 | full union, ≤60 pre-dedup candidates | none | Three-call mixed full-depth arm |
+| B5 | `S-B-bm25-dense-bm25-dense-c4-union-f15-rnone` | `[bm25, dense, bm25, dense]` | 4 | current union | 15 | full union, ≤60 pre-dedup candidates | none | Four-call, two-dense, equal-volume breadth test |
+| B6 | `S-B-bm25-dense-c2-union-f20-rnone` | `[bm25, dense]` | 2 | current union | 20 | full union, ≤40 pre-dedup candidates | none | Heterogeneous full-depth baseline |
 | C | `S-C-<selected-bm25/dense>-rr-f{g}-g{chosen}-rlow` | selected bm25 or dense Stage A arm | selected | round-robin | = g (inherited from paired Stage A) | same as paired Stage A arm | low | Reasoning for single-signal arms |
 | C | `S-C-<selected-hybrid>-rr-f30-g{chosen}-rlow` | selected hybrid Stage A arm | selected | round-robin | 30 (inherited from paired Stage A) | same as paired Stage A arm (any hybrid g value) | low | Reasoning for hybrid arm |
 
 All rows hold constant: one code-enforced retrieval round, generated metadata OFF, no parent
 metadata ranking, no first chunk, flat-concatenated output, date/email filters only under the
 policy above, 5 MiB filter OFF, and invocation concurrency 1.
+
+Simple Mode supports one through four requested retrieval calls. Stage A and the planned Stage C
+counterparts remain c1–c3; c4 is introduced only for the approved Stage B breadth test.
+
+### 6.2.1 Stage B evidence and rationale
+
+The six-arm Stage B matrix replaces the original smaller, generic current-union control under the
+approved larger budget. It is intentionally self-contained:
+
+- Matched Stage A comparisons found several quality gains from more query calls, but those gains
+  were not monotonic on every dataset, mode, or context. c4 is therefore an evidence-motivated
+  extrapolation, not a presumed improvement.
+- BM25 is the Mallinckrodt safety anchor: its best Stage A Good+Acceptable rate was 47.6%, versus
+  22.0% for dense and 31.7% for hybrid. Every Stage B arm consequently starts with BM25.
+- Dense was competitive on both EMC2 sets and offered materially distinct candidates. Median
+  BM25/dense ranked-chunk Jaccard was about 0.19 for EMC2 set1, 0.21 for EMC2 set2, and 0.00 for
+  Mallinckrodt; median dense-unique candidates were non-zero in every dataset.
+- Increasing Stage A BM25 fetch/context from 15 to 20 improved matched c3 Good+Acceptable rate by
+  4.9 and 11.4 percentage points on EMC2 set1 and set2, respectively, with a small 1.2-point gain
+  on Mallinckrodt. Stage B therefore varies f15 and f20 rather than fixing f20.
+- B5 uses two dense branches because B1/B3/B4 already test one dense branch. B4 and B5 both allow
+  at most 60 pre-dedup candidates, comparing three deeper lists against four narrower, more
+  semantically balanced lists.
+
+All Stage B arms retain `reasoning_effort = "none"`. Low reasoning remains a later Stage C
+dimension, so retrieval-branch, call-count, and fetch effects remain interpretable.
 
 ### 6.3 Comparison map
 
@@ -330,7 +369,11 @@ policy above, 5 MiB filter OFF, and invocation concurrency 1.
 | `S-A-bm25-cN` vs `S-A-dense-cN` | lexical vs dense | Query-representation/retrieval-mode effect |
 | `S-A-dense-cN` vs `S-A-hybrid-cN` | dense vs server-side hybrid RRF | Value of combining chunk lexical+dense signals |
 | `S-A-<mode>-c1/c2/c3` | requested call count | Value of query diversity; actual count recorded separately |
-| `S-A/B selected rr` vs `union` | merge plus context volume | Intentionally confounded control |
+| B1 vs B6 | per-call fetch 15 vs 20 | Heterogeneous c2 depth/context-volume effect (≤30 vs ≤40 candidates) |
+| B2 vs B6 | `[bm25, bm25]` vs `[bm25, dense]` | Homogeneous versus heterogeneous c2/f20 branch effect |
+| B3 vs B4 | per-call fetch 15 vs 20 | Heterogeneous c3 depth/context-volume effect (≤45 vs ≤60 candidates) |
+| B3 vs B5 | c3 with one dense vs c4 with two dense branches | Additional query plus second dense branch; intentionally multi-dimensional |
+| B4 vs B5 | c3/f20 vs c4/f15 | Equal maximum 60-candidate volume: three deeper branches versus four narrower/more balanced branches; intentionally multi-dimensional |
 | `S-A-hybrid gX` vs `S-A-hybrid gY` | global context budget at fixed f=30, mode, and call count | Value of more passages to the LLM at constant ES retrieval depth |
 | `S-A-bm25/dense gX` vs `S-A-bm25/dense gY` | co-varying ES fetch depth and context budget (f = g for both) | Combined effect of deeper ES retrieval and larger LLM context in single-signal mode |
 | `S-A gX rnone` vs `S-C gX rlow` | reasoning effort at chosen `gX`; fetch rule inherited from paired Stage A arm, so only reasoning changes | Value of GPT-5.1 reasoning tokens |
@@ -343,9 +386,18 @@ Execute from lowest expected latency to highest:
 1. Stage A one-call BM25, dense, hybrid (at chosen g-value);
 2. Stage A two-call BM25, dense, hybrid;
 3. Stage A three-call BM25, dense, hybrid;
-4. Stage B current-union control for Stage A Pareto candidate(s);
-5. Stage C `low` arms for any selected global context, each paired with an already completed
+4. Stage B B1 and B2 (c2, ≤30/≤40 candidate baselines) on EMC2 set1, EMC2 set2, and
+   Mallinckrodt;
+5. Stage B B3 and B6 (mixed c3/f15 and mixed c2/f20) on all three datasets;
+6. Stage B B4 and B5 (≤60-candidate c3/f20 and c4/f15 breadth comparison) on all three datasets;
+7. Stage C `low` arms for any selected global context, each paired with an already completed
    like-for-like `rnone` arm from Stage A.
+
+Stage B therefore contains six arms × three datasets = **18 experiment runs**. Analyze every
+Stage B arm separately per dataset. Advance a heterogeneous or c4 arm only when it preserves
+quality, citation, and retrieval gates against its relevant BM25 comparator, with Mallinckrodt as
+the safety gate; evaluate latency, tail latency, tokens, actual unique chunks, context size, and
+retry diagnostics alongside quality.
 
 Stage C can contain as many selected `g` values as needed. Each `low` arm requires a like-for-like
 Stage A `none` counterpart, isolating reasoning effort without replacing a screening arm or
@@ -425,6 +477,27 @@ reasoning_effort = "none"              # Stage C uses "low"
 max_completion_tokens = 12_000
 ```
 
+**Stage B `current_union` arms — ordered branches, f = 15 or 20, no global cap:**
+
+```toml
+simple_mode = true
+requested_retrieval_calls = 3
+simple_retrieval_modes = ["bm25", "dense", "bm25"] # length must equal requested_retrieval_calls
+simple_merge_policy = "current_union"
+simple_per_call_fetch_count = 15
+include_metadata = false
+max_tool_iterations = 1
+reasoning_effort = "none"              # low remains Stage C only
+max_completion_tokens = 12_000
+```
+
+`simple_retrieval_modes` is required for Stage B and preserves branch order. It must contain one
+of `bm25` or `dense` for every requested call, begin with `bm25`, and have length equal to
+`requested_retrieval_calls`. Stage B permits c2, c3, and c4; the core validator permits c1–c4.
+Stage A/C retain the existing singular `simple_retrieval_mode` field and c1–c3 matrices. Stage B
+does not configure `simple_global_context_chunk_count`: `current_union` keeps the full
+deduplicated union up to `c × f` candidates before adjacent-chunk concatenation.
+
 `simple_per_call_fetch_count` controls the ES request `size` / per-call extraction cap; it feeds
 the merge step. `simple_global_context_chunk_count` is the maximum unique chunks delivered to the
 LLM after `round_robin` selection and adjacent-chunk concatenation; it is not used by
@@ -446,7 +519,9 @@ prompt. The graph still performs current answer cleaning, citation normalization
 extraction/repair, and structured output after the single retrieval round.
 
 All retrieval calls emitted by the model during that round run concurrently. Each receives a tool
-ordinal and configuration attributes. Once all are complete, Simple Mode applies the configured
+ordinal, configured branch mode, and configuration attributes. In Stage B, the ordinal selects its
+entry from `simple_retrieval_modes`; in Stage A/C, every ordinal uses the singular configured
+mode. Once all are complete, Simple Mode applies the configured
 cross-call merge policy, concatenates adjacent chunks, emits flat grouped XML, and invokes final
 answer generation. To preserve OpenAI tool-response pairing without duplicating context, the full
 merged XML is returned only for the first emitted retrieval tool-call ID. Every later retrieval
@@ -459,7 +534,8 @@ Add a dedicated Simple provider/retriever rather than altering established E0/Ti
 
 1. issues chunk-only BM25, dense, or ES-RRF retrieval with ES `size = simple_per_call_fetch_count`;
 2. disables the first-chunk query;
-3. returns per-call ranked chunk lists capped at `simple_per_call_fetch_count`;
+3. returns per-call ranked chunk lists capped at `simple_per_call_fetch_count`, selecting the
+   Stage B BM25/dense mode by call ordinal when an ordered branch sequence is configured;
 4. merges lists with `round_robin` (capping at `simple_global_context_chunk_count`) or `current_union`;
 5. concatenates adjacent selected chunks into range-ID flat chunks;
 6. returns `GroupedChunks`, flat XML, retrieved document IDs, and final relevant document IDs.
@@ -573,12 +649,15 @@ they describe the latency experienced by the caller.
 The invocation trace tree and its evaluation run together store:
 
 - the `evals_complete` AGENT span stores requested/actual generic and metadata-filter tool-call
-  counts, retrieval mode, merge policy, configured per-call fetch count
+  counts, singular retrieval mode when configured, ordered Stage B branch sequence when configured,
+  merge policy, configured per-call fetch count
   (`simple_per_call_fetch_count`), configured global context budget when applicable
   (`simple_global_context_chunk_count`), actual selected chunk count, and serialized context size;
 - run parameters store invocation concurrency (`1`), Simple Mode config/model version, retrieval
-  mode, merge policy, configured per-call fetch count, and the global context budget when
-  configured;
+  mode or ordered branch sequence, merge policy, configured per-call fetch count, and the global
+  context budget when configured;
+- every retrieval TOOL span stores its emitted ordinal, its actual selected branch mode, timing,
+  returned/selected chunk counts, and its contribution to the deduplicated merged context;
 - the root trace stores the end-to-end invocation duration as `execution_duration`, which
   `log_execution_time_percentiles` aggregates into `execution_time_p{50,90,95}_s`.
 
@@ -599,7 +678,8 @@ Every retrieval span stores:
 - complete raw per-call retrieved `GroupedChunks` output, including chunk XML/content;
 - raw Elasticsearch chunk rank order plus retrieved/relevant document IDs;
 - tool ordinal;
-- signal mode;
+- configured ordered branch sequence when applicable and the actual signal mode selected for this
+  ordinal;
 - configured per-call fetch count and actual returned count;
 - final successful ES duration and transient-search successful-attempt count. An authentication
   refresh can retry the full search but does not increment this transient-search count;
@@ -677,10 +757,11 @@ LLM.
 
 Store raw per-variation measurements in traces and aggregate run-level p50/p90/p95 metrics for
 the three timing layers. Store quality, retrieval, citation, retry/failure, requested/actual
-call-count, configured per-call fetch, the global context cap when configured, actual selected
-chunks, and serialized context-size data. Attempt counts remain diagnostic span attributes rather
-than run-level percentile metrics. Do not generate experiment reports during S execution; reporting
-and Pareto analysis happen after all configured S experiments complete.
+call-count, configured ordered branch sequence, actual per-call branch mode and ordinal, configured
+per-call fetch, the global context cap when configured, actual selected chunks, each branch's
+contribution, and serialized context-size data. Attempt counts remain diagnostic span attributes
+rather than run-level percentile metrics. Do not generate experiment reports during S execution;
+reporting and Pareto analysis happen after all configured S experiments complete.
 
 ### 8.6 Cross-arm performance comparison
 
@@ -703,7 +784,8 @@ include all invocation work after semaphore acquisition, including waits, retrie
 `{N}` is `50`, `90`, or `95`. Prefer **observed** metrics for user-perceived latency. Use
 successful-attempt metrics to determine whether an observed difference originates in LLM/ES
 service time or in waits and retries. Actual/requested call counts, successful-attempt counts,
-retrieval mode, merge policy, fetch/context values, selected chunks, and context size are
+retrieval mode or ordered branch sequence, actual per-call branch modes, merge policy, fetch/context
+values, selected chunks, and context size are
 span-level diagnostics—not percentile comparison metrics.
 
 Hold constant the dataset, invocation concurrency (`1`), rubric variations and repetitions, seed,
@@ -751,9 +833,10 @@ single-hop, concurrent retrieval-call execution, chunk-only ES retrieval, server
 extraction, flat-concatenated output, the no-first-chunk path, and timing spans. Its original main
 base is `fa50a3198d16971056f578c48e239f0209b43810` (2026-06-18).
 
-After this shared implementation exists, individual S experiment branches normally add only their
-v3 model TOML/config values. S experiments are therefore TOML-configurable after the common root
-is complete, but they are not TOML-only today.
+After this shared implementation exists, Stage A/C branches normally add only v3 model TOML/config
+values. Stage B is explicitly code-changing: it adds c4 validation, ordered
+`simple_retrieval_modes` configuration, ordinal-to-branch routing, and branch contribution
+telemetry before adding its six TOMLs. S experiments are therefore not TOML-only today.
 
 The r1-evals original DSAS base is `2a5cad9e387e12062b598bf8b96453fd3b4c9133` (2026-06-18).
 The es-index experiments base is `b4a96446f1b932ecbad4aa3a0f7a284587d6eb47` (2026-06-04).
@@ -782,6 +865,11 @@ Before the first S run, verify:
    `simple_per_call_fetch_count = 30` and `simple_global_context_chunk_count = g` (e.g. `g = 30`)
    delivers at most `g` unique chunks to the LLM, each call's candidate list capped
    independently at 30.
+10. For Stage B `current_union`: `requested_retrieval_calls` accepts c2, c3, and c4; ordered
+    `simple_retrieval_modes` begins with BM25, has exactly one entry per call, selects the matching
+    mode for every concurrent tool ordinal, and delivers the complete deduplicated union without a
+    global-context cap. f15/f20 caps each individual list, so pre-deduplication candidates are at
+    most `c × f`.
 
 Non-goals:
 
