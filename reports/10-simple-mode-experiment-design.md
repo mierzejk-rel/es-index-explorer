@@ -226,10 +226,16 @@ Date and email participant fields are allowed only as hard filters:
 | Any one-tool arm | Not allowed |
 | BM25 or dense, two or three same-mode tool entries | At most one call may supply filters, only when the user supplied explicit date/email values |
 | Two ES-RRF tool entries | Not allowed |
-| Three ES-RRF entries or any Stage B BM25/dense multiset | At most one call may supply filters, only when the user supplied explicit date/email values |
+| Three ES-RRF entries | At most one call may supply filters, only when the user supplied explicit date/email values |
+| B1/B6 `[bm25, dense]` | Not allowed: neither mode is repeated |
+| B2 `[bm25, bm25]` | At most one BM25 call may supply filters |
+| B3/B4 `[bm25, dense, bm25]` | At most one BM25 call may supply filters; dense may not |
+| B5 `[bm25, dense, bm25, dense]` | At most one BM25 call and at most one dense call may supply filters |
 
-The mode-specific tools accept optional date/email fields when this policy allows them. An empty
-filtered result stays empty; it does not trigger an unfiltered fallback query.
+The mode-specific tool schema omits date/email fields completely when a mode has no filter budget.
+When a mode can filter, those fields are optional and must be omitted unless the user supplied an
+explicit hard constraint. An empty filtered result stays empty; it does not trigger an unfiltered
+fallback query.
 
 ---
 
