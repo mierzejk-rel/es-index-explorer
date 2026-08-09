@@ -1828,8 +1828,38 @@ def _render_summary_markdown(summary: dict[str, object], pareto: Any) -> str:
     if pareto.empty:
         lines.append("No comparable runs with both quality and p50 latency metrics were found.")
     else:
-        lines.append(pareto.to_markdown(index=False))
+        lines.append(_markdown_table(pareto))
     return "\n".join(lines) + "\n"
+
+
+def _markdown_table(dataframe: Any) -> str:
+    """Render a compact Markdown table without optional dependencies."""
+    headers = [str(column) for column in dataframe.columns]
+    lines = [
+        "| " + " | ".join(headers) + " |",
+        "| " + " | ".join("---" for _ in headers) + " |",
+    ]
+    for record in dataframe.to_dict(orient="records"):
+        cells: list[str] = []
+        for column in dataframe.columns:
+            value = record[column]
+            if _is_missing(value):
+                text = "—"
+            elif isinstance(value, float):
+                text = f"{value:.4f}"
+            else:
+                text = str(value)
+            cells.append(text.replace("|", "\\|").replace("\n", " "))
+        lines.append("| " + " | ".join(cells) + " |")
+    return "\n".join(lines)
+
+
+def _is_missing(value: object) -> bool:
+    """Return whether a scalar is pandas/IEEE missing."""
+    try:
+        return bool(value != value)
+    except (TypeError, ValueError):
+        return False
 
 
 def _as_mapping(value: object) -> dict[str, Any]:

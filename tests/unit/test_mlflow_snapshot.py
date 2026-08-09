@@ -10,6 +10,7 @@ from es_index_explorer.mlflow_analysis.snapshot import (
     _AuthenticationRecoveryRequired,
     _encode_quality_row,
     _fetch_traces_bounded,
+    _markdown_table,
     _recover_interactive_authentication,
     _read_run_payload,
     _retry_trace_request,
@@ -19,6 +20,13 @@ from es_index_explorer.mlflow_analysis.snapshot import (
 )
 
 pytestmark = pytest.mark.unit
+
+
+def test_markdown_table_does_not_require_tabulate() -> None:
+    """Render a Markdown table with only pandas data structures."""
+    table = _markdown_table(pd.DataFrame([{"name": "A|B", "score": 1.25}]))
+
+    assert table == "| name | score |\n| --- | --- |\n| A\\|B | 1.2500 |"
 
 
 class FakeRestError(Exception):
