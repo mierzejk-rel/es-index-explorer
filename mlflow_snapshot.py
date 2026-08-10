@@ -20,6 +20,7 @@ from es_index_explorer.mlflow_analysis.snapshot import (
     export_snapshot,
 )
 from es_index_explorer.mlflow_analysis.stage_a import analyze_stage_a_snapshot
+from es_index_explorer.mlflow_analysis.stage_b import analyze_stage_b_snapshot
 
 logger = logging.getLogger(__name__)
 
@@ -127,6 +128,25 @@ def parse_args() -> argparse.Namespace:
         default=Path("reports") / "11-stage-a-results-stage-b-redesign.md",
         help="Markdown report path.",
     )
+    stage_b_parser = subparsers.add_parser(
+        "analyze-stage-b",
+        help=(
+            "Produce auditable Stage B comparisons, Pareto sets, and within-trace "
+            "BM25/dense overlap without contacting MLflow."
+        ),
+    )
+    stage_b_parser.add_argument(
+        "--snapshot",
+        required=True,
+        type=Path,
+        help="Completed Stage B (6 arms x 3 datasets = 18-run) snapshot directory.",
+    )
+    stage_b_parser.add_argument(
+        "--report",
+        type=Path,
+        default=Path("reports") / "12-stage-b-results.md",
+        help="Markdown report path.",
+    )
     rubric_parser = subparsers.add_parser(
         "analyze-rubrics",
         help=(
@@ -227,6 +247,14 @@ def main() -> None:
                 report_path=args.report,
             )
             print(f"Wrote auditable Stage A analysis to {analysis_dir}")
+            return
+
+        if args.command == "analyze-stage-b":
+            analysis_dir = analyze_stage_b_snapshot(
+                snapshot_dir=args.snapshot,
+                report_path=args.report,
+            )
+            print(f"Wrote auditable Stage B analysis to {analysis_dir}")
             return
 
         if args.command == "analyze-rubrics":

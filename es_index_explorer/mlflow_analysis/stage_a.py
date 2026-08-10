@@ -1,55 +1,34 @@
-"""Produce reproducible Stage A comparisons from a sanitized MLflow snapshot."""
+"""Stage A adapter: reproducible single-signal-retrieval comparisons.
 
-import hashlib
+This module supplies the Stage A specific pieces (arm-identity parsing,
+pairwise comparison rules, and the Stage A report) on top of the generic,
+stage-neutral core in :mod:`es_index_explorer.mlflow_analysis.experiment_arms`.
+See ``README-mlflow-rubric-analysis.md`` for the adapter pattern.
+"""
+
 import json
 import re
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
-GRADE_ORDER = {
-    "Critical Error": 0,
-    "Poor": 1,
-    "Partial": 2,
-    "Acceptable": 3,
-    "Good": 4,
-}
-PASSING_GRADES = {"Good", "Acceptable"}
-ERROR_ASSESSMENTS = [
-    "errors_attribution_v2",
-    "errors_citation_support_v2",
-    "errors_context_stripping_v2",
-    "errors_entity_resolution_v2",
-    "errors_gap_acknowledgment_v2",
-    "errors_opinion_v2",
-    "errors_overstating_certainty_v2",
-    "errors_paraphrase_drift_v2",
-    "errors_timeline_v2",
-    "errors_unsupported_assertion_v2",
-]
-POSITIVE_BOOLEAN_ASSESSMENTS = [
-    "answer_completeness",
-    "citation_attribution",
-    "citation_completeness",
-    "citation_format",
-    "citation_format_valid",
-    "entity_completeness",
-    "markdown_validation",
-    "source_fidelity",
-]
-CONTINUOUS_ASSESSMENTS = [
-    "RubricV2",
-    "citation_in_snippet_matching_summary",
-    "citation_validation_summary",
-    "reference_in_response_validation_summary",
-]
-PERCENTILE_METHOD = "linear"
+from es_index_explorer.mlflow_analysis import experiment_arms as core
+
+GRADE_ORDER = core.GRADE_ORDER
+PASSING_GRADES = core.PASSING_GRADES
+PERCENTILE_METHOD = core.PERCENTILE_METHOD
 
 _DATASET_SUFFIXES = ("emc2_set1", "emc2_set2", "mallinckrodt")
 _ARM_PATTERN = re.compile(
     r"^S-A-(?P<mode>bm25|dense|hybrid)-c(?P<calls>\d+)-rr-f(?P<fetch>\d+)-g(?P<context>\d+)-rnone$"
 )
-_USE_CASE_PATTERN = re.compile(r"^invoke_(?P<use_case>.+?)_\d+(?:_v\d+)?$")
+_DIMENSION_COLUMNS = ["retrieval_family", "calls", "fetch", "context"]
+
+# Re-exported so existing call sites/tests can keep importing helpers by their
+# previous private names from this module.
+_to_boolean = core.to_boolean
+_use_case_from_rubric = core.use_case_from_rubric
+_pareto_sets = core.pareto_sets
 
 
 def analyze_stage_a_snapshot(
@@ -71,12 +50,12 @@ def analyze_stage_a_snapshot(
     Path
         Directory containing auditable CSV and JSON analysis artifacts.
     """
-    pandas = _load_pandas()
+    pandas = core.load_pandas()
     snapshot_dir = snapshot_dir.expanduser().resolve()
     analysis_dir = snapshot_dir / "stage_a_analysis"
     analysis_dir.mkdir(exist_ok=True)
 
-    manifest = _read_json(snapshot_dir / "manifest.json")
+    manifest = core.read_json(snapshot_dir / "manifest.json")
     experiments = pandas.read_parquet(snapshot_dir / "experiments.parquet")
     runs = pandas.read_parquet(snapshot_dir / "runs.parquet")
     metrics = pandas.read_parquet(snapshot_dir / "run_metrics.parquet")
@@ -85,43 +64,39 @@ def analyze_stage_a_snapshot(
     timings = pandas.read_parquet(snapshot_dir / "span_timings.parquet")
 
     runs = _augment_runs(runs)
-    trace_level, validation = _build_trace_level(
+    trace_level, validation = core.build_trace_level(
         pandas=pandas,
         runs=runs,
         quality=quality,
         retrieval=retrieval,
         timings=timings,
+        dimension_columns=_DIMENSION_COLUMNS,
     )
-    run_level = _build_run_level(
+    run_level = core.build_run_level(
         pandas=pandas,
         runs=runs,
         metrics=metrics,
         trace_level=trace_level,
+        dimension_columns=_DIMENSION_COLUMNS,
     )
     validation["max_pass_rate_crosscheck_absolute_difference"] = float(
-        (
-            run_level["good_acceptable_rate"]
-            - run_level["reported_total_pass_rate"]
-        )
+        (run_level["good_acceptable_rate"] - run_level["reported_total_pass_rate"])
         .abs()
         .max()
     )
     validation["max_p50_latency_crosscheck_absolute_difference_s"] = float(
-        (
-            run_level["latency_p50_s"]
-            - run_level["reported_execution_time_p50_s"]
-        )
+        (run_level["latency_p50_s"] - run_level["reported_execution_time_p50_s"])
         .abs()
         .max()
     )
-    quality_summary = _quality_summary(pandas, run_level)
-    latency_summary = _latency_summary(pandas, run_level)
+    quality_summary = core.quality_summary(pandas, run_level)
+    latency_summary = core.latency_summary(pandas, run_level)
     pairwise, pairwise_details = _pairwise_comparisons(pandas, trace_level, runs)
     overlap = _retrieval_overlap(pandas, retrieval, timings, runs)
-    pareto = _pareto_sets(pandas, run_level)
-    use_case = _use_case_summary(pandas, trace_level)
-    operation_timings = _operation_timing_summary(pandas, timings, runs)
-    grade_distribution = _grade_distribution(pandas, trace_level)
+    pareto = core.pareto_sets(pandas, run_level)
+    use_case = core.use_case_summary(pandas, trace_level)
+    operation_timings = core.operation_timing_summary(pandas, timings, runs)
+    grade_distribution = core.grade_distribution(pandas, trace_level)
 
     outputs = {
         "trace_level.csv": trace_level,
@@ -140,21 +115,16 @@ def analyze_stage_a_snapshot(
         dataframe.to_csv(analysis_dir / filename, index=False)
 
     validation.update(
-        {
-            "manifest_experiment_count": manifest.get("experiment_count"),
-            "manifest_run_count": manifest.get("run_count"),
-            "expected_experiment_count": 54,
-            "expected_run_count": 54,
-            "expected_arm_count": 18,
-            "expected_dataset_count": 3,
-            "observed_experiment_count": int(len(experiments)),
-            "observed_run_count": int(len(runs)),
-            "observed_arm_count": int(runs["arm_id"].nunique()),
-            "observed_dataset_count": int(runs["dataset_segment"].nunique()),
-            "snapshot_file_checksums_match": _manifest_checksums_match(
-                snapshot_dir, manifest
-            ),
-        }
+        core.population_validation(
+            snapshot_dir=snapshot_dir,
+            manifest=manifest,
+            experiments=experiments,
+            runs=runs,
+            expected_experiment_count=54,
+            expected_run_count=54,
+            expected_arm_count=18,
+            expected_dataset_count=3,
+        )
     )
     validation["valid_for_stage_a_analysis"] = all(
         [
@@ -170,11 +140,10 @@ def analyze_stage_a_snapshot(
             validation["trace_without_grade_count"] == 0,
             validation["trace_without_latency_count"] == 0,
             validation["max_pass_rate_crosscheck_absolute_difference"] == 0,
-            validation["max_p50_latency_crosscheck_absolute_difference_s"]
-            < 0.001,
+            validation["max_p50_latency_crosscheck_absolute_difference_s"] < 0.001,
         ]
     )
-    _write_json(analysis_dir / "validation.json", validation)
+    core.write_json(analysis_dir / "validation.json", validation)
 
     recommendations = _stage_b_recommendations(run_level, overlap, pareto)
     report_path.parent.mkdir(parents=True, exist_ok=True)
@@ -205,13 +174,9 @@ def _augment_runs(runs: Any) -> Any:
     parsed_rows: list[dict[str, object]] = []
     for row in runs.to_dict(orient="records"):
         short_name = str(row["experiment_name"]).rstrip("/").rsplit("/", maxsplit=1)[-1]
-        dataset_segment = next(
-            (suffix for suffix in _DATASET_SUFFIXES if short_name.endswith(f"-{suffix}")),
-            None,
+        arm_id, dataset_segment = core.split_arm_and_dataset(
+            short_name, _DATASET_SUFFIXES
         )
-        if dataset_segment is None:
-            raise ValueError(f"Cannot parse dataset segment from {short_name!r}.")
-        arm_id = short_name.removesuffix(f"-{dataset_segment}")
         match = _ARM_PATTERN.fullmatch(arm_id)
         if match is None:
             raise ValueError(f"Cannot parse Stage A experiment identity {arm_id!r}.")
@@ -229,405 +194,16 @@ def _augment_runs(runs: Any) -> Any:
     return runs.__class__(parsed_rows)
 
 
-def _build_trace_level(
-    *,
-    pandas: Any,
-    runs: Any,
-    quality: Any,
-    retrieval: Any,
-    timings: Any,
-) -> tuple[Any, dict[str, object]]:
-    """Build one auditable row per run/trace and return validation diagnostics."""
-    quality = quality.copy()
-    quality["assessment_value"] = quality.apply(_decode_assessment_row, axis=1)
-    duplicate_mask = quality.duplicated(
-        ["run_id", "trace_id", "assessment_name", "assessment_value"],
-        keep="first",
+def _pairwise_comparisons(pandas: Any, trace_level: Any, runs: Any) -> tuple[Any, Any]:
+    """Compute Stage A paired, directly inspectable experiment effects."""
+    return core.pairwise_comparisons(
+        pandas,
+        trace_level,
+        runs,
+        dimension_columns=_DIMENSION_COLUMNS,
+        comparison_type_fn=_comparison_type,
+        orient_fn=_orient_comparison,
     )
-    identical_duplicate_count = int(duplicate_mask.sum())
-    quality = quality[~duplicate_mask].copy()
-
-    conflicts = (
-        quality.groupby(["run_id", "trace_id", "assessment_name"])[
-            "assessment_value"
-        ]
-        .nunique(dropna=False)
-        .reset_index(name="value_count")
-    )
-    conflicting_count = int((conflicts["value_count"] > 1).sum())
-    if conflicting_count:
-        raise ValueError(
-            f"Found {conflicting_count} conflicting duplicate assessment keys."
-        )
-
-    quality_pivot = quality.pivot(
-        index=["run_id", "trace_id"],
-        columns="assessment_name",
-        values="assessment_value",
-    ).reset_index()
-
-    rubric_spans = timings[
-        (timings["span_type"] == "UNKNOWN")
-        & timings["span_name"].str.startswith("invoke_", na=False)
-    ][["run_id", "trace_id", "span_name", "observed_duration_ms"]].copy()
-    rubric_spans = rubric_spans.rename(
-        columns={
-            "span_name": "rubric_key",
-            "observed_duration_ms": "end_to_end_latency_ms",
-        }
-    )
-    rubric_spans["use_case"] = rubric_spans["rubric_key"].map(_use_case_from_rubric)
-
-    retrieval_summary = retrieval[
-        retrieval["actual_retrieval_calls"].notna()
-    ][
-        [
-            "run_id",
-            "trace_id",
-            "actual_retrieval_calls",
-            "generic_retrieval_calls",
-            "metadata_filter_retrieval_calls",
-            "selected_chunk_count",
-            "context_size_chars",
-        ]
-    ].drop_duplicates(["run_id", "trace_id"])
-
-    run_dimensions = runs[
-        [
-            "run_id",
-            "experiment_id",
-            "experiment_name",
-            "model_version",
-            "arm_id",
-            "dataset_segment",
-            "retrieval_family",
-            "calls",
-            "fetch",
-            "context",
-            "start_time_utc",
-            "start_hour_utc",
-        ]
-    ]
-    trace_level = (
-        rubric_spans.merge(run_dimensions, on="run_id", how="left", validate="many_to_one")
-        .merge(quality_pivot, on=["run_id", "trace_id"], how="left", validate="one_to_one")
-        .merge(
-            retrieval_summary,
-            on=["run_id", "trace_id"],
-            how="left",
-            validate="one_to_one",
-        )
-    )
-    trace_level["end_to_end_latency_s"] = (
-        trace_level["end_to_end_latency_ms"] / 1_000
-    )
-    trace_level["grade_score"] = trace_level["ordinal_grade"].map(GRADE_ORDER)
-    trace_level["is_pass"] = trace_level["ordinal_grade"].isin(PASSING_GRADES)
-    trace_level["is_good"] = trace_level["ordinal_grade"].eq("Good")
-    trace_level["is_critical"] = trace_level["ordinal_grade"].eq("Critical Error")
-    for assessment in ERROR_ASSESSMENTS:
-        trace_level[assessment] = trace_level[assessment].map(_to_boolean)
-    for assessment in POSITIVE_BOOLEAN_ASSESSMENTS:
-        trace_level[assessment] = trace_level[assessment].map(_to_boolean)
-    trace_level["has_any_critical_error_mode"] = trace_level[
-        ERROR_ASSESSMENTS
-    ].fillna(False).any(axis=1)
-
-    validation = {
-        "raw_quality_row_count": int(len(quality) + identical_duplicate_count),
-        "identical_duplicate_assessment_row_count": identical_duplicate_count,
-        "conflicting_duplicate_assessment_count": conflicting_count,
-        "unique_trace_count": int(trace_level[["run_id", "trace_id"]].drop_duplicates().shape[0]),
-        "trace_without_rubric_key_count": int(trace_level["rubric_key"].isna().sum()),
-        "trace_without_grade_count": int(trace_level["ordinal_grade"].isna().sum()),
-        "trace_without_latency_count": int(
-            trace_level["end_to_end_latency_ms"].isna().sum()
-        ),
-        "trace_without_exported_row_id_count": int(
-            quality["row_id"].isna().groupby([quality["run_id"], quality["trace_id"]]).all().sum()
-        ),
-        "pairing_key": "dataset_segment + rubric_key",
-        "duplicate_policy": (
-            "Drop only exact duplicate run_id/trace_id/assessment_name/value rows; "
-            "fail validation if duplicate keys disagree."
-        ),
-    }
-    return trace_level.sort_values(
-        ["dataset_segment", "arm_id", "rubric_key"]
-    ), validation
-
-
-def _build_run_level(
-    *,
-    pandas: Any,
-    runs: Any,
-    metrics: Any,
-    trace_level: Any,
-) -> Any:
-    """Compute reproducible per-run quality, latency, usage, and context metrics."""
-    metric_pivot = metrics.pivot(
-        index="run_id", columns="metric_key", values="metric_value"
-    ).reset_index()
-    rows: list[dict[str, object]] = []
-    for run_id, traces in trace_level.groupby("run_id", sort=False):
-        run = runs[runs["run_id"] == run_id].iloc[0]
-        metric_row = metric_pivot[metric_pivot["run_id"] == run_id].iloc[0]
-        grades = traces["ordinal_grade"].value_counts()
-        row: dict[str, object] = {
-            "run_id": run_id,
-            "experiment_id": run["experiment_id"],
-            "experiment_name": run["experiment_name"],
-            "model_version": run["model_version"],
-            "arm_id": run["arm_id"],
-            "dataset_segment": run["dataset_segment"],
-            "retrieval_family": run["retrieval_family"],
-            "calls": int(run["calls"]),
-            "fetch": int(run["fetch"]),
-            "context": int(run["context"]),
-            "start_time_utc": run["start_time_utc"],
-            "start_hour_utc": int(run["start_hour_utc"]),
-            "trace_count": int(len(traces)),
-            "grade_good_count": int(grades.get("Good", 0)),
-            "grade_acceptable_count": int(grades.get("Acceptable", 0)),
-            "grade_partial_count": int(grades.get("Partial", 0)),
-            "grade_poor_count": int(grades.get("Poor", 0)),
-            "grade_critical_count": int(grades.get("Critical Error", 0)),
-            "good_acceptable_rate": float(traces["is_pass"].mean()),
-            "good_rate": float(traces["is_good"].mean()),
-            "critical_grade_rate": float(traces["is_critical"].mean()),
-            "critical_error_mode_rate": float(
-                traces["has_any_critical_error_mode"].mean()
-            ),
-            "rubric_v2_mean": float(traces["RubricV2"].mean()),
-            "latency_p50_s": float(
-                traces["end_to_end_latency_s"].quantile(
-                    0.50, interpolation=PERCENTILE_METHOD
-                )
-            ),
-            "latency_p90_s": float(
-                traces["end_to_end_latency_s"].quantile(
-                    0.90, interpolation=PERCENTILE_METHOD
-                )
-            ),
-            "latency_p95_s": float(
-                traces["end_to_end_latency_s"].quantile(
-                    0.95, interpolation=PERCENTILE_METHOD
-                )
-            ),
-            "latency_mean_s": float(traces["end_to_end_latency_s"].mean()),
-            "selected_chunk_mean": float(traces["selected_chunk_count"].mean()),
-            "context_chars_mean": float(traces["context_size_chars"].mean()),
-            "actual_retrieval_calls_mean": float(
-                traces["actual_retrieval_calls"].mean()
-            ),
-            "reported_total_pass_rate": _metric_value(
-                metric_row, "total_pass_rate"
-            ),
-            "reported_execution_time_p50_s": _metric_value(
-                metric_row, "execution_time_p50_s"
-            ),
-            "avg_total_tokens": _metric_value(metric_row, "avg_total_tokens"),
-            "avg_prompt_tokens": _metric_value(metric_row, "avg_prompt_tokens"),
-            "avg_completion_tokens": _metric_value(
-                metric_row, "avg_completion_tokens"
-            ),
-            "avg_reasoning_tokens": _metric_value(
-                metric_row, "avg_reasoning_tokens"
-            ),
-            "avg_llm_calls_per_trace": _metric_value(
-                metric_row, "avg_llm_calls_per_trace"
-            ),
-        }
-        for assessment in POSITIVE_BOOLEAN_ASSESSMENTS:
-            row[f"{assessment}_rate"] = float(traces[assessment].mean())
-        for assessment in ERROR_ASSESSMENTS:
-            row[f"{assessment}_rate"] = float(traces[assessment].mean())
-        for assessment in CONTINUOUS_ASSESSMENTS[1:]:
-            row[f"{assessment}_mean"] = float(traces[assessment].mean())
-        rows.append(row)
-    return pandas.DataFrame(rows).sort_values(["dataset_segment", "arm_id"])
-
-
-def _quality_summary(pandas: Any, run_level: Any) -> Any:
-    """Return the auditable quality columns used for recommendations."""
-    columns = [
-        "dataset_segment",
-        "arm_id",
-        "trace_count",
-        "grade_good_count",
-        "grade_acceptable_count",
-        "grade_partial_count",
-        "grade_poor_count",
-        "grade_critical_count",
-        "good_acceptable_rate",
-        "good_rate",
-        "critical_grade_rate",
-        "critical_error_mode_rate",
-        "rubric_v2_mean",
-        "citation_attribution_rate",
-        "citation_completeness_rate",
-        "source_fidelity_rate",
-        "answer_completeness_rate",
-        "citation_validation_summary_mean",
-        "reference_in_response_validation_summary_mean",
-    ]
-    return pandas.DataFrame(run_level[columns])
-
-
-def _latency_summary(pandas: Any, run_level: Any) -> Any:
-    """Return latency, usage, retrieval, and run-time confounder columns."""
-    columns = [
-        "dataset_segment",
-        "arm_id",
-        "trace_count",
-        "start_time_utc",
-        "start_hour_utc",
-        "latency_p50_s",
-        "latency_p90_s",
-        "latency_p95_s",
-        "latency_mean_s",
-        "avg_total_tokens",
-        "avg_prompt_tokens",
-        "avg_completion_tokens",
-        "avg_reasoning_tokens",
-        "avg_llm_calls_per_trace",
-        "actual_retrieval_calls_mean",
-        "selected_chunk_mean",
-        "context_chars_mean",
-    ]
-    return pandas.DataFrame(run_level[columns])
-
-
-def _pairwise_comparisons(
-    pandas: Any, trace_level: Any, runs: Any
-) -> tuple[Any, Any]:
-    """Compute paired, directly inspectable experiment effects."""
-    dimensions = runs[
-        [
-            "arm_id",
-            "dataset_segment",
-            "retrieval_family",
-            "calls",
-            "fetch",
-            "context",
-        ]
-    ].drop_duplicates()
-    rows: list[dict[str, object]] = []
-    detail_rows: list[dict[str, object]] = []
-    for dataset, dataset_dimensions in dimensions.groupby("dataset_segment"):
-        records = dataset_dimensions.to_dict(orient="records")
-        for left_index, left in enumerate(records):
-            for right in records[left_index + 1 :]:
-                comparison_type = _comparison_type(left, right)
-                if comparison_type is None:
-                    continue
-                oriented_left, oriented_right = _orient_comparison(
-                    left, right, comparison_type
-                )
-                left_traces = trace_level[
-                    (trace_level["dataset_segment"] == dataset)
-                    & (trace_level["arm_id"] == oriented_left["arm_id"])
-                ]
-                right_traces = trace_level[
-                    (trace_level["dataset_segment"] == dataset)
-                    & (trace_level["arm_id"] == oriented_right["arm_id"])
-                ]
-                paired = left_traces[
-                    [
-                        "rubric_key",
-                        "grade_score",
-                        "is_pass",
-                        "RubricV2",
-                        "end_to_end_latency_s",
-                    ]
-                ].merge(
-                    right_traces[
-                        [
-                            "rubric_key",
-                            "grade_score",
-                            "is_pass",
-                            "RubricV2",
-                            "end_to_end_latency_s",
-                        ]
-                    ],
-                    on="rubric_key",
-                    suffixes=("_left", "_right"),
-                    validate="one_to_one",
-                )
-                grade_delta = paired["grade_score_right"] - paired["grade_score_left"]
-                for _, trace_pair in paired.iterrows():
-                    detail_rows.append(
-                        {
-                            "dataset_segment": dataset,
-                            "comparison_type": comparison_type,
-                            "left_arm": oriented_left["arm_id"],
-                            "right_arm": oriented_right["arm_id"],
-                            "rubric_key": trace_pair["rubric_key"],
-                            "left_grade_score": trace_pair["grade_score_left"],
-                            "right_grade_score": trace_pair["grade_score_right"],
-                            "grade_score_delta": (
-                                trace_pair["grade_score_right"]
-                                - trace_pair["grade_score_left"]
-                            ),
-                            "left_is_pass": trace_pair["is_pass_left"],
-                            "right_is_pass": trace_pair["is_pass_right"],
-                            "left_rubric_v2": trace_pair["RubricV2_left"],
-                            "right_rubric_v2": trace_pair["RubricV2_right"],
-                            "rubric_v2_delta": (
-                                trace_pair["RubricV2_right"]
-                                - trace_pair["RubricV2_left"]
-                            ),
-                            "left_latency_s": trace_pair[
-                                "end_to_end_latency_s_left"
-                            ],
-                            "right_latency_s": trace_pair[
-                                "end_to_end_latency_s_right"
-                            ],
-                            "latency_delta_s": (
-                                trace_pair["end_to_end_latency_s_right"]
-                                - trace_pair["end_to_end_latency_s_left"]
-                            ),
-                        }
-                    )
-                rows.append(
-                    {
-                        "dataset_segment": dataset,
-                        "comparison_type": comparison_type,
-                        "left_arm": oriented_left["arm_id"],
-                        "right_arm": oriented_right["arm_id"],
-                        "matched_trace_count": int(len(paired)),
-                        "right_grade_wins": int((grade_delta > 0).sum()),
-                        "ties": int((grade_delta == 0).sum()),
-                        "right_grade_losses": int((grade_delta < 0).sum()),
-                        "right_minus_left_pass_rate": float(
-                            paired["is_pass_right"].mean()
-                            - paired["is_pass_left"].mean()
-                        ),
-                        "right_minus_left_rubric_v2_mean": float(
-                            paired["RubricV2_right"].mean()
-                            - paired["RubricV2_left"].mean()
-                        ),
-                        "right_minus_left_latency_median_s": float(
-                            (
-                                paired["end_to_end_latency_s_right"]
-                                - paired["end_to_end_latency_s_left"]
-                            ).median()
-                        ),
-                    }
-                )
-    summary = pandas.DataFrame(rows).sort_values(
-        ["dataset_segment", "comparison_type", "left_arm", "right_arm"]
-    )
-    details = pandas.DataFrame(detail_rows).sort_values(
-        [
-            "dataset_segment",
-            "comparison_type",
-            "left_arm",
-            "right_arm",
-            "rubric_key",
-        ]
-    )
-    return summary, details
 
 
 def _comparison_type(left: dict[str, object], right: dict[str, object]) -> str | None:
@@ -659,15 +235,13 @@ def _orient_comparison(
     comparison_type: str,
 ) -> tuple[dict[str, object], dict[str, object]]:
     """Orient pairwise deltas from the simpler/baseline arm to the alternative."""
-    if (
-        comparison_type == "call_count_at_matched_mode_context"
-        and int(left["calls"]) > int(right["calls"])
-    ):
+    if comparison_type == "call_count_at_matched_mode_context" and int(
+        left["calls"]
+    ) > int(right["calls"]):
         return right, left
-    if (
-        comparison_type == "context_at_matched_mode_calls"
-        and int(left["context"]) > int(right["context"])
-    ):
+    if comparison_type == "context_at_matched_mode_calls" and int(
+        left["context"]
+    ) > int(right["context"]):
         return right, left
     if (
         comparison_type == "bm25_vs_dense_at_matched_calls_context"
@@ -679,220 +253,21 @@ def _orient_comparison(
 
 def _retrieval_overlap(pandas: Any, retrieval: Any, timings: Any, runs: Any) -> Any:
     """Measure BM25/dense ranked-chunk overlap for matched rubric variations."""
-    rubric_map = timings[
-        (timings["span_type"] == "UNKNOWN")
-        & timings["span_name"].str.startswith("invoke_", na=False)
-    ][["run_id", "trace_id", "span_name"]].rename(columns={"span_name": "rubric_key"})
-    tool_rows = retrieval[retrieval["simple_operation"].notna()].merge(
-        rubric_map, on=["run_id", "trace_id"], how="left", validate="many_to_one"
-    )
-    tool_rows = tool_rows.merge(
-        runs[
-            [
-                "run_id",
-                "arm_id",
-                "dataset_segment",
-                "retrieval_family",
-                "calls",
-                "context",
-            ]
-        ],
-        on="run_id",
-        how="left",
-        validate="many_to_one",
-    )
-    inventories: list[dict[str, object]] = []
-    for (dataset, arm, rubric_key), rows in tool_rows.groupby(
-        ["dataset_segment", "arm_id", "rubric_key"]
-    ):
-        chunk_ids: set[str] = set()
-        for payload in rows["ranked_chunk_ids"].dropna():
-            for item in json.loads(payload):
-                chunk_ids.add(f"{item.get('document_id')}-{item.get('chunk_id')}")
-        dimension = rows.iloc[0]
-        inventories.append(
-            {
-                "dataset_segment": dataset,
-                "arm_id": arm,
-                "rubric_key": rubric_key,
-                "retrieval_family": dimension["retrieval_family"],
-                "calls": int(dimension["calls"]),
-                "context": int(dimension["context"]),
-                "chunk_ids": chunk_ids,
-            }
-        )
-    inventory = pandas.DataFrame(inventories)
-    bm25 = inventory[inventory["retrieval_family"] == "bm25"]
-    dense = inventory[inventory["retrieval_family"] == "dense"]
-    paired = bm25.merge(
-        dense,
-        on=["dataset_segment", "calls", "context", "rubric_key"],
-        suffixes=("_bm25", "_dense"),
-        validate="one_to_one",
-    )
-    rows: list[dict[str, object]] = []
-    for _, row in paired.iterrows():
-        left = row["chunk_ids_bm25"]
-        right = row["chunk_ids_dense"]
-        union = left | right
-        rows.append(
-            {
-                "dataset_segment": row["dataset_segment"],
-                "calls": int(row["calls"]),
-                "context": int(row["context"]),
-                "rubric_key": row["rubric_key"],
-                "bm25_arm": row["arm_id_bm25"],
-                "dense_arm": row["arm_id_dense"],
-                "bm25_chunk_count": len(left),
-                "dense_chunk_count": len(right),
-                "intersection_count": len(left & right),
-                "union_count": len(union),
-                "jaccard": len(left & right) / len(union) if union else 1.0,
-                "bm25_unique_count": len(left - right),
-                "dense_unique_count": len(right - left),
-            }
-        )
-    return pandas.DataFrame(rows).sort_values(
-        ["dataset_segment", "calls", "context", "rubric_key"]
+    return core.between_arm_family_overlap(
+        pandas,
+        retrieval,
+        timings,
+        runs,
+        family_column="retrieval_family",
+        left_family="bm25",
+        right_family="dense",
+        match_columns=["calls", "context"],
     )
 
 
-def _pareto_sets(pandas: Any, run_level: Any) -> Any:
-    """Compute per-dataset Pareto membership under three quality definitions."""
-    rows = run_level.copy()
-    for output_column, quality_column in (
-        ("pareto_pass_p50", "good_acceptable_rate"),
-        ("pareto_good_p50", "good_rate"),
-        ("pareto_rubric_p50", "rubric_v2_mean"),
-    ):
-        rows[output_column] = False
-        for _, group in rows.groupby("dataset_segment"):
-            for index, candidate in group.iterrows():
-                dominated = (
-                    (group[quality_column] >= candidate[quality_column])
-                    & (group["latency_p50_s"] <= candidate["latency_p50_s"])
-                    & (
-                        (group[quality_column] > candidate[quality_column])
-                        | (group["latency_p50_s"] < candidate["latency_p50_s"])
-                    )
-                ).any()
-                rows.loc[index, output_column] = not dominated
-    columns = [
-        "dataset_segment",
-        "arm_id",
-        "good_acceptable_rate",
-        "good_rate",
-        "rubric_v2_mean",
-        "latency_p50_s",
-        "latency_p95_s",
-        "critical_grade_rate",
-        "critical_error_mode_rate",
-        "source_fidelity_rate",
-        "citation_completeness_rate",
-        "avg_total_tokens",
-        "pareto_pass_p50",
-        "pareto_good_p50",
-        "pareto_rubric_p50",
-    ]
-    return pandas.DataFrame(rows[columns]).sort_values(
-        ["dataset_segment", "latency_p50_s"]
-    )
-
-
-def _use_case_summary(pandas: Any, trace_level: Any) -> Any:
-    """Aggregate raw quality outcomes by dataset, arm, and derived use case."""
-    return (
-        trace_level.groupby(["dataset_segment", "arm_id", "use_case"], dropna=False)
-        .agg(
-            trace_count=("trace_id", "count"),
-            good_acceptable_rate=("is_pass", "mean"),
-            good_rate=("is_good", "mean"),
-            rubric_v2_mean=("RubricV2", "mean"),
-            critical_grade_rate=("is_critical", "mean"),
-            latency_p50_s=("end_to_end_latency_s", "median"),
-        )
-        .reset_index()
-    )
-
-
-def _operation_timing_summary(pandas: Any, timings: Any, runs: Any) -> Any:
-    """Aggregate Simple operation timing and retry diagnostics per run."""
-    operations = timings[timings["simple_operation"].notna()].merge(
-        runs[["run_id", "arm_id", "dataset_segment"]],
-        on="run_id",
-        how="left",
-        validate="many_to_one",
-    )
-    rows: list[dict[str, object]] = []
-    for (dataset, arm, operation), spans in operations.groupby(
-        ["dataset_segment", "arm_id", "simple_operation"]
-    ):
-        es_attempts = spans["es_success_attempt_count"].dropna()
-        llm_attempts = spans["llm_successful_attempt_count"].dropna()
-        rows.append(
-            {
-                "dataset_segment": dataset,
-                "arm_id": arm,
-                "simple_operation": operation,
-                "span_count": int(len(spans)),
-                "observed_duration_p50_ms": float(
-                    spans["observed_duration_ms"].quantile(
-                        0.50, interpolation=PERCENTILE_METHOD
-                    )
-                ),
-                "observed_duration_p90_ms": float(
-                    spans["observed_duration_ms"].quantile(
-                        0.90, interpolation=PERCENTILE_METHOD
-                    )
-                ),
-                "observed_duration_p95_ms": float(
-                    spans["observed_duration_ms"].quantile(
-                        0.95, interpolation=PERCENTILE_METHOD
-                    )
-                ),
-                "llm_successful_attempt_latency_p50_ms": float(
-                    spans["llm_successful_attempt_latency_ms"].quantile(
-                        0.50, interpolation=PERCENTILE_METHOD
-                    )
-                ),
-                "es_success_duration_p50_ms": float(
-                    spans["es_success_duration_ms"].quantile(
-                        0.50, interpolation=PERCENTILE_METHOD
-                    )
-                ),
-                "llm_attempt_observation_count": int(len(llm_attempts)),
-                "llm_retry_rate": float((llm_attempts > 1).mean())
-                if len(llm_attempts)
-                else float("nan"),
-                "es_attempt_observation_count": int(len(es_attempts)),
-                "es_retry_rate": float((es_attempts > 1).mean())
-                if len(es_attempts)
-                else float("nan"),
-            }
-        )
-    return pandas.DataFrame(rows).sort_values(
-        ["dataset_segment", "arm_id", "simple_operation"]
-    )
-
-
-def _grade_distribution(pandas: Any, trace_level: Any) -> Any:
-    """Publish raw grade counts and rates by arm and dataset."""
-    counts = (
-        trace_level.groupby(["dataset_segment", "arm_id", "ordinal_grade"])
-        .size()
-        .reset_index(name="grade_count")
-    )
-    totals = counts.groupby(["dataset_segment", "arm_id"])["grade_count"].transform(
-        "sum"
-    )
-    counts["trace_count"] = totals
-    counts["grade_rate"] = counts["grade_count"] / totals
-    return pandas.DataFrame(counts).sort_values(
-        ["dataset_segment", "arm_id", "ordinal_grade"]
-    )
-
-
-def _stage_b_recommendations(run_level: Any, overlap: Any, pareto: Any) -> dict[str, object]:
+def _stage_b_recommendations(
+    run_level: Any, overlap: Any, pareto: Any
+) -> dict[str, object]:
     """Derive transparent Stage B defaults from Stage A evidence."""
     mode_summary = (
         run_level.groupby(["dataset_segment", "retrieval_family"])
@@ -933,17 +308,11 @@ def _stage_b_recommendations(run_level: Any, overlap: Any, pareto: Any) -> dict[
         "dense_only_union": "exclude",
         "rrf_union_control": "defer unless implementation cost is negligible",
         "c3_control": (
-            "include one BM25 c3 control"
-            if _material_c3_gain(run_level)
-            else "exclude"
+            "include one BM25 c3 control" if _material_c3_gain(run_level) else "exclude"
         ),
         "rationale": {
-            "dense_mallinckrodt_best_pass_rate": float(
-                dense_mall["best_pass_rate"]
-            ),
-            "bm25_mallinckrodt_best_pass_rate": float(
-                bm25_mall["best_pass_rate"]
-            ),
+            "dense_mallinckrodt_best_pass_rate": float(dense_mall["best_pass_rate"]),
+            "bm25_mallinckrodt_best_pass_rate": float(bm25_mall["best_pass_rate"]),
             "overlap_by_dataset": overlap_summary.to_dict(orient="records"),
             "most_robust_pareto_arms": robust_pareto.head(6).to_dict(),
         },
@@ -990,9 +359,7 @@ def _render_report(
         .head(5)
     )
     pareto_rows = pareto[
-        pareto[
-            ["pareto_pass_p50", "pareto_good_p50", "pareto_rubric_p50"]
-        ].any(axis=1)
+        pareto[["pareto_pass_p50", "pareto_good_p50", "pareto_rubric_p50"]].any(axis=1)
     ]
     overlap_summary = (
         overlap.groupby("dataset_segment")
@@ -1006,9 +373,7 @@ def _render_report(
     )
     call_effects = pairwise[
         pairwise["comparison_type"] == "call_count_at_matched_mode_context"
-    ].sort_values(
-        "right_minus_left_pass_rate", ascending=False
-    )
+    ].sort_values("right_minus_left_pass_rate", ascending=False)
     operation_summary = (
         operation_timings.groupby("simple_operation")
         .agg(
@@ -1078,21 +443,21 @@ exactly one such key. Use-case names are derived from that key.
 
 ## Top observed arms by dataset
 
-{_markdown_table(best_rows[["dataset_segment", "arm_id", "trace_count", "good_acceptable_rate", "rubric_v2_mean", "latency_p50_s", "latency_p95_s", "avg_total_tokens"]])}
+{core.markdown_table(best_rows[["dataset_segment", "arm_id", "trace_count", "good_acceptable_rate", "rubric_v2_mean", "latency_p50_s", "latency_p95_s", "avg_total_tokens"]])}
 
 ## Pareto sensitivity
 
 The following arms are Pareto-efficient under at least one of Good+Acceptable,
 Good-only, or RubricV2 quality, always against p50 latency:
 
-{_markdown_table(pareto_rows[["dataset_segment", "arm_id", "good_acceptable_rate", "good_rate", "rubric_v2_mean", "latency_p50_s", "pareto_pass_p50", "pareto_good_p50", "pareto_rubric_p50"]])}
+{core.markdown_table(pareto_rows[["dataset_segment", "arm_id", "good_acceptable_rate", "good_rate", "rubric_v2_mean", "latency_p50_s", "pareto_pass_p50", "pareto_good_p50", "pareto_rubric_p50"]])}
 
 ## BM25 versus dense retrieval overlap
 
 Chunk identities are unioned across calls within each trace before computing
 Jaccard overlap. Counts below are medians over exact matched rubric variations:
 
-{_markdown_table(overlap_summary)}
+{core.markdown_table(overlap_summary)}
 
 Low Jaccard plus non-zero unique contributions support testing heterogeneous
 late union. This does not prove that unique dense chunks improve answer quality;
@@ -1103,7 +468,7 @@ Stage B must test that causal hypothesis.
 Largest observed pass-rate changes when call count changes at matched retrieval
 family and global context:
 
-{_markdown_table(call_effects.head(18)[["dataset_segment", "left_arm", "right_arm", "matched_trace_count", "right_grade_wins", "ties", "right_grade_losses", "right_minus_left_pass_rate", "right_minus_left_rubric_v2_mean", "right_minus_left_latency_median_s"]])}
+{core.markdown_table(call_effects.head(18)[["dataset_segment", "left_arm", "right_arm", "matched_trace_count", "right_grade_wins", "ties", "right_grade_losses", "right_minus_left_pass_rate", "right_minus_left_rubric_v2_mean", "right_minus_left_latency_median_s"]])}
 
 ## Operation timing and retries
 
@@ -1111,7 +476,7 @@ Each row below summarizes the per-run/arm operation p50s. The complete
 dataset-specific values, successful-attempt timings, and retry observation
 counts are in `operation_timings.csv`.
 
-{_markdown_table(operation_summary)}
+{core.markdown_table(operation_summary)}
 
 ## Stage B recommendation
 
@@ -1173,7 +538,7 @@ def _write_calculation_manifest(
         "schema_version": 1,
         "generated_at_utc": datetime.now(UTC).isoformat(),
         "snapshot_dir": str(snapshot_dir),
-        "input_files": _file_hashes(
+        "input_files": core.file_hashes(
             [
                 snapshot_dir / "manifest.json",
                 snapshot_dir / "experiments.parquet",
@@ -1184,7 +549,7 @@ def _write_calculation_manifest(
                 snapshot_dir / "span_timings.parquet",
             ]
         ),
-        "output_files": _file_hashes(output_files),
+        "output_files": core.file_hashes(output_files),
         "formulas": {
             "good_acceptable_rate": "(Good + Acceptable) / unique traces",
             "good_rate": "Good / unique traces",
@@ -1201,131 +566,4 @@ def _write_calculation_manifest(
         "validation": validation,
         "recommendations": recommendations,
     }
-    _write_json(analysis_dir / "calculation_manifest.json", payload)
-
-
-def _markdown_table(dataframe: Any) -> str:
-    """Render a compact Markdown table without optional dependencies."""
-    headers = [str(column) for column in dataframe.columns]
-    lines = [
-        "| " + " | ".join(headers) + " |",
-        "| " + " | ".join("---" for _ in headers) + " |",
-    ]
-    for record in dataframe.to_dict(orient="records"):
-        cells: list[str] = []
-        for column in dataframe.columns:
-            value = record[column]
-            if _is_missing(value):
-                text = "—"
-            elif isinstance(value, float):
-                text = f"{value:.4f}"
-            else:
-                text = str(value)
-            cells.append(text.replace("|", "\\|").replace("\n", " "))
-        lines.append("| " + " | ".join(cells) + " |")
-    return "\n".join(lines)
-
-
-def _decode_assessment_row(row: Any) -> object:
-    """Decode the snapshot's type-tagged assessment scalar."""
-    value_type = row["assessment_value_type"]
-    if value_type is None or _is_missing(value_type):
-        return None
-    columns = {
-        "string": "assessment_value_string",
-        "bool": "assessment_value_bool",
-        "int": "assessment_value_int",
-        "float": "assessment_value_float",
-    }
-    column = columns.get(value_type)
-    if column is None:
-        raise ValueError(f"Unknown assessment value type {value_type!r}.")
-    return row[column]
-
-
-def _to_boolean(value: object) -> bool | None:
-    """Normalize supported boolean assessment representations."""
-    if value is None or _is_missing(value):
-        return None
-    if isinstance(value, bool):
-        return value
-    if isinstance(value, str):
-        normalized = value.lower()
-        if normalized == "true":
-            return True
-        if normalized == "false":
-            return False
-    raise ValueError(f"Unsupported boolean assessment value {value!r}.")
-
-
-def _use_case_from_rubric(rubric_key: str) -> str:
-    """Derive a use-case name from a stable invoke span name."""
-    match = _USE_CASE_PATTERN.fullmatch(rubric_key)
-    return match.group("use_case") if match else rubric_key.removeprefix("invoke_")
-
-
-def _metric_value(metric_row: Any, key: str) -> float:
-    """Return a scalar run metric."""
-    value = metric_row.get(key)
-    return float(value) if value is not None and not _is_missing(value) else float("nan")
-
-
-def _is_missing(value: object) -> bool:
-    """Return whether a scalar is pandas/IEEE missing."""
-    try:
-        return bool(value != value)
-    except (TypeError, ValueError):
-        return False
-
-
-def _manifest_checksums_match(snapshot_dir: Path, manifest: dict[str, Any]) -> bool:
-    """Verify every snapshot file checksum recorded in the manifest."""
-    return all(
-        _sha256(snapshot_dir / str(item["name"])) == item["sha256"]
-        for item in manifest.get("files", [])
-    )
-
-
-def _file_hashes(paths: list[Path]) -> list[dict[str, object]]:
-    """Return reproducibility metadata for files."""
-    return [
-        {
-            "name": path.name,
-            "size_bytes": path.stat().st_size,
-            "sha256": _sha256(path),
-        }
-        for path in paths
-    ]
-
-
-def _sha256(path: Path) -> str:
-    """Return a file SHA-256 digest."""
-    return hashlib.sha256(path.read_bytes()).hexdigest()
-
-
-def _read_json(path: Path) -> dict[str, Any]:
-    """Read a JSON object."""
-    payload = json.loads(path.read_text(encoding="utf-8"))
-    if not isinstance(payload, dict):
-        raise ValueError(f"Expected JSON object in {path}.")
-    return payload
-
-
-def _write_json(path: Path, payload: dict[str, object]) -> None:
-    """Write stable human-readable JSON."""
-    path.write_text(
-        json.dumps(payload, indent=2, sort_keys=True),
-        encoding="utf-8",
-    )
-
-
-def _load_pandas() -> Any:
-    """Load the optional MLflow analysis dependency."""
-    try:
-        import pandas
-    except ImportError as exc:
-        raise RuntimeError(
-            "Install the optional dependency group before analysis: "
-            "uv sync --group mlflow"
-        ) from exc
-    return pandas
+    core.write_json(analysis_dir / "calculation_manifest.json", payload)

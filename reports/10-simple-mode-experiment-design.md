@@ -284,7 +284,7 @@ changes both merge policy and context volume relative to `round_robin`.
 
 Simple Mode experiments use `S` instead of `E`. IDs encode stage and dimensions:
 
-`S-<stage>-<branch-sequence>-c<requested_calls>-<merge>-f<per_call_fetch>-g<global_context>-r<reasoning>`
+`S-<stage>-<tool-multiset-label>-c<requested_calls>-<merge>-f<per_call_fetch>-g<global_context>-r<reasoning>`
 
 `f<per_call_fetch>` is the `simple_per_call_fetch_count` value used by each retrieval call. Its
 value is **stage- and mode-dependent**: for Stage A/C `bm25` and `dense` arms it equals `g` (the
@@ -301,7 +301,7 @@ Examples:
 - `S-A-bm25-c1-rr-f10-g10-rnone` (bm25: f = g = 10)
 - `S-A-dense-c2-rr-f15-g15-rnone` (dense: f = g = 15)
 - `S-A-hybrid-c3-rr-f30-g10-rnone` (hybrid: f = 30, g = 10)
-- `S-B-bm25-dense-bm25-c3-union-f15-rnone` (ordered Stage B branches; f = 15, no g segment)
+- `S-B-bm25-dense-bm25-c3-union-f15-rnone` (Stage B tool-multiset label; f = 15, no g segment)
 - `S-C-bm25-c1-rr-f10-g10-rlow` (Stage C bm25: f = g = 10, reasoning low)
 - `S-C-hybrid-c3-rr-f30-g30-rlow` (Stage C hybrid: f = 30, g = 30, reasoning low)
 
@@ -317,7 +317,8 @@ Per-call fetch (`simple_per_call_fetch_count`) is mode-dependent across all stag
   context.
 - **Stage B (`current_union`):** `f = 15` or `f = 20`. The `current_union` policy retains the
   complete per-call-capped union without a global budget; Stage B arm IDs carry no `g` segment.
-  The branch-sequence segment records each call's ordered retrieval mode.
+  The tool-multiset label identifies the exact required retrieval-tool multiset; it does not encode
+  LLM emission order or merge order.
 
 Stage C arms inherit the fetch rule of their paired Stage A counterpart, ensuring reasoning effort
 is the sole changed dimension.
@@ -331,12 +332,12 @@ arms use `g10`, `g15`, or `g20`; hybrid arms may additionally use `g25` or `g30`
 | A | `S-A-bm25-c{1,2,3}-rr-f{g}-g{chosen}-rnone` | BM25 only | 1, 2, 3 | round-robin | = g (chosen per run) | chosen per run | none | Lexical/call-count screen |
 | A | `S-A-dense-c{1,2,3}-rr-f{g}-g{chosen}-rnone` | dense only | 1, 2, 3 | round-robin | = g (chosen per run) | chosen per run | none | Semantic/call-count screen |
 | A | `S-A-hybrid-c{1,2,3}-rr-f30-g{chosen}-rnone` | ES RRF BM25+dense | 1, 2, 3 | round-robin | 30 (fixed) | chosen per run: g10, g15, g20, g25, or g30 | none | Hybrid/call-count screen |
-| B1 | `S-B-bm25-dense-c2-union-f15-rnone` | `[bm25, dense]` | 2 | current union | 15 | full union, ≤30 pre-dedup candidates | none | Heterogeneous lower-depth baseline |
-| B2 | `S-B-bm25-bm25-c2-union-f20-rnone` | `[bm25, bm25]` | 2 | current union | 20 | full union, ≤40 pre-dedup candidates | none | Homogeneous BM25 baseline |
-| B3 | `S-B-bm25-dense-bm25-c3-union-f15-rnone` | `[bm25, dense, bm25]` | 3 | current union | 15 | full union, ≤45 pre-dedup candidates | none | Three-call mixed lower-depth arm |
-| B4 | `S-B-bm25-dense-bm25-c3-union-f20-rnone` | `[bm25, dense, bm25]` | 3 | current union | 20 | full union, ≤60 pre-dedup candidates | none | Three-call mixed full-depth arm |
-| B5 | `S-B-bm25-dense-bm25-dense-c4-union-f15-rnone` | `[bm25, dense, bm25, dense]` | 4 | current union | 15 | full union, ≤60 pre-dedup candidates | none | Four-call, two-dense, equal-volume breadth test |
-| B6 | `S-B-bm25-dense-c2-union-f20-rnone` | `[bm25, dense]` | 2 | current union | 20 | full union, ≤40 pre-dedup candidates | none | Heterogeneous full-depth baseline |
+| B1 | `S-B-bm25-dense-c2-union-f15-rnone` | `{bm25×1, dense×1}` | 2 | current union | 15 | full union, ≤30 pre-dedup candidates | none | Heterogeneous lower-depth baseline |
+| B2 | `S-B-bm25-bm25-c2-union-f20-rnone` | `{bm25×2}` | 2 | current union | 20 | full union, ≤40 pre-dedup candidates | none | Homogeneous BM25 baseline |
+| B3 | `S-B-bm25-dense-bm25-c3-union-f15-rnone` | `{bm25×2, dense×1}` | 3 | current union | 15 | full union, ≤45 pre-dedup candidates | none | Three-call mixed lower-depth arm |
+| B4 | `S-B-bm25-dense-bm25-c3-union-f20-rnone` | `{bm25×2, dense×1}` | 3 | current union | 20 | full union, ≤60 pre-dedup candidates | none | Three-call mixed full-depth arm |
+| B5 | `S-B-bm25-dense-bm25-dense-c4-union-f15-rnone` | `{bm25×2, dense×2}` | 4 | current union | 15 | full union, ≤60 pre-dedup candidates | none | Four-call, two-dense, equal-volume breadth test |
+| B6 | `S-B-bm25-dense-c2-union-f20-rnone` | `{bm25×1, dense×1}` | 2 | current union | 20 | full union, ≤40 pre-dedup candidates | none | Heterogeneous full-depth baseline |
 | C | `S-C-<selected-bm25/dense>-rr-f{g}-g{chosen}-rlow` | selected bm25 or dense Stage A arm | selected | round-robin | = g (inherited from paired Stage A) | same as paired Stage A arm | low | Reasoning for single-signal arms |
 | C | `S-C-<selected-hybrid>-rr-f30-g{chosen}-rlow` | selected hybrid Stage A arm | selected | round-robin | 30 (inherited from paired Stage A) | same as paired Stage A arm (any hybrid g value) | low | Reasoning for hybrid arm |
 
@@ -356,19 +357,19 @@ approved larger budget. It is intentionally self-contained:
   were not monotonic on every dataset, mode, or context. c4 is therefore an evidence-motivated
   extrapolation, not a presumed improvement.
 - BM25 is the Mallinckrodt safety anchor: its best Stage A Good+Acceptable rate was 47.6%, versus
-  22.0% for dense and 31.7% for hybrid. Every Stage B arm consequently starts with BM25.
+  22.0% for dense and 31.7% for hybrid. Every Stage B arm consequently includes BM25.
 - Dense was competitive on both EMC2 sets and offered materially distinct candidates. Median
   BM25/dense ranked-chunk Jaccard was about 0.19 for EMC2 set1, 0.21 for EMC2 set2, and 0.00 for
   Mallinckrodt; median dense-unique candidates were non-zero in every dataset.
 - Increasing Stage A BM25 fetch/context from 15 to 20 improved matched c3 Good+Acceptable rate by
   4.9 and 11.4 percentage points on EMC2 set1 and set2, respectively, with a small 1.2-point gain
   on Mallinckrodt. Stage B therefore varies f15 and f20 rather than fixing f20.
-- B5 uses two dense branches because B1/B3/B4 already test one dense branch. B4 and B5 both allow
+- B5 uses two dense calls because B1/B3/B4 already test one dense call. B4 and B5 both allow
   at most 60 pre-dedup candidates, comparing three deeper lists against four narrower, more
   semantically balanced lists.
 
 All Stage B arms retain `reasoning_effort = "none"`. Low reasoning remains a later Stage C
-dimension, so retrieval-branch, call-count, and fetch effects remain interpretable.
+dimension, so retrieval-tool-composition, call-count, and fetch effects remain interpretable.
 
 ### 6.3 Comparison map
 
@@ -378,10 +379,10 @@ dimension, so retrieval-branch, call-count, and fetch effects remain interpretab
 | `S-A-dense-cN` vs `S-A-hybrid-cN` | dense vs server-side hybrid RRF | Value of combining chunk lexical+dense signals |
 | `S-A-<mode>-c1/c2/c3` | required tool-call count | Value of query diversity; actual count recorded separately |
 | B1 vs B6 | per-call fetch 15 vs 20 | Heterogeneous c2 depth/context-volume effect (≤30 vs ≤40 candidates) |
-| B2 vs B6 | `[bm25, bm25]` vs `[bm25, dense]` | Homogeneous versus heterogeneous c2/f20 branch effect |
+| B2 vs B6 | `{bm25×2}` vs `{bm25×1, dense×1}` | Homogeneous versus heterogeneous c2/f20 tool-composition effect |
 | B3 vs B4 | per-call fetch 15 vs 20 | Heterogeneous c3 depth/context-volume effect (≤45 vs ≤60 candidates) |
-| B3 vs B5 | c3 with one dense vs c4 with two dense branches | Additional query plus second dense branch; intentionally multi-dimensional |
-| B4 vs B5 | c3/f20 vs c4/f15 | Equal maximum 60-candidate volume: three deeper branches versus four narrower/more balanced branches; intentionally multi-dimensional |
+| B3 vs B5 | c3 with one dense vs c4 with two dense calls | Additional query plus second dense call; intentionally multi-dimensional |
+| B4 vs B5 | c3/f20 vs c4/f15 | Equal maximum 60-candidate volume: three deeper calls versus four narrower/more balanced calls; intentionally multi-dimensional |
 | `S-A-hybrid gX` vs `S-A-hybrid gY` | global context budget at fixed f=30, mode, and call count | Value of more passages to the LLM at constant ES retrieval depth |
 | `S-A-bm25/dense gX` vs `S-A-bm25/dense gY` | co-varying ES fetch depth and context budget (f = g for both) | Combined effect of deeper ES retrieval and larger LLM context in single-signal mode |
 | `S-A gX rnone` vs `S-C gX rlow` | reasoning effort at chosen `gX`; fetch rule inherited from paired Stage A arm, so only reasoning changes | Value of GPT-5.1 reasoning tokens |
