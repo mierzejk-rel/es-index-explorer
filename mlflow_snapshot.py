@@ -11,6 +11,7 @@ import logging
 from datetime import UTC, datetime
 from pathlib import Path
 
+from es_index_explorer.mlflow_analysis.rubric_analysis import analyze_rubrics
 from es_index_explorer.mlflow_analysis.snapshot import (
     DEFAULT_EXPERIMENT_FOLDER,
     DEFAULT_TRACE_FETCH_CONCURRENCY,
@@ -126,6 +127,31 @@ def parse_args() -> argparse.Namespace:
         default=Path("reports") / "11-stage-a-results-stage-b-redesign.md",
         help="Markdown report path.",
     )
+    rubric_parser = subparsers.add_parser(
+        "analyze-rubrics",
+        help=(
+            "Join an enriched snapshot to local rubric TOMLs and write "
+            "rubric/question/expectation/use-case analysis outputs."
+        ),
+    )
+    rubric_parser.add_argument(
+        "--snapshot",
+        required=True,
+        type=Path,
+        help="Completed enriched snapshot directory.",
+    )
+    rubric_parser.add_argument(
+        "--rubric-root",
+        required=True,
+        type=Path,
+        help="Local r1-evals rubric_data root containing Air Assist rubric TOMLs.",
+    )
+    rubric_parser.add_argument(
+        "--task",
+        required=True,
+        type=Path,
+        help="Local Air Assist task TOML defining the use-case taxonomy.",
+    )
     return parser.parse_args()
 
 
@@ -178,7 +204,9 @@ def main() -> None:
         if args.command == "export":
             selector = _selector_from_args(args)
             if args.fresh and args.checkpoint_epoch is not None:
-                raise SystemExit("error: --fresh and --checkpoint-epoch are mutually exclusive")
+                raise SystemExit(
+                    "error: --fresh and --checkpoint-epoch are mutually exclusive"
+                )
             output_dir = args.output_dir or _default_output_dir()
             snapshot_dir = export_snapshot(
                 profile=args.profile,
@@ -199,6 +227,15 @@ def main() -> None:
                 report_path=args.report,
             )
             print(f"Wrote auditable Stage A analysis to {analysis_dir}")
+            return
+
+        if args.command == "analyze-rubrics":
+            analysis_dir = analyze_rubrics(
+                snapshot_dir=args.snapshot,
+                rubric_root=args.rubric_root,
+                task_path=args.task,
+            )
+            print(f"Wrote rubric analysis to {analysis_dir}")
             return
 
         selector = _selector_from_args(args)

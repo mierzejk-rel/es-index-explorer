@@ -9,21 +9,26 @@ root artifacts are published atomically after every planned run commits.
 import hashlib
 import json
 import logging
+import math
 import os
 import pickle
 import random
+import re
 import shutil
 import sys
 import tempfile
 import time
+from collections.abc import Callable
 from concurrent.futures import ThreadPoolExecutor
 from dataclasses import asdict, dataclass
 from datetime import UTC, datetime
 from pathlib import Path
-from typing import Any, Callable
+from typing import Any
 
-DEFAULT_EXPERIMENT_FOLDER = "/Users/krzysztof.mierzejewski@relativity.com/DSAS-2836/SimpleMode/"
-SCHEMA_VERSION = 2
+DEFAULT_EXPERIMENT_FOLDER = (
+    "/Users/krzysztof.mierzejewski@relativity.com/DSAS-2836/SimpleMode/"
+)
+SCHEMA_VERSION = 3
 CHECKPOINT_KIND = "mlflow_snapshot_export"
 DEFAULT_TRACE_FETCH_CONCURRENCY = 10
 logger = logging.getLogger(__name__)
@@ -42,6 +47,7 @@ class _AuthenticationRecoveryRequired(RuntimeError):
 
 class _TraceRequestRetryExhausted(RuntimeError):
     """Signal that bounded retries could not complete an MLflow request."""
+
 
 _EXPERIMENT_COLUMNS = ["experiment_id", "experiment_name", "lifecycle_stage"]
 _RUN_COLUMNS = [
@@ -93,6 +99,46 @@ _TRACE_FAILURE_COLUMNS = [
     "required_tool_multiset",
     "actual_tool_multiset",
 ]
+_TRACE_INVOCATION_COLUMNS = [
+    "experiment_id",
+    "run_id",
+    "trace_id",
+    "trace_status",
+    "rubric_key",
+    "question",
+    "use_case",
+    "dataset_id",
+    "evalset_variant",
+    "row_id",
+    "rubric_index",
+    "variant_index",
+    "rubric_file_path",
+    "criteria_parse_status",
+]
+_TRACE_CRITERIA_COLUMNS = [
+    "experiment_id",
+    "run_id",
+    "trace_id",
+    "rubric_file_path",
+    "expectation_name",
+    "material",
+    "state",
+]
+_RUN_RUBRIC_COLUMNS = [
+    "experiment_id",
+    "run_id",
+    "rubric_index",
+    "variant_index",
+    "rubric_name",
+    "rubric_file_path",
+    "dataset_id",
+    "use_case",
+    "question",
+    "input_variant_count",
+    "author",
+    "artifact_sha256",
+    "artifact_status",
+]
 _RETRIEVAL_COLUMNS = [
     "experiment_id",
     "run_id",
@@ -136,11 +182,19 @@ _PRIVACY_EXCLUSIONS = [
     "retrieval_xml",
     "scorer_rationales",
 ]
+_PRIVACY_INCLUSIONS = [
+    "rubric_question_text",
+    "rubric_identity_metadata",
+    "criterion_state_without_rationale",
+]
 _SNAPSHOT_PARQUET_FILES = (
     "experiments.parquet",
     "runs.parquet",
     "run_metrics.parquet",
     "trace_quality.parquet",
+    "trace_invocations.parquet",
+    "trace_criteria.parquet",
+    "run_rubrics.parquet",
     "trace_failures.parquet",
     "trace_retrieval.parquet",
     "span_timings.parquet",
@@ -170,7 +224,9 @@ class SnapshotSelector:
     def __post_init__(self) -> None:
         """Validate mutually exclusive selection arguments."""
         if self.experiment_prefix and self.experiment_folder:
-            raise ValueError("experiment_prefix and experiment_folder are mutually exclusive.")
+            raise ValueError(
+                "experiment_prefix and experiment_folder are mutually exclusive."
+            )
         if self.direct_children and not self.experiment_folder:
             raise ValueError("direct_children requires experiment_folder.")
 
@@ -304,7 +360,9 @@ def export_snapshot(
         all_runs=all_runs,
     )
     planned_run_ids = [run_id for _, _, run_id in planned_runs]
-    completed_run_ids = set(checkpoint.get("discovery", {}).get("completed_run_ids", []))
+    completed_run_ids = set(
+        checkpoint.get("discovery", {}).get("completed_run_ids", [])
+    )
     failed_run_ids = list(checkpoint.get("discovery", {}).get("failed_run_ids", []))
 
     # Drop completed shards for runs no longer in the remote selection.
@@ -350,7 +408,9 @@ def export_snapshot(
                 run=run,
                 trace_fetch_concurrency=trace_fetch_concurrency,
             )
-            if run_id in completed_run_ids and _run_shard_is_committed(checkpoint_dir, run_id):
+            if run_id in completed_run_ids and _run_shard_is_committed(
+                checkpoint_dir, run_id
+            ):
                 local_fingerprint = _read_run_fingerprint(checkpoint_dir, run_id)
                 if local_fingerprint is not None and _fingerprints_match(
                     local_fingerprint, remote_fingerprint
@@ -468,13 +528,25 @@ def analyze_snapshot(*, snapshot_dir: Path, selector: SnapshotSelector) -> Path:
     metrics = pandas.read_parquet(snapshot_dir / "run_metrics.parquet")
     quality = pandas.read_parquet(snapshot_dir / "trace_quality.parquet")
     failures = pandas.read_parquet(snapshot_dir / "trace_failures.parquet")
+    invocations = pandas.read_parquet(snapshot_dir / "trace_invocations.parquet")
+    criteria = pandas.read_parquet(snapshot_dir / "trace_criteria.parquet")
+    run_rubrics = pandas.read_parquet(snapshot_dir / "run_rubrics.parquet")
     retrieval = pandas.read_parquet(snapshot_dir / "trace_retrieval.parquet")
 
     runs = runs[runs["experiment_id"].astype(str).isin(selected_ids)].copy()
     metrics = metrics[metrics["experiment_id"].astype(str).isin(selected_ids)].copy()
     quality = quality[quality["experiment_id"].astype(str).isin(selected_ids)].copy()
     failures = failures[failures["experiment_id"].astype(str).isin(selected_ids)].copy()
-    retrieval = retrieval[retrieval["experiment_id"].astype(str).isin(selected_ids)].copy()
+    invocations = invocations[
+        invocations["experiment_id"].astype(str).isin(selected_ids)
+    ].copy()
+    criteria = criteria[criteria["experiment_id"].astype(str).isin(selected_ids)].copy()
+    run_rubrics = run_rubrics[
+        run_rubrics["experiment_id"].astype(str).isin(selected_ids)
+    ].copy()
+    retrieval = retrieval[
+        retrieval["experiment_id"].astype(str).isin(selected_ids)
+    ].copy()
 
     run_summary = _build_run_summary(pandas, runs, metrics, quality, retrieval)
     pareto = _build_pareto_candidates(pandas, run_summary)
@@ -484,6 +556,9 @@ def analyze_snapshot(*, snapshot_dir: Path, selector: SnapshotSelector) -> Path:
     pareto.to_csv(analysis_dir / "pareto_candidates.csv", index=False)
     grade_distribution.to_csv(analysis_dir / "grade_distribution.csv", index=False)
     failures.to_csv(analysis_dir / "plan_validation_failures.csv", index=False)
+    invocations.to_csv(analysis_dir / "trace_invocations.csv", index=False)
+    criteria.to_csv(analysis_dir / "trace_criteria.csv", index=False)
+    run_rubrics.to_csv(analysis_dir / "run_rubrics.csv", index=False)
 
     summary = {
         "schema_version": SCHEMA_VERSION,
@@ -491,6 +566,7 @@ def analyze_snapshot(*, snapshot_dir: Path, selector: SnapshotSelector) -> Path:
         "selected_experiment_count": len(selected_experiments),
         "selected_run_count": len(runs),
         "plan_validation_failure_count": len(failures),
+        "rubric_invocation_count": len(invocations),
         "pareto_candidate_count": len(pareto),
         "time_of_day_caveat": (
             "Latency is retained with UTC start times. Do not attribute small "
@@ -544,7 +620,9 @@ def _resolve_checkpoint_session(
     if checkpoint_epoch is not None:
         checkpoint_dir = output_dir / f"checkpoint-{checkpoint_epoch}"
         if not checkpoint_dir.is_dir():
-            raise ValueError(f"Checkpoint epoch {checkpoint_epoch} not found under {output_dir}.")
+            raise ValueError(
+                f"Checkpoint epoch {checkpoint_epoch} not found under {output_dir}."
+            )
         checkpoint = _read_checkpoint(checkpoint_dir)
         if not _cli_identity_matches(checkpoint.get("cli_identity", {}), cli_identity):
             raise ValueError(
@@ -567,7 +645,9 @@ def _resolve_checkpoint_session(
     return matching
 
 
-def _create_checkpoint_session(output_dir: Path, cli_identity: dict[str, object]) -> Path:
+def _create_checkpoint_session(
+    output_dir: Path, cli_identity: dict[str, object]
+) -> Path:
     """Create a new checkpoint directory and process metadata file."""
     epoch = int(time.time())
     while True:
@@ -646,7 +726,7 @@ def _read_checkpoint(checkpoint_dir: Path) -> dict[str, Any]:
     path = checkpoint_dir / "checkpoint.json"
     payload = json.loads(path.read_text(encoding="utf-8"))
     if not isinstance(payload, dict):
-        raise ValueError(f"Invalid checkpoint metadata at {path}.")
+        raise TypeError(f"Invalid checkpoint metadata at {path}.")
     return payload
 
 
@@ -679,7 +759,9 @@ def _discover_planned_runs(
     for experiment in experiments:
         runs = [
             run
-            for run in client.search_runs([experiment.experiment_id], max_results=10_000)
+            for run in client.search_runs(
+                [experiment.experiment_id], max_results=10_000
+            )
             if str(run.info.status) == "FINISHED"
         ]
         if not all_runs and runs:
@@ -722,18 +804,27 @@ def _export_single_run(
     )
     quality_rows: list[dict[str, object]] = []
     failure_rows: list[dict[str, object]] = []
+    invocation_rows: list[dict[str, object]] = []
+    criteria_rows: list[dict[str, object]] = []
     retrieval_rows: list[dict[str, object]] = []
     timing_rows: list[dict[str, object]] = []
     for trace in traces:
-        quality, failures, retrieval, timings = _sanitize_trace(
+        quality, failures, invocations, criteria, retrieval, timings = _sanitize_trace(
             experiment_id=experiment_id,
             run_id=run_id,
             trace=trace,
         )
         quality_rows.extend(quality)
         failure_rows.extend(failures)
+        invocation_rows.extend(invocations)
+        criteria_rows.extend(criteria)
         retrieval_rows.extend(retrieval)
         timing_rows.extend(timings)
+    run_rubric_rows = _download_run_rubrics(
+        client=active_client,
+        experiment_id=experiment_id,
+        run_id=run_id,
+    )
 
     tmp_dir = checkpoint_dir / f".tmp-{run_id}-{os.getpid()}"
     if tmp_dir.exists():
@@ -747,6 +838,9 @@ def _export_single_run(
             "metric_rows": metric_rows,
             "quality_rows": quality_rows,
             "failure_rows": failure_rows,
+            "invocation_rows": invocation_rows,
+            "criteria_rows": criteria_rows,
+            "run_rubric_rows": run_rubric_rows,
             "retrieval_rows": retrieval_rows,
             "timing_rows": timing_rows,
         }
@@ -924,10 +1018,9 @@ def _sanitized_assessment_metadata(metadata: dict[str, Any]) -> dict[str, Any]:
 
 def _fingerprints_match(local: dict[str, Any], remote: dict[str, Any]) -> bool:
     """Return whether local and remote metadata fingerprints agree."""
-    return (
-        local.get("run_digest") == remote.get("run_digest")
-        and local.get("trace_set_digest") == remote.get("trace_set_digest")
-    )
+    return local.get("run_digest") == remote.get("run_digest") and local.get(
+        "trace_set_digest"
+    ) == remote.get("trace_set_digest")
 
 
 def _read_run_fingerprint(checkpoint_dir: Path, run_id: str) -> dict[str, Any] | None:
@@ -972,7 +1065,7 @@ def _read_run_payload(checkpoint_dir: Path, run_id: str) -> dict[str, Any]:
             f"Failed to read committed run payload for {run_id}: {exc}"
         ) from exc
     if not isinstance(payload, dict):
-        raise RuntimeError(f"Invalid payload structure for run {run_id}.")
+        raise TypeError(f"Invalid payload structure for run {run_id}.")
     return payload
 
 
@@ -986,14 +1079,15 @@ def _aggregate_and_publish(
     experiment_rows: list[dict[str, object]],
 ) -> None:
     """Aggregate committed shards into validated root snapshot artifacts."""
-    staging_dir = Path(
-        tempfile.mkdtemp(prefix=".final-staging-", dir=str(output_dir))
-    )
+    staging_dir = Path(tempfile.mkdtemp(prefix=".final-staging-", dir=str(output_dir)))
     try:
         run_rows: list[dict[str, object]] = []
         metric_rows: list[dict[str, object]] = []
         quality_rows: list[dict[str, object]] = []
         failure_rows: list[dict[str, object]] = []
+        invocation_rows: list[dict[str, object]] = []
+        criteria_rows: list[dict[str, object]] = []
+        run_rubric_rows: list[dict[str, object]] = []
         retrieval_rows: list[dict[str, object]] = []
         timing_rows: list[dict[str, object]] = []
 
@@ -1006,6 +1100,9 @@ def _aggregate_and_publish(
             metric_rows.extend(payload["metric_rows"])
             quality_rows.extend(payload["quality_rows"])
             failure_rows.extend(payload["failure_rows"])
+            invocation_rows.extend(payload["invocation_rows"])
+            criteria_rows.extend(payload["criteria_rows"])
+            run_rubric_rows.extend(payload["run_rubric_rows"])
             retrieval_rows.extend(payload["retrieval_rows"])
             timing_rows.extend(payload["timing_rows"])
 
@@ -1026,6 +1123,24 @@ def _aggregate_and_publish(
             staging_dir / "trace_quality.parquet",
             quality_rows,
             _TRACE_QUALITY_COLUMNS,
+        )
+        _write_parquet(
+            pandas,
+            staging_dir / "trace_invocations.parquet",
+            invocation_rows,
+            _TRACE_INVOCATION_COLUMNS,
+        )
+        _write_parquet(
+            pandas,
+            staging_dir / "trace_criteria.parquet",
+            criteria_rows,
+            _TRACE_CRITERIA_COLUMNS,
+        )
+        _write_parquet(
+            pandas,
+            staging_dir / "run_rubrics.parquet",
+            run_rubric_rows,
+            _RUN_RUBRIC_COLUMNS,
         )
         _write_parquet(
             pandas,
@@ -1068,6 +1183,7 @@ def _aggregate_and_publish(
             "run_count": len(planned_run_ids),
             "run_ids": planned_run_ids,
             "privacy_exclusions": _PRIVACY_EXCLUSIONS,
+            "privacy_inclusions": _PRIVACY_INCLUSIONS,
             "checkpoint_epoch": int(checkpoint_dir.name.removeprefix("checkpoint-")),
             "files": _file_manifest(output_dir),
         }
@@ -1219,12 +1335,14 @@ def _fetch_traces_bounded(
         try:
             page = _retry_trace_request(
                 operation=f"trace metadata page {page_number + 1} for run {run_id}",
-                request=lambda: active_client.search_traces(
-                    locations=[experiment_id],
-                    run_id=run_id,
-                    include_spans=False,
-                    max_results=trace_fetch_concurrency,
-                    page_token=page_token,
+                request=lambda active_client=active_client, page_token=page_token: (
+                    active_client.search_traces(
+                        locations=[experiment_id],
+                        run_id=run_id,
+                        include_spans=False,
+                        max_results=trace_fetch_concurrency,
+                        page_token=page_token,
+                    )
                 ),
                 sleep=sleep,
             )
@@ -1253,9 +1371,11 @@ def _fetch_traces_bounded(
             try:
                 page_traces = list(
                     executor.map(
-                        lambda trace_id: _retry_trace_request(
+                        lambda trace_id, page_client=page_client: _retry_trace_request(
                             operation=f"trace {trace_id} for run {run_id}",
-                            request=lambda: page_client.get_trace(trace_id, display=False),
+                            request=lambda page_client=page_client, trace_id=trace_id: (
+                                page_client.get_trace(trace_id, display=False)
+                            ),
                             sleep=sleep,
                         ),
                         trace_ids,
@@ -1355,7 +1475,9 @@ def _recover_interactive_authentication(
         recovery_cycle,
         _MAX_AUTH_RECOVERY_CYCLES,
     )
-    response = input_reader("Press Enter after successful Databricks login, or type 'q' to stop: ")
+    response = input_reader(
+        "Press Enter after successful Databricks login, or type 'q' to stop: "
+    )
     if response.strip().lower() in {"q", "quit", "stop"}:
         raise RuntimeError(
             f"Authentication recovery cancelled. Run `{command}` and resume the same export command."
@@ -1408,7 +1530,9 @@ def _is_authentication_error(error: Exception) -> bool:
 
 def _retry_delay_seconds(attempt: int) -> float:
     """Return capped exponential backoff with bounded jitter."""
-    base_delay = min(_RETRY_BASE_DELAY_SECONDS * (2 ** (attempt - 1)), _RETRY_MAX_DELAY_SECONDS)
+    base_delay = min(
+        _RETRY_BASE_DELAY_SECONDS * (2 ** (attempt - 1)), _RETRY_MAX_DELAY_SECONDS
+    )
     return base_delay + random.uniform(0.0, base_delay * 0.2)
 
 
@@ -1488,12 +1612,32 @@ def _sanitize_trace(
     list[dict[str, object]],
     list[dict[str, object]],
     list[dict[str, object]],
+    list[dict[str, object]],
+    list[dict[str, object]],
 ]:
-    """Return privacy-reduced assessment, failure, retrieval, and timing rows."""
+    """Return privacy-reduced assessment, identity, criteria, failure, retrieval, and timing rows."""
     info = trace.info
     trace_id = str(info.trace_id)
     trace_attributes = _as_mapping(getattr(info, "attributes", {}))
+    spans = list(getattr(trace.data, "spans", []) or [])
+    invocation_span = next(
+        (
+            span
+            for span in spans
+            if str(getattr(span, "name", "")).startswith("invoke_")
+        ),
+        None,
+    )
+    invocation_attributes = _as_mapping(
+        getattr(invocation_span, "attributes", {}) if invocation_span else {}
+    )
+    identity = {
+        key: _identity_value(invocation_attributes.get(key, trace_attributes.get(key)))
+        for key in ("use_case", "dataset_id", "evalset_variant", "row_id")
+    }
+    rubric_file_path: str | None = None
     quality_rows: list[dict[str, object]] = []
+    criteria_rows: list[dict[str, object]] = []
     ordinal_grade: str | None = None
     detected_error_modes = "[]"
 
@@ -1504,6 +1648,10 @@ def _sanitize_trace(
         if name == "ordinal_grade":
             ordinal_grade = str(value) if value is not None else None
         if name == "RubricV2":
+            rubric_file_path = _identity_value(metadata.get("file_path"))
+            for key, identity_value in identity.items():
+                if identity_value is None:
+                    identity[key] = _identity_value(metadata.get(key))
             modes = metadata.get("detected_error_modes", [])
             detected_error_modes = json.dumps(
                 [
@@ -1516,6 +1664,13 @@ def _sanitize_trace(
                 ],
                 sort_keys=True,
             )
+            criteria_rows = _sanitize_rubric_criteria(
+                experiment_id=experiment_id,
+                run_id=run_id,
+                trace_id=trace_id,
+                rubric_file_path=rubric_file_path,
+                rationale=getattr(assessment, "rationale", None),
+            )
         quality_rows.append(
             {
                 "experiment_id": experiment_id,
@@ -1523,10 +1678,10 @@ def _sanitize_trace(
                 "trace_id": trace_id,
                 "trace_status": str(getattr(info, "status", "")),
                 "execution_time_ms": getattr(info, "execution_duration", None),
-                "use_case": trace_attributes.get("use_case"),
-                "dataset_id": trace_attributes.get("dataset_id"),
-                "evalset_variant": trace_attributes.get("evalset_variant"),
-                "row_id": trace_attributes.get("row_id"),
+                "use_case": identity["use_case"],
+                "dataset_id": identity["dataset_id"],
+                "evalset_variant": identity["evalset_variant"],
+                "row_id": identity["row_id"],
                 "assessment_name": name,
                 "assessment_value": value,
                 "ordinal_grade": None,
@@ -1538,10 +1693,33 @@ def _sanitize_trace(
         row["ordinal_grade"] = ordinal_grade
         row["detected_error_modes"] = detected_error_modes
 
+    invocation_rows: list[dict[str, object]] = []
+    if invocation_span is not None:
+        rubric_key = str(getattr(invocation_span, "name", ""))
+        rubric_index, variant_index = _parse_rubric_span_indices(rubric_key)
+        invocation_rows.append(
+            {
+                "experiment_id": experiment_id,
+                "run_id": run_id,
+                "trace_id": trace_id,
+                "trace_status": str(getattr(info, "status", "")),
+                "rubric_key": rubric_key,
+                "question": _extract_question(getattr(invocation_span, "inputs", None)),
+                "use_case": identity["use_case"],
+                "dataset_id": identity["dataset_id"],
+                "evalset_variant": identity["evalset_variant"],
+                "row_id": identity["row_id"],
+                "rubric_index": rubric_index,
+                "variant_index": variant_index,
+                "rubric_file_path": rubric_file_path,
+                "criteria_parse_status": ("parsed" if criteria_rows else "unavailable"),
+            }
+        )
+
     retrieval_rows: list[dict[str, object]] = []
     failure_rows: list[dict[str, object]] = []
     timing_rows: list[dict[str, object]] = []
-    for span in getattr(trace.data, "spans", []) or []:
+    for span in spans:
         attributes = _as_mapping(getattr(span, "attributes", {}))
         operation = attributes.get("simple.operation")
         plan_failure = attributes.get("simple.retrieval_plan_failure")
@@ -1577,7 +1755,9 @@ def _sanitize_trace(
                 "llm_successful_attempt_count": attributes.get(
                     "llm.successful_attempt_count"
                 ),
-                "es_success_duration_ms": attributes.get("simple.es_success_duration_ms"),
+                "es_success_duration_ms": attributes.get(
+                    "simple.es_success_duration_ms"
+                ),
                 "es_success_attempt_count": attributes.get(
                     "simple.es_success_attempt_count"
                 ),
@@ -1586,10 +1766,14 @@ def _sanitize_trace(
                 ),
             }
         )
-        if operation in {
-            "simple.retrieval_generic",
-            "simple.retrieval_metadata_filter",
-        } or "simple.actual_retrieval_calls" in attributes:
+        if (
+            operation
+            in {
+                "simple.retrieval_generic",
+                "simple.retrieval_metadata_filter",
+            }
+            or "simple.actual_retrieval_calls" in attributes
+        ):
             retrieval_rows.append(
                 {
                     "experiment_id": experiment_id,
@@ -1631,7 +1815,186 @@ def _sanitize_trace(
                     "ranked_chunk_ids": _ranked_chunk_ids(span),
                 }
             )
-    return quality_rows, failure_rows, retrieval_rows, timing_rows
+    return (
+        quality_rows,
+        failure_rows,
+        invocation_rows,
+        criteria_rows,
+        retrieval_rows,
+        timing_rows,
+    )
+
+
+def _identity_value(value: object) -> str | None:
+    """Return a scalar or JSON-encoded identity value suitable for Parquet."""
+    if value is None:
+        return None
+    if isinstance(value, str):
+        return value or None
+    if isinstance(value, list):
+        return json.dumps(value, sort_keys=True)
+    return str(value)
+
+
+def _parse_rubric_span_indices(rubric_key: str) -> tuple[int | None, int | None]:
+    """Extract rubric and variant positions from an ``invoke_*`` span name."""
+    match = re.fullmatch(r"invoke_.+?_(\d+)(?:_v(\d+))?", rubric_key)
+    if match is None:
+        return None, None
+    return int(match.group(1)), int(match.group(2) or 0)
+
+
+def _extract_question(value: object) -> str | None:
+    """Extract the first user message text from a rubric invocation payload."""
+    if isinstance(value, str):
+        try:
+            value = json.loads(value)
+        except json.JSONDecodeError:
+            return value
+    if not isinstance(value, dict):
+        return None
+    messages = value.get("messages")
+    if not isinstance(messages, list):
+        return None
+    for message in messages:
+        if not isinstance(message, dict) or message.get("role") != "user":
+            continue
+        content = message.get("content")
+        return content if isinstance(content, str) else None
+    return None
+
+
+def _sanitize_rubric_criteria(
+    *,
+    experiment_id: str,
+    run_id: str,
+    trace_id: str,
+    rubric_file_path: str | None,
+    rationale: object,
+) -> list[dict[str, object]]:
+    """Extract criterion states while discarding all scorer rationale text."""
+    if not isinstance(rationale, str):
+        return []
+    rows: list[dict[str, object]] = []
+    pattern = re.compile(
+        r"^\|\s*(?P<material>[✓○])\s*\|\s*\*\*(?P<name>.+?)\*\*\s*\|"
+        r".*\|\s*(?P<state>✅ PASS|❌ FAIL|❓ UNDETERMINED)\s*\|$"
+    )
+    state_map = {
+        "✅ PASS": "PASS",
+        "❌ FAIL": "FAIL",
+        "❓ UNDETERMINED": "UNDETERMINED",
+    }
+    for line in rationale.splitlines():
+        if (match := pattern.fullmatch(line.strip())) is None:
+            continue
+        rows.append(
+            {
+                "experiment_id": experiment_id,
+                "run_id": run_id,
+                "trace_id": trace_id,
+                "rubric_file_path": rubric_file_path,
+                "expectation_name": match.group("name"),
+                "material": match.group("material") == "✓",
+                "state": state_map[match.group("state")],
+            }
+        )
+    return rows
+
+
+def _download_run_rubrics(
+    *,
+    client: Any,
+    experiment_id: str,
+    run_id: str,
+) -> list[dict[str, object]]:
+    """Download and sanitize a run's logged ``rubrics.json`` artifact."""
+    with tempfile.TemporaryDirectory() as directory:
+        try:
+            artifact_path = Path(
+                client.download_artifacts(run_id, "rubrics.json", directory)
+            )
+            payload = json.loads(artifact_path.read_text(encoding="utf-8"))
+        except Exception as exc:  # noqa: BLE001 - MLflow artifact clients raise varied remote errors.
+            logger.warning(
+                "Unable to download rubrics.json for run %s: %s",
+                run_id,
+                _safe_exception_summary(exc),
+            )
+            return [
+                {
+                    "experiment_id": experiment_id,
+                    "run_id": run_id,
+                    "rubric_index": None,
+                    "variant_index": None,
+                    "rubric_name": None,
+                    "rubric_file_path": None,
+                    "dataset_id": None,
+                    "use_case": None,
+                    "question": None,
+                    "input_variant_count": None,
+                    "author": None,
+                    "artifact_sha256": None,
+                    "artifact_status": "missing",
+                }
+            ]
+        artifact_hash = hashlib.sha256(artifact_path.read_bytes()).hexdigest()
+    rows = _table_rows(payload)
+    sanitized_rows: list[dict[str, object]] = []
+    for index, row in enumerate(rows):
+        questions = _extract_questions_from_inputs(row.get("inputs"))
+        for variant_index, question in enumerate(questions or [None]):
+            sanitized_rows.append(
+                {
+                    "experiment_id": experiment_id,
+                    "run_id": run_id,
+                    "rubric_index": index,
+                    "variant_index": variant_index,
+                    "rubric_name": row.get("name"),
+                    "rubric_file_path": row.get("full_path"),
+                    "dataset_id": _identity_value(row.get("dataset")),
+                    "use_case": _identity_value(row.get("use_case")),
+                    "question": question,
+                    "input_variant_count": _to_int(row.get("# input variants")),
+                    "author": _identity_value(row.get("author")),
+                    "artifact_sha256": artifact_hash,
+                    "artifact_status": "ok",
+                }
+            )
+    return sanitized_rows
+
+
+def _table_rows(payload: object) -> list[dict[str, object]]:
+    """Normalize MLflow JSON table payloads to record dictionaries."""
+    if isinstance(payload, list):
+        return [item for item in payload if isinstance(item, dict)]
+    if not isinstance(payload, dict):
+        return []
+    data = payload.get("data")
+    columns = payload.get("columns")
+    if isinstance(data, list) and isinstance(columns, list):
+        return [
+            {
+                str(column): row[index]
+                for index, column in enumerate(columns)
+                if index < len(row)
+            }
+            for row in data
+            if isinstance(row, list)
+        ]
+    return []
+
+
+def _extract_questions_from_inputs(value: object) -> list[str]:
+    """Extract questions from every logged rubric input variant."""
+    if not isinstance(value, list):
+        return []
+    questions: list[str] = []
+    for item in value:
+        question = _extract_question(item)
+        if question is not None:
+            questions.append(question)
+    return questions
 
 
 def _write_parquet(
@@ -1728,7 +2091,9 @@ def _validate_snapshot(snapshot_dir: Path) -> None:
         *_SNAPSHOT_PARQUET_FILES,
     }
     missing = sorted(
-        filename for filename in required_files if not (snapshot_dir / filename).exists()
+        filename
+        for filename in required_files
+        if not (snapshot_dir / filename).exists()
     )
     if missing:
         raise ValueError(f"Snapshot is missing required files: {', '.join(missing)}")
@@ -1750,7 +2115,10 @@ def _build_run_summary(
     ).reset_index()
     grades = quality[quality["assessment_name"] == "ordinal_grade"].copy()
     grade_counts = (
-        grades.groupby(["run_id", "ordinal_grade"]).size().unstack(fill_value=0).reset_index()
+        grades.groupby(["run_id", "ordinal_grade"])
+        .size()
+        .unstack(fill_value=0)
+        .reset_index()
     )
     retrieval_summary = (
         retrieval.groupby("run_id")
@@ -1819,6 +2187,7 @@ def _render_summary_markdown(summary: dict[str, object], pareto: Any) -> str:
         f"- Selected experiments: {summary['selected_experiment_count']}",
         f"- Selected runs: {summary['selected_run_count']}",
         f"- Simple retrieval plan-validation failures: {summary['plan_validation_failure_count']}",
+        f"- Rubric invocations: {summary['rubric_invocation_count']}",
         f"- Pareto candidates: {summary['pareto_candidate_count']}",
         f"- Latency caveat: {summary['time_of_day_caveat']}",
         "",
@@ -1826,7 +2195,9 @@ def _render_summary_markdown(summary: dict[str, object], pareto: Any) -> str:
         "",
     ]
     if pareto.empty:
-        lines.append("No comparable runs with both quality and p50 latency metrics were found.")
+        lines.append(
+            "No comparable runs with both quality and p50 latency metrics were found."
+        )
     else:
         lines.append(_markdown_table(pareto))
     return "\n".join(lines) + "\n"
@@ -1856,10 +2227,7 @@ def _markdown_table(dataframe: Any) -> str:
 
 def _is_missing(value: object) -> bool:
     """Return whether a scalar is pandas/IEEE missing."""
-    try:
-        return bool(value != value)
-    except (TypeError, ValueError):
-        return False
+    return isinstance(value, float) and math.isnan(value)
 
 
 def _as_mapping(value: object) -> dict[str, Any]:

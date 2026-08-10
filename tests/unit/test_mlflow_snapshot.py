@@ -1,5 +1,6 @@
 """Unit tests for the MLflow snapshot lossless checkpoint and assessment encoding."""
 
+import json
 from pathlib import Path
 from types import SimpleNamespace
 
@@ -7,15 +8,16 @@ import pandas as pd
 import pytest
 
 from es_index_explorer.mlflow_analysis.snapshot import (
+    _atomic_write_pickle,
     _AuthenticationRecoveryRequired,
+    _download_run_rubrics,
     _encode_quality_row,
     _fetch_traces_bounded,
     _markdown_table,
-    _recover_interactive_authentication,
     _read_run_payload,
+    _recover_interactive_authentication,
     _retry_trace_request,
     _sanitize_trace,
-    _atomic_write_pickle,
     decode_quality_value,
 )
 
@@ -102,7 +104,10 @@ def test_encode_quality_row_rejects_unsupported_types() -> None:
 
 def test_round_trip_quality_rows_through_parquet(tmp_path: Path) -> None:
     """Encoded quality rows survive a single Parquet round-trip."""
-    from es_index_explorer.mlflow_analysis.snapshot import _write_parquet, _TRACE_QUALITY_COLUMNS
+    from es_index_explorer.mlflow_analysis.snapshot import (
+        _TRACE_QUALITY_COLUMNS,
+        _write_parquet,
+    )
 
     rows = [
         _encode_quality_row(
@@ -167,7 +172,7 @@ def test_round_trip_quality_rows_through_parquet(tmp_path: Path) -> None:
 def test_run_payload_round_trip_preserves_object_types(tmp_path: Path) -> None:
     """Checkpoint pickle round-trip preserves list/dict/string/bool/numeric values."""
     payload = {
-        "schema_version": 2,
+        "schema_version": 3,
         "run_id": "run-1",
         "run_row": {
             "experiment_id": "exp-1",
@@ -189,7 +194,12 @@ def test_run_payload_round_trip_preserves_object_types(tmp_path: Path) -> None:
             "invocation_concurrency": 1,
         },
         "metric_rows": [
-            {"experiment_id": "exp-1", "run_id": "run-1", "metric_key": "x", "metric_value": 1.5}
+            {
+                "experiment_id": "exp-1",
+                "run_id": "run-1",
+                "metric_key": "x",
+                "metric_value": 1.5,
+            }
         ],
         "quality_rows": [
             {
@@ -232,6 +242,9 @@ def test_run_payload_round_trip_preserves_object_types(tmp_path: Path) -> None:
             }
         ],
         "failure_rows": [],
+        "invocation_rows": [],
+        "criteria_rows": [],
+        "run_rubric_rows": [],
         "timing_rows": [
             {
                 "experiment_id": "exp-1",
@@ -295,13 +308,15 @@ def test_sanitize_trace_exports_simple_plan_validation_failure() -> None:
         ),
     )
 
-    quality, failures, retrieval, timings = _sanitize_trace(
+    quality, failures, invocations, criteria, retrieval, timings = _sanitize_trace(
         experiment_id="experiment-1",
         run_id="run-1",
         trace=trace,
     )
 
     assert quality == []
+    assert invocations == []
+    assert criteria == []
     assert retrieval == []
     assert len(timings) == 1
     assert failures == [
@@ -316,6 +331,173 @@ def test_sanitize_trace_exports_simple_plan_validation_failure() -> None:
             "actual_tool_multiset": '{"get_relevant_documents_dense": 1}',
         }
     ]
+
+
+def test_sanitize_trace_exports_invocation_identity_and_criterion_states() -> None:
+    """Root span identity and scorer states are retained without rationale text."""
+    trace = SimpleNamespace(
+        info=SimpleNamespace(
+            trace_id="trace-1",
+            status="OK",
+            execution_duration=100,
+            assessments=[
+                SimpleNamespace(
+                    name="RubricV2",
+                    value=0.5,
+                    metadata={
+                        "file_path": "/tmp/rubric_data/air_assist/test.rubric.toml",
+                        "dataset_id": "emc2_set1",
+                        "use_case": ["communications_analysis"],
+                    },
+                    rationale=(
+                        "| ✓ | **expectation_one** | private rationale | ✅ PASS |\n"
+                        "| ○ | **expectation_two** | private rationale | ❌ FAIL |"
+                    ),
+                ),
+                SimpleNamespace(
+                    name="ordinal_grade",
+                    value="Partial",
+                    metadata={},
+                    rationale=None,
+                ),
+            ],
+            attributes={},
+        ),
+        data=SimpleNamespace(
+            spans=[
+                SimpleNamespace(
+                    name="invoke_communications_analysis_2_v1",
+                    span_type="UNKNOWN",
+                    start_time_ns=1,
+                    end_time_ns=2,
+                    inputs={
+                        "messages": [
+                            {"role": "user", "content": "What happened?"},
+                        ]
+                    },
+                    attributes={
+                        "use_case": "communications_analysis",
+                        "dataset_id": "emc2_set1",
+                        "evalset_variant": "v1",
+                        "row_id": "row-2",
+                    },
+                )
+            ]
+        ),
+    )
+
+    quality, failures, invocations, criteria, retrieval, timings = _sanitize_trace(
+        experiment_id="experiment-1",
+        run_id="run-1",
+        trace=trace,
+    )
+
+    assert failures == []
+    assert retrieval == []
+    assert len(timings) == 1
+    assert quality[0]["use_case"] == "communications_analysis"
+    assert invocations == [
+        {
+            "experiment_id": "experiment-1",
+            "run_id": "run-1",
+            "trace_id": "trace-1",
+            "trace_status": "OK",
+            "rubric_key": "invoke_communications_analysis_2_v1",
+            "question": "What happened?",
+            "use_case": "communications_analysis",
+            "dataset_id": "emc2_set1",
+            "evalset_variant": "v1",
+            "row_id": "row-2",
+            "rubric_index": 2,
+            "variant_index": 1,
+            "rubric_file_path": "/tmp/rubric_data/air_assist/test.rubric.toml",
+            "criteria_parse_status": "parsed",
+        }
+    ]
+    assert criteria == [
+        {
+            "experiment_id": "experiment-1",
+            "run_id": "run-1",
+            "trace_id": "trace-1",
+            "rubric_file_path": "/tmp/rubric_data/air_assist/test.rubric.toml",
+            "expectation_name": "expectation_one",
+            "material": True,
+            "state": "PASS",
+        },
+        {
+            "experiment_id": "experiment-1",
+            "run_id": "run-1",
+            "trace_id": "trace-1",
+            "rubric_file_path": "/tmp/rubric_data/air_assist/test.rubric.toml",
+            "expectation_name": "expectation_two",
+            "material": False,
+            "state": "FAIL",
+        },
+    ]
+
+
+def test_download_run_rubrics_sanitizes_questions_and_artifact_identity(
+    tmp_path: Path,
+) -> None:
+    """Run rubric artifacts retain question/identity fields but not raw inputs."""
+
+    class ArtifactClient:
+        """Write a representative MLflow table artifact to the requested directory."""
+
+        def download_artifacts(self, run_id: str, path: str, dst_path: str) -> str:
+            assert run_id == "run-1"
+            assert path == "rubrics.json"
+            artifact_path = Path(dst_path) / path
+            artifact_path.write_text(
+                json.dumps(
+                    {
+                        "columns": [
+                            "name",
+                            "dataset",
+                            "use_case",
+                            "inputs",
+                            "# input variants",
+                            "author",
+                            "full_path",
+                        ],
+                        "data": [
+                            [
+                                "test.rubric.toml",
+                                "emc2_set1",
+                                ["communications_analysis"],
+                                [
+                                    json.dumps(
+                                        {
+                                            "messages": [
+                                                {
+                                                    "role": "user",
+                                                    "content": "What happened?",
+                                                }
+                                            ]
+                                        }
+                                    )
+                                ],
+                                1,
+                                "author",
+                                "/tmp/rubric_data/air_assist/test.rubric.toml",
+                            ]
+                        ],
+                    }
+                ),
+                encoding="utf-8",
+            )
+            return str(artifact_path)
+
+    rows = _download_run_rubrics(
+        client=ArtifactClient(),
+        experiment_id="experiment-1",
+        run_id="run-1",
+    )
+
+    assert rows[0]["question"] == "What happened?"
+    assert rows[0]["rubric_file_path"].endswith("test.rubric.toml")
+    assert rows[0]["artifact_status"] == "ok"
+    assert rows[0]["artifact_sha256"] is not None
 
 
 def test_missing_payload_raises_integrity_error(tmp_path: Path) -> None:
