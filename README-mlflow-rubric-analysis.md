@@ -75,24 +75,53 @@ UV_ENV_FILE= uv run mlflow_snapshot.py export \
 | `--output-dir PATH` | No | `artifacts/mlflow/snapshot-<UTC timestamp>` | Snapshot destination and checkpoint parent. Specify it explicitly whenever interruption/resume is possible. |
 | `--all-runs` | No | false | Export every finished run in each selected experiment. Without it, export only the latest finished run per selected experiment. |
 | `--trace-fetch-concurrency N` | No | `10` | Concurrent full-trace downloads. Allowed values are `1` through `10`. |
-| `--resume` / `--no-resume` | No | `--resume` | Resume the newest incomplete checkpoint with the same CLI identity, or always create a new checkpoint. |
-| `--fresh` | No | false | Ignore matching incomplete checkpoints and create a new checkpoint session. Cannot be combined with `--checkpoint-epoch`. |
-| `--checkpoint-epoch EPOCH` | No | none | Resume exactly `checkpoint-<EPOCH>` beneath `--output-dir`. Cannot be combined with `--fresh`. |
-| `--experiment-prefix PREFIX` | No | none | Select experiments whose full MLflow name starts with this literal prefix. Mutually exclusive with `--experiment-folder`. |
-| `--experiment-folder PATH` | No | `/Users/krzysztof.mierzejewski@relativity.com/DSAS-2836/SimpleMode/` | Select experiment names recursively below this MLflow folder. |
-| `--direct-children` | No | false | With `--experiment-folder`, select only immediate child experiments, not nested descendants. |
+| `--resume` / `--no-resume` | No | `--resume` | Resume the newest checkpoint matching this profile (including one already `completed`), regardless of which paths it was previously exported with, or always create a new checkpoint. |
+| `--fresh` | No | false | Ignore matching checkpoints and create a new checkpoint session. Cannot be combined with `--checkpoint-epoch`. |
+| `--checkpoint-epoch EPOCH` | No | none | Resume exactly `checkpoint-<EPOCH>` beneath `--output-dir`, even if already `completed`. Cannot be combined with `--fresh`. |
+| `--delete-checkpoint-after-publish` | No | false | Delete the entire checkpoint directory once this export finishes. Default is to retain it for a future incremental export. This is the only way to remove cached data. |
+| `--experiment-prefix PREFIX` | No | none | Select experiments whose full MLflow name starts with this literal prefix. Repeatable; unioned with every other `--experiment-prefix`/`--experiment-folder` given. |
+| `--experiment-folder PATH` | No | `/Users/krzysztof.mierzejewski@relativity.com/DSAS-2836/SimpleMode/` (only when neither flag is given) | Select experiment names recursively below this MLflow folder. Repeatable; unioned with every other `--experiment-prefix`/`--experiment-folder` given. |
+| `--direct-children` | No | false | Limit matching under every given `--experiment-folder` to immediate child experiments, not nested descendants. |
 
 ### Selection rules
 
-Exactly one of `--experiment-prefix` and `--experiment-folder` may be
-provided. If neither is provided, the default Simple Mode folder is selected
+`--experiment-prefix` and `--experiment-folder` may each be repeated, and both
+kinds may be combined in the same command. An experiment name is selected if
+it matches *any* of the given prefixes or folders (union/OR semantics). If
+neither flag is given at all, the default Simple Mode folder is selected
 recursively.
 
-`--direct-children` is valid only with `--experiment-folder`. It is useful
-when a folder contains nested experiment groups that should not be included.
+`--direct-children` requires at least one `--experiment-folder` and applies
+uniformly to all of them. It is useful when a folder contains nested
+experiment groups that should not be included.
 
 Only runs whose MLflow status is `FINISHED` are selected. Failed, running, or
 deleted runs are not exported by `export`.
+
+### Changing paths across exports
+
+Because the exporter's local cache is keyed only by `--profile` (not by the
+selector), you can freely change, narrow, widen, or add `--experiment-folder`/
+`--experiment-prefix` values between invocations against the same
+`--output-dir` without losing previously downloaded runs — see
+[Adding or updating runs later](#adding-or-updating-runs-later-incremental-re-export).
+For example, to add a sibling experiment folder discovered after your first
+export:
+
+```bash
+UV_ENV_FILE= uv run mlflow_snapshot.py export \
+  --profile applied-science \
+  --experiment-folder "experiments/A/" \
+  --experiment-folder "experiments/B/" \
+  --all-runs \
+  --output-dir "artifacts/mlflow/combined-a-and-b"
+```
+
+The **published** snapshot always reflects exactly the paths given in the
+*most recent* invocation — if you later re-run with only `--experiment-folder
+"experiments/A/"`, the published `runs.parquet`/etc. shrinks back down to just
+A, even though B's cached shards remain on disk, untouched, ready to be
+included again cheaply whenever you add that path back.
 
 ### New export versus resume
 
@@ -106,8 +135,9 @@ UV_ENV_FILE= uv run mlflow_snapshot.py export \
   --fresh
 ```
 
-If the command is interrupted, resume with the same selection, `--all-runs`,
-concurrency, profile, and output directory, but **without** `--fresh`:
+If the command is interrupted, resume with the same profile and output
+directory, but **without** `--fresh` (the selection, `--all-runs`, and
+concurrency may differ from the interrupted attempt if you want):
 
 ```bash
 UV_ENV_FILE= uv run mlflow_snapshot.py export \
@@ -131,7 +161,79 @@ UV_ENV_FILE= uv run mlflow_snapshot.py export \
 `--fresh` does not delete a completed snapshot already in the output
 directory. A successful new export atomically replaces the published snapshot
 files at that output path. Use a new `--output-dir` to preserve an older
-snapshot.
+snapshot. `--fresh` also does not delete any retained checkpoint from a prior
+session; it only ignores it and starts a new `checkpoint-<epoch>` alongside it.
+
+### Adding or updating runs later (incremental re-export)
+
+The checkpoint is retained after a successful publish by default, and it is
+keyed only by `--profile` — not by the selector. To add newly finished runs
+(for example, an experiment arm you finished running later, or a sibling
+folder you now also want included), pick up a metadata/status change on an
+existing run, or narrow back down to fewer paths, re-run `export` against the
+same `--output-dir` and `--profile` with whatever `--experiment-folder`/
+`--experiment-prefix` values you currently want:
+
+```bash
+UV_ENV_FILE= uv run mlflow_snapshot.py export \
+  --profile applied-science \
+  --experiment-folder "/Users/krzysztof.mierzejewski@relativity.com/DSAS-2836/SimpleMode/" \
+  --all-runs \
+  --output-dir "artifacts/mlflow/simplemode-all-runs-v3-rubrics"
+```
+
+This resumes the retained checkpoint (even though it is marked `completed`,
+and even if the selection differs from before) and, for every run matched by
+the *current* selection that is already cached, performs a single lightweight
+metadata-only fingerprint check instead of a full trace re-download. Only
+genuinely new or changed runs are downloaded. Runs cached from a previous,
+different selection but not matched this time are left untouched — never
+checked, never deleted; the cache only ever grows.
+
+`manifest.json`/parquet files are only re-aggregated and atomically replaced
+when the publish is actually needed: something was downloaded or invalidated
+this session, there is no valid previous `manifest.json` to compare against
+(including the very first export of an empty selection, which still publishes
+a valid empty snapshot rather than being skipped), or the current invocation's
+selected experiment IDs, run IDs, selector, or `--all-runs` differ from what
+was last published — a selector change alone (for example widening or
+narrowing `--experiment-folder`/`--experiment-prefix`) triggers a republish
+even when it happens to resolve to the exact same run IDs as before.
+`--trace-fetch-concurrency` is deliberately not compared: changing only the
+download parallelism between invocations does not by itself trigger a
+republish, since it does not affect the content of the published data.
+Otherwise the command logs that the snapshot is already up to date and leaves
+the published files untouched.
+
+Retaining the checkpoint keeps every run's shard payload downloaded so far on
+disk, even for paths not included in the most recent invocation, alongside the
+published parquet files — disk usage for that output directory only grows
+over time as you add more paths. Pass `--delete-checkpoint-after-publish` once
+you do not expect to add, refresh, or re-include any more runs for that
+`--output-dir`; it deletes the entire checkpoint (every cached shard for every
+path ever exported there), not just what is unselected this time:
+
+```bash
+UV_ENV_FILE= uv run mlflow_snapshot.py export \
+  --profile applied-science \
+  --experiment-folder "/Users/krzysztof.mierzejewski@relativity.com/DSAS-2836/SimpleMode/" \
+  --all-runs \
+  --output-dir "artifacts/mlflow/simplemode-all-runs-v3-rubrics" \
+  --delete-checkpoint-after-publish
+```
+
+### Migration note: checkpoint identity change
+
+The checkpoint's resume-matching identity is now just the Databricks profile
+(and its derived tracking URI) — it no longer includes the selector,
+`--all-runs`, or `--trace-fetch-concurrency`. A checkpoint created before this
+change stored a different identity shape and will not be recognized as a
+resume target afterward. The next `export` against that same `--output-dir`
+creates a brand-new checkpoint and does one full download for whatever paths
+you select; from then on, that new checkpoint is freely resumable and
+extensible across any future selector change, exactly as described above. The
+old checkpoint directory is not deleted automatically — it is simply no
+longer used. Remove it manually (`rm -rf`) if you want the disk space back.
 
 ## Export lifecycle, checkpoints, and resume
 
@@ -158,7 +260,7 @@ created under the output directory:
 | `in_progress` | Run discovery or run download is underway. | Reuses valid committed run shards and downloads missing runs. |
 | `interrupted` | The process received `Ctrl+C`. | Same as `in_progress`; committed shards remain valid candidates. |
 | `aggregating` | Every selected run has a committed shard and final Parquet publication is underway. | The next invocation verifies/reuses shards and completes publication. |
-| `completed` | Final snapshot was published. | Checkpoint is deleted after successful publication. Use a new output directory or `--fresh` for another export. |
+| `completed` | Final snapshot was published (or re-checked with no changes found). | Checkpoint is retained by default and is a valid resume target: the next matching export reuses every unchanged shard via a metadata-only fingerprint check and only re-publishes if something changed. Pass `--delete-checkpoint-after-publish` to remove it instead. |
 
 ### What is committed per run
 
@@ -193,9 +295,14 @@ shard is reused. If it differs, the exporter deletes only that run's shard,
 records the run ID in `invalidated_run_ids`, and downloads that one run again.
 Other committed runs remain reusable.
 
-If a formerly selected remote run is no longer selected (for example, it was
-deleted or is no longer `FINISHED`), its local run shard is removed from the
-checkpoint and omitted from the completed snapshot.
+This fingerprint check, and any resulting shard invalidation, only happens for
+runs matched by the *current* invocation's selector. A run cached from a
+previous, different selection that is not matched this time is left
+completely alone: not fingerprinted, not touched, not deleted — including
+when it was deleted or is no longer `FINISHED` remotely. It simply is not
+part of this invocation's published snapshot. Nothing is ever pruned from the
+cache automatically; `--delete-checkpoint-after-publish` (removing the entire
+checkpoint) is the only deletion mechanism.
 
 ### Integrity boundary
 
@@ -225,15 +332,16 @@ After every selected run has committed, the exporter aggregates shards into a
 temporary final-staging directory. It publishes each file into `--output-dir`
 with atomic replacement, then writes `manifest.json`.
 
-The temporary final-staging directory and completed checkpoint directory are
-deleted after a successful publish because their contents are now represented
-by checksum-recorded final artifacts.
+The temporary final-staging directory is always deleted after a successful
+publish. The checkpoint directory is retained by default (see
+[Adding or updating runs later](#adding-or-updating-runs-later-incremental-re-export))
+unless `--delete-checkpoint-after-publish` was passed.
 
 Schema v3 publishes:
 
 | Artifact | Contents |
 |---|---|
-| `manifest.json` | Schema version, export time, profile, selection, run IDs/counts, privacy policy, checkpoint epoch, and SHA-256/size for every Parquet file. |
+| `manifest.json` | Schema version, export time, profile, selector, `all_runs`, `trace_fetch_concurrency`, selected experiment IDs/count, run IDs/count, privacy policy, checkpoint epoch, and SHA-256/size for every Parquet file. Experiment IDs and run IDs (together with the selector and `all_runs`) are what a later export compares against to decide whether the published snapshot needs to change. |
 | `experiments.parquet` | Selected experiment IDs, names, and lifecycle stages. |
 | `runs.parquet` | Run status/timing and sanitized experiment configuration, including Simple Mode parameters. |
 | `run_metrics.parquet` | All run-level MLflow metric key/value rows. |
@@ -263,9 +371,9 @@ UV_ENV_FILE= uv run mlflow_snapshot.py analyze \
 | Parameter | Required | Default | Meaning |
 |---|---:|---|---|
 | `--snapshot PATH` | Yes | none | Completed schema v3 snapshot directory. |
-| `--experiment-prefix PREFIX` | No | none | Analyze local experiment names beginning with this prefix. Mutually exclusive with `--experiment-folder`. |
-| `--experiment-folder PATH` | No | default Simple Mode folder | Analyze local experiment names recursively below this path. |
-| `--direct-children` | No | false | Limit local folder selection to immediate child experiments. Requires `--experiment-folder`. |
+| `--experiment-prefix PREFIX` | No | none | Analyze local experiment names beginning with this prefix. Repeatable; may be combined with `--experiment-folder`. |
+| `--experiment-folder PATH` | No | default Simple Mode folder (only when neither flag is given) | Analyze local experiment names recursively below this path. Repeatable; may be combined with `--experiment-prefix`. |
+| `--direct-children` | No | false | Limit matching under every given `--experiment-folder` to immediate child experiments. |
 
 Generic analysis creates or replaces `<snapshot>/analysis/`:
 

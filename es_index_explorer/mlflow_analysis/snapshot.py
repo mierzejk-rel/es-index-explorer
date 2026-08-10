@@ -4,6 +4,13 @@ Exports are resumable. Each export session stores atomic per-run shards under
 ``checkpoint-{unix_epoch}/``. Each shard is a trusted-local Python-native payload
 so interruption/resume never changes the type or value of a sanitized row. Final
 root artifacts are published atomically after every planned run commits.
+
+Checkpoints are retained by default even after a successful publish, so a
+later export with the same identity can add or refresh runs cheaply: every
+already-committed run only needs a metadata-only fingerprint check, and final
+artifacts are only re-aggregated and replaced when something actually changed.
+Pass ``delete_checkpoint_after_publish=True`` (CLI: ``--delete-checkpoint-after-publish``)
+to remove the checkpoint once no further incremental exports are expected.
 """
 
 import hashlib
@@ -203,54 +210,63 @@ _SNAPSHOT_PARQUET_FILES = (
 
 @dataclass(frozen=True, slots=True)
 class SnapshotSelector:
-    """Select MLflow experiments by prefix or folder path.
+    """Select MLflow experiments by one or more prefixes and/or folder paths.
+
+    An experiment name matches this selector if it satisfies *any* of the
+    given prefixes or folders (union/OR semantics). Prefixes and folders may
+    be freely combined and repeated in the same selector.
 
     Parameters
     ----------
-    experiment_prefix
-        Literal MLflow experiment-name prefix. Mutually exclusive with
-        ``experiment_folder``.
-    experiment_folder
-        MLflow folder path. Selection is recursive unless ``direct_children``
-        is true.
+    experiment_prefixes
+        Literal MLflow experiment-name prefixes. An experiment matches if its
+        name starts with any of these.
+    experiment_folders
+        MLflow folder paths. Selection is recursive under each folder unless
+        ``direct_children`` is true. When neither ``experiment_prefixes`` nor
+        ``experiment_folders`` is given, defaults to a single recursive
+        selection under :data:`DEFAULT_EXPERIMENT_FOLDER`.
     direct_children
-        Limit folder matching to immediate child experiments.
+        Limit matching under every given folder to immediate child
+        experiments. Requires at least one entry in ``experiment_folders``.
     """
 
-    experiment_prefix: str | None = None
-    experiment_folder: str | None = None
+    experiment_prefixes: tuple[str, ...] = ()
+    experiment_folders: tuple[str, ...] = ()
     direct_children: bool = False
 
     def __post_init__(self) -> None:
-        """Validate mutually exclusive selection arguments."""
-        if self.experiment_prefix and self.experiment_folder:
+        """Validate that direct_children is only used with explicit folders."""
+        if self.direct_children and not self.experiment_folders:
             raise ValueError(
-                "experiment_prefix and experiment_folder are mutually exclusive."
+                "direct_children requires at least one experiment_folder."
             )
-        if self.direct_children and not self.experiment_folder:
-            raise ValueError("direct_children requires experiment_folder.")
 
     @property
-    def resolved_folder(self) -> str | None:
-        """Return the explicitly selected or default recursive folder."""
-        if self.experiment_prefix:
-            return None
-        return self.experiment_folder or DEFAULT_EXPERIMENT_FOLDER
+    def resolved_folders(self) -> tuple[str, ...]:
+        """Return the explicitly selected folders, or the default when none."""
+        if self.experiment_folders:
+            return self.experiment_folders
+        if self.experiment_prefixes:
+            return ()
+        return (DEFAULT_EXPERIMENT_FOLDER,)
 
     def matches(self, experiment_name: str) -> bool:
-        """Return whether an experiment name satisfies this selector."""
-        if self.experiment_prefix:
-            return experiment_name.startswith(self.experiment_prefix)
-
-        folder = self.resolved_folder
-        assert folder is not None
-        normalized_folder = f"{folder.rstrip('/')}/"
-        if not experiment_name.startswith(normalized_folder):
-            return False
-        if not self.direct_children:
+        """Return whether an experiment name satisfies any prefix or folder."""
+        if any(
+            experiment_name.startswith(prefix) for prefix in self.experiment_prefixes
+        ):
             return True
-        remainder = experiment_name.removeprefix(normalized_folder)
-        return bool(remainder) and "/" not in remainder
+        for folder in self.resolved_folders:
+            normalized_folder = f"{folder.rstrip('/')}/"
+            if not experiment_name.startswith(normalized_folder):
+                continue
+            if not self.direct_children:
+                return True
+            remainder = experiment_name.removeprefix(normalized_folder)
+            if remainder and "/" not in remainder:
+                return True
+        return False
 
 
 def export_snapshot(
@@ -263,6 +279,7 @@ def export_snapshot(
     resume: bool = True,
     fresh: bool = False,
     checkpoint_epoch: int | None = None,
+    delete_checkpoint_after_publish: bool = False,
 ) -> Path:
     """Export a sanitized MLflow snapshot using an explicit Databricks profile.
 
@@ -273,8 +290,19 @@ def export_snapshot(
     Progress is checkpointed per experiment run under
     ``output_dir/checkpoint-{unix_epoch}/``. Each checkpoint is a trusted-local
     Python-native payload. Resume requires the same ``output_dir`` and matching
-    CLI identity (profile, selector, all_runs, concurrency). Changed remote
-    runs invalidate only that run's shard.
+    profile; the selector may freely change between invocations. Changed
+    remote runs invalidate only that run's shard.
+
+    The checkpoint is retained by default, even after a successful publish, so
+    a later call with the same profile can select different or additional
+    MLflow paths and add those runs without a full re-download: every
+    previously committed run only needs a cheap metadata-only fingerprint
+    check, not a full trace re-fetch, and cached runs outside the current
+    selection are left untouched (never deleted automatically). The published
+    snapshot at ``output_dir`` always reflects exactly the current
+    invocation's selected paths, even if that is narrower than a previous
+    invocation's selection; final artifacts are only re-aggregated and
+    atomically replaced when that published set actually needs to change.
 
     Parameters
     ----------
@@ -291,11 +319,18 @@ def export_snapshot(
         Maximum simultaneous full-trace downloads. Must be between 1 and 10
         so the exporter does not exceed MLflow's default connection-pool size.
     resume
-        When true (default), resume the newest matching incomplete checkpoint.
+        When true (default), resume the newest matching checkpoint, including
+        one already marked ``completed``.
     fresh
         When true, ignore matching checkpoints and start a new session.
     checkpoint_epoch
-        Resume a specific ``checkpoint-{epoch}`` directory when present.
+        Resume a specific ``checkpoint-{epoch}`` directory when present, even
+        if it is already marked ``completed``.
+    delete_checkpoint_after_publish
+        When true, delete the checkpoint directory once this call finishes.
+        Defaults to false so the checkpoint remains available for a future
+        incremental export. Applies regardless of whether this call actually
+        found changes to publish.
 
     Returns
     -------
@@ -314,7 +349,8 @@ def export_snapshot(
     output_dir = output_dir.expanduser().resolve()
     output_dir.mkdir(parents=True, exist_ok=True)
 
-    cli_identity = _cli_identity(
+    cli_identity = _cli_identity(profile=profile)
+    export_context = _export_context(
         profile=profile,
         selector=selector,
         all_runs=all_runs,
@@ -365,21 +401,35 @@ def export_snapshot(
     )
     failed_run_ids = list(checkpoint.get("discovery", {}).get("failed_run_ids", []))
 
-    # Drop completed shards for runs no longer in the remote selection.
-    remote_run_ids = set(planned_run_ids)
-    for stale_run_id in sorted(completed_run_ids - remote_run_ids):
-        logger.info("Omitting remote-deleted run shard %s.", stale_run_id)
-        _delete_run_shard(checkpoint_dir, stale_run_id)
-        completed_run_ids.discard(stale_run_id)
+    current_experiment_ids = sorted(
+        str(experiment.experiment_id) for experiment in experiments
+    )
+    current_signature = {
+        "experiment_ids": current_experiment_ids,
+        "run_ids": sorted(planned_run_ids),
+        "selector": export_context["selector"],
+        "all_runs": export_context["all_runs"],
+    }
+    previous_signature = _read_published_view_signature(output_dir)
 
+    # Cached shards for runs outside the current selection are left
+    # untouched: never fingerprinted, never deleted. The cache only grows;
+    # delete_checkpoint_after_publish is the sole (all-or-nothing) way to
+    # remove any of it.
     checkpoint["discovery"] = {
-        "experiment_ids": [str(experiment.experiment_id) for experiment in experiments],
+        "experiment_ids": sorted(
+            set(checkpoint.get("discovery", {}).get("experiment_ids", []))
+            | set(current_experiment_ids)
+        ),
         "planned_run_ids": planned_run_ids,
         "completed_run_ids": sorted(completed_run_ids),
         "failed_run_ids": failed_run_ids,
         "invalidated_run_ids": list(
             checkpoint.get("discovery", {}).get("invalidated_run_ids", [])
         ),
+        "last_selector": export_context["selector"],
+        "last_all_runs": export_context["all_runs"],
+        "last_trace_fetch_concurrency": export_context["trace_fetch_concurrency"],
     }
     checkpoint["status"] = "in_progress"
     _write_checkpoint(checkpoint_dir, checkpoint)
@@ -388,12 +438,13 @@ def export_snapshot(
         checkpoint["discovery"].get("invalidated_run_ids", [])
     )
     logger.info(
-        "Checkpoint %s: %d planned runs, %d already committed.",
+        "Checkpoint %s: %d planned this session, %d already cached in total.",
         checkpoint_dir.name,
         len(planned_run_ids),
         len(completed_run_ids),
     )
 
+    downloaded_this_session = False
     try:
         for run_ordinal, (experiment, run, run_id) in enumerate(planned_runs, start=1):
             logger.info(
@@ -429,6 +480,7 @@ def export_snapshot(
                 checkpoint["discovery"]["invalidated_run_ids"] = invalidated_run_ids
                 _write_checkpoint(checkpoint_dir, checkpoint)
 
+            downloaded_this_session = True
             logger.info(
                 "Downloading run %s with trace downloads limited to %d concurrent requests.",
                 run_id,
@@ -470,31 +522,54 @@ def export_snapshot(
         )
         raise
 
-    if completed_run_ids != set(planned_run_ids):
-        missing = sorted(set(planned_run_ids) - completed_run_ids)
+    missing = set(planned_run_ids) - completed_run_ids
+    if missing:
         raise RuntimeError(
-            "Export incomplete; missing committed run shards: " + ", ".join(missing)
+            "Export incomplete; missing committed run shards: "
+            + ", ".join(sorted(missing))
         )
 
-    logger.info(
-        "Aggregating %d committed run shards into final snapshot.",
-        len(planned_run_ids),
+    publish_needed = _publish_needed(
+        downloaded_this_session=downloaded_this_session,
+        current_signature=current_signature,
+        previous_signature=previous_signature,
     )
-    checkpoint["status"] = "aggregating"
-    _write_checkpoint(checkpoint_dir, checkpoint)
-    _aggregate_and_publish(
-        pandas=pandas,
-        output_dir=output_dir,
-        checkpoint_dir=checkpoint_dir,
-        cli_identity=cli_identity,
-        planned_run_ids=planned_run_ids,
-        experiment_rows=experiment_rows,
-    )
-    logger.info(
-        "Snapshot complete: %d experiments and %d runs. Checkpoint cleaned up.",
-        len(experiment_rows),
-        len(planned_run_ids),
-    )
+    if publish_needed:
+        logger.info(
+            "Aggregating %d committed run shards into final snapshot.",
+            len(planned_run_ids),
+        )
+        checkpoint["status"] = "aggregating"
+        _write_checkpoint(checkpoint_dir, checkpoint)
+        _aggregate_and_publish(
+            pandas=pandas,
+            output_dir=output_dir,
+            checkpoint_dir=checkpoint_dir,
+            export_context=export_context,
+            planned_run_ids=planned_run_ids,
+            experiment_rows=experiment_rows,
+        )
+        logger.info(
+            "Snapshot updated: %d experiments and %d runs.",
+            len(experiment_rows),
+            len(planned_run_ids),
+        )
+    else:
+        checkpoint["status"] = "completed"
+        _write_checkpoint(checkpoint_dir, checkpoint)
+        logger.info(
+            "No changes discovered; existing snapshot at %s is already up to date.",
+            output_dir,
+        )
+
+    if delete_checkpoint_after_publish:
+        shutil.rmtree(checkpoint_dir)
+        logger.info("Deleted checkpoint %s.", checkpoint_dir.name)
+    else:
+        logger.info(
+            "Checkpoint %s retained for future incremental exports.",
+            checkpoint_dir.name,
+        )
     return output_dir
 
 
@@ -584,22 +659,106 @@ def analyze_snapshot(*, snapshot_dir: Path, selector: SnapshotSelector) -> Path:
     return analysis_dir
 
 
-def _cli_identity(
+_PUBLISH_SIGNATURE_KEYS = ("experiment_ids", "run_ids", "selector", "all_runs")
+
+
+def _read_published_view_signature(output_dir: Path) -> dict[str, object] | None:
+    """Return the previous publish's signature, or ``None`` if absent/invalid.
+
+    ``None`` is returned whenever the previous publish cannot be trusted to
+    describe the current output directory: no ``manifest.json`` exists, it is
+    unreadable/corrupt, it predates the ``experiment_ids`` field added
+    alongside this function, or the required snapshot Parquet files are
+    missing (for example, deleted or only partially written outside a normal
+    export). Callers treat ``None`` as "a publish is required," which is the
+    safe default in every one of those cases.
+    """
+    manifest_path = output_dir / "manifest.json"
+    if not manifest_path.exists():
+        return None
+    try:
+        manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        return None
+    if not isinstance(manifest, dict):
+        return None
+    if any(key not in manifest for key in _PUBLISH_SIGNATURE_KEYS):
+        return None
+    run_ids = manifest["run_ids"]
+    experiment_ids = manifest["experiment_ids"]
+    if not isinstance(run_ids, list) or not isinstance(experiment_ids, list):
+        return None
+    try:
+        _validate_snapshot(output_dir)
+    except ValueError:
+        return None
+    return {
+        "experiment_ids": sorted(experiment_ids),
+        "run_ids": sorted(run_ids),
+        "selector": manifest["selector"],
+        "all_runs": manifest["all_runs"],
+    }
+
+
+def _publish_needed(
+    *,
+    downloaded_this_session: bool,
+    current_signature: dict[str, object],
+    previous_signature: dict[str, object] | None,
+) -> bool:
+    """Return whether the published snapshot must be re-aggregated.
+
+    A publish is required whenever a run was newly downloaded or invalidated
+    this session, whenever there is no trustworthy previous publish to
+    compare against (including a first-ever export with an empty selection),
+    or whenever the current selection's signature differs from what was last
+    published. ``trace_fetch_concurrency`` is intentionally not part of the
+    signature: it only affects download parallelism, not the content of the
+    published data.
+    """
+    if downloaded_this_session or previous_signature is None:
+        return True
+    return _canonical_json(current_signature) != _canonical_json(previous_signature)
+
+
+def _export_context(
     *,
     profile: str,
     selector: SnapshotSelector,
     all_runs: bool,
     trace_fetch_concurrency: int,
 ) -> dict[str, object]:
-    """Return the reproducible export identity used for checkpoint matching."""
+    """Return this invocation's publish-time metadata.
+
+    This is deliberately separate from :func:`_cli_identity`: it describes
+    what a given invocation selected and how it ran, for recording in
+    ``manifest.json`` and the checkpoint's audit trail, but it plays no role
+    in deciding whether a checkpoint can be resumed.
+    """
     return {
-        "schema_version": SCHEMA_VERSION,
-        "checkpoint_kind": CHECKPOINT_KIND,
         "profile": profile,
         "tracking_uri": f"databricks://{profile}",
         "selector": asdict(selector),
         "all_runs": all_runs,
         "trace_fetch_concurrency": trace_fetch_concurrency,
+    }
+
+
+def _cli_identity(*, profile: str) -> dict[str, object]:
+    """Return the reproducible cache identity used for checkpoint matching.
+
+    The identity intentionally excludes the selector, ``all_runs``, and
+    ``trace_fetch_concurrency``: none of those affect whether a previously
+    committed run shard is still valid, only what a given invocation
+    discovers and publishes. Keeping the identity to just the profile (and
+    its derived tracking URI) lets the same cache be resumed and extended
+    across invocations that select different or additional MLflow paths.
+    """
+    return {
+        "schema_version": SCHEMA_VERSION,
+        "checkpoint_kind": CHECKPOINT_KIND,
+        "profile": profile,
+        "tracking_uri": f"databricks://{profile}",
     }
 
 
@@ -611,7 +770,12 @@ def _resolve_checkpoint_session(
     fresh: bool,
     checkpoint_epoch: int | None,
 ) -> Path:
-    """Create or resume a matching incomplete checkpoint session."""
+    """Create or resume a matching checkpoint session.
+
+    A checkpoint marked ``completed`` is a valid resume target: it means the
+    prior export finished and its shards are retained for a cheap incremental
+    re-export, not that no further work can build on it.
+    """
     if fresh or not resume:
         checkpoint_dir = _create_checkpoint_session(output_dir, cli_identity)
         logger.info("Created fresh checkpoint session %s.", checkpoint_dir.name)
@@ -627,10 +791,6 @@ def _resolve_checkpoint_session(
         if not _cli_identity_matches(checkpoint.get("cli_identity", {}), cli_identity):
             raise ValueError(
                 f"Checkpoint {checkpoint_dir.name} does not match the current export identity."
-            )
-        if checkpoint.get("status") == "completed":
-            raise ValueError(
-                f"Checkpoint {checkpoint_dir.name} is already completed; use --fresh."
             )
         logger.info("Resuming requested checkpoint session %s.", checkpoint_dir.name)
         return checkpoint_dir
@@ -688,7 +848,12 @@ def _find_newest_matching_checkpoint(
     output_dir: Path,
     cli_identity: dict[str, object],
 ) -> Path | None:
-    """Return the newest incomplete checkpoint matching the CLI identity."""
+    """Return the newest checkpoint matching the CLI identity.
+
+    Checkpoints marked ``completed`` are included: they are retained by
+    default specifically so a later export with the same identity can resume
+    them for an incremental re-export.
+    """
     candidates: list[tuple[int, Path]] = []
     for path in output_dir.glob("checkpoint-*"):
         if not path.is_dir():
@@ -703,8 +868,6 @@ def _find_newest_matching_checkpoint(
             checkpoint = _read_checkpoint(path)
         except (OSError, json.JSONDecodeError, ValueError):
             logger.warning("Skipping unreadable checkpoint %s.", path.name)
-            continue
-        if checkpoint.get("status") == "completed":
             continue
         if not _cli_identity_matches(checkpoint.get("cli_identity", {}), cli_identity):
             continue
@@ -1074,7 +1237,7 @@ def _aggregate_and_publish(
     pandas: Any,
     output_dir: Path,
     checkpoint_dir: Path,
-    cli_identity: dict[str, object],
+    export_context: dict[str, object],
     planned_run_ids: list[str],
     experiment_rows: list[dict[str, object]],
 ) -> None:
@@ -1174,12 +1337,13 @@ def _aggregate_and_publish(
         manifest = {
             "schema_version": SCHEMA_VERSION,
             "exported_at_utc": datetime.now(UTC).isoformat(),
-            "tracking_uri": cli_identity["tracking_uri"],
-            "profile": cli_identity["profile"],
-            "selector": cli_identity["selector"],
-            "all_runs": cli_identity["all_runs"],
-            "trace_fetch_concurrency": cli_identity["trace_fetch_concurrency"],
+            "tracking_uri": export_context["tracking_uri"],
+            "profile": export_context["profile"],
+            "selector": export_context["selector"],
+            "all_runs": export_context["all_runs"],
+            "trace_fetch_concurrency": export_context["trace_fetch_concurrency"],
             "experiment_count": len(experiment_rows),
+            "experiment_ids": sorted(str(row["experiment_id"]) for row in experiment_rows),
             "run_count": len(planned_run_ids),
             "run_ids": planned_run_ids,
             "privacy_exclusions": _PRIVACY_EXCLUSIONS,
@@ -1195,7 +1359,6 @@ def _aggregate_and_publish(
         checkpoint = _read_checkpoint(checkpoint_dir)
         checkpoint["status"] = "completed"
         _write_checkpoint(checkpoint_dir, checkpoint)
-        shutil.rmtree(checkpoint_dir)
     finally:
         if staging_dir.exists():
             shutil.rmtree(staging_dir, ignore_errors=True)

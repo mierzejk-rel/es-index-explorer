@@ -8,16 +8,27 @@ import pandas as pd
 import pytest
 
 from es_index_explorer.mlflow_analysis.snapshot import (
+    DEFAULT_EXPERIMENT_FOLDER,
+    SnapshotSelector,
+    _aggregate_and_publish,
     _atomic_write_pickle,
     _AuthenticationRecoveryRequired,
+    _cli_identity,
     _download_run_rubrics,
     _encode_quality_row,
+    _export_context,
     _fetch_traces_bounded,
+    _find_newest_matching_checkpoint,
     _markdown_table,
+    _publish_needed,
+    _read_published_view_signature,
     _read_run_payload,
     _recover_interactive_authentication,
+    _resolve_checkpoint_session,
     _retry_trace_request,
     _sanitize_trace,
+    _SNAPSHOT_PARQUET_FILES,
+    _write_checkpoint,
     decode_quality_value,
 )
 
@@ -29,6 +40,467 @@ def test_markdown_table_does_not_require_tabulate() -> None:
     table = _markdown_table(pd.DataFrame([{"name": "A|B", "score": 1.25}]))
 
     assert table == "| name | score |\n| --- | --- |\n| A\\|B | 1.2500 |"
+
+
+def _sample_cli_identity() -> dict[str, object]:
+    """Return a reusable CLI identity for checkpoint-matching tests."""
+    return _cli_identity(profile="applied-science")
+
+
+def test_find_newest_matching_checkpoint_includes_completed(tmp_path: Path) -> None:
+    """A retained, already-completed checkpoint remains a valid resume target."""
+    cli_identity = _sample_cli_identity()
+    checkpoint_dir = tmp_path / "checkpoint-100"
+    checkpoint_dir.mkdir()
+    (checkpoint_dir / "runs").mkdir()
+    _write_checkpoint(
+        checkpoint_dir,
+        {"status": "completed", "cli_identity": cli_identity, "discovery": {}},
+    )
+
+    found = _find_newest_matching_checkpoint(tmp_path, cli_identity)
+
+    assert found == checkpoint_dir
+
+
+def test_find_newest_matching_checkpoint_ignores_mismatched_identity(
+    tmp_path: Path,
+) -> None:
+    """A completed checkpoint with a different profile is not reused."""
+    checkpoint_dir = tmp_path / "checkpoint-100"
+    checkpoint_dir.mkdir()
+    (checkpoint_dir / "runs").mkdir()
+    _write_checkpoint(
+        checkpoint_dir,
+        {
+            "status": "completed",
+            "cli_identity": _cli_identity(profile="other-profile"),
+            "discovery": {},
+        },
+    )
+
+    found = _find_newest_matching_checkpoint(tmp_path, _sample_cli_identity())
+
+    assert found is None
+
+
+def test_cli_identity_is_independent_of_selector_and_all_runs() -> None:
+    """The cache identity is stable across different selectors/all_runs.
+
+    This is the key property that lets the same checkpoint be resumed and
+    extended when the user changes, narrows, or widens the selected MLflow
+    paths between invocations.
+    """
+    identity_one = _cli_identity(profile="applied-science")
+    identity_two = _cli_identity(profile="applied-science")
+
+    assert identity_one == identity_two
+    assert "selector" not in identity_one
+    assert "all_runs" not in identity_one
+    assert "trace_fetch_concurrency" not in identity_one
+
+
+def test_snapshot_selector_unions_multiple_prefixes_and_folders() -> None:
+    """A selector with several prefixes and folders matches any of them."""
+    selector = SnapshotSelector(
+        experiment_prefixes=("S-A-", "S-B-"),
+        experiment_folders=("experiments/A", "experiments/B"),
+    )
+
+    assert selector.matches("S-A-bm25-c1-rr-f10-g10-rnone")
+    assert selector.matches("S-B-bm25-dense-c2-union-f15-rnone")
+    assert selector.matches("experiments/A/some-run")
+    assert selector.matches("experiments/B/some-run")
+    assert not selector.matches("experiments/C/some-run")
+    assert not selector.matches("S-C-unrelated")
+
+
+def test_snapshot_selector_direct_children_applies_to_every_folder() -> None:
+    """direct_children restricts matching under all given folders uniformly."""
+    selector = SnapshotSelector(
+        experiment_folders=("experiments/A", "experiments/B"),
+        direct_children=True,
+    )
+
+    assert selector.matches("experiments/A/leaf")
+    assert selector.matches("experiments/B/leaf")
+    assert not selector.matches("experiments/A/nested/leaf")
+    assert not selector.matches("experiments/B/nested/leaf")
+
+
+def test_snapshot_selector_defaults_to_default_folder_when_unset() -> None:
+    """An entirely empty selector falls back to the default recursive folder."""
+    selector = SnapshotSelector()
+
+    assert selector.matches(f"{DEFAULT_EXPERIMENT_FOLDER}some-experiment")
+    assert not selector.matches("unrelated/some-experiment")
+
+
+def test_snapshot_selector_direct_children_requires_a_folder() -> None:
+    """direct_children without any folder is a configuration error."""
+    with pytest.raises(ValueError, match="direct_children requires"):
+        SnapshotSelector(direct_children=True)
+
+
+def test_read_published_view_signature_returns_none_without_manifest(
+    tmp_path: Path,
+) -> None:
+    """A fresh output directory with no manifest has no publish signature."""
+    assert _read_published_view_signature(tmp_path) is None
+
+
+def _touch_snapshot_parquet_files(output_dir: Path) -> None:
+    """Create empty placeholder files for every required snapshot Parquet file."""
+    for filename in _SNAPSHOT_PARQUET_FILES:
+        (output_dir / filename).write_bytes(b"")
+
+
+def test_read_published_view_signature_reads_existing_manifest(
+    tmp_path: Path,
+) -> None:
+    """An existing manifest's signature fields are read back, sorted."""
+    _touch_snapshot_parquet_files(tmp_path)
+    (tmp_path / "manifest.json").write_text(
+        json.dumps(
+            {
+                "experiment_ids": ["exp-2", "exp-1"],
+                "run_ids": ["run-2", "run-1"],
+                "selector": {"experiment_prefixes": ["S-A-"], "experiment_folders": []},
+                "all_runs": True,
+                "trace_fetch_concurrency": 5,
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    signature = _read_published_view_signature(tmp_path)
+
+    assert signature == {
+        "experiment_ids": ["exp-1", "exp-2"],
+        "run_ids": ["run-1", "run-2"],
+        "selector": {"experiment_prefixes": ["S-A-"], "experiment_folders": []},
+        "all_runs": True,
+    }
+    assert "trace_fetch_concurrency" not in signature
+
+
+def test_read_published_view_signature_tolerates_corrupt_manifest(
+    tmp_path: Path,
+) -> None:
+    """A corrupt or unreadable manifest is treated as no prior publish."""
+    (tmp_path / "manifest.json").write_text("not json", encoding="utf-8")
+
+    assert _read_published_view_signature(tmp_path) is None
+
+
+def test_read_published_view_signature_rejects_manifest_missing_experiment_ids(
+    tmp_path: Path,
+) -> None:
+    """A pre-upgrade manifest without experiment_ids is not trusted."""
+    _touch_snapshot_parquet_files(tmp_path)
+    (tmp_path / "manifest.json").write_text(
+        json.dumps(
+            {
+                "run_ids": ["run-1"],
+                "selector": {"experiment_prefixes": ["S-A-"], "experiment_folders": []},
+                "all_runs": True,
+                "trace_fetch_concurrency": 5,
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    assert _read_published_view_signature(tmp_path) is None
+
+
+def test_read_published_view_signature_rejects_manifest_with_missing_parquet_files(
+    tmp_path: Path,
+) -> None:
+    """A well-formed manifest is not trusted if the snapshot Parquet files are gone.
+
+    This guards against deciding "no changes, skip republish" when the
+    published snapshot is actually incomplete or corrupted (for example, a
+    Parquet file deleted or never fully written outside a normal export).
+    """
+    (tmp_path / "manifest.json").write_text(
+        json.dumps(
+            {
+                "experiment_ids": ["exp-1"],
+                "run_ids": ["run-1"],
+                "selector": {"experiment_prefixes": ["S-A-"], "experiment_folders": []},
+                "all_runs": True,
+                "trace_fetch_concurrency": 5,
+            }
+        ),
+        encoding="utf-8",
+    )
+    # Deliberately do not create the snapshot Parquet files.
+
+    assert _read_published_view_signature(tmp_path) is None
+
+
+def _sample_signature(**overrides: object) -> dict[str, object]:
+    """Return a minimal publish signature, with optional field overrides."""
+    signature: dict[str, object] = {
+        "experiment_ids": ["exp-1"],
+        "run_ids": ["run-1"],
+        "selector": {"experiment_prefixes": ["S-A-"], "experiment_folders": []},
+        "all_runs": True,
+    }
+    signature.update(overrides)
+    return signature
+
+
+def test_publish_needed_false_when_nothing_changed() -> None:
+    """An unchanged selection with no downloads does not require a republish."""
+    assert not _publish_needed(
+        downloaded_this_session=False,
+        current_signature=_sample_signature(),
+        previous_signature=_sample_signature(),
+    )
+
+
+def test_publish_needed_true_when_selector_changes_but_run_ids_do_not() -> None:
+    """A selector change alone must still trigger a republish (Bug 2)."""
+    current = _sample_signature(
+        selector={"experiment_prefixes": ["S-A-", "S-B-"], "experiment_folders": []}
+    )
+    previous = _sample_signature()
+
+    assert _publish_needed(
+        downloaded_this_session=False,
+        current_signature=current,
+        previous_signature=previous,
+    )
+
+
+def test_publish_needed_true_without_a_trustworthy_previous_publish() -> None:
+    """A first-ever export with an empty selection still publishes (Bug 3)."""
+    assert _publish_needed(
+        downloaded_this_session=False,
+        current_signature={
+            "experiment_ids": [],
+            "run_ids": [],
+            "selector": {"experiment_prefixes": [], "experiment_folders": []},
+            "all_runs": False,
+        },
+        previous_signature=None,
+    )
+
+
+def test_publish_needed_true_when_downloaded_this_session_regardless_of_signature() -> (
+    None
+):
+    """A fresh download always forces a republish, even with an identical signature."""
+    assert _publish_needed(
+        downloaded_this_session=True,
+        current_signature=_sample_signature(),
+        previous_signature=_sample_signature(),
+    )
+
+
+def test_publish_needed_false_when_only_trace_fetch_concurrency_would_differ() -> None:
+    """Concurrency is not part of the signature: it alone must not force a republish."""
+    current_signature = _sample_signature()
+    previous_manifest_signature = _sample_signature()
+    # trace_fetch_concurrency is intentionally absent from both signatures;
+    # simulate two invocations that only differed in that operational
+    # parameter by confirming the (concurrency-free) signatures still match.
+    assert not _publish_needed(
+        downloaded_this_session=False,
+        current_signature=current_signature,
+        previous_signature=previous_manifest_signature,
+    )
+
+
+def _minimal_run_payload(run_id: str, experiment_id: str) -> dict[str, object]:
+    """Return the minimum committed-shard payload accepted by _aggregate_and_publish."""
+    return {
+        "run_row": {
+            "experiment_id": experiment_id,
+            "experiment_name": "test",
+            "run_id": run_id,
+            "status": "FINISHED",
+            "start_time_ms": 1_700_000_000_000,
+            "start_time_utc": "2023-11-14T22:13:20+00:00",
+            "start_hour_utc": 22,
+            "start_weekday_utc": 1,
+            "dataset": "ds",
+            "model_version": "3.61",
+            "simple_required_tools": '["get_relevant_documents_bm25"]',
+            "configured_retrieval_call_count": 1,
+            "simple_merge_policy": "round_robin",
+            "simple_per_call_fetch_count": 10,
+            "simple_global_context_chunk_count": 10,
+            "reasoning_effort": "none",
+            "invocation_concurrency": 1,
+        },
+        "metric_rows": [],
+        "quality_rows": [],
+        "failure_rows": [],
+        "invocation_rows": [],
+        "criteria_rows": [],
+        "run_rubric_rows": [],
+        "retrieval_rows": [],
+        "timing_rows": [],
+    }
+
+
+def test_aggregate_and_publish_writes_manifest_from_export_context(
+    tmp_path: Path,
+) -> None:
+    """_aggregate_and_publish must not read removed cli_identity keys (Bug 1)."""
+    output_dir = tmp_path / "output"
+    output_dir.mkdir()
+    checkpoint_dir = tmp_path / "checkpoint-1"
+    run_shard = checkpoint_dir / "runs" / "run-1"
+    run_shard.mkdir(parents=True)
+    _atomic_write_pickle(
+        run_shard / "run_payload.pickle",
+        _minimal_run_payload("run-1", "exp-1"),
+    )
+    (run_shard / ".committed").write_text("1\n", encoding="utf-8")
+    _write_checkpoint(
+        checkpoint_dir,
+        {"status": "aggregating", "cli_identity": {}, "discovery": {}},
+    )
+
+    export_context = _export_context(
+        profile="applied-science",
+        selector=SnapshotSelector(experiment_prefixes=("S-A-",)),
+        all_runs=True,
+        trace_fetch_concurrency=5,
+    )
+
+    _aggregate_and_publish(
+        pandas=pd,
+        output_dir=output_dir,
+        checkpoint_dir=checkpoint_dir,
+        export_context=export_context,
+        planned_run_ids=["run-1"],
+        experiment_rows=[
+            {
+                "experiment_id": "exp-1",
+                "experiment_name": "S-A-bm25-c1-rr-f10-g10-rnone",
+                "lifecycle_stage": "active",
+            }
+        ],
+    )
+
+    manifest = json.loads((output_dir / "manifest.json").read_text(encoding="utf-8"))
+    assert manifest["profile"] == "applied-science"
+    assert manifest["tracking_uri"] == "databricks://applied-science"
+    assert manifest["selector"] == {
+        "experiment_prefixes": ["S-A-"],
+        "experiment_folders": [],
+        "direct_children": False,
+    }
+    assert manifest["all_runs"] is True
+    assert manifest["trace_fetch_concurrency"] == 5
+    assert manifest["experiment_ids"] == ["exp-1"]
+    assert manifest["run_ids"] == ["run-1"]
+    for filename in _SNAPSHOT_PARQUET_FILES:
+        assert (output_dir / filename).exists()
+
+
+def test_aggregate_and_publish_writes_a_valid_empty_snapshot(tmp_path: Path) -> None:
+    """A first-ever export with zero matching runs still publishes real files.
+
+    Exercises the end-to-end writer side of Bug 3: an empty selection must
+    still produce a complete, valid (if empty) snapshot rather than silently
+    skipping publication.
+    """
+    output_dir = tmp_path / "output"
+    output_dir.mkdir()
+    checkpoint_dir = tmp_path / "checkpoint-1"
+    (checkpoint_dir / "runs").mkdir(parents=True)
+    _write_checkpoint(
+        checkpoint_dir,
+        {"status": "aggregating", "cli_identity": {}, "discovery": {}},
+    )
+
+    export_context = _export_context(
+        profile="applied-science",
+        selector=SnapshotSelector(experiment_prefixes=("S-nonexistent-",)),
+        all_runs=True,
+        trace_fetch_concurrency=5,
+    )
+
+    _aggregate_and_publish(
+        pandas=pd,
+        output_dir=output_dir,
+        checkpoint_dir=checkpoint_dir,
+        export_context=export_context,
+        planned_run_ids=[],
+        experiment_rows=[],
+    )
+
+    manifest = json.loads((output_dir / "manifest.json").read_text(encoding="utf-8"))
+    assert manifest["experiment_ids"] == []
+    assert manifest["run_ids"] == []
+    assert manifest["experiment_count"] == 0
+    assert manifest["run_count"] == 0
+    for filename in _SNAPSHOT_PARQUET_FILES:
+        parquet_path = output_dir / filename
+        assert parquet_path.exists()
+        assert len(pd.read_parquet(parquet_path)) == 0
+    # A signature can now be read back from this valid, if empty, publish.
+    assert _read_published_view_signature(output_dir) == {
+        "experiment_ids": [],
+        "run_ids": [],
+        "selector": {
+            "experiment_prefixes": ["S-nonexistent-"],
+            "experiment_folders": [],
+            "direct_children": False,
+        },
+        "all_runs": True,
+    }
+
+
+def test_resolve_checkpoint_session_resumes_completed_epoch(tmp_path: Path) -> None:
+    """An explicit --checkpoint-epoch resumes a completed checkpoint without --fresh."""
+    cli_identity = _sample_cli_identity()
+    checkpoint_dir = tmp_path / "checkpoint-200"
+    checkpoint_dir.mkdir()
+    (checkpoint_dir / "runs").mkdir()
+    _write_checkpoint(
+        checkpoint_dir,
+        {"status": "completed", "cli_identity": cli_identity, "discovery": {}},
+    )
+
+    resolved = _resolve_checkpoint_session(
+        output_dir=tmp_path,
+        cli_identity=cli_identity,
+        resume=True,
+        fresh=False,
+        checkpoint_epoch=200,
+    )
+
+    assert resolved == checkpoint_dir
+
+
+def test_resolve_checkpoint_session_auto_resumes_completed_checkpoint(
+    tmp_path: Path,
+) -> None:
+    """Default auto-resume picks up a retained, already-completed checkpoint."""
+    cli_identity = _sample_cli_identity()
+    checkpoint_dir = tmp_path / "checkpoint-300"
+    checkpoint_dir.mkdir()
+    (checkpoint_dir / "runs").mkdir()
+    _write_checkpoint(
+        checkpoint_dir,
+        {"status": "completed", "cli_identity": cli_identity, "discovery": {}},
+    )
+
+    resolved = _resolve_checkpoint_session(
+        output_dir=tmp_path,
+        cli_identity=cli_identity,
+        resume=True,
+        fresh=False,
+        checkpoint_epoch=None,
+    )
+
+    assert resolved == checkpoint_dir
 
 
 class FakeRestError(Exception):

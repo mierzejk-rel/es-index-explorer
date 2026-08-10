@@ -2,8 +2,19 @@
 
 Export progress is checkpointed per experiment run under
 ``<output-dir>/checkpoint-{unix_epoch}/``. Resume uses the same ``--output-dir``
-and matching export identity (profile, selector, all-runs, concurrency). Changed
-remote runs invalidate only that run's shard; Ctrl+C retains the checkpoint.
+and matching profile; ``--experiment-folder``/``--experiment-prefix`` may be
+repeated and freely changed between invocations without losing previously
+downloaded runs. Changed remote runs invalidate only that run's shard; Ctrl+C
+retains the checkpoint.
+
+The checkpoint is retained after a successful publish by default, so re-running
+the same command later (with the same, fewer, more, or different paths) only
+downloads new or changed runs. Cached runs outside the current selection are
+never deleted automatically. The published snapshot always reflects exactly
+the current invocation's selected paths; it is only rewritten when that
+published set actually needs to change. Pass
+``--delete-checkpoint-after-publish`` to remove the entire checkpoint once no
+further incremental exports are expected.
 """
 
 import argparse
@@ -79,8 +90,9 @@ def parse_args() -> argparse.Namespace:
         action=argparse.BooleanOptionalAction,
         default=True,
         help=(
-            "Resume from the newest incomplete checkpoint whose CLI identity matches "
-            "(default: true). Use --no-resume to start a new session."
+            "Resume from the newest checkpoint matching this profile, including "
+            "one already completed, regardless of which paths were previously "
+            "selected (default: true). Use --no-resume to start a new session."
         ),
     )
     export_parser.add_argument(
@@ -93,8 +105,19 @@ def parse_args() -> argparse.Namespace:
         type=int,
         default=None,
         help=(
-            "Resume a specific checkpoint-{epoch} directory under --output-dir. "
-            "Mutually exclusive with --fresh."
+            "Resume a specific checkpoint-{epoch} directory under --output-dir, "
+            "even if already completed. Mutually exclusive with --fresh."
+        ),
+    )
+    export_parser.add_argument(
+        "--delete-checkpoint-after-publish",
+        action="store_true",
+        help=(
+            "Delete the entire checkpoint directory once this export finishes. "
+            "Default: retain it so a later export with the same profile can add, "
+            "refresh, or select different/additional paths without a full "
+            "re-download. This is the only way to remove cached data; nothing is "
+            "pruned automatically."
         ),
     )
 
@@ -176,31 +199,45 @@ def parse_args() -> argparse.Namespace:
 
 
 def _add_selector_arguments(parser: argparse.ArgumentParser) -> None:
-    """Add mutually exclusive experiment name selection arguments."""
-    selector = parser.add_mutually_exclusive_group()
-    selector.add_argument(
+    """Add repeatable, mixable experiment name selection arguments."""
+    parser.add_argument(
         "--experiment-prefix",
-        help="Literal MLflow experiment-name prefix.",
-    )
-    selector.add_argument(
-        "--experiment-folder",
+        action="append",
+        dest="experiment_prefixes",
+        default=[],
+        metavar="PREFIX",
         help=(
-            "MLflow experiment folder. Defaults to recursive selection under "
-            f"{DEFAULT_EXPERIMENT_FOLDER!r}."
+            "Literal MLflow experiment-name prefix. Repeat to union multiple "
+            "prefixes; can be combined with --experiment-folder."
+        ),
+    )
+    parser.add_argument(
+        "--experiment-folder",
+        action="append",
+        dest="experiment_folders",
+        default=[],
+        metavar="FOLDER",
+        help=(
+            "MLflow experiment folder. Repeat to union multiple folders; can be "
+            "combined with --experiment-prefix. Defaults to recursive selection "
+            f"under {DEFAULT_EXPERIMENT_FOLDER!r} when neither is given."
         ),
     )
     parser.add_argument(
         "--direct-children",
         action="store_true",
-        help="Limit --experiment-folder selection to immediate child experiments.",
+        help=(
+            "Limit matching under every given --experiment-folder to immediate "
+            "child experiments."
+        ),
     )
 
 
 def _selector_from_args(args: argparse.Namespace) -> SnapshotSelector:
     """Build and validate a reusable experiment selector."""
     return SnapshotSelector(
-        experiment_prefix=args.experiment_prefix,
-        experiment_folder=args.experiment_folder,
+        experiment_prefixes=tuple(args.experiment_prefixes),
+        experiment_folders=tuple(args.experiment_folders),
         direct_children=args.direct_children,
     )
 
@@ -237,6 +274,7 @@ def main() -> None:
                 resume=args.resume,
                 fresh=args.fresh,
                 checkpoint_epoch=args.checkpoint_epoch,
+                delete_checkpoint_after_publish=args.delete_checkpoint_after_publish,
             )
             print(f"Exported sanitized MLflow snapshot to {snapshot_dir}")
             return
