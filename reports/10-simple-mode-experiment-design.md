@@ -302,8 +302,8 @@ Examples:
 - `S-A-dense-c2-rr-f15-g15-rnone` (dense: f = g = 15)
 - `S-A-hybrid-c3-rr-f30-g10-rnone` (hybrid: f = 30, g = 10)
 - `S-B-bm25-dense-bm25-c3-union-f15-rnone` (Stage B tool-multiset label; f = 15, no g segment)
-- `S-C-bm25-c1-rr-f10-g10-rlow` (Stage C bm25: f = g = 10, reasoning low)
-- `S-C-hybrid-c3-rr-f30-g30-rlow` (Stage C hybrid: f = 30, g = 30, reasoning low)
+- `S-C-bm25-c3-rr-f20-g20-rlow` (selected Stage C BM25 pair; f = g = 20)
+- `S-C-bm25-dense-bm25-c3-union-f20-rlow` (selected Stage C current-union pair; f = 20, no g segment)
 
 ### 6.2 Full experiment table
 
@@ -320,8 +320,8 @@ Per-call fetch (`simple_per_call_fetch_count`) is mode-dependent across all stag
   The tool-multiset label identifies the exact required retrieval-tool multiset; it does not encode
   LLM emission order or merge order.
 
-Stage C arms inherit the fetch rule of their paired Stage A counterpart, ensuring reasoning effort
-is the sole changed dimension.
+Every selected Stage C arm inherits every retrieval/context parameter from its paired Stage A or
+Stage B `rnone` counterpart. It changes only `reasoning_effort` from `none` to `low`.
 
 The global context budget (`simple_global_context_chunk_count`) is chosen per individual
 experiment run rather than being declared as a mandatory full cross-product in advance. BM25/dense
@@ -338,15 +338,18 @@ arms use `g10`, `g15`, or `g20`; hybrid arms may additionally use `g25` or `g30`
 | B4 | `S-B-bm25-dense-bm25-c3-union-f20-rnone` | `{bm25×2, dense×1}` | 3 | current union | 20 | full union, ≤60 pre-dedup candidates | none | Three-call mixed full-depth arm |
 | B5 | `S-B-bm25-dense-bm25-dense-c4-union-f15-rnone` | `{bm25×2, dense×2}` | 4 | current union | 15 | full union, ≤60 pre-dedup candidates | none | Four-call, two-dense, equal-volume breadth test |
 | B6 | `S-B-bm25-dense-c2-union-f20-rnone` | `{bm25×1, dense×1}` | 2 | current union | 20 | full union, ≤40 pre-dedup candidates | none | Heterogeneous full-depth baseline |
-| C | `S-C-<selected-bm25/dense>-rr-f{g}-g{chosen}-rlow` | selected bm25 or dense Stage A arm | selected | round-robin | = g (inherited from paired Stage A) | same as paired Stage A arm | low | Reasoning for single-signal arms |
-| C | `S-C-<selected-hybrid>-rr-f30-g{chosen}-rlow` | selected hybrid Stage A arm | selected | round-robin | 30 (inherited from paired Stage A) | same as paired Stage A arm (any hybrid g value) | low | Reasoning for hybrid arm |
+| C1 | `S-C-bm25-c3-rr-f20-g20-rlow` | `{bm25×3}` | 3 | round-robin | 20 | 20 | low | Paired reasoning test of `S-A-bm25-c3-rr-f20-g20-rnone` |
+| C2 | `S-C-bm25-dense-c2-union-f20-rlow` | `{bm25×1, dense×1}` | 2 | current union | 20 | full union, ≤40 pre-dedup candidates | low | Paired reasoning test of B6 |
+| C3 | `S-C-bm25-dense-bm25-c3-union-f20-rlow` | `{bm25×2, dense×1}` | 3 | current union | 20 | full union, ≤60 pre-dedup candidates | low | Paired reasoning test of B4 |
+| C4 | `S-C-bm25-dense-bm25-dense-c4-union-f15-rlow` | `{bm25×2, dense×2}` | 4 | current union | 15 | full union, ≤60 pre-dedup candidates | low | Paired reasoning test of B5 |
 
 All rows hold constant: one code-enforced retrieval round, generated metadata OFF, no parent
 metadata ranking, no first chunk, flat-concatenated output, date/email filters only under the
 policy above, 5 MiB filter OFF, and invocation concurrency 1.
 
-Simple Mode supports one through four requested retrieval calls. Stage A and the planned Stage C
-counterparts remain c1–c3; c4 is introduced only for the approved Stage B breadth test.
+Simple Mode supports one through four requested retrieval calls. The selected Stage C suite retains
+the c1–c3 Stage A limit for its one round-robin pair, and carries the approved Stage B c4 breadth
+arm forward as the C4 reasoning pair.
 
 ### 6.2.1 Stage B evidence and rationale
 
@@ -371,6 +374,30 @@ approved larger budget. It is intentionally self-contained:
 All Stage B arms retain `reasoning_effort = "none"`. Low reasoning remains a later Stage C
 dimension, so retrieval-tool-composition, call-count, and fetch effects remain interpretable.
 
+### 6.2.2 Stage C selection and reasoning treatment
+
+Stage C is a compact reasoning-effort test, not a second retrieval screen. It runs four selected
+`rnone` references again with `reasoning_effort = "low"` across all three datasets, for
+**12 experiment runs**.
+
+| Stage C arm | Paired `rnone` reference | Why selected |
+|---|---|---|
+| C1 `S-C-bm25-c3-rr-f20-g20-rlow` | `S-A-bm25-c3-rr-f20-g20-rnone` | Strongest Stage A quality/latency balance: 58.61% equal-dataset mean pass rate, 56.60% mean RubricV2, and 17.28 s median p50. |
+| C2 `S-C-bm25-dense-c2-union-f20-rlow` | B6 `S-B-bm25-dense-c2-union-f20-rnone` | Fast current-union reference: 58.36% mean pass rate at 16.32 s median p50. |
+| C3 `S-C-bm25-dense-bm25-c3-union-f20-rlow` | B4 `S-B-bm25-dense-bm25-c3-union-f20-rnone` | Higher-quality current-union reference: 62.17% mean pass rate at 17.24 s median p50; Mallinckrodt pass rate 47.56%. |
+| C4 `S-C-bm25-dense-bm25-dense-c4-union-f15-rlow` | B5 `S-B-bm25-dense-bm25-dense-c4-union-f15-rnone` | Accuracy-oriented c4 breadth reference: highest Stage B aggregate pass rate (62.35%) and RubricV2 (64.27%). |
+
+The C2/C3 pair retains a fast versus higher-quality Stage B contrast. C4 is included despite its
+higher latency to test whether low reasoning preserves or improves the strongest aggregate
+accuracy profile. Its lower Mallinckrodt pass rate (43.90%) remains an explicit trade-off to
+evaluate rather than a reason to infer broad superiority.
+
+For every C1–C4 run, `low` applies to **all** LLM calls: tool planning, final answer generation,
+structured output, and any parse/retry calls. All other effective parameters must be copied
+unchanged from the paired `rnone` TOML: model, seed, system prompt, response format, completion
+budget, tool multiset, metadata-filter policy, merge policy, f/g values, one retrieval round, and
+invocation concurrency 1. Per-call reasoning policies remain deferred.
+
 ### 6.3 Comparison map
 
 | Comparison | Dimension isolated | Interpretation |
@@ -385,7 +412,10 @@ dimension, so retrieval-tool-composition, call-count, and fetch effects remain i
 | B4 vs B5 | c3/f20 vs c4/f15 | Equal maximum 60-candidate volume: three deeper calls versus four narrower/more balanced calls; intentionally multi-dimensional |
 | `S-A-hybrid gX` vs `S-A-hybrid gY` | global context budget at fixed f=30, mode, and call count | Value of more passages to the LLM at constant ES retrieval depth |
 | `S-A-bm25/dense gX` vs `S-A-bm25/dense gY` | co-varying ES fetch depth and context budget (f = g for both) | Combined effect of deeper ES retrieval and larger LLM context in single-signal mode |
-| `S-A gX rnone` vs `S-C gX rlow` | reasoning effort at chosen `gX`; fetch rule inherited from paired Stage A arm, so only reasoning changes | Value of GPT-5.1 reasoning tokens |
+| C1 `rlow` vs `S-A-bm25-c3-rr-f20-g20-rnone` | `none` vs `low` reasoning at fixed `{bm25×3}`, c3/f20/g20 and round-robin | Value of low reasoning for the selected BM25 quality/latency frontier |
+| C2 `rlow` vs B6 | `none` vs `low` reasoning at fixed `{bm25×1, dense×1}`, c2/f20 and current union | Value of low reasoning for the fast current-union frontier |
+| C3 `rlow` vs B4 | `none` vs `low` reasoning at fixed `{bm25×2, dense×1}`, c3/f20 and current union | Value of low reasoning for the higher-quality current-union frontier |
+| C4 `rlow` vs B5 | `none` vs `low` reasoning at fixed `{bm25×2, dense×2}`, c4/f15 and current union | Value of low reasoning for the accuracy-oriented c4 breadth frontier |
 | E0 vs selected S arm | full baseline vs Simple Mode | Quality/latency trade-off; multi-dimensional comparison |
 
 ### 6.4 Execution order and stop/go gates
@@ -399,8 +429,9 @@ Execute from lowest expected latency to highest:
    Mallinckrodt;
 5. Stage B B3 and B6 (mixed c3/f15 and mixed c2/f20) on all three datasets;
 6. Stage B B4 and B5 (≤60-candidate c3/f20 and c4/f15 breadth comparison) on all three datasets;
-7. Stage C `low` arms for any selected global context, each paired with an already completed
-   like-for-like `rnone` arm from Stage A.
+7. Stage C C2 (fast current-union) and C1 (selected BM25 round-robin) on all three datasets;
+8. Stage C C3 (higher-quality current-union) and C4 (accuracy-oriented c4 breadth) on all three
+   datasets.
 
 Stage B therefore contains six arms × three datasets = **18 experiment runs**. Analyze every
 Stage B arm separately per dataset. Advance a heterogeneous or c4 arm only when it preserves
@@ -408,12 +439,13 @@ quality, citation, and retrieval gates against its relevant BM25 comparator, wit
 the safety gate; evaluate latency, tail latency, tokens, actual unique chunks, context size, and
 retry diagnostics alongside quality.
 
-Stage C can contain as many selected `g` values as needed. Each `low` arm requires a like-for-like
-Stage A `none` counterpart, isolating reasoning effort without replacing a screening arm or
-conflating effort with context budget. The Stage C arm inherits its paired Stage A arm's fetch
-configuration: `f = g` for bm25/dense arms and `f = 30` for hybrid arms; reasoning effort is
-therefore the sole changed dimension. GPT-5.1 supports custom tool calling for both `none` and
-`low`; the chosen effort remains constant across all LLM calls in one run.
+Stage C contains four selected arms × three datasets = **12 experiment runs**. Each `low` arm
+requires a like-for-like Stage A or Stage B `none` counterpart, isolating reasoning effort without
+replacing a screening arm or conflating effort with context, fetch, call count, or merge policy.
+C1 inherits BM25 c3/f20/g20 round-robin; C2 inherits B6 c2/f20 current-union; C3 inherits B4
+c3/f20 current-union; and C4 inherits B5 c4/f15 current-union. GPT-5.1 supports custom tool
+calling for both `none` and `low`; the chosen effort remains constant across all LLM calls in one
+run.
 
 Advance a candidate only if it has acceptable rubric/citation/retrieval quality relative to E0 and
 demonstrates a latency benefit at concurrency 1. Retain the complete Stage A matrix even when a
@@ -476,7 +508,7 @@ mcp_api_version = "v2"
 Repeat the same `[[required_tools]]` entry exactly c1, c2, or c3 times. The repeated entries are
 the required call count and mode contract.
 
-**`hybrid_es_rrf` arms (Stage A and C) — `f = 30`:**
+**`hybrid_es_rrf` arms (Stage A; not selected for Stage C) — `f = 30`:**
 
 ```toml
 simple_mode = true
@@ -485,7 +517,7 @@ simple_per_call_fetch_count = 30       # fixed at 30; preserves the full RRF ran
 simple_global_context_chunk_count = 10 # unique chunks selected after round_robin merging; hybrid may use 10, 15, 20, 25, or 30
 include_metadata = false
 max_tool_iterations = 1
-reasoning_effort = "none"              # Stage C uses "low"
+reasoning_effort = "none"
 max_completion_tokens = 12_000
 
 [[required_tools]]
@@ -495,7 +527,7 @@ mcp_api_version = "v2"
 
 Repeat the ES-RRF entry exactly c1, c2, or c3 times.
 
-**Stage B `current_union` arms — explicit tool multiset, f = 15 or 20, no global cap:**
+**Stage B and selected Stage C `current_union` arms — explicit tool multiset, f = 15 or 20, no global cap:**
 
 ```toml
 simple_mode = true
@@ -503,7 +535,7 @@ simple_merge_policy = "current_union"
 simple_per_call_fetch_count = 15
 include_metadata = false
 max_tool_iterations = 1
-reasoning_effort = "none"              # low remains Stage C only
+reasoning_effort = "none"              # paired Stage C TOMLs use "low"
 max_completion_tokens = 12_000
 
 [[required_tools]]
@@ -522,8 +554,10 @@ mcp_api_version = "v2"
 `required_tools` must contain only `get_relevant_documents_bm25`,
 `get_relevant_documents_dense`, or `get_relevant_documents_es_rrf`, with one to four entries. It
 is a multiset: duplicate entries require duplicate calls. Stage B permits c2, c3, and c4
-BM25/dense multisets; Stage A/C retain c1–c3 same-mode multisets. Stage B does not configure
-`simple_global_context_chunk_count`: `current_union` keeps the full deduplicated union up to
+BM25/dense multisets; selected Stage C C2/C3/C4 use the exact same corresponding multisets with
+`reasoning_effort = "low"`. Stage A and selected C1 retain c1–c3 same-mode round-robin
+multisets. Current-union arms do not configure `simple_global_context_chunk_count`:
+`current_union` keeps the full deduplicated union up to
 `c × f` candidates before adjacent-chunk concatenation.
 
 `simple_per_call_fetch_count` controls the ES request `size` / per-call extraction cap; it feeds
