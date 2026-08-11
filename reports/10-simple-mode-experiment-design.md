@@ -83,7 +83,7 @@ reasoning design to measure a low-latency alternative.
 | Invocation concurrency | 1 |
 | Output format | Flat-concatenated grouped chunks |
 | Citation format | `[doc_id-N]` or `[doc_id-i:j]` for a concatenated run |
-| Output token budget | 12,000 `max_completion_tokens` |
+| Output token budget | 12,000 `max_completion_tokens` for Stage A and B1/B2; 14,000 for Stage B3–B6 and their paired Stage C current-union arms |
 
 The one-hop rule is both prompt guidance and a code rule. At iteration 0 the graph requires a tool
 call. After that tool round, `max_tool_iterations = 1` makes the next LLM call use
@@ -91,10 +91,12 @@ call. After that tool round, `max_tool_iterations = 1` makes the next LLM call u
 
 E0 uses 30,000 `max_completion_tokens` because it permits multi-hop, low-reasoning planning and
 its structured output can follow a broader retrieval context. Simple Mode instead has one retrieval
-round, default `reasoning_effort = "none"`, a small global-context chunk budget, and a 100–600
-word answer target. A 12,000-token cap is therefore 60% below E0 while preserving headroom for
-the structured response and exact source snippets. An 8,000-token cap would likely work but adds
-unnecessary length-finish risk when a 20-chunk answer cites several passages.
+round and a 100–600 word answer target. Stage A and the smaller B1/B2 contexts use a 12,000-token
+cap, which is 60% below E0 while preserving headroom for the structured response and exact source
+snippets. Stage B3–B6 deliberately increase the cap to 14,000 because their c3/c4 current-union
+contexts contain up to 45 or 60 pre-deduplication candidates; paired Stage C arms retain the same
+cap. An 8,000-token cap would likely work for smaller contexts but adds unnecessary length-finish
+risk when a broad context answer cites several passages.
 
 ### 2.3 Flat-concatenated output
 
@@ -119,7 +121,7 @@ metadata generation or nested XML.
 Initial Simple Mode supports only chunk-level retrieval:
 
 | Mode | Elasticsearch request per retrieval tool call | Query style |
-|---|---|---|
+|---|---|---|---|
 | `bm25` | Nested `match` on `chunks.text` | Terse keywords, entities, aliases, exact terminology |
 | `dense` | Nested kNN on `chunks.embedding` | Natural-language information need |
 | `hybrid_es_rrf` | One server-side RRF request combining nested BM25 and nested kNN | Blended, keyword-oriented, semantic, or mixed phrasing by call budget |
@@ -380,12 +382,12 @@ Stage C is a compact reasoning-effort test, not a second retrieval screen. It ru
 `rnone` references again with `reasoning_effort = "low"` across all three datasets, for
 **12 experiment runs**.
 
-| Stage C arm | Paired `rnone` reference | Why selected |
-|---|---|---|
-| C1 `S-C-bm25-c3-rr-f20-g20-rlow` | `S-A-bm25-c3-rr-f20-g20-rnone` | Strongest Stage A quality/latency balance: 58.61% equal-dataset mean pass rate, 56.60% mean RubricV2, and 17.28 s median p50. |
-| C2 `S-C-bm25-dense-c2-union-f20-rlow` | B6 `S-B-bm25-dense-c2-union-f20-rnone` | Fast current-union reference: 58.36% mean pass rate at 16.32 s median p50. |
-| C3 `S-C-bm25-dense-bm25-c3-union-f20-rlow` | B4 `S-B-bm25-dense-bm25-c3-union-f20-rnone` | Higher-quality current-union reference: 62.17% mean pass rate at 17.24 s median p50; Mallinckrodt pass rate 47.56%. |
-| C4 `S-C-bm25-dense-bm25-dense-c4-union-f15-rlow` | B5 `S-B-bm25-dense-bm25-dense-c4-union-f15-rnone` | Accuracy-oriented c4 breadth reference: highest Stage B aggregate pass rate (62.35%) and RubricV2 (64.27%). |
+| Stage C arm | Paired `rnone` reference | Completion cap | Why selected |
+|---|---|---|---|
+| C1 `S-C-bm25-c3-rr-f20-g20-rlow` | `S-A-bm25-c3-rr-f20-g20-rnone` | 12,000 | Strongest Stage A quality/latency balance: 58.61% equal-dataset mean pass rate, 56.60% mean RubricV2, and 17.28 s median p50. |
+| C2 `S-C-bm25-dense-c2-union-f20-rlow` | B6 `S-B-bm25-dense-c2-union-f20-rnone` | 14,000 | Fast current-union reference: 58.36% mean pass rate at 16.32 s median p50. |
+| C3 `S-C-bm25-dense-bm25-c3-union-f20-rlow` | B4 `S-B-bm25-dense-bm25-c3-union-f20-rnone` | 14,000 | Higher-quality current-union reference: 62.17% mean pass rate at 17.24 s median p50; Mallinckrodt pass rate 47.56%. |
+| C4 `S-C-bm25-dense-bm25-dense-c4-union-f15-rlow` | B5 `S-B-bm25-dense-bm25-dense-c4-union-f15-rnone` | 14,000 | Accuracy-oriented c4 breadth reference: highest Stage B aggregate pass rate (62.35%) and RubricV2 (64.27%). |
 
 The C2/C3 pair retains a fast versus higher-quality Stage B contrast. C4 is included despite its
 higher latency to test whether low reasoning preserves or improves the strongest aggregate
@@ -396,7 +398,8 @@ For every C1–C4 run, `low` applies to **all** LLM calls: tool planning, final 
 structured output, and any parse/retry calls. All other effective parameters must be copied
 unchanged from the paired `rnone` TOML: model, seed, system prompt, response format, completion
 budget, tool multiset, metadata-filter policy, merge policy, f/g values, one retrieval round, and
-invocation concurrency 1. Per-call reasoning policies remain deferred.
+invocation concurrency 1. C1 retains 12,000; C2/C3/C4 retain 14,000. Per-call reasoning policies
+remain deferred.
 
 ### 6.3 Comparison map
 
@@ -536,7 +539,7 @@ simple_per_call_fetch_count = 15
 include_metadata = false
 max_tool_iterations = 1
 reasoning_effort = "none"              # paired Stage C TOMLs use "low"
-max_completion_tokens = 12_000
+max_completion_tokens = 14_000         # B3–B6 and paired C2/C3/C4; B1/B2 remain 12_000
 
 [[required_tools]]
 name = "get_relevant_documents_bm25"

@@ -7,7 +7,7 @@ will make the approved selections normative.
 
 ## Decision
 
-Run three `reasoning_effort = "low"` arms, each on EMC2 set 1, EMC2 set 2,
+Run four `reasoning_effort = "low"` arms, each on EMC2 set 1, EMC2 set 2,
 and Mallinckrodt:
 
 1. `S-C-bm25-c3-rr-f20-g20-rlow`
@@ -19,8 +19,11 @@ and Mallinckrodt:
 3. `S-C-bm25-dense-bm25-c3-union-f20-rlow`
    - Stage B reference: `S-B-bm25-dense-bm25-c3-union-f20-rnone` (B4).
    - Higher-quality three-call heterogeneous current-union arm.
+4. `S-C-bm25-dense-bm25-dense-c4-union-f15-rlow`
+   - Stage B reference: `S-B-bm25-dense-bm25-dense-c4-union-f15-rnone` (B5).
+   - Accuracy-oriented four-call heterogeneous current-union arm.
 
-This is **nine Stage C experiment runs**: three selected arms times three
+This is **12 Stage C experiment runs**: four selected arms times three
 datasets. No second Stage A arm is recommended. The selected Stage A arm
 already has the best aggregate pass rate and RubricV2 score among Stage A
 arms while remaining near the fastest quality frontier.
@@ -88,13 +91,13 @@ justify their much larger latency for this reasoning-effort experiment.
 | B2: `S-B-bm25-bm25-c2-union-f20-rnone` | 0.5660 | 0.5738 | 26.6400 | 78.6514 | 0.4756 | 0.5044 |
 | B1: `S-B-bm25-dense-c2-union-f15-rnone` | 0.5711 | 0.5506 | 25.7310 | 64.5538 | 0.4024 | 0.3981 |
 
-Select B4 and B6:
+Select B4, B5, and B6:
 
 - **B4 is the high-quality Stage B arm.** It is only 0.18 percentage points
   below B5 in mean pass rate while 4.03 seconds faster at median p50. It also
   has a 3.66-point higher Mallinckrodt pass rate. B5's higher mean RubricV2
-  alone does not outweigh that speed and Mallinckrodt trade-off for this
-  small Stage C suite.
+  makes it a separate accuracy-oriented Stage C arm despite that speed and
+  Mallinckrodt trade-off.
 - **B6 is the fast Stage B arm.** It is the fastest current-union arm at
   median p50 and maintains a strong 0.5836 mean pass rate. Compared with B4,
   it gives a lower-depth two-call reference with a 0.91-second median-p50
@@ -102,8 +105,7 @@ Select B4 and B6:
 
 B2 and B1 are dominated in the intended quality/latency space. B3 is a
 plausible lower-cost c3 alternative, but B4 has higher mean quality and lower
-median p50. B5 remains useful evidence that additional breadth can improve
-some rubric scores, but is excluded from Stage C to keep the suite compact.
+median p50.
 
 ## Why the selected Stage B arms matter
 
@@ -114,6 +116,9 @@ The selected arms frame the most informative small Stage C comparison:
 - B4 asks the same question for the stronger three-call mixed context, which
   already improves mean pass rate by 3.81 points over B6 while adding only
   0.91 seconds at median p50.
+- B5 asks whether low reasoning is useful for the highest aggregate
+  accuracy/RubricV2 c4 breadth context, accepting its higher latency and
+  weaker Mallinckrodt pass rate as an explicit trade-off.
 
 The comparison between B4 and B6 is not a clean one-dimension causal test:
 it changes requested calls from two to three as well as the retrieval-tool
@@ -140,6 +145,12 @@ For each selected reference, all non-reasoning settings must remain unchanged:
   context setting;
 - metadata-filter policy, one retrieval round, and invocation concurrency 1.
 
+The completion budget remains part of the paired contract: C1 retains 12,000
+`max_completion_tokens`; C2/C3/C4 retain 14,000 from B6/B4/B5 respectively.
+The budget is not an allocation of reasoning tokens—GPT-5.1 controls actual
+reasoning-token use from `reasoning_effort`—but it preserves enough total
+completion headroom for the visible response and low-reasoning work.
+
 The intentional treatment change is only `reasoning_effort`: `none` to
 `low`. Model version, config filename, and MLflow experiment name naturally
 change to identify the new run; they are identifiers, not additional
@@ -164,10 +175,8 @@ not necessarily a quality improvement: low reasoning can improve selection,
 grounding, or structured-output behavior, but it can also increase latency,
 tokens, and variance.
 
-## Deferred Stage C design update
+## Registered Stage C design
 
-The next task should update `10-simple-mode-experiment-design.md` to register
-the three selected Stage C arms, their identifiers, the `none` to `low`
-paired-comparison contract, and the nine-run execution plan. That task should
-not expand the suite with a second Stage A arm or with B5 unless new evidence
-or a separate decision changes this selection.
+`10-simple-mode-experiment-design.md` registers the four selected Stage C
+arms, their identifiers, the `none` to `low` paired-comparison contract,
+completion-budget preservation, and the 12-run execution plan.
