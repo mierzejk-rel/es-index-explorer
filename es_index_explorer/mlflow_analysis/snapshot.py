@@ -11,6 +11,10 @@ already-committed run only needs a metadata-only fingerprint check, and final
 artifacts are only re-aggregated and replaced when something actually changed.
 Pass ``delete_checkpoint_after_publish=True`` (CLI: ``--delete-checkpoint-after-publish``)
 to remove the checkpoint once no further incremental exports are expected.
+
+Pass ``skip_fingerprint_validation=True`` (CLI: ``--skip-fingerprint-validation``) to
+reuse already-committed selected runs without the metadata/trace-inventory fingerprint
+check, trading freshness assurance for a much faster incremental export.
 """
 
 import hashlib
@@ -280,6 +284,7 @@ def export_snapshot(
     fresh: bool = False,
     checkpoint_epoch: int | None = None,
     delete_checkpoint_after_publish: bool = False,
+    skip_fingerprint_validation: bool = False,
 ) -> Path:
     """Export a sanitized MLflow snapshot using an explicit Databricks profile.
 
@@ -331,6 +336,16 @@ def export_snapshot(
         Defaults to false so the checkpoint remains available for a future
         incremental export. Applies regardless of whether this call actually
         found changes to publish.
+    skip_fingerprint_validation
+        When true, a currently selected run that already has a committed
+        shard is reused immediately, without contacting MLflow to check
+        whether its metadata, trace inventory, or assessments changed since
+        it was downloaded. Newly discovered runs without a committed shard
+        are still fully downloaded and fingerprinted as usual. Defaults to
+        false, which validates every selected cached run's fingerprint
+        before reuse. This trades freshness assurance for speed: rerun
+        without the flag to restore validation and refresh any run that
+        changed remotely in the meantime.
 
     Returns
     -------
@@ -355,6 +370,7 @@ def export_snapshot(
         selector=selector,
         all_runs=all_runs,
         trace_fetch_concurrency=trace_fetch_concurrency,
+        skip_fingerprint_validation=skip_fingerprint_validation,
     )
     checkpoint_dir = _resolve_checkpoint_session(
         output_dir=output_dir,
@@ -409,6 +425,7 @@ def export_snapshot(
         "run_ids": sorted(planned_run_ids),
         "selector": export_context["selector"],
         "all_runs": export_context["all_runs"],
+        "skip_fingerprint_validation": export_context["skip_fingerprint_validation"],
     }
     previous_signature = _read_published_view_signature(output_dir)
 
@@ -430,6 +447,8 @@ def export_snapshot(
         "last_selector": export_context["selector"],
         "last_all_runs": export_context["all_runs"],
         "last_trace_fetch_concurrency": export_context["trace_fetch_concurrency"],
+        "last_fingerprint_validation_skipped": skip_fingerprint_validation,
+        "last_unvalidated_reused_run_count": 0,
     }
     checkpoint["status"] = "in_progress"
     _write_checkpoint(checkpoint_dir, checkpoint)
@@ -445,6 +464,7 @@ def export_snapshot(
     )
 
     downloaded_this_session = False
+    unvalidated_reused_run_count = 0
     try:
         for run_ordinal, (experiment, run, run_id) in enumerate(planned_runs, start=1):
             logger.info(
@@ -453,15 +473,32 @@ def export_snapshot(
                 len(planned_runs),
                 run_id,
             )
+            is_committed = run_id in completed_run_ids and _run_shard_is_committed(
+                checkpoint_dir, run_id
+            )
+            if _should_reuse_without_fingerprint_check(
+                skip_fingerprint_validation=skip_fingerprint_validation,
+                is_committed=is_committed,
+            ):
+                unvalidated_reused_run_count += 1
+                checkpoint["discovery"]["last_unvalidated_reused_run_count"] = (
+                    unvalidated_reused_run_count
+                )
+                _write_checkpoint(checkpoint_dir, checkpoint)
+                logger.info(
+                    "Reusing committed run shard %s without fingerprint validation "
+                    "(--skip-fingerprint-validation).",
+                    run_id,
+                )
+                continue
+
             remote_fingerprint = _compute_remote_fingerprint(
                 client=client,
                 experiment=experiment,
                 run=run,
                 trace_fetch_concurrency=trace_fetch_concurrency,
             )
-            if run_id in completed_run_ids and _run_shard_is_committed(
-                checkpoint_dir, run_id
-            ):
+            if is_committed:
                 local_fingerprint = _read_run_fingerprint(checkpoint_dir, run_id)
                 if local_fingerprint is not None and _fingerprints_match(
                     local_fingerprint, remote_fingerprint
@@ -659,7 +696,13 @@ def analyze_snapshot(*, snapshot_dir: Path, selector: SnapshotSelector) -> Path:
     return analysis_dir
 
 
-_PUBLISH_SIGNATURE_KEYS = ("experiment_ids", "run_ids", "selector", "all_runs")
+_PUBLISH_SIGNATURE_KEYS = (
+    "experiment_ids",
+    "run_ids",
+    "selector",
+    "all_runs",
+    "skip_fingerprint_validation",
+)
 
 
 def _read_published_view_signature(output_dir: Path) -> dict[str, object] | None:
@@ -667,11 +710,12 @@ def _read_published_view_signature(output_dir: Path) -> dict[str, object] | None
 
     ``None`` is returned whenever the previous publish cannot be trusted to
     describe the current output directory: no ``manifest.json`` exists, it is
-    unreadable/corrupt, it predates the ``experiment_ids`` field added
-    alongside this function, or the required snapshot Parquet files are
-    missing (for example, deleted or only partially written outside a normal
-    export). Callers treat ``None`` as "a publish is required," which is the
-    safe default in every one of those cases.
+    unreadable/corrupt, it predates the ``experiment_ids`` or
+    ``skip_fingerprint_validation`` fields added alongside/after this
+    function, or the required snapshot Parquet files are missing (for
+    example, deleted or only partially written outside a normal export).
+    Callers treat ``None`` as "a publish is required," which is the safe
+    default in every one of those cases.
     """
     manifest_path = output_dir / "manifest.json"
     if not manifest_path.exists():
@@ -697,6 +741,7 @@ def _read_published_view_signature(output_dir: Path) -> dict[str, object] | None
         "run_ids": sorted(run_ids),
         "selector": manifest["selector"],
         "all_runs": manifest["all_runs"],
+        "skip_fingerprint_validation": manifest["skip_fingerprint_validation"],
     }
 
 
@@ -714,7 +759,11 @@ def _publish_needed(
     or whenever the current selection's signature differs from what was last
     published. ``trace_fetch_concurrency`` is intentionally not part of the
     signature: it only affects download parallelism, not the content of the
-    published data.
+    published data. ``skip_fingerprint_validation`` is part of the signature
+    so a change between validated and skipped mode triggers a local
+    re-aggregation/manifest rewrite, at no cost of additional MLflow reads,
+    ensuring the manifest truthfully reflects the freshness policy of the
+    most recent export.
     """
     if downloaded_this_session or previous_signature is None:
         return True
@@ -727,6 +776,7 @@ def _export_context(
     selector: SnapshotSelector,
     all_runs: bool,
     trace_fetch_concurrency: int,
+    skip_fingerprint_validation: bool,
 ) -> dict[str, object]:
     """Return this invocation's publish-time metadata.
 
@@ -741,7 +791,24 @@ def _export_context(
         "selector": asdict(selector),
         "all_runs": all_runs,
         "trace_fetch_concurrency": trace_fetch_concurrency,
+        "skip_fingerprint_validation": skip_fingerprint_validation,
     }
+
+
+def _should_reuse_without_fingerprint_check(
+    *,
+    skip_fingerprint_validation: bool,
+    is_committed: bool,
+) -> bool:
+    """Return whether a planned run can be reused without contacting MLflow.
+
+    This is only true when the caller opted in via
+    ``skip_fingerprint_validation`` *and* the run already has a committed
+    local shard. A newly discovered run without a committed shard always
+    goes through the normal download/fingerprint path, regardless of this
+    flag, because there is nothing yet to reuse.
+    """
+    return skip_fingerprint_validation and is_committed
 
 
 def _cli_identity(*, profile: str) -> dict[str, object]:
@@ -1342,6 +1409,7 @@ def _aggregate_and_publish(
             "selector": export_context["selector"],
             "all_runs": export_context["all_runs"],
             "trace_fetch_concurrency": export_context["trace_fetch_concurrency"],
+            "skip_fingerprint_validation": export_context["skip_fingerprint_validation"],
             "experiment_count": len(experiment_rows),
             "experiment_ids": sorted(str(row["experiment_id"]) for row in experiment_rows),
             "run_count": len(planned_run_ids),

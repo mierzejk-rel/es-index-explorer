@@ -15,6 +15,10 @@ the current invocation's selected paths; it is only rewritten when that
 published set actually needs to change. Pass
 ``--delete-checkpoint-after-publish`` to remove the entire checkpoint once no
 further incremental exports are expected.
+
+Pass ``--skip-fingerprint-validation`` to reuse already-downloaded selected
+runs without checking MLflow for remote changes, trading freshness assurance
+for a much faster incremental export.
 """
 
 import argparse
@@ -118,6 +122,20 @@ def parse_args() -> argparse.Namespace:
             "refresh, or select different/additional paths without a full "
             "re-download. This is the only way to remove cached data; nothing is "
             "pruned automatically."
+        ),
+    )
+    export_parser.add_argument(
+        "--skip-fingerprint-validation",
+        action="store_true",
+        help=(
+            "Opt-in speedup: reuse every already-downloaded selected run "
+            "immediately, without checking MLflow for remote metadata/trace "
+            "changes. Newly discovered runs are still fully downloaded. Runs "
+            "that satisfy the current selection but are now missing from "
+            "MLflow (for example, deleted) are excluded from the published "
+            "snapshot either way; their cached shards are retained. Rerun "
+            "without this flag to restore validation and refresh any run "
+            "that changed remotely in the meantime."
         ),
     )
 
@@ -275,6 +293,7 @@ def main() -> None:
                 fresh=args.fresh,
                 checkpoint_epoch=args.checkpoint_epoch,
                 delete_checkpoint_after_publish=args.delete_checkpoint_after_publish,
+                skip_fingerprint_validation=args.skip_fingerprint_validation,
             )
             print(f"Exported sanitized MLflow snapshot to {snapshot_dir}")
             return

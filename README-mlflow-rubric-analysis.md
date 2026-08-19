@@ -79,6 +79,7 @@ UV_ENV_FILE= uv run mlflow_snapshot.py export \
 | `--fresh` | No | false | Ignore matching checkpoints and create a new checkpoint session. Cannot be combined with `--checkpoint-epoch`. |
 | `--checkpoint-epoch EPOCH` | No | none | Resume exactly `checkpoint-<EPOCH>` beneath `--output-dir`, even if already `completed`. Cannot be combined with `--fresh`. |
 | `--delete-checkpoint-after-publish` | No | false | Delete the entire checkpoint directory once this export finishes. Default is to retain it for a future incremental export. This is the only way to remove cached data. |
+| `--skip-fingerprint-validation` | No | false | Opt-in speedup: reuse every already-committed selected run immediately, without checking MLflow for remote metadata/trace changes. Newly discovered runs are still fully downloaded and fingerprinted. See [Skipping fingerprint validation for a faster refresh](#skipping-fingerprint-validation-for-a-faster-refresh). |
 | `--experiment-prefix PREFIX` | No | none | Select experiments whose full MLflow name starts with this literal prefix. Repeatable; unioned with every other `--experiment-prefix`/`--experiment-folder` given. |
 | `--experiment-folder PATH` | No | `/Users/krzysztof.mierzejewski@relativity.com/DSAS-2836/SimpleMode/` (only when neither flag is given) | Select experiment names recursively below this MLflow folder. Repeatable; unioned with every other `--experiment-prefix`/`--experiment-folder` given. |
 | `--direct-children` | No | false | Limit matching under every given `--experiment-folder` to immediate child experiments, not nested descendants. |
@@ -222,6 +223,47 @@ UV_ENV_FILE= uv run mlflow_snapshot.py export \
   --delete-checkpoint-after-publish
 ```
 
+### Skipping fingerprint validation for a faster refresh
+
+The metadata/trace-inventory fingerprint check described above is what makes
+incremental re-export safe, but it is also the slowest per-run step — each
+already-cached run still pages through its full trace inventory remotely
+before it can be reused, which can dominate wall-clock time once dozens of
+runs are cached. Pass `--skip-fingerprint-validation` to bypass that check
+for every run that already has a committed local shard:
+
+```bash
+UV_ENV_FILE= uv run mlflow_snapshot.py export \
+  --profile applied-science \
+  --experiment-folder "/Users/krzysztof.mierzejewski@relativity.com/DSAS-2836/SimpleMode/" \
+  --all-runs \
+  --output-dir "artifacts/mlflow/simplemode-stage-v3" \
+  --skip-fingerprint-validation
+```
+
+The exact safety contract:
+
+- Every currently selected run that already has a committed shard is reused
+  immediately, with **no** MLflow fingerprint call. Its cached payload is
+  trusted as-is, even if its remote metadata, trace inventory, or assessments
+  changed since it was originally downloaded.
+- A newly discovered run without a committed shard is unaffected: it is still
+  fully downloaded and fingerprinted, exactly as without the flag.
+- A run that satisfies the current selection (matching paths/prefixes) but
+  has since been deleted or is otherwise missing from MLflow is excluded from
+  the published snapshot either way — this is unchanged from the default
+  behavior and is independent of this flag. Its cached shard, if any, is
+  retained untouched, never deleted by this flag.
+- `manifest.json` records whether the most recent publish used
+  `skip_fingerprint_validation`, so a later switch between skipped and
+  validated mode is itself detected as a signature change and triggers a
+  local re-aggregation/manifest rewrite (at no MLflow cost), even when no run
+  was downloaded or invalidated that session.
+- Rerun `export` **without** this flag to restore full validation and refresh
+  any run whose remote metadata, trace inventory, or assessments changed
+  while validation was skipped. The flag trades freshness assurance for
+  speed; it never deletes or corrupts cached data.
+
 ### Migration note: checkpoint identity change
 
 The checkpoint's resume-matching identity is now just the Databricks profile
@@ -280,7 +322,11 @@ trace set are published.
 ### Remote checks before reusing a shard
 
 For every selected run, the exporter recalculates a remote fingerprint before
-deciding whether to reuse a committed shard. The fingerprint covers:
+deciding whether to reuse a committed shard, unless `--skip-fingerprint-validation`
+is passed, in which case every already-committed selected run is reused
+without this check (see
+[Skipping fingerprint validation for a faster refresh](#skipping-fingerprint-validation-for-a-faster-refresh)).
+The fingerprint covers:
 
 - run ID, experiment ID/name, status, start/end times, and lifecycle stage;
 - all run parameters;
@@ -341,7 +387,7 @@ Schema v3 publishes:
 
 | Artifact | Contents |
 |---|---|
-| `manifest.json` | Schema version, export time, profile, selector, `all_runs`, `trace_fetch_concurrency`, selected experiment IDs/count, run IDs/count, privacy policy, checkpoint epoch, and SHA-256/size for every Parquet file. Experiment IDs and run IDs (together with the selector and `all_runs`) are what a later export compares against to decide whether the published snapshot needs to change. |
+| `manifest.json` | Schema version, export time, profile, selector, `all_runs`, `trace_fetch_concurrency`, `skip_fingerprint_validation`, selected experiment IDs/count, run IDs/count, privacy policy, checkpoint epoch, and SHA-256/size for every Parquet file. Experiment IDs, run IDs, the selector, `all_runs`, and `skip_fingerprint_validation` are what a later export compares against to decide whether the published snapshot needs to change. |
 | `experiments.parquet` | Selected experiment IDs, names, and lifecycle stages. |
 | `runs.parquet` | Run status/timing and sanitized experiment configuration, including Simple Mode parameters. |
 | `run_metrics.parquet` | All run-level MLflow metric key/value rows. |

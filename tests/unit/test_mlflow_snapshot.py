@@ -27,6 +27,7 @@ from es_index_explorer.mlflow_analysis.snapshot import (
     _resolve_checkpoint_session,
     _retry_trace_request,
     _sanitize_trace,
+    _should_reuse_without_fingerprint_check,
     _SNAPSHOT_PARQUET_FILES,
     _write_checkpoint,
     decode_quality_value,
@@ -84,6 +85,19 @@ def test_find_newest_matching_checkpoint_ignores_mismatched_identity(
     assert found is None
 
 
+def test_export_context_serializes_skip_fingerprint_validation() -> None:
+    """The export context records the flag for manifest/audit-trail use."""
+    context = _export_context(
+        profile="applied-science",
+        selector=SnapshotSelector(experiment_prefixes=("S-A-",)),
+        all_runs=True,
+        trace_fetch_concurrency=5,
+        skip_fingerprint_validation=True,
+    )
+
+    assert context["skip_fingerprint_validation"] is True
+
+
 def test_cli_identity_is_independent_of_selector_and_all_runs() -> None:
     """The cache identity is stable across different selectors/all_runs.
 
@@ -98,6 +112,22 @@ def test_cli_identity_is_independent_of_selector_and_all_runs() -> None:
     assert "selector" not in identity_one
     assert "all_runs" not in identity_one
     assert "trace_fetch_concurrency" not in identity_one
+
+
+def test_should_reuse_without_fingerprint_check_only_when_flag_and_committed() -> None:
+    """Reuse without fingerprinting only when both the flag and shard commit hold."""
+    assert _should_reuse_without_fingerprint_check(
+        skip_fingerprint_validation=True, is_committed=True
+    )
+    assert not _should_reuse_without_fingerprint_check(
+        skip_fingerprint_validation=True, is_committed=False
+    )
+    assert not _should_reuse_without_fingerprint_check(
+        skip_fingerprint_validation=False, is_committed=True
+    )
+    assert not _should_reuse_without_fingerprint_check(
+        skip_fingerprint_validation=False, is_committed=False
+    )
 
 
 def test_snapshot_selector_unions_multiple_prefixes_and_folders() -> None:
@@ -168,6 +198,7 @@ def test_read_published_view_signature_reads_existing_manifest(
                 "selector": {"experiment_prefixes": ["S-A-"], "experiment_folders": []},
                 "all_runs": True,
                 "trace_fetch_concurrency": 5,
+                "skip_fingerprint_validation": False,
             }
         ),
         encoding="utf-8",
@@ -180,6 +211,7 @@ def test_read_published_view_signature_reads_existing_manifest(
         "run_ids": ["run-1", "run-2"],
         "selector": {"experiment_prefixes": ["S-A-"], "experiment_folders": []},
         "all_runs": True,
+        "skip_fingerprint_validation": False,
     }
     assert "trace_fetch_concurrency" not in signature
 
@@ -239,6 +271,27 @@ def test_read_published_view_signature_rejects_manifest_with_missing_parquet_fil
     assert _read_published_view_signature(tmp_path) is None
 
 
+def test_read_published_view_signature_rejects_pre_upgrade_manifest_without_skip_flag(
+    tmp_path: Path,
+) -> None:
+    """A manifest predating skip_fingerprint_validation is not trusted."""
+    _touch_snapshot_parquet_files(tmp_path)
+    (tmp_path / "manifest.json").write_text(
+        json.dumps(
+            {
+                "experiment_ids": ["exp-1"],
+                "run_ids": ["run-1"],
+                "selector": {"experiment_prefixes": ["S-A-"], "experiment_folders": []},
+                "all_runs": True,
+                "trace_fetch_concurrency": 5,
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    assert _read_published_view_signature(tmp_path) is None
+
+
 def _sample_signature(**overrides: object) -> dict[str, object]:
     """Return a minimal publish signature, with optional field overrides."""
     signature: dict[str, object] = {
@@ -246,6 +299,7 @@ def _sample_signature(**overrides: object) -> dict[str, object]:
         "run_ids": ["run-1"],
         "selector": {"experiment_prefixes": ["S-A-"], "experiment_folders": []},
         "all_runs": True,
+        "skip_fingerprint_validation": False,
     }
     signature.update(overrides)
     return signature
@@ -296,6 +350,18 @@ def test_publish_needed_true_when_downloaded_this_session_regardless_of_signatur
         downloaded_this_session=True,
         current_signature=_sample_signature(),
         previous_signature=_sample_signature(),
+    )
+
+
+def test_publish_needed_true_when_skip_fingerprint_validation_changes() -> None:
+    """Switching between validated and skipped mode alone must trigger a republish."""
+    current = _sample_signature(skip_fingerprint_validation=True)
+    previous = _sample_signature(skip_fingerprint_validation=False)
+
+    assert _publish_needed(
+        downloaded_this_session=False,
+        current_signature=current,
+        previous_signature=previous,
     )
 
 
@@ -370,6 +436,7 @@ def test_aggregate_and_publish_writes_manifest_from_export_context(
         selector=SnapshotSelector(experiment_prefixes=("S-A-",)),
         all_runs=True,
         trace_fetch_concurrency=5,
+        skip_fingerprint_validation=True,
     )
 
     _aggregate_and_publish(
@@ -397,6 +464,7 @@ def test_aggregate_and_publish_writes_manifest_from_export_context(
     }
     assert manifest["all_runs"] is True
     assert manifest["trace_fetch_concurrency"] == 5
+    assert manifest["skip_fingerprint_validation"] is True
     assert manifest["experiment_ids"] == ["exp-1"]
     assert manifest["run_ids"] == ["run-1"]
     for filename in _SNAPSHOT_PARQUET_FILES:
@@ -424,6 +492,7 @@ def test_aggregate_and_publish_writes_a_valid_empty_snapshot(tmp_path: Path) -> 
         selector=SnapshotSelector(experiment_prefixes=("S-nonexistent-",)),
         all_runs=True,
         trace_fetch_concurrency=5,
+        skip_fingerprint_validation=False,
     )
 
     _aggregate_and_publish(
@@ -440,6 +509,7 @@ def test_aggregate_and_publish_writes_a_valid_empty_snapshot(tmp_path: Path) -> 
     assert manifest["run_ids"] == []
     assert manifest["experiment_count"] == 0
     assert manifest["run_count"] == 0
+    assert manifest["skip_fingerprint_validation"] is False
     for filename in _SNAPSHOT_PARQUET_FILES:
         parquet_path = output_dir / filename
         assert parquet_path.exists()
@@ -454,6 +524,7 @@ def test_aggregate_and_publish_writes_a_valid_empty_snapshot(tmp_path: Path) -> 
             "direct_children": False,
         },
         "all_runs": True,
+        "skip_fingerprint_validation": False,
     }
 
 
