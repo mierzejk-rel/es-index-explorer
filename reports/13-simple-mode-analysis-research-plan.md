@@ -40,13 +40,6 @@ small number of frozen constants (the annotation batch size, the exact per-level
 have no principled value and were fixed only for reproducibility, not because that value is
 demonstrably correct.
 
-**On the existing git tag.** The repository carries an annotated tag,
-`analysis-lock/simple-mode-question-suitability`, applied to the pre-completion-pass content of
-this file. That tag now points to **superseded** content - the v1 specification this pass
-revised - and does not describe the text below. Re-tagging the completed specification is a
-git operation and is therefore left to the document's maintainer to perform, per §19; this
-document does not re-tag itself.
-
 ---
 
 # PART I - RESEARCH METHODOLOGY
