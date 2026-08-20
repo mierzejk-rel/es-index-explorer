@@ -22,23 +22,29 @@ split into two parts that are intended to be read independently:
 
 **Revision history and current status.** The plan was revised through five rounds of external
 methodological review, then through a sixth **implementation-contract completion pass**
-following two further independent audits (a mathematical audit that found no defect
-requiring redesign but twenty-eight specification gaps, and an implementation-contract audit
-that found the architecture coherent but not yet unique enough to force two implementers onto
-the same numbers). That sixth pass is what produced the current text: it corrected five
-interpretive overclaims (§4.2, §5.1/§5.5, §5.2, §5.6, §11), froze the Layer 1 numerical
-procedure, the CRVE finite-sample factors and PSD map, the bootstrap's full-refit semantics
-and finite attainable support, every confirmatory family's design matrix and analysis
-population, every remaining edge in the decision rule, the aggregation and grade-model
-estimators, the gold-validation weighting and intervals, and the full join/seed/artefact/CLI
-contract of Part II, and added the degenerate-and-failure register of §16a. **No methodological
-choice remains open, and - as of this pass - no computational or implementation-contract choice
+following two further independent audits (a mathematical audit that found no defect requiring
+redesign but twenty-eight specification gaps, and an implementation-contract audit that found
+the architecture coherent but not yet unique enough to force two implementers onto the same
+numbers). That sixth pass corrected five interpretive overclaims (§4.2, §5.1/§5.5, §5.2,
+§5.6, §11), froze the Layer 1 numerical procedure, the CRVE finite-sample factors and PSD map,
+the bootstrap's full-refit semantics and finite attainable support, every confirmatory
+family's design matrix and analysis population, every remaining edge in the decision rule,
+the aggregation and grade-model estimators, the gold-validation weighting and intervals, and
+the full join/seed/artefact/CLI contract of Part II, and added the degenerate-and-failure
+register of §16a.
+
+A subsequent **implementation-alignment pass** produced the current text and is recorded in
+Appendix A.10. It corrected the empirically false inventory and every dependent gate, replaced
+the unavailable Stata oracle and direct `r1-evals` dependency with reproducible fixtures,
+froze the parser/NER and Cursor SDK annotation runtimes and master seed, and decomposed the CLI
+and release sequence into their implementation boundaries. **No methodological choice remains
+open, and - as of this alignment pass - no computational or implementation-contract choice
 that could change a confirmatory number is left unfrozen either**, with two honest exceptions
-stated rather than hidden: the `boottest` oracle validates the linear special case only, so the
-GLM and stacking extensions of §5.3 and §11 still rest on internal consistency checks; and a
-small number of frozen constants (the annotation batch size, the exact per-level gold count)
-have no principled value and were fixed only for reproducibility, not because that value is
-demonstrably correct.
+stated rather than hidden: the R `fwildclusterboot` oracle validates the linear special case
+only, so the GLM and stacking extensions of §5.3 and §11 still rest on internal consistency
+checks; and a small number of frozen constants (the annotation batch size, the exact per-level
+gold count) have no principled value and were fixed only for reproducibility, not because that
+value is demonstrably correct.
 
 ---
 
@@ -75,7 +81,7 @@ statistical model estimates; what we recommend operationally.
   never as a likelihood.
 - **Co-primary** binary outcomes: PASS-versus-FAIL among resolved, and
   PASS-versus-not-PASS (§4.2).
-- Units: expectations (324) within variants (268) within rubrics (64); dataset as a
+- Units: expectations (314) within variants (263) within rubrics (63); dataset as a
   stratification factor.
 - Layer 1: an **explicit four-level hierarchy** (§5.1), fitted by empirical Bayes, with a
   Laplace conditional posterior per rubric and **hyperparameter uncertainty propagated by
@@ -113,24 +119,45 @@ statistical model estimates; what we recommend operationally.
 Snapshot `artifacts/mlflow/simplemode-stage-v3/` - 84 runs, schema v3, exported
 2026-08-18. No re-download needed.
 
-- 64 rubrics: EMC2 UAT set_1 (21 rubrics / 102 variants), set_2 (21 / 84), Mallinckrodt GA
-  (22 / 82). **Exactly 268** single-turn question strings (102 + 84 + 82), not "roughly" -
-  the component counts have always been exact, and §18's coverage verification treats 268 as
-  a blocking target rather than an approximation, so the hedge is withdrawn here to match.
-- 84 runs = Stage A 54 + Stage B 18 + Stage C 12, giving **exactly 28** runs per dataset and
-  therefore **exactly 28** traces per variant under the balance gate (§5.1), for **exactly
-  268 * 28 = 7,504** traces total once joined - the "about" and "roughly" qualifiers on these
-  three counts are withdrawn for the same reason as above; a join that does not reproduce them
-  exactly is blocked by §18's coverage verification, not merely flagged.
-- **324 expectations** (set_1 120, set_2 108, Mallinckrodt 96), range 1 to 21 per rubric,
-  mean about 5.1 (this mean remains approximate). Criterion observations total **exactly `sum
-  over rubrics r of 28 * V_r * N_r`** - a fully determined quantity given the per-rubric `V_r`
-  and `N_r` in the catalogue, not independently reported as a round number here because doing
-  so without deriving it from the same per-rubric data would itself introduce an unverified
-  figure into a document whose point is to remove those. This exact total, computed once the
-  catalogue is built (§18), is the coverage gate's fourth blocking target alongside the rubric,
-  variant and trace counts above; "roughly 40,000" was an estimate only and is withdrawn as
-  the reported figure once the exact computation is available.
+**A prior revision's global inventory was wrong, and the error is corrected here rather than
+carried forward.** That revision asserted 64 rubrics / 268 variants / 324 expectations,
+apparently by assuming `emc2_set2` mirrored `emc2_set1` at 21 rubrics / 84 variants / 108
+expectations. The TOML catalogue and the exported snapshot agree with each other and disagree
+with that assumption: `emc2_set2` has rubric files numbered 001-008 and 010-021, with **009
+absent**, giving **20** rubrics, not 21. There is no missing MLflow data and no re-export is
+needed; the five "missing" variants and ten "missing" expectations never existed in the rubric
+source tree. The corrected, verified inventory, per eval segment:
+
+- **`emc2_set1`**: 21 rubrics / 102 variants / 120 expectations.
+- **`emc2_set2`**: 20 rubrics / 79 variants / 98 expectations.
+- **Mallinckrodt GA**: 22 rubrics / 82 variants / 96 expectations.
+- **Totals**: **63 rubrics, 263 variants, 314 expectations.** These are exact component sums
+  (102 + 79 + 82 = 263; 120 + 98 + 96 = 314), not estimates, and §18's coverage verification
+  treats each segment's counts as independent blocking targets rather than checking a single
+  global constant.
+
+**Rubric populations are disjoint by segment, and no run executes the cross-segment union.**
+84 runs = Stage A 54 + Stage B 18 + Stage C 12, giving **exactly 28** runs per segment. Because
+each run is scoped to one segment's rubric set, per-segment trace totals are **exactly**
+`102 * 28 = 2,856` (`emc2_set1`), `79 * 28 = 2,212` (`emc2_set2`), and `82 * 28 = 2,296`
+(Mallinckrodt), for a grand total of **exactly 7,364 traces**, not `263 * 28 = 7,364` treated
+as a single flat product independent of segment structure - the two happen to coincide
+numerically here only because every segment runs the same 28 arms, and the per-segment identity
+is what the coverage gate actually checks (§18.1). The earlier `268 * 28 = 7,504` formula was
+wrong for the same reason the 268 count was wrong: it assumed a single global variant pool that
+does not exist. A join that does not reproduce the per-segment counts exactly is blocked by
+§18's coverage verification, not merely flagged.
+
+Across the **314 expectations**, the range is 1 to 21 per rubric and the mean is about 5.1
+(this mean remains approximate). Criterion observations total **exactly `sum over rubrics r of
+28 * V_r * N_r`** - a fully determined quantity given the per-rubric `V_r` and `N_r` in the
+catalogue, not independently reported as a round number here because doing so without deriving
+it from the same per-rubric data would itself introduce an unverified figure into a document
+whose point is to remove those. This exact total, computed once the catalogue is built (§18), is
+a further blocking coverage target alongside the rubric, variant and trace counts above;
+"roughly 40,000" was an estimate only and is withdrawn as the reported figure once the exact
+computation is available.
+
 - `material` is **uniformly true** across the S cohort, so the `RubricV2` 2:1 weighting
   collapses to uniform. This also means the material-only criterion set used by the
   ordinal grade and the all-criteria set used by `RubricV2` coincide in this cohort.
@@ -305,7 +332,7 @@ therefore constant across all traces of all variants of `r`.
 with a single global concentration `phi > 0`. Marginalising `theta_rvt` gives a
 Dirichlet-multinomial for each trace's counts, with mean `N_r * theta_rv` and
 overdispersion governed by `phi`. `phi` is pooled globally because 28 traces per variant
-estimate one common concentration well but not 268 separate ones.
+estimate one common concentration well but not 263 separate ones.
 
 **`phi` is trace-level overdispersion, not a clean stochastic-noise parameter.** Since each
 trace is one arm, `phi` mixes four things that this design cannot separate: agent
@@ -327,7 +354,7 @@ the within-rubric variant distribution estimable at all.
 
 **This is the global exchangeability assumption for variant effects, and it is a
 substantive assumption rather than a technical convenience.** It asserts that the
-dispersion induced by rewording is governed by the same covariance across all 64 rubrics -
+dispersion induced by rewording is governed by the same covariance across all 63 rubrics -
 across both EMC2 sets and Mallinckrodt, and across every kind of information need. Three
 checks are therefore pre-specified, listed in §14, and their status is deliberately
 unequal:
@@ -449,7 +476,7 @@ here in full.
   single boundary rule used everywhere ALR coordinates are computed - initialisation, Laplace
   approximation, and any diagnostic that reports `eta_rv` on the log-ratio scale.
 - **Marginal likelihood evaluation.** The marginal likelihood of `psi` integrates out
-  `(mu_r, eta_r1, ..., eta_rV_r)` for all 64 rubrics; this integral is evaluated by **nested
+  `(mu_r, eta_r1, ..., eta_rV_r)` for all 63 rubrics; this integral is evaluated by **nested
   Laplace approximation**: for each candidate `psi` during optimisation, find the joint mode of
   `(mu_r, eta_r1, ..., eta_rV_r)` by Newton's method with the ALR-Dirichlet-multinomial
   log-likelihood plus the Level 3-4 Gaussian log-densities (the same density constructed
@@ -759,7 +786,7 @@ cells:
 
 This is the standard CGM finite-sample correction, one factor per term, each computed from the
 **number of clusters realised in that term** rather than a single global count - which matters
-because `G`, `H` and `GH` need not coincide with the nominal 64 rubrics and 28 arms once a
+because `G`, `H` and `GH` need not coincide with the nominal 63 rubrics and 28 arms once a
 family's analysis population (§11) excludes some rows. **Empty intersection cells do not enter
 `GH`**: an intersection cell with zero observations contributes nothing to the sum and is not
 counted in the multiplier's denominator, since counting empty cells would understate the
@@ -954,7 +981,7 @@ at `beta_tilde` and pairing a linearised estimate with a re-evaluated bread woul
 different expansion points. It makes each replicate an exact linear functional of the
 weights, so the whole loop reduces to matrix products with nothing re-fitted. And it is the
 natural generalisation of the linear case, where the bread is `X'X` and does not depend on
-the coefficient at all, which is what keeps the `boottest` reduction meaningful.
+the coefficient at all, which is what keeps the R oracle's linear reduction meaningful.
 
 **"Full refit" has exactly one mathematical meaning, frozen here because the algorithm never
 constructs a bootstrap response and the phrase would otherwise admit several readings.** A
@@ -1027,30 +1054,37 @@ the stacking across two co-primary outcomes (§11) is a further extension of the
 
 **Implementation verification against a reference, with its scope bounded.** Because
 validity is not simply inherited, the Python implementation is verified in the one place an
-exact check is available: MNW's procedures are implemented in the Stata package `boottest`
-(Roodman, MacKinnon, Nielsen & Webb, 2019) for the **linear** model. The implementation is
-first exercised on a linear reduction of the data with a fixed seed and must reproduce
-`boottest` to numerical tolerance before it is used on the GLM.
+exact check is available: MNW's procedures are implemented for the **linear** model in the R
+package **`fwildclusterboot`** (Fischer, Roodman, MacKinnon, Nielsen & Webb). Stata's
+`boottest` (Roodman, MacKinnon, Nielsen & Webb, 2019) implements the same procedures but is not
+available in this environment; `fwildclusterboot` is the R port of the same reference
+implementation and is run inside a **digest-pinned Docker image** rather than installed on the
+host, so the oracle has a reproducible, immutable environment. Python `wildboottest` and
+PyFixest were considered and rejected as substitutes because both **explicitly document that
+they do not support multiway clustering**, which is exactly the property this oracle exists to
+check. The implementation is first exercised on a linear reduction of the data with a fixed
+seed and must reproduce the R reference to numerical tolerance before it is used on the GLM.
 
-**The oracle tuple, frozen completely rather than left as "reproduce `boottest`", and its
+**The oracle tuple, frozen completely rather than left as "reproduce the reference", and its
 dependency scope stated.** The linear reduction fixes: `y` = the resolved-only binary outcome
 recoded to a linear probability model on the criterion-in-trace grain (§11); `X` = the F6
 design matrix (`token_count` plus rubric fixed effects), chosen because it is purely
 between-rows with no stacking, no Mundlak split and no interaction, making it the simplest
 family that still exercises two-way clustering; cluster variables = rubric and arm, matching
 the production clustering exactly; `R` = the F6 restriction (`token_count` coefficient = 0);
-Stata options = `, reps(9999) bootcluster(arm) cluster(rubric arm) weighttype(rademacher)
-reps(9999) seed(<master boottest seed>)` with `weighttype(rademacher)` set explicitly because
-Stata's `boottest` default is Webb six-point weights, which is a different distribution and
-would silently fail to match if left at its default; seed = a dedicated value from the master
-seed's `boottest_oracle` stream (§18); tolerance = agreement of `p_f` to `1e-4` and of `W_obs`
-to relative `1e-6`. **Stata plus `boottest` is a one-off verification dependency, not a
-dependency of the analysis programme**: the reference run is executed once, its `(y, X, seed)`
+the frozen `fwildclusterboot::boottest()` call uses `clustid = c("rubric", "arm")`,
+`bootcluster = "arm"`, `B = 9999`, `type = "rademacher"`, `impose_null = TRUE` (restricted WCR)
+- the `type` argument is set explicitly because `fwildclusterboot`'s default is Webb six-point
+weights, which is a different distribution and would silently fail to match if left at its
+default; seed = a dedicated value from the master seed's `r_oracle` stream (§18); tolerance =
+agreement of `p_f` to `1e-4` and of `W_obs` to relative `1e-6`. **R, Docker and
+`fwildclusterboot` are a one-off verification dependency, not a dependency of the analysis
+programme**: the reference run is executed once inside the pinned image, its `(y, X, seed)`
 input and its output `p_f` and `W_obs` are committed to the repository as a fixture, and the
-Python test suite replays that fixture without invoking Stata, so the analysis run itself
-requires neither Stata nor the `boottest` package installed.
+Python test suite replays that fixture without invoking Docker or R again, so the analysis run
+itself requires neither R, Docker, nor `fwildclusterboot` installed.
 
-The claim this earns must not be inflated. **`boottest` reproduction validates the linear
+The claim this earns must not be inflated. **The R oracle reproduction validates the linear
 special case; it is a regression-test oracle for the shared numerical components, not
 validation of the GLM extension.** Specifically it does cover: the three-term CRVE assembly,
 the PSD step, the restricted-estimate bootstrap DGP, the arm-clustered weight assignment,
@@ -1183,14 +1217,14 @@ determine the regression fitted on it.**
   cell would saturate the model), and a one-way cluster-robust covariance clustered by rubric
   (the finer-grained dimension no longer available once collapsed to cell level; arm remains a
   covariate but not a clustering dimension at this grain).
-- **Variant** (F5, F6, F7's within term, F10). One row per variant, 268 rows. Cell membership:
+- **Variant** (F5, F6, F7's within term, F10). One row per variant, 263 rows. Cell membership:
   every criterion-in-trace row for that variant across all 28 arms. Collapsed response
   `y_variant` analogous to the cell case above, criterion-weighted or rubric-weighted (the
   latter giving every rubric's variants equal total weight, `1/V_r` each). Collapsed model: a
   binomial or quasi-binomial GLM with **rubric fixed effects retained** (since these are
   within-rubric families and the collapse must preserve the within-rubric contrast that
   defines them), one-way cluster-robust covariance clustered by rubric.
-- **Expectation-arm cell** (F4, F8). One row per `(expectation, arm)` pair, 324 x 28 = 9,072
+- **Expectation-arm cell** (F4, F8). One row per `(expectation, arm)` pair, 314 x 28 = 8,792
   rows before restriction. Cell membership and response construction as for the rubric-arm
   cell, substituted at expectation grain; the expectation-level features (F4's
   `expectation_document_count`, F8's `answer_locality`) are constant within a cell by
@@ -1483,8 +1517,9 @@ Top-down for presentation, bottom-up for estimation.
 - **Level 3 - rubric / information need.** Primary recommendation level (§6).
 - **Level 4 - variant / surface form.** Within-rubric modelling, and the second
   recommendation unit.
-- **Level 5 - expectation.** Three-state and binary modelling over roughly 40,000
-  observations.
+- **Level 5 - expectation.** Three-state and binary modelling at the criterion-in-trace grain;
+  the exact observation count is the catalogue-derived quantity defined in §3, not a rounded
+  constant.
 - **Orthogonal layer - errors.** The ten `errors_*_v2` dimensions (§10).
 
 **Named RQ, reworded to match the quantity §7.1 now actually defines.** *How much of the
@@ -1549,8 +1584,8 @@ state.
 
 ```mermaid
 flowchart TD
-  Snapshot["simplemode-stage-v3<br/>84 runs, ~7500 traces"] --> Recon["Criterion counts per trace<br/>P, F, U"]
-  Catalogue["Rubric TOML catalogue<br/>64 rubrics, 268 variants, 324 expectations"] --> Join
+  Snapshot["simplemode-stage-v3<br/>84 runs, 7364 traces"] --> Recon["Criterion counts per trace<br/>P, F, U"]
+  Catalogue["Rubric TOML catalogue<br/>63 rubrics, 263 variants, 314 expectations"] --> Join
   Recon --> Join["Provenance-checked join<br/>plus arm-balance verification"]
   Join --> EB["Layer 1: four-level hierarchy<br/>EB fit, Laplace conditional posterior"]
   EB --> MC["Propagated draws: 500 hyperparameter<br/>x 40 conditional<br/>min over variants, proportion passing"]
@@ -1639,9 +1674,12 @@ Because the specification and implementation disagree, and because the `total_co
 convention breaks any percentage-based formula (an all-`UNDETERMINED` trace scores `RubricV2`
 0.5 yet grades `Poor`, so "one more pass" has no formula-based meaning), the metric is
 defined operationally: *the minimum number of currently non-`PASS` material criteria that
-must flip to `PASS` for `compute_ordinal_grade`, called directly as the authoritative
-function, to return a strictly higher grade*, found by direct enumeration over candidate
-flip sets. It is **undefined and reported as such** for traces whose grade derives from the
+must flip to `PASS` for the committed source-generated grade-oracle fixture (§18.6 test 7) to
+return a strictly higher grade*, found by direct enumeration over candidate flip sets and
+fixture lookup for each resulting `(P, F, U, detected_error_modes)` tuple. Runtime analysis
+does not import or reimplement `compute_ordinal_grade`; that authoritative function is used
+only once to generate the immutable fixture at its recorded `r1-evals-new` revision and file
+SHA. The metric is **undefined and reported as such** for traces whose grade derives from the
 error override or from the all-`UNDETERMINED` convention.
 
 **Integrity check.** Recompute the grade from criterion states and compare against the
@@ -1884,13 +1922,13 @@ matrix a fitting library actually builds. This subsection closes every fork that
 the fitted coefficient, or the rows entering a family.
 
 **Observation grain, frozen once for every family.** The confirmatory grain is
-**criterion-in-trace**: one row per `(criterion, trace)` pair, roughly 40,000 rows before any
-family-specific population restriction, with `y_i` the criterion's binary outcome under
-whichever co-primary coding is being fitted. No family is fitted at the trace or variant-arm
-cell grain in the confirmatory path; the trace- and variant-level collapses of §5.4 are the
-declared, separate aggregation-robustness analysis. F3's H3 wording above is corrected to this
-grain so the family does not read as a trace-level "all expectations pass" model while being
-fitted at criterion level.
+**criterion-in-trace**: one row per `(criterion, trace)` pair, with the exact pre-restriction
+row count computed from the catalogue as specified in §3, and `y_i` the criterion's binary
+outcome under whichever co-primary coding is being fitted. No family is fitted at the trace or
+variant-arm cell grain in the confirmatory path; the trace- and variant-level collapses of §5.4
+are the declared, separate aggregation-robustness analysis. F3's H3 wording above is corrected
+to this grain so the family does not read as a trace-level "all expectations pass" model while
+being fitted at criterion level.
 
 **Identical column sets across the two stacked blocks, and the rule when a level is empty in
 one.** The resolved-only block excludes `UNDETERMINED` criteria, so a categorical predictor
@@ -1908,7 +1946,7 @@ restriction's rank does not silently change between the two blocks).
 within term, F10) and every family using rubric fixed effects for adjustment use **rubric
 `r = 1` as the dropped reference level**, chosen as the lowest-indexed rubric in the frozen
 catalogue ordering (§18). Before fitting, the design rank of the rubric-dummy block is asserted
-equal to 63 (64 rubrics minus the dropped reference); a library that silently drops additional
+equal to 62 (63 rubrics minus the dropped reference); a library that silently drops additional
 collinear columns changes `q` without failing, which is exactly the failure this assertion
 exists to catch, so a rank mismatch here is a fitting error, not a silent adjustment.
 
@@ -2098,8 +2136,11 @@ doi:10.1075/ijcl.15.4.02lu** (verified); Kyle (2016) TAASSC; Kyle & Crossley (20
 Language Journal* 102(2):333-349; Petrov, Das & McDonald (2012); Gibson (1998, 2000) DLT;
 Futrell, Mahowald & Gibson (2015), *PNAS*; Yngve (1960).
 
-Tooling: spaCy (already a dependency) or Stanza for English UD. L2SCA clause and T-unit
-definitions reimplemented over UD parses, documented in the codebook.
+Tooling: **Stanza English UD, frozen as the sole authoritative dependency parser** for this
+dimension (§18) - not "spaCy or Stanza" as an open choice, since running both and reconciling
+disagreements would itself be an unspecified analytical decision. spaCy is used elsewhere only
+for NER. L2SCA clause and T-unit definitions reimplemented over Stanza's UD parses, documented
+in the codebook.
 
 ### Dimension F - Lexical and information-theoretic (exploratory only)
 
@@ -2151,7 +2192,7 @@ Consequences:
 
 ### 12.1 Expectation-description features
 
-The 324 expectation descriptions characterise what the answer must contain - a different
+The 314 expectation descriptions characterise what the answer must contain - a different
 construct from what the user asked. Annotated with the same codebook discipline:
 `demand_type` (verbatim citation / entity identification / relational claim / temporal
 ordering / quantification / evaluative synthesis), `specificity`, `answer_locality`, plus
@@ -2247,7 +2288,7 @@ and **every** confusion-matrix-derived quantity in this gate - sensitivity, spec
 balanced accuracy, per-class precision and recall feeding macro-F1, and the weighted
 disagreement feeding quadratically weighted kappa - is computed from the `N_hat_ab` cells, not
 from raw unweighted gold counts. Unweighted counts would target the deliberately enriched gold
-sample's own composition rather than the roughly-592-item annotated corpus the gate is meant
+sample's own composition rather than the 577-item annotated corpus the gate is meant
 to validate for.
 
 **Interval construction, frozen as one procedure for every metric in the dossier.** All
@@ -2271,7 +2312,8 @@ it is not `NOT_VALIDATED` by the structural rules (which require a computed inte
 compare against a baseline), and it is not silently treated as passing or failing. A feature in
 this state cannot proceed past the gate at all until the stratified sample of §13.3 is
 supplemented to include at least one instance of the missing class, and this requirement is
-disclosed as a pre-lock verification alongside the others in §19.
+recorded as a blocking validation-gate requirement in §19, not as a pre-lock structural
+verification.
 
 **Three structural rules that are mechanical rather than discretionary.** These are
 comparisons against meaningful references, not invented thresholds:
@@ -2422,7 +2464,7 @@ nicer answer.
   warning rather than a test of the covariance assumption (§5.1).
 - **Bootstrap-implementation sensitivity.** One-step versus full-refit on the validation
   replicates against the indicator-agreement criterion; `p_f` under discard tolerances of 0%,
-  0.5%, 1% and 2%; and the `boottest` reproduction check on the linear reduction (§5.3).
+  0.5%, 1% and 2%; and the R `fwildclusterboot` reproduction check on the linear reduction (§5.3).
 - **Annotation sensitivity.** Corrected versus uncorrected P4 estimates; gold-subsample-only
   estimates; per-annotator-model estimates.
 - **Recommendation-rule sensitivity.** Worst-variant rule at `gamma` = 0.90 and at 0.95; the
@@ -2517,7 +2559,7 @@ moves none of them but caps how much any of them can be trusted.
   inflate `phi`, whereas heterogeneity interacting with configuration produces more.
   Systematic expectation-level heterogeneity is therefore handled in the **Level 5
   expectation-level analysis** (§7), where it is the object of study rather than a nuisance.
-  Redesigning Layer 1 around 324 expectation random effects was considered and rejected as
+  Redesigning Layer 1 around 314 expectation random effects was considered and rejected as
   disproportionate to a rubric-level routing decision.
 - **The decision quantity is empirical-Bayes with hyperparameter uncertainty propagated by
   parametric bootstrap** (§5.1), not a fully Bayesian posterior. The propagation removes the
@@ -2528,12 +2570,12 @@ moves none of them but caps how much any of them can be trusted.
   develop the three-term CRVE and the wild cluster bootstrap for the linear model; this
   analysis applies them to binomial GLM estimating equations with the score-bootstrap
   justification of Kline-Santos. The selected pairing is theirs and the code is verified against
-  `boottest` on a linear reduction, but the combination is not covered end to end by either
-  source.
+  the R `fwildclusterboot` reference on a linear reduction, but the combination is not covered
+  end to end by either source.
 - **28 arm clusters is the binding constraint on bootstrap accuracy**, which is why the DGP is
   clustered on that dimension and why Layer 4 exists.
 - **The global exchangeability assumption for variant effects.** A single `Sigma_within`
-  asserts that rewording dispersion is governed by the same covariance across all 64 rubrics
+  asserts that rewording dispersion is governed by the same covariance across all 63 rubrics
   and all three datasets. Unavoidable with 2-8 variants per rubric, probed three ways in §14 -
   two informative refits and one heterogeneity diagnostic that is not a test of the assumption -
   but an assumption rather than a finding.
@@ -2655,15 +2697,24 @@ Query strings:
 - New standalone programme: `es_index_explorer/question_analysis/` plus a
   `question_suitability.py` CLI and `README-question-suitability.md`. No new
   `mlflow_snapshot.py` subcommands.
-- New `analysis` dependency group: `matplotlib`, `seaborn`, `statsmodels`, `scipy`. Pure
-  Python, no R bridge and no PyMC - the Laplace-plus-Monte-Carlo design in §5.1 is
-  deliberately chosen so no MCMC library is needed. `statsmodels` provides the binomial GLM
-  fits; the **three-term two-way sandwich, the arm-clustered restricted WCB, and the four-level
-  EB hierarchy are implemented directly**, since `statsmodels` exposes no multiway
-  cluster-robust option. Every number stays auditable. `r1-evals`, **pinned to an exact git
-  revision, is a test-only dependency** (Group 18.1 test 7) - never a runtime dependency of the
-  `analysis` group, since `es_index_explorer` does not otherwise depend on it (verified: absent
-  from `pyproject.toml` and from every import in the repository).
+- New `analysis` dependency group: `matplotlib`, `seaborn`, `statsmodels`, `scipy`, `stanza`,
+  `spacy` (plus its pinned English model). Pure Python at runtime, no R bridge and no PyMC in
+  the `analysis` group - the Laplace-plus-Monte-Carlo design in §5.1 is deliberately chosen so
+  no MCMC library is needed. `statsmodels` provides the binomial GLM fits; the **three-term
+  two-way sandwich, the arm-clustered restricted WCB, and the four-level EB hierarchy are
+  implemented directly**, since `statsmodels` exposes no multiway cluster-robust option. Every
+  number stays auditable. **Stanza (English UD) is the frozen, authoritative dependency parser
+  for every P2 morphosyntactic feature (§9); spaCy is retained solely as the NER source** for
+  the features that need it - the two are not redundant alternatives, each is authoritative for
+  a disjoint feature subset, and no feature is computed from both and reconciled. `r1-evals` is
+  **not a dependency of this package at all, direct or test-only, runtime or otherwise**
+  (verified: absent from `pyproject.toml` and from every import in the repository); the grade
+  oracle test (§18.6 test 7) instead consults an **immutable, source-generated fixture** derived
+  once from a recorded `r1-evals-new` revision, so no import, pinned git revision, or implicit
+  fetch of `r1-evals` exists anywhere in this codebase. The R `fwildclusterboot` oracle of §5.3
+  is likewise not a dependency of the `analysis` group or of any Python environment: it runs
+  once inside a **digest-pinned Docker image** to produce a committed fixture, and the analysis
+  programme never invokes Docker or R at runtime.
 
 ### 18.1 Joins: what "reuses `mlflow_analysis`" means, exactly
 
@@ -2676,7 +2727,7 @@ enumerates every `[[input]]` block when building `run_rubrics.parquet`, and assi
 real `variant_index`. An implementer who joins against the catalogue built by
 `_rubric_question` will match only variant 0 of every rubric to its TOML-side identity and
 exclude every other variant as a `question_mismatch` discrepancy row - a join that runs
-without error and silently collapses 268 variants to 64. This is not a hypothetical: it is
+without error and silently collapses 263 variants to 63. This is not a hypothetical: it is
 what "reuse the catalogue builder" produces if followed literally.
 
 **Reuse allowlist, stated explicitly rather than left to "reuses the package".** In bounds: the
@@ -2691,13 +2742,17 @@ explicitly: `rubric_analysis._rubric_question`, `rubric_analysis._build_catalogu
 first-input-only helper; `stage_a.py` and `stage_b.py`'s arm regexes are consulted as a pattern
 reference only and are not imported, since neither covers Stage C (below).
 
-**Variant identity, frozen as the join key.** A variant's key is `(rubric TOML relative path,
-variant_index)`, where `variant_index` is the **positional index of the `[[input]]` block in
+**Variant identity, frozen as the join key.** A variant's key is `(eval_dataset, rubric TOML
+relative path, variant_index)`, where `eval_dataset` is the segment (`emc2_set1`, `emc2_set2`,
+or `mallinckrodt`) and `variant_index` is the **positional index of the `[[input]]` block in
 the TOML file's `[[input]]` array**, zero-based, with TOML declaration order authoritative.
-Building this key requires enumerating **every** `[[input]]` block for every rubric file -
-stated as an explicit instruction here because the plan must say it positively, not leave it
-to be inferred from "reuse the catalogue builder". On the snapshot side, `variant_index` is
-read from `trace_invocations.parquet`, itself parsed by `snapshot.py`'s
+The `eval_dataset` component is not optional: rubric populations are disjoint per segment
+(§3), and dropping it would make no practical difference to key uniqueness today but would
+silently stop being a valid assumption if a future cohort reused a rubric path across
+segments. Building this key requires enumerating **every** `[[input]]` block for every rubric
+file - stated as an explicit instruction here because the plan must say it positively, not
+leave it to be inferred from "reuse the catalogue builder". On the snapshot side,
+`variant_index` is read from `trace_invocations.parquet`, itself parsed by `snapshot.py`'s
 `_parse_rubric_span_indices` from the `invoke_..._<rubric>_v<variant>` span-name pattern, with
 the documented default `variant_index = 0` when a span name carries no `_vN` suffix at all
 (single-variant rubrics never emit a suffix). **The span-derived `variant_index` and the
@@ -2705,15 +2760,32 @@ the documented default `variant_index = 0` when a span name carries no `_vN` suf
 a mismatch is a join discrepancy, reported and excluded from the eligible population, on the
 same footing as the existing `question_mismatch` and `identity_mismatch` discrepancy types.
 
-**Exact coverage as a pre-lock, blocking structural verification, not a descriptive count.**
-Once joined, the catalogue and the snapshot together must reproduce **exactly**: 64 rubrics; 268
-variants; 324 expectations; 28 traces (arms) for every one of the 268 variants. Any shortfall -
-a rubric with the wrong variant count, a variant missing one or more of its 28 arms, an
+**Exact coverage as a pre-annotation, blocking structural verification, run per eval segment
+against the TOML catalogue, not against one mistaken global constant.** An earlier revision
+of this section asserted a single global gate of 64 rubrics / 268 variants / 324 expectations
+/ 268 * 28 = 7,504 traces. That was wrong for the reason given in §3: `emc2_set2` has 20
+rubrics, not 21, so no run ever executes a 268-variant union. The gate is therefore stated,
+and must be implemented, **per segment**:
+
+| `eval_dataset` | rubrics | variants | expectations | traces (`= variants * 28`) |
+|---|---:|---:|---:|---:|
+| `emc2_set1` | 21 | 102 | 120 | 2,856 |
+| `emc2_set2` | 20 | 79 | 98 | 2,212 |
+| `mallinckrodt` | 22 | 82 | 96 | 2,296 |
+| **total** | **63** | **263** | **314** | **7,364** |
+
+Once joined, the catalogue and the snapshot together must reproduce **exactly** each
+segment's own row of this table, and each run must contain **exactly** its own segment's
+variant set (102, 79 or 82 - never a cross-segment union). The **total** row is a **derived
+identity**, checked as a cross-sum sanity check, never an independently assumed target: a
+join that matched the total 263/314/7,364 by coincidence while misallocating rubrics between
+segments would still fail the per-segment gate and must still block. Any shortfall - a rubric
+with the wrong variant count for its segment, a variant missing one or more of its 28 arms, an
 expectation count that does not match the TOML - **blocks the primary Layer 1 analysis for the
 affected unit** (the §5.1 balance gate is this verification's consequence at the variant level;
 this verification is the same check stated at the corpus level) rather than being logged as an
-informational deviation. §3's counts are stated as exact for this reason: a hedge ("roughly
-268") and a blocking gate on the value 268 cannot coexist in the same document.
+informational deviation. §3's counts are stated as exact for this reason: a hedge ("roughly")
+and a blocking gate on an exact value cannot coexist in the same document.
 
 **`min(V_r)` and `max(V_r)` are recorded and asserted here, closing an assumption the plan
 elsewhere states but never verifies.** §1, §5.1 and §6.1 each describe the designed variant
@@ -2722,15 +2794,25 @@ catalogue, and it matters concretely: `Sigma_within`'s pooled method-of-moments 
 (§5.1) is well defined for any `V_r >= 1`, including `V_r = 1` by explicit convention, but the
 `gamma = 0.90` threshold's own justification (§6.1) and the proportion diagnostic's collapse
 behaviour (§6.2) are stated in terms of the 2-to-8 range. This verification therefore
-**computes and records `min(V_r)` and `max(V_r)` across all 64 rubrics and asserts
-`min(V_r) >= 2`**, run alongside the rubric/variant/expectation/arm counts above. If the
-assertion holds - which the catalogue is expected to show, since it is exactly the reason
-"roughly 2 to 8" was written in the first place - the `V_r = 1` handling in §5.1 is a stated
-invariant of the estimator rather than a code path the S cohort ever exercises. If it fails,
-the affected rubric is disclosed and its `Sigma_within` contribution follows the zero-numerator,
-zero-denominator convention already specified in §5.1, without blocking the rest of the corpus,
-since `Sigma_within` is pooled globally and a single `V_r = 1` rubric contributing nothing to
-the pooled estimator is not itself a data-integrity failure the way a wrong arm count is.
+**computes and records `min(V_r)` and `max(V_r)` across all 63 rubrics and asserts
+`min(V_r) >= 2`**, run alongside the per-segment rubric/variant/expectation/arm counts above.
+If the assertion holds - which the catalogue is expected to show, since it is exactly the
+reason "roughly 2 to 8" was written in the first place - the `V_r = 1` handling in §5.1 is a
+stated invariant of the estimator rather than a code path the S cohort ever exercises. If it
+fails, the affected rubric is disclosed and its `Sigma_within` contribution follows the
+zero-numerator, zero-denominator convention already specified in §5.1, without blocking the
+rest of the corpus, since `Sigma_within` is pooled globally and a single `V_r = 1` rubric
+contributing nothing to the pooled estimator is not itself a data-integrity failure the way a
+wrong arm count is.
+
+**The F3 design-rank check and the full §16a degenerate-case census run here too, before
+annotation begins, not deferred to family-fitting.** §3.1's design-rank check on the realised
+hybrid-arm `c`-by-`g` grid, and every §16a register row observable at join time (all-
+`UNDETERMINED` traces, single-expectation lattices, ineligible traces, `V_r` degeneracies, and
+the grade-recomputation-vs-logged comparison of §8), are run and persisted as part of this
+same structural-verification step, per §19's release sequence. F3's outcome - whether the
+interaction remains confirmatory or is demoted - is **frozen at this point** and is read, not
+re-derived, when the family's design matrix is built in §11.1.
 
 **Other join keys and grains.**
 
@@ -2769,8 +2851,9 @@ the pooled estimator is not itself a data-integrity failure the way a wrong arm 
 
 ### 18.2 Seeds
 
-One **master seed**, fixed at analysis-lock time (§19) and recorded with the lock, from which
-every stochastic component of the analysis derives an **independent, named stream** by a fixed
+One **master seed, `20`**, is frozen by this specification and recorded in the analysis-lock
+manifest (§19). Every stochastic component of the analysis derives an **independent, named
+stream** from it by a fixed
 hash-based derivation, named to a specific cryptographic hash rather than a language-level
 built-in - because language built-ins are exactly the kind of implicit choice this plan exists
 to remove, and it is a real one here: Python's built-in `hash()` on strings is randomly salted
@@ -2793,8 +2876,8 @@ independently from the same master seed:
   draws (§5.1).
 - `glm_bootstrap` - the arm-clustered Rademacher draws for every family's WCR (§5.3), and the
   2% full-refit validation subsample selection.
-- `boottest_oracle` - the one-off Stata `boottest` reference run (§5.3), consumed exactly once
-  and never touched again after the fixture is committed.
+- `r_oracle` - the one-off R `fwildclusterboot` Docker reference run (§5.3), consumed exactly
+  once and never touched again after the fixture is committed.
 - `gold_sampling` - the stratified gold sample draw (§13.3) and the stratified bootstrap
   intervals of §13.2a.
 - `annotation_shuffle` - the seeded-shuffle batch ordering (§13.1) and the feature-validation
@@ -2804,13 +2887,37 @@ independently from the same master seed:
 
 ### 18.3 Artefact schemas
 
-Every intermediate object referenced elsewhere in this plan is a named, schematised artefact,
-not an implicit in-memory structure:
+Every load-bearing intermediate object referenced elsewhere in this plan is a named,
+schematised artefact or artefact family, not an implicit in-memory structure:
 
-- **`criterion_table`** - one row per `(rubric_id, variant_index, arm_id, trace_id,
+- **`manifest.json` and `state.json`** - immutable-input hashes, tool/resource versions, master
+  seed, named-stream derivations, workflow-step completion and the outcome-modelling unlock.
+- **`rubric_catalogue.parquet`, `variant_catalogue.parquet` and
+  `expectation_catalogue.parquet`** - the complete all-`[[input]]` catalogue at its three stable
+  identity grains.
+- **`criterion_table.parquet`** - one row per `(rubric_id, variant_index, arm_id, trace_id,
   expectation_name)`: `state` (`PASS`/`FAIL`/`UNDETERMINED`), `material`, join-eligibility flags.
-- **`trace_pfu_table`** - one row per `(rubric_id, variant_index, arm_id, trace_id)`: `P`, `F`,
+- **`trace_pfu_table.parquet`** - one row per `(rubric_id, variant_index, arm_id, trace_id)`: `P`, `F`,
   `U`, `N_r`, derived `RubricV2` (recomputed, §18.1), `ordinal_grade` (logged and recomputed).
+- **`join_discrepancies.parquet` and `structural_verification.json`** - row-level join failures,
+  per-segment coverage/balance checks, the §16a census and their blocking statuses.
+- **`f3_design_rank.json`** - the pre-annotation F3 rank decision, exact rows and columns,
+  condition number, VIF diagnostics, `H_F3` and hybrid cluster IDs. `fit-families` reads this
+  artefact as authoritative and never re-runs the demotion decision.
+- **`grade_oracle_fixture` plus its provenance sidecar** - the exhaustive
+  `(P, F, U, detected_error_modes)`-to-grade lookup through `N = 21`, with the generating
+  `r1-evals-new` revision and source-file SHA.
+- **Parser/resource manifests, parse archives and `features_deterministic.parquet`** - pinned
+  Stanza/spaCy resources, source hashes, parses, tokens, extracted P1/P2/P3 features and
+  missingness reasons.
+- **`annotation_manifest.json`, emitted batches, immutable raw responses,
+  `annotations_normalized.parquet` and `annotation_agreement.parquet`** - exact Cursor model
+  IDs, batch/run IDs, hashes, schema-validation outcomes, normalized P4 labels and reliability.
+- **`gold_sample.parquet`, `gold_labels.parquet`, `feature_validation.parquet` and
+  `validated_features.parquet`** - inclusion probabilities, adjudication/re-code labels,
+  validation dossiers/statuses and the feature set admitted past the gate.
+- **The R-oracle input/output fixture** - frozen linear-reduction inputs, Docker image digest,
+  R/package versions, seed, call arguments, `W_obs` and `p_f`.
 - **`design_matrix_<family>`** - one per confirmatory family, at the criterion-in-trace grain
   (§11.1), with the frozen column set for both stacked outcome blocks and the population
   restriction already applied.
@@ -2828,31 +2935,79 @@ not an implicit in-memory structure:
 
 ### 18.4 CLI
 
-`question_suitability.py` exposes one subcommand per release-sequence step (§19): `join`
-(builds the artefacts of §18.3 up to `trace_pfu_table` and runs the coverage verification of
-§18.1, exiting non-zero and refusing to proceed if coverage fails); `annotate-emit` (writes the
-seeded-shuffle annotation batches); `annotate-ingest` (runs the outcome-field-refusing
-validator, §18.6 test 6); `gold-adjudicate` (records human gold and the delayed blind re-code);
-`validate-features` (runs the §13.2a gate in seeded-shuffle order); `fit` (Layers 1-4 and the
-ten families, refusing to run unless every prior step's completion is recorded); `report`
-(renders the recommendation tables and figures). Each subcommand's non-zero exit codes are
-reserved by category: `1` malformed input, `2` coverage or balance gate failure, `3` a
-prior release-sequence step not yet completed, `4` a numerical non-computability (§5.2, §5.3).
-The `fit` subcommand is the enforcement point for the §19 release sequence: it checks for the
-recorded completion of every earlier step before running.
+**The CLI is segmented into fourteen subcommands aligned to the workflow's persisted-artefact
+boundaries, superseding the earlier seven-command sketch (`join`, `annotate-emit`,
+`annotate-ingest`, `gold-adjudicate`, `validate-features`, `fit`, `report`).** The earlier
+sketch under-decomposed two points that matter operationally: gold handling needs a separate
+sampling step from ingestion (§13.3's stratified sample must be emitted, then human
+adjudication happens out-of-band, then it is ingested), and outcome modelling needs `fit-layer1`
+and `fit-families` split apart because they are reported and can fail independently, even
+though both remain gated by the same unlock. The old names `gold-adjudicate` and `fit` are
+**superseded**, not kept as aliases: any script still invoking them must be updated. The
+frozen subcommand set, in release-sequence order (§19):
+
+1. `join` - builds the artefacts of §18.3 up to `trace_pfu_table.parquet`, runs the per-segment coverage
+   verification of §18.1, the arm-balance/degenerate-case gates and F3 design-rank check,
+   verifies the source-generated grade fixture and uses its lookup for grade integrity and
+   `expectations_to_next_grade`; it exits non-zero and refuses to proceed if a blocking gate
+   fails.
+2. `features` - deterministic P1/P2/P3 feature extraction (§9-§12), no outcome data touched.
+3. `annotate-emit` - writes the seeded-shuffle annotation batches (§18.5) for both annotator
+   models.
+4. `annotate-run` - invokes the Cursor Python SDK against both named models (§18.5) over every
+   emitted batch, with bounded retries, storing immutable raw responses.
+5. `annotate-ingest` - runs the outcome-field-refusing validator (§18.6 test 6) and normalises
+   raw responses into feature tables.
+6. `gold-sample` - runs §13.3's deterministic stratified sampling algorithm and emits the human
+   adjudication bundle.
+7. `gold-ingest` - ingests human gold and the delayed blind re-code once returned.
+8. `validate-features` - runs the §13.2a validation gate in seeded-shuffle order.
+9. `oracle` - runs the R `fwildclusterboot` Docker oracle (§5.3, §18.6 test 2); may be run at
+   any point before `fit-layer1` or `fit-families`, per §19's oracle-order note, but not after
+   either. Grade-fixture generation, lookup and integrity belong to `join` (§18.4), not this
+   statistical-oracle command.
+10. `fit-layer1` - the empirical-Bayes hierarchy of §5.1-§5.2 and the tier decisions of §6;
+    refuses to run unless annotation, gold, feature-validation and the oracle check are all
+    recorded complete.
+11. `fit-families` - the ten confirmatory families of §5.3-§5.6/§11; the same unlock check as
+    `fit-layer1`, enforced independently since either command may be re-run on its own.
+12. `robustness` - the aggregation-robustness (§7), sensitivity matrix (§14) and secondary
+    grade/error/use-case analyses (§8-§10).
+13. `report` - renders the recommendation tables and figures from persisted artefacts.
+14. `status` - reports, for a given run directory, which release-sequence steps are recorded
+    complete and which are outstanding; read-only, callable at any time.
+
+Each subcommand's non-zero exit codes are reserved by category, unchanged from the earlier
+sketch: `1` malformed input, `2` coverage or balance gate failure, `3` a prior release-sequence
+step not yet completed, `4` a numerical non-computability (§5.2, §5.3). `fit-layer1` and
+`fit-families` are the enforcement points for the §19 release sequence that the old monolithic
+`fit` used to be: each independently checks for the recorded completion of every earlier step,
+including the oracle check, before running; neither command may bypass the annotation, gold,
+validation or DSL gates internally.
 
 ### 18.5 Annotation constants, frozen rather than left as ranges
 
-- **Annotator models**, named exactly rather than "two strong models": fixed to two named
-  models with pinned versions, recorded in the lock (§19) at the time annotation begins, since
-  naming specific commercial model versions in a specification meant to remain accurate for
-  years would itself go stale; what is frozen here is the **process** - exactly two models
-  unless a third's marginal cost is negligible (§20), both versions recorded at lock time and
-  never silently upgraded mid-annotation-run.
+- **Annotator models**, named exactly rather than "two strong models": **Claude Opus 5 (high
+  thinking variant) and GPT-5.6 Sol**, invoked through the **Cursor Python SDK**
+  (`Agent.prompt(...)`, one-shot per batch per model), not through the Agent Client Protocol
+  (ACP). **ACP is technically capable of running the annotation**, but is not selected: the SDK
+  gives direct Python lifecycle and model-ID control without the session, permission and
+  streaming machinery ACP would otherwise require for no analytical benefit.
+  The **exact** model identifiers returned by `Cursor.models.list()` at the time annotation
+  begins are resolved once, written to `annotation_manifest.json`, and never silently
+  substituted; if either named model is unavailable to the account at that time, annotation
+  stops rather than falling back to a different model. This is what "the process, not a
+  specific commercial version, is frozen" means in practice: the two model **names** are
+  fixed here, and their exact resolved **IDs and versions** are recorded at run time, per §19.
+  Exactly two models are used unless a third's marginal cost is negligible (§20), and no model
+  is silently upgraded mid-annotation-run.
 - **Batch size**: fixed at exactly **24** items per batch (midpoint of the "20-25" range,
-  chosen only for a round, seed-reproducible per-batch count; 592 items = 24 full batches of 24
-  plus one final batch of 16 - both sizes recorded, and the seeded shuffle in §18.2 determines
-  membership, not order-of-appearance in the corpus).
+  chosen only for a round, seed-reproducible per-batch count; **577** items (263 questions +
+  314 expectation descriptions, §3) = 24 full batches of 24 plus one final batch of 1 -
+  both sizes recorded, and the seeded shuffle in §18.2 determines membership, not
+  order-of-appearance in the corpus). The final batch's size is an arithmetic consequence of
+  the corrected item count, not a new choice; a single-item batch is still outcome-blind and
+  schema-identical to every other batch, so no separate handling is required.
 - **Gold sample size**: **exactly 12 per stratum** (`n_h = min(12, N_h)`), the single target
   used throughout §13.3's now fully deterministic stratified-sampling algorithm - agreement-
   based strata forming a strict partition, so no cross-stratum deduplication is needed - with
@@ -2866,16 +3021,25 @@ on. Each entry below states its **fixture** (the input the test constructs or us
 **expected invariant**, its **tolerance**, and its **failure action** - the four things a name
 alone does not supply.
 
-1. **Arm balance.** Fixture: `trace_pfu_table` grouped by `(rubric_id, variant_index)`.
+1. **Arm balance.** Fixture: `trace_pfu_table.parquet` grouped by `(rubric_id, variant_index)`.
    Invariant: exactly 28 rows (one per arm) per group, matching the §18.1 coverage
    verification. Tolerance: exact integer equality, no rounding. Failure action: the affected
    variant's Layer 1 contribution is blocked and reported per §5.1's hard gate; the run does not
-   proceed to `fit` for the affected rubric.
-2. **`boottest` reproduction.** Fixture: the committed `(y, X, cluster, R, seed)` tuple and
-   Stata output of §5.3's frozen oracle tuple. Invariant: Python-computed `p_f` and `W_obs`
-   match the committed Stata output. Tolerance: `p_f` to `1e-4`, `W_obs` to relative `1e-6`.
-   Failure action: the GLM bootstrap implementation is blocked from use on any family until the
-   discrepancy is resolved; this is a pre-modelling gate (§19).
+   proceed to `fit-layer1` for the affected rubric, and any family population requiring that
+   affected unit is blocked from `fit-families`.
+2. **R `fwildclusterboot` reproduction.** Fixture: the committed `(y, X, cluster, R, seed)`
+   tuple, replayed inside a **digest-pinned Docker image** running R with `fwildclusterboot`
+   (a two-way `clustid`, arm `bootcluster`, restricted Rademacher WCR call frozen in §5.3), and
+   the committed R output. Stata `boottest` is not used: it is not available locally, and
+   Python `wildboottest`/PyFixest are not substitutes because both explicitly lack multiway
+   clustering support. Invariant: Python-computed `p_f` and `W_obs` match the committed R
+   output. Tolerance: `p_f` to `1e-4`, `W_obs` to relative `1e-6`. Failure action: the GLM
+   bootstrap implementation is blocked from use on any family until the discrepancy is
+   resolved; this is a pre-modelling gate (§19), not a pre-lock one, and may be run at any time
+   before the first `fit-layer1` or `fit-families` invocation - it does not have to precede
+   independent, outcome-blind annotation work. Once the reference fixture is committed, the
+   Python test suite replays it without invoking Docker or R again, so the analysis run itself
+   requires neither R nor `fwildclusterboot` installed at runtime.
 3. **Invariant-block unit test.** Fixture: any one confirmatory family's bootstrap run.
    Invariant: `V*_arm` and `V*_intersection` are bit-identical (or within floating-point
    `allclose` at `rtol=1e-9`) across all `B` replicates. Tolerance: as stated. Failure action:
@@ -2893,21 +3057,31 @@ alone does not supply.
    refitting in every replicate (§5.3), at the stated additional cost.
 6. **Outcome-field refusal.** Fixture: an annotation response file containing at least one
    outcome-adjacent field name (`rubric_v2`, `pass_rate`, `grade`, `ordinal_grade`, `tier`, or
-   any column present in `trace_pfu_table` or `recommendation_table_*`). Invariant: the ingest
+   any column present in `trace_pfu_table.parquet` or `recommendation_table_*`). Invariant: the ingest
    validator raises and refuses to ingest the file. Tolerance: exact field-name match, case
    insensitive. Failure action: the batch is rejected and must be re-generated from a
    clean annotation response.
-7. **Grade integrity.** Fixture: `trace_pfu_table` rows with their logged `ordinal_grade`.
-   Invariant: `compute_ordinal_grade`, imported from a **pinned exact revision of `r1-evals`
-   added as a test-only dependency** (never a runtime dependency of the `analysis` group, per
-   §18), called directly on the recomputed criterion states, matches the logged value.
-   Reimplementing the function locally is explicitly **not** an acceptable substitute for this
-   test, since the entire point of "called directly as the authoritative function" (§8) is to
-   avoid a second implementation that could silently drift from the first. Failure action:
-   mismatches are counted and reported per §8's integrity check, distinguishing error-driven
-   from coverage-driven mismatches; a mismatch rate above 1% blocks the release sequence pending
-   investigation, matching the disclosure-not-automatic-rejection posture of §5.3's singular-
-   replicate protocol.
+7. **Grade integrity.** Fixture: `trace_pfu_table.parquet` rows with their logged `ordinal_grade`,
+   checked against an **immutable, source-generated grade oracle fixture** rather than a live
+   `r1-evals` dependency. A direct, pinned `r1-evals` import (even test-only) was withdrawn
+   because `air_assist_core` and this analysis package must not depend on an external
+   repository's mutable local path or an implicit git fetch at test time. Instead, the fixture
+   is **generated once**, from `r1_evals.rubrics.ordinal_grading_v2.compute_ordinal_grade` at a
+   recorded `r1-evals-new` git revision and file SHA, by exhaustively enumerating
+   `(P, F, U, detected_error_modes)` combinations up to `N = 21` (the corpus maximum, §3) and
+   recording each combination's resulting grade as a committed lookup table. Invariant: for
+   every `trace_pfu_table.parquet` row, a lookup against the committed fixture (by
+   `(P, F, U, detected_error_modes)`) matches the logged `ordinal_grade`. Reimplementing the
+   grading function locally, or importing `r1-evals` at runtime, are both explicitly **not**
+   acceptable substitutes: the fixture generation step records provenance (source revision and
+   file SHA) precisely so that a future `r1-evals` change is a visible, re-generatable event
+   rather than a silent drift. Runtime analysis code has no `r1-evals` dependency at all, direct
+   or test-only; only the one-off fixture-generation utility used by `join` touches the local
+   `r1-evals-new` source checkout, and the generated fixture is what all runtime and test
+   lookups consume. Failure action: mismatches are counted and reported per §8's integrity
+   check, distinguishing error-driven from coverage-driven mismatches; a mismatch rate above
+   1% blocks the release sequence pending investigation, matching the
+   disclosure-not-automatic-rejection posture of §5.3's singular-replicate protocol.
 
 ## 19. Analysis lock procedure
 
@@ -2921,19 +3095,22 @@ preregistration. Replaced by **pre-specified and analysis-locked**:
   is fitted.
 - Anything decided after the lock appears in a clearly marked post-hoc section.
 
-**The `boottest` check is a pre-modelling gate, not a pre-lock one, and an earlier revision's
-wording made those the same step when they cannot be.** §5.3 requires the `boottest`
-reproduction check to run and be committed "before the lock", and this document is itself the
-lock artefact - so requiring the check before a lock that this very file constitutes is not
-executable: the check cannot both precede the document's own commit and be described inside
-that document as already done. The corrected sequencing is stated once, here, and referenced
-rather than repeated: **the specification lock (this document's git tag) precedes
-implementation**; **the `boottest` oracle check is a pre-modelling gate that runs after the
-specification is locked but before any outcome model is fitted**, positioned as step 0 of the
-release sequence below. This is consistent with the check's own purpose, stated in §5.3: it
-validates code against a numerical reference, not against outcomes, so running it after the
-specification lock costs nothing in terms of outcome-blindness, and the earlier "before the
-lock" language is withdrawn as a sequencing error rather than a substantive one.
+**The R `fwildclusterboot` oracle check is a pre-modelling gate, not a pre-lock one, and it need
+not precede every outcome-blind preparation step - an earlier revision's wording conflated
+those three distinct claims.** That earlier revision required the oracle reproduction check to
+run and be committed "before the lock", even though this document is itself the lock artefact;
+that requirement was circular and is withdrawn. The corrected sequencing is stated once,
+here, and referenced rather than repeated: **the specification lock (this document's git tag)
+precedes implementation**; the scientific requirement that survives is that **the oracle
+check is a pre-outcome-modelling gate** - it must pass and be recorded before the first
+`fit-layer1` or `fit-families` invocation, and both commands verify the recorded pass and
+refuse to run otherwise - **but it is not required to precede independent, outcome-blind work
+such as annotation, feature extraction or gold sampling**, since the check validates code
+against a numerical reference, never against outcomes, and gates nothing about those steps'
+validity. It may therefore be implemented and run at any point on or after specification lock
+and before the first outcome-model fit; the release sequence below lists it as step 6,
+interleavable with steps 1-5, precisely to make that independence explicit rather than implying
+a fixed position it does not need.
 
 **How the lock is recorded without circularity.** §19 previously required the tag's commit SHA
 to be quoted in this report, which is impossible: the SHA does not exist until this file is
@@ -2950,33 +3127,44 @@ git show analysis-lock/simple-mode-question-suitability --stat
 This is verifiable and immutable in the direction that matters: the tag pins the content, and
 the content names the tag.
 
-**Release sequence, in order, each step committed before the next begins:**
+**Release sequence, in order, each state-changing step committed before the next begins:**
 
-0. **`boottest` pre-modelling gate** (§18.6 test 2) - run once, immediately after the
-   specification lock, before any other step below.
-1. Pre-lock-adjacent structural verifications (below) - despite the name carried over from the
-   earlier revision, these in fact run **after** the specification lock and **before**
-   annotation, for the reason just stated; "pre-lock" describes their role relative to outcome
-   modelling being unlocked, not relative to this document's own git tag.
-2. Outcome-blind annotation of all **exactly 592** items (268 questions + 324 expectation
-   descriptions, both exact per the coverage gate of §18), in batches of the frozen size
-   (§18.5).
-3. Human gold adjudication, then the delayed blind re-code.
+1. Structural verifications (below): the per-segment exact-coverage verification of §18.1, the
+   arm-balance check, the F3 design-rank check, and the full §16a degenerate-case census - run
+   after the specification lock and before annotation (`join`, §18.4). Deterministic feature
+   extraction (`features`) follows these successful checks and remains outcome-blind.
+2. Outcome-blind annotation of all **exactly 577** items (263 questions + 314 expectation
+   descriptions, both exact per the per-segment coverage gate of §18), in batches of the frozen
+   size (§18.5) (`annotate-emit`, `annotate-run`, `annotate-ingest`).
+3. Human gold sampling, adjudication, then the delayed blind re-code (`gold-sample`,
+   `gold-ingest`).
 4. The confirmatory feature-validation gate (§13.2a), applied in seeded-shuffle order,
-   decisions committed one at a time, blind to outcomes and to any coefficient estimate.
-5. The DSL derivation gate (§13.4).
-6. Only then is outcome modelling unlocked.
+   decisions committed one at a time, blind to outcomes and to any coefficient estimate
+   (`validate-features`).
+5. The DSL derivation gate (§13.4) (also part of `validate-features`'s output).
+6. The R `fwildclusterboot` pre-modelling oracle gate (§18.6 test 2) (`oracle`) - may run at
+   any point from specification lock onward, interleaved with steps 1-5 as convenient, but must
+   be recorded complete before step 7. The grade-fixture integrity check (§18.6 test 7) is part
+   of step 1/`join`, matching that command's ownership of grade-fixture generation and lookup.
+7. Only then is outcome modelling unlocked (`fit-layer1`, `fit-families`, then `robustness` and
+   `report`).
+
+`status` is read-only and may be called after any command. It appears last in the public CLI
+contract (§18.4), but it is not a release-sequence step or state transition and does not gate
+any step.
 
 The test the sequence is designed to pass: *could another competent researcher execute the same
 validation and the same bootstrap without making a judgment call this plan has not documented?*
 
 **Verification steps that must run at step 1**, since each can change the specification and
-each must complete before annotation begins: the **exact-coverage verification of §18.1**
-(64 rubrics, 268 variants, 324 expectations, 28 arms per variant); the arm-balance check (§5.1,
-the same mechanism applied per-variant); the design-rank check for F3 (§3.1); the
-degenerate-case census (§4.3, extended to the full register of §16a); and the grade integrity
-check (§8, §18.6 test 7). These read outcome data, so they run under a documented restriction:
-they produce counts and structural diagnostics only, never feature-outcome associations.
+each must complete before annotation begins: the **per-segment exact-coverage verification of
+§18.1** (63 rubrics, 263 variants, 314 expectations, 28 arms per variant, checked per
+`emc2_set1` / `emc2_set2` / `mallinckrodt` rather than against one pooled constant); the
+arm-balance check (§5.1, the same mechanism applied per-variant); the design-rank check for F3
+(§3.1); the degenerate-case census (§4.3, extended to the full register of §16a); and the grade
+integrity check (§8, §18.6 test 7). These read outcome data, so they run under a documented
+restriction: they produce counts and structural diagnostics only, never feature-outcome
+associations.
 
 ## 20. Deliverables and status
 
@@ -3019,7 +3207,7 @@ implementation-contract choice that could alter a confirmatory number remains op
 Two things genuinely remain, stated as such rather than folded into "implementation": first,
 validation of the two explicitly declared extensions - the transfer from linear regression to
 GLM estimating equations, and the stacking across two co-primary outcomes - since the
-`boottest` oracle covers their shared numerical components only (§5.3), so the extensions rest
+R `fwildclusterboot` oracle covers their shared numerical components only (§5.3), so the extensions rest
 on internal consistency checks, and if those fail the fallback is the documented full-refit
 route rather than a new method; second, the honest acknowledgement that a handful of frozen
 constants (§18.5's annotation batch size and per-level gold count) were fixed for
@@ -3321,3 +3509,51 @@ this pass closed, kept visible so they are not reintroduced.
   adjudicated against the entire ten-family BH rejection set rather than against the affected
   family's status alone, since BH's step-up structure can let the bracket's width flip a
   different family's rejection (§11.1, §16).
+
+## A.10 Corrections from the implementation-alignment pass
+
+The implementation-alignment pass that produced the current text did not redesign the
+scientific method. It withdrew assumptions and runtime choices that were contradicted by the
+verified corpus, the available toolchain, or the segmented implementation contract. They are
+recorded here because each would otherwise be easy to reintroduce from an older revision.
+
+- **The 64-rubric / 268-variant / 324-expectation global inventory and the
+  `268 * 28 = 7,504` trace formula.** Withdrawn after the TOML catalogue and exported snapshot
+  independently showed that `emc2_set2` has no rubric 009 and therefore contains 20 rubrics,
+  79 variants and 98 expectations, not 21 / 84 / 108. The five alleged missing variants and
+  ten alleged missing expectations were phantom arithmetic, not missing MLflow data. Replaced
+  by the per-segment gates `21 / 102 / 120 / 2,856`, `20 / 79 / 98 / 2,212`, and
+  `22 / 82 / 96 / 2,296`, whose derived totals are 63 rubrics, 263 variants, 314 expectations,
+  7,364 traces and 577 annotation items (§3, §18.1). No snapshot re-export is required.
+- **Stata `boottest` as the executable linear-reference oracle.** Withdrawn because Stata is
+  unavailable in the implementation environment. Replaced by R `fwildclusterboot` in a
+  digest-pinned Docker image, with two-way `clustid`, arm `bootcluster`, restricted Rademacher
+  WCR arguments and committed input/output fixtures (§5.3, §18.6). Python `wildboottest` and
+  PyFixest remain unsuitable substitutes for this check because they do not provide the
+  required multiway clustering.
+- **A direct, pinned `r1-evals` test dependency and runtime call to
+  `compute_ordinal_grade`.** Withdrawn because the analysis package must not depend on a
+  mutable local checkout or implicit source fetch. Replaced by an immutable lookup fixture,
+  generated once from the authoritative function at a recorded `r1-evals-new` revision and
+  file SHA over all relevant `(P, F, U, detected_error_modes)` combinations through `N = 21`.
+  Runtime grade integrity and `expectations_to_next_grade` both use that fixture (§8, §18.6).
+- **Open runtime choices for parsing, annotation and random seeds.** Withdrawn: "spaCy or
+  Stanza" left morphosyntactic results implementation-dependent; "two strong models" did not
+  identify annotators; and an unnamed master seed did not reproduce stochastic artefacts.
+  Replaced by Stanza English UD as the authoritative dependency parser, spaCy as the separate
+  NER source, Cursor Python SDK annotation with Claude Opus 5 high-thinking and GPT-5.6 Sol
+  whose exact available IDs are frozen in `annotation_manifest.json`, and master seed `20`
+  with SHA-256-derived named streams (§9, §18.2, §18.5). ACP remains technically supported but
+  is not selected because it adds no benefit to this batch annotation lifecycle.
+- **The seven-command CLI and a monolithic `fit`.** Withdrawn because it hid artefact
+  boundaries, conflated gold sampling with adjudication, and allowed Layer 1 and family
+  inference to share one opaque enforcement point. Replaced by the fourteen-command contract
+  of §18.4; `gold-adjudicate` and `fit` are superseded rather than retained as aliases.
+  `fit-layer1` and `fit-families` independently enforce the annotation, gold, validation, DSL
+  and R-oracle gates.
+- **The R oracle as the first mandatory post-lock implementation step.** Withdrawn as an
+  unnecessary sequencing constraint. The oracle remains a mandatory pre-outcome-modelling
+  gate and both fit commands refuse to run without its recorded pass, but deterministic
+  features, outcome-blind annotation, gold work and feature validation may proceed
+  independently before it (§19). Grade-fixture generation and integrity remain owned by
+  `join`; the `oracle` command owns only the independent R bootstrap reference.
