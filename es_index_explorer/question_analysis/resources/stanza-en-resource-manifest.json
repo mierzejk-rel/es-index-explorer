@@ -1,0 +1,14 @@
+{
+  "language": "en",
+  "processors": [
+    "tokenize",
+    "mwt",
+    "pos",
+    "lemma",
+    "depparse"
+  ],
+  "resources_sha256": "4e41c1df152146fa26ed0c006a08feea7a60bb3414bb6d57dbda24ad2e3cb99c",
+  "resources_url": "https://raw.githubusercontent.com/stanfordnlp/stanza-resources/main/resources_1.14.0.json",
+  "schema_version": 1,
+  "stanza_version": "1.14.0"
+}

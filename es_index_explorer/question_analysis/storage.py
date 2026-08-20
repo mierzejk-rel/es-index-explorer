@@ -1,0 +1,157 @@
+"""Atomic persistence and SHA-256 helpers."""
+
+import json
+import os
+import tempfile
+from collections.abc import Mapping
+from datetime import UTC, datetime
+from hashlib import sha256
+from pathlib import Path
+
+from pydantic import BaseModel
+
+from es_index_explorer.question_analysis.contracts import (
+    ArtifactMetadata,
+    FileFingerprint,
+    WorkflowCommand,
+)
+from es_index_explorer.question_analysis.errors import MalformedInputError
+
+ARTIFACT_DIRECTORIES = (
+    "tables",
+    "draws",
+    "annotations",
+    "statistics",
+    "figures",
+    "partial_reports",
+    "logs",
+)
+
+
+def sha256_file(path: Path) -> str:
+    """Hash a file without loading it entirely into memory."""
+    digest = sha256()
+    with path.open("rb") as handle:
+        for chunk in iter(lambda: handle.read(1024 * 1024), b""):
+            digest.update(chunk)
+    return digest.hexdigest()
+
+
+def fingerprint_file(path: Path, *, label: str | None = None) -> FileFingerprint:
+    """Create an immutable identity for an existing file."""
+    if not path.is_file():
+        raise MalformedInputError(f"Input file does not exist: {path}")
+    return FileFingerprint(
+        path=label or path.as_posix(),
+        sha256=sha256_file(path),
+        size_bytes=path.stat().st_size,
+    )
+
+
+def canonical_json_bytes(value: BaseModel | Mapping[str, object]) -> bytes:
+    """Serialize JSON deterministically with one trailing newline."""
+    payload = (
+        value.model_dump(mode="json") if isinstance(value, BaseModel) else dict(value)
+    )
+    return (
+        json.dumps(payload, sort_keys=True, indent=2, ensure_ascii=False) + "\n"
+    ).encode("utf-8")
+
+
+def atomic_write_bytes(path: Path, data: bytes) -> None:
+    """Replace a file atomically after flushing its contents."""
+    path.parent.mkdir(parents=True, exist_ok=True)
+    temporary_path: Path | None = None
+    try:
+        with tempfile.NamedTemporaryFile(
+            mode="wb",
+            dir=path.parent,
+            prefix=f".{path.name}.",
+            suffix=".tmp",
+            delete=False,
+        ) as handle:
+            temporary_path = Path(handle.name)
+            handle.write(data)
+            handle.flush()
+            os.fsync(handle.fileno())
+        os.replace(temporary_path, path)
+        directory_fd = os.open(path.parent, os.O_RDONLY)
+        try:
+            os.fsync(directory_fd)
+        finally:
+            os.close(directory_fd)
+    finally:
+        if temporary_path is not None:
+            temporary_path.unlink(missing_ok=True)
+
+
+class ArtifactStore:
+    """Safe access to one analysis root."""
+
+    def __init__(self, root: Path) -> None:
+        self.root = root.resolve()
+
+    def prepare(self) -> None:
+        """Create the frozen artifact directory layout."""
+        self.root.mkdir(parents=True, exist_ok=True)
+        for directory in ARTIFACT_DIRECTORIES:
+            (self.root / directory).mkdir(exist_ok=True)
+
+    def path_for(self, relative_path: str | Path) -> Path:
+        """Resolve a root-relative path and reject traversal."""
+        relative = Path(relative_path)
+        if relative.is_absolute():
+            raise MalformedInputError(f"Artifact path must be relative: {relative}")
+        resolved = (self.root / relative).resolve()
+        if not resolved.is_relative_to(self.root):
+            raise MalformedInputError(
+                f"Artifact path escapes analysis root: {relative}"
+            )
+        return resolved
+
+    def write_bytes(
+        self,
+        relative_path: str | Path,
+        data: bytes,
+        *,
+        created_by: WorkflowCommand,
+        now: datetime | None = None,
+    ) -> ArtifactMetadata:
+        """Atomically write an output and return its recorded identity."""
+        target = self.path_for(relative_path)
+        atomic_write_bytes(target, data)
+        return ArtifactMetadata(
+            path=target.relative_to(self.root).as_posix(),
+            sha256=sha256(data).hexdigest(),
+            size_bytes=len(data),
+            created_by=created_by,
+            created_at=now or datetime.now(UTC),
+        )
+
+    def write_json(
+        self,
+        relative_path: str | Path,
+        value: BaseModel | Mapping[str, object],
+        *,
+        created_by: WorkflowCommand,
+        now: datetime | None = None,
+    ) -> ArtifactMetadata:
+        """Atomically write canonical JSON and return its recorded identity."""
+        return self.write_bytes(
+            relative_path,
+            canonical_json_bytes(value),
+            created_by=created_by,
+            now=now,
+        )
+
+    def read_model[T: BaseModel](
+        self, relative_path: str | Path, model_type: type[T]
+    ) -> T:
+        """Read and validate a persisted JSON model."""
+        path = self.path_for(relative_path)
+        if not path.is_file():
+            raise MalformedInputError(f"Required artifact does not exist: {path}")
+        try:
+            return model_type.model_validate_json(path.read_text(encoding="utf-8"))
+        except (OSError, ValueError) as error:
+            raise MalformedInputError(f"Invalid {path.name}: {error}") from error

@@ -18,7 +18,28 @@ dependencies = [
     "spacy>=3.7",
 ]
 
+[project.scripts]
+question-suitability = "es_index_explorer.question_analysis.cli:entrypoint"
+
 [dependency-groups]
+analysis = [
+    "matplotlib>=3.11.1",
+    "numpy>=2.4.6",
+    "pandas>=3.0.3",
+    "pyarrow>=25.0.0",
+    "scipy>=1.17.1",
+    "seaborn>=0.13.2",
+    "stanza>=1.14.0",
+    "statsmodels>=0.14.6",
+]
+analysis-test = [
+    { include-group = "dev" },
+    "ruff>=0.16.3",
+    "ty>=0.0.73",
+]
+annotation = [
+    "cursor-sdk>=1.0.28",
+]
 dev = [
     "pytest>=8.0",
     "pytest-cov>=5.0",
