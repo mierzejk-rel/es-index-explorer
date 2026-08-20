@@ -5,23 +5,47 @@ identifies which user questions are suitable for Simple Mode, the fast single-ho
 agent action defined in `10-simple-mode-experiment-design.md`, and characterises what
 makes them suitable.
 
-The document is frozen as the pre-specification for that analysis. It is split into two
-parts that are intended to be read independently:
+This document is the **analysis specification, pre-specified and ready for lock**. It is
+split into two parts that are intended to be read independently:
 
 - **Part I - Research methodology.** The scientific design: estimand, measurement model,
   estimation architecture, decision rule, hypothesis families, linguistic dimensions,
-  annotation protocol, sensitivity matrix and limitations. Part I can be read without
-  reference to this repository.
-- **Part II - Implementation architecture.** Programme layout, dependencies, annotation
-  kit, and the analysis-lock procedure.
+  annotation protocol, sensitivity matrix, limitations, and the degenerate-and-failure case
+  register (§16a). Part I can be read without reference to this repository.
+- **Part II - Implementation architecture.** Programme layout, join keys, seeds, artefact
+  schemas, dependencies, the annotation kit, the frozen test oracles, and the analysis-lock
+  procedure.
 - **Appendix A** preserves the methodological audit trail: constructions that were
   specified during design and then rejected, with the reason each failed. It is part of
-  the specification, not a footnote, because two of the rejections bear directly on how
+  the specification, not a footnote, because several of the rejections bear directly on how
   the accepted method must be implemented.
 
-The plan was revised through five rounds of external methodological review. Its status
-at freeze time: no methodological choice remains open; the remaining work is
-implementation, plus validation of the two extensions declared in §5.3.
+**Revision history and current status.** The plan was revised through five rounds of external
+methodological review, then through a sixth **implementation-contract completion pass**
+following two further independent audits (a mathematical audit that found no defect
+requiring redesign but twenty-eight specification gaps, and an implementation-contract audit
+that found the architecture coherent but not yet unique enough to force two implementers onto
+the same numbers). That sixth pass is what produced the current text: it corrected five
+interpretive overclaims (§4.2, §5.1/§5.5, §5.2, §5.6, §11), froze the Layer 1 numerical
+procedure, the CRVE finite-sample factors and PSD map, the bootstrap's full-refit semantics
+and finite attainable support, every confirmatory family's design matrix and analysis
+population, every remaining edge in the decision rule, the aggregation and grade-model
+estimators, the gold-validation weighting and intervals, and the full join/seed/artefact/CLI
+contract of Part II, and added the degenerate-and-failure register of §16a. **No methodological
+choice remains open, and - as of this pass - no computational or implementation-contract choice
+that could change a confirmatory number is left unfrozen either**, with two honest exceptions
+stated rather than hidden: the `boottest` oracle validates the linear special case only, so the
+GLM and stacking extensions of §5.3 and §11 still rest on internal consistency checks; and a
+small number of frozen constants (the annotation batch size, the exact per-level gold count)
+have no principled value and were fixed only for reproducibility, not because that value is
+demonstrably correct.
+
+**On the existing git tag.** The repository carries an annotated tag,
+`analysis-lock/simple-mode-question-suitability`, applied to the pre-completion-pass content of
+this file. That tag now points to **superseded** content - the v1 specification this pass
+revised - and does not describe the text below. Re-tagging the completed specification is a
+git operation and is therefore left to the document's maintainer to perform, per §19; this
+document does not re-tag itself.
 
 ---
 
@@ -71,14 +95,17 @@ statistical model estimates; what we recommend operationally.
 - Tiers: `SUITABLE` / `PROMISING` / `BORDERLINE` / `NOT_SUITABLE`, with **gamma = 0.90**
   and **kappa = 0.75** locked (§6).
 - Confirmatory rigour: **ten pre-specified hypothesis families**, each one **joint test
-  stacked across both co-primary outcomes**, FDR-controlled over the ten (§11).
+  stacked across both co-primary outcomes**, BH-adjusted at nominal q = 0.05 over the ten,
+  **without an unqualified FDR-control guarantee** since the required dependence condition is
+  not established (§5.6, §11).
 - Inference backbone: **binomial GLM independence working likelihood**, hand-implemented
   **three-term two-way cluster-robust covariance**, and the **restricted wild cluster
   bootstrap with the DGP clustered on the arm dimension** - MacKinnon-Nielsen-Webb's
   simulation-recommended pairing - applied to score contributions (§5.3).
 - Grade: **two-part model**, not five-level proportional odds (§8).
-- Arm treatment: per-analysis, with suitability summaries **explicitly marginalised** over
-  the 28 arms (§5.5).
+- Arm treatment: per-analysis - the **arm-free** hierarchy is the sole primary suitability
+  estimator, pooling directly over the balanced 28-arm empirical distribution, while arm fixed
+  effects are used only in the feature GLMs and as a clustering dimension (§5.1, §5.5).
 - Annotation: hybrid deterministic plus LLM, **outcome-blind**, validated against
   single-coder human gold with delayed blind re-code, admitted to confirmatory use through
   a **frozen validation rubric** rather than analyst judgment (§13.2a).
@@ -94,11 +121,23 @@ Snapshot `artifacts/mlflow/simplemode-stage-v3/` - 84 runs, schema v3, exported
 2026-08-18. No re-download needed.
 
 - 64 rubrics: EMC2 UAT set_1 (21 rubrics / 102 variants), set_2 (21 / 84), Mallinckrodt GA
-  (22 / 82). Roughly 268 single-turn question strings.
-- 84 runs = Stage A 54 + Stage B 18 + Stage C 12, giving 28 runs per dataset, about 28
-  traces per variant, roughly 7,500 traces.
+  (22 / 82). **Exactly 268** single-turn question strings (102 + 84 + 82), not "roughly" -
+  the component counts have always been exact, and §18's coverage verification treats 268 as
+  a blocking target rather than an approximation, so the hedge is withdrawn here to match.
+- 84 runs = Stage A 54 + Stage B 18 + Stage C 12, giving **exactly 28** runs per dataset and
+  therefore **exactly 28** traces per variant under the balance gate (§5.1), for **exactly
+  268 * 28 = 7,504** traces total once joined - the "about" and "roughly" qualifiers on these
+  three counts are withdrawn for the same reason as above; a join that does not reproduce them
+  exactly is blocked by §18's coverage verification, not merely flagged.
 - **324 expectations** (set_1 120, set_2 108, Mallinckrodt 96), range 1 to 21 per rubric,
-  mean about 5.1. Roughly **40,000 criterion observations**.
+  mean about 5.1 (this mean remains approximate). Criterion observations total **exactly `sum
+  over rubrics r of 28 * V_r * N_r`** - a fully determined quantity given the per-rubric `V_r`
+  and `N_r` in the catalogue, not independently reported as a round number here because doing
+  so without deriving it from the same per-rubric data would itself introduce an unverified
+  figure into a document whose point is to remove those. This exact total, computed once the
+  catalogue is built (§18), is the coverage gate's fourth blocking target alongside the rubric,
+  variant and trace counts above; "roughly 40,000" was an estimate only and is withdrawn as
+  the reported figure once the exact computation is available.
 - `material` is **uniformly true** across the S cohort, so the `RubricV2` 2:1 weighting
   collapses to uniform. This also means the material-only criterion set used by the
   ordinal grade and the all-criteria set used by `RubricV2` coincide in this cohort.
@@ -191,8 +230,30 @@ modelled covariates and the rubric and variant effects, the probability that a c
 returned `UNDETERMINED` is independent of whether that criterion would have been `PASS` or
 `FAIL` had it been resolved.* This is not testable in this design. It is the reason the
 conservative binary, which needs no such assumption because its denominator is all
-criteria, is co-primary rather than secondary, and **divergence between the two is reported
-as evidence that the assumption is strained**.
+criteria, is co-primary rather than secondary.
+
+**Divergence between the two outcomes is not, by itself, evidence about the assumption, and
+an earlier revision overclaimed this.** Write `R_i = 1{criterion i is resolved}` and let
+`Y_i*` be the latent PASS indicator that would be observed were `i` resolved. The resolved
+estimand is `Pr(Y_i*=1 | R_i=1, X_i)` directly; the conservative estimand decomposes as
+
+`Pr(PASS_i=1 | X_i) = Pr(R_i=1 | X_i) * Pr(Y_i*=1 | R_i=1, X_i)`.
+
+The two therefore **diverge whenever `Pr(R_i=1|X_i) < 1`, exactly when there is any
+indeterminacy at all, even if the stated identifying assumption holds precisely.**
+Divergence is the arithmetic consequence of incomplete resolution, not a diagnostic for
+whether resolution is *informative*. Reading raw divergence as evidence the assumption is
+strained is therefore withdrawn (Appendix A.8).
+
+**What is actually diagnostic.** Divergence is decomposed into its two factors -
+`Pr(R_i=1|X_i)`, the resolution probability, and `Pr(Y_i*=1|R_i=1,X_i)`, the conditional pass
+probability - and both are reported. The assumption itself is probed only indirectly, by
+examining whether the resolution probability `Pr(R_i=1|X_i)` **varies with the confirmatory
+features** (F1-F10). That variation is observable from the data; the assumption's truth is
+not. A confirmatory feature that strongly predicts resolution status, while the same
+feature's coefficient in the two co-primary models moves in different directions, is the
+closest available evidence that the assumption is strained - not the raw gap between the two
+headline probabilities.
 
 ### 4.3 Calibration, the UNDETERMINED wedge, and degenerate cases
 
@@ -296,9 +357,149 @@ unequal:
 with `d(r)` a fixed offset for the rubric's dataset, and `Sigma_between` estimated. This is
 what makes low-`N_r` rubrics shrink toward their dataset mean.
 
+**`mu_0` and `d(r)` are not separately identified as written, and this is fixed by a
+reference-dataset constraint rather than left implicit.** For any vector `a`,
+`mu_0 + d(r) = (mu_0 + a) + (d(r) - a)`, so the likelihood is flat along the one-parameter
+family of reshufflings between `mu_0` and the three `d_j`: the marginal log-likelihood's
+gradient is identically zero in that direction, its Hessian is singular there, and an
+optimiser started off the ridge can still walk along it indefinitely, including inside the
+parametric-bootstrap re-estimation of §5.1's propagation loop, where it can trigger the
+discard-and-replenish protocol on draws that never actually fail to fit. The fix is a
+constraint, not a new parameter: **`d(EMC2 UAT set_1) = (0, 0)`** is fixed as the reference
+level for every fit, in both the outer marginal-likelihood optimisation and every bootstrap
+re-estimation `psi*_b`. `mu_0` is then the reference dataset's ALR mean, and
+`d(EMC2 UAT set_2)`, `d(Mallinckrodt GA)` are its two free deviations from that mean. The
+**identified quantities `mu_0 + d(r)` for each dataset `r` are unaffected by this choice**;
+only the otherwise-arbitrary split between `mu_0` and `d(r)` is fixed, and `psi` as a whole is
+identifiable once it is. A sum-to-zero constraint (`d_1 + d_2 + d_3 = 0`) would resolve the
+same non-identifiability equally validly; the reference-dataset form is adopted for being
+simpler to read off directly as a per-dataset contrast against EMC2 UAT set_1 (Appendix A.9).
+
 **Fitting (empirical Bayes).** The hyperparameters
 `psi = (phi, mu_0, d, Sigma_within, Sigma_between)` are estimated by marginal maximum
 likelihood, initialised by method of moments.
+
+**The fitting procedure, frozen rather than left as a named technique.** "Marginal maximum
+likelihood, initialised by method of moments" does not by itself determine a computation;
+two reviewers independently found this the largest remaining gap in Layer 1, and it is closed
+here in full.
+
+- **Positive-definite parameterisation.** `Sigma_within` and `Sigma_between` are each
+  parameterised by their **log-Cholesky factor**: `Sigma = L L'` with `L` lower-triangular,
+  diagonal entries stored in log-space and off-diagonal entries unconstrained. This makes the
+  hyperparameter vector `psi` an unconstrained Euclidean vector for the purposes of
+  optimisation, so no constrained solver or boundary-respecting step size is needed; `phi > 0`
+  is parameterised as `log(phi)` for the same reason.
+- **Method-of-moments initialisation, named exactly.** Compute, per variant `rv`, the
+  empirical proportions `theta_hat_rv = (P_rv, F_rv, U_rv) / N_r` pooled over that variant's
+  traces, transform to ALR coordinates `eta_hat_rv` (boundary rule below), and take: the
+  rubric-level averages `eta_bar_r = mean over v of eta_hat_rv`; **`mu_0`** as
+  `eta_bar_r` averaged over rubrics **in the reference dataset, EMC2 UAT set_1, only** (per
+  the identifiability fix above); **`d(r)`** for each of the other two datasets as that
+  dataset's own average `eta_bar_r` minus `mu_0`, and **`d`** for the reference dataset fixed
+  at `(0, 0)` rather than estimated; `Sigma_between` from the between-rubric sample covariance
+  of `eta_bar_r - mu_0 - d(r)` (dataset offsets removed using the values just computed); `phi`
+  from the explicit estimator below.
+- **`Sigma_within`, with the pooling denominator written out because "pooled ... across all
+  rubrics" does not by itself say how, and the two readings disagree exactly where a rubric has
+  only one variant.** The estimator is
+
+  `Sigma_within_hat = ( sum over r of sum over v of (eta_hat_rv - eta_bar_r)(eta_hat_rv - eta_bar_r)' ) / ( sum over r of (V_r - 1) )`,
+
+  a single sum of outer products over every variant of every rubric, divided by the pooled
+  degrees of freedom `sum_r (V_r - 1)`, **not** an average of separately computed per-rubric
+  covariances `Sigma_r_hat = (...)/(V_r - 1)`. The two constructions agree when every `V_r` is
+  equal, but not otherwise, and only the pooled-sum form remains well defined when some `V_r`
+  is small: a rubric with `V_r = 1` has `eta_hat_r1 = eta_bar_r` exactly, so its one variant
+  contributes the zero matrix to the numerator and the value `0` to the denominator - it drops
+  out of the estimator entirely, with no operational branch required, whereas the
+  per-rubric-then-average form would divide that rubric's own covariance by `V_r - 1 = 0` and
+  be undefined. This is why the pooled-sum form, not the average-of-per-rubric form, is the one
+  specified.
+- **The `phi` initialiser, written as a formula rather than named as a technique.** Under the
+  Level 1-2 model, the marginal variance of a single count `X_rvt,k` (`k` in `{P, F, U}`) is
+  `Var(X_k) = N_r * theta_k * (1 - theta_k) * (N_r + phi) / (1 + phi)`, so the ratio of
+  observed to binomial variance identifies an overdispersion factor `c = (N_r + phi)/(1 + phi)`,
+  invertible as `phi = (N_r - c) / (c - 1)` whenever `c` is strictly between `1` and `N_r`. Per
+  variant `rv` and component `k`:
+  - `theta_hat_rv,k = (sum over t of X_rvt,k) / (T_rv * N_r)` (the same quantity as
+    `theta_hat_rv` above, taken per component);
+  - `s2_rv,k = (1 / (T_rv - 1)) * sum over t of (X_rvt,k - N_r * theta_hat_rv,k)^2`, the
+    unbiased sample variance of the component's trace-level counts within the variant;
+  - `c_hat_rv,k = s2_rv,k / (N_r * theta_hat_rv,k * (1 - theta_hat_rv,k))`.
+  - The pair `(rv, k)` is **retained** only if `theta_hat_rv,k` is strictly in `(0, 1)` **and**
+    `c_hat_rv,k` is strictly in `(1, N_r)`; otherwise it is **discarded**, since a boundary
+    `theta_hat_rv,k` makes the denominator zero and a `c_hat_rv,k` outside `(1, N_r)` inverts to
+    a non-positive or infinite `phi`, carrying no usable information about a finite positive
+    concentration. This discards every single-expectation rubric automatically, since `N_r = 1`
+    leaves no value of `c` in the open interval `(1, 1)`.
+  - `phi_init = median` of the retained `phi_hat_rv,k = (N_r - c_hat_rv,k) / (c_hat_rv,k - 1)`,
+    clamped to `[phi_min, phi_max]` with **`phi_min = 0.1`** and **`phi_max = 1000`** fixed
+    exactly (not "a small positive constant"); if no pair is retained across the entire corpus,
+    `phi_init = phi_min`.
+  - This is an **initialiser only**: the estimand is `phi`'s marginal-maximum-likelihood value,
+    and the formula above supplies a starting point for the optimiser in §5.1's fitting
+    procedure, not a claim about the converged `phi_hat`.
+  - **Verification that the initialiser does not bias the answer.** Every marginal-likelihood
+    fit - the primary fit and every bootstrap re-estimation `psi*_b` - is additionally started
+    from `0.5 * phi_init` and `2 * phi_init`, holding every other initial value fixed. If all
+    three starts converge to the same optimum within the existing convergence tolerance (§5.1),
+    the fit is retained as normal; if they do not, the fit is flagged as **multi-modal or
+    initialiser-sensitive** and reported rather than silently resolved by keeping whichever
+    start was tried first. This turns "the initialiser should not matter" from an assumption
+    into a per-fit, reported check.
+- **ALR boundary rule.** For a trace or variant with any zero component among `(P, F, U)`,
+  additive smoothing is applied before the log-ratio: `theta_smoothed = (P + eps, F + eps, U +
+  eps) / (N_r + 3*eps)` with `eps = 0.5` (a Jeffreys-type continuity correction), applied
+  **only** to form the ALR coordinate used in fitting and in Laplace-mode-finding; the
+  underlying multinomial likelihood in Level 1 uses the raw, unsmoothed counts. This is the
+  single boundary rule used everywhere ALR coordinates are computed - initialisation, Laplace
+  approximation, and any diagnostic that reports `eta_rv` on the log-ratio scale.
+- **Marginal likelihood evaluation.** The marginal likelihood of `psi` integrates out
+  `(mu_r, eta_r1, ..., eta_rV_r)` for all 64 rubrics; this integral is evaluated by **nested
+  Laplace approximation**: for each candidate `psi` during optimisation, find the joint mode of
+  `(mu_r, eta_r1, ..., eta_rV_r)` by Newton's method with the ALR-Dirichlet-multinomial
+  log-likelihood plus the Level 3-4 Gaussian log-densities (the same density constructed
+  explicitly in the Laplace step below), and use the Laplace approximation to that mode's
+  curvature to approximate the rubric's contribution to the marginal log-likelihood. Rubric
+  contributions are independent given `psi` and are summed.
+- **Optimiser and convergence.** `L-BFGS` on the unconstrained log-Cholesky/log-`phi`
+  parameterisation, from the method-of-moments start; converged when the change in marginal
+  log-likelihood between iterations is below `1e-6` **and** the maximum absolute gradient
+  component is below `1e-4`; capped at 200 iterations, with non-convergence at the cap
+  recorded as a failed fit under the retention protocol below.
+
+**The Laplace step in the propagation loop conditions on the observed data `D`, never on a
+simulated dataset, and this is stated because the two readings give different `Pi_prop`
+values.** For each bootstrap hyperparameter draw `psi*_b`, step 2 of the propagation procedure
+below forms `p(mu_r, eta_r1, ..., eta_rV_r | D, psi*_b)` - the conditional posterior **given
+the actually observed criterion counts**, evaluated at the resampled hyperparameters. It is
+**not** `p(... | D*_b, psi*_b)`, the conditional posterior for the simulated dataset that
+produced `psi*_b`; that second object describes a bootstrap replicate's own latent state, not
+the observed rubric's, and using it would not propagate hyperparameter uncertainty for the
+data actually collected.
+
+**The parametric-bootstrap DGP for `psi*`, with what is held fixed and what is redrawn.**
+Simulating `D*_b ~ p(. | psi_hat)` means: hold the **design** fixed exactly as observed -
+`N_r` for every rubric, `V_r` for every rubric, `T_rv` for every variant (all equal to 28 under
+the balance gate), and the arm labelling of each trace; **redraw every latent quantity**, in
+order: `mu_r* ~ Normal_2(mu_0_hat + d_hat(r), Sigma_between_hat)` for each rubric, `eta_rv* ~
+Normal_2(mu_r*, Sigma_within_hat)` for each variant, `theta_rvt* ~ Dirichlet(phi_hat *
+theta_rv*)` for each trace (with `theta_rv*` the back-transform of `eta_rv*`), and `(P,F,U)_rvt*
+~ Multinomial(N_r, theta_rvt*)`. Re-estimate `psi_b* = psi_hat(D_b*)` by the identical fitting
+procedure above, from the identical method-of-moments initialisation computed on `D_b*`.
+
+**Retention protocol for every failure mode in the fitting and approximation chain, stated
+once and reused everywhere below.** Three failure classes can occur - the outer marginal
+maximum-likelihood fit fails to converge or returns a non-positive-definite `Sigma_within` or
+`Sigma_between`; the inner Laplace mode-finding fails to converge or its Hessian is not
+positive-definite at the mode (§5.1 Laplace step); the importance-resampling adequacy check
+below fails its effective-sample-size rule. In every case the failure is **counted and
+reported**, the affected draw is **discarded and replenished** by drawing a fresh outer
+`psi*_b` (never a silent drop, since dropping conditions the hybrid distribution on numerical
+success), and if the replenishment rate for a rubric exceeds 5% of attempted draws, that
+rubric's `Pi_prop` is reported as **computed under elevated numerical-failure conditions**
+rather than silently on a smaller effective `B_psi`.
 
 **Uncertainty computation, with hyperparameter uncertainty propagated rather than
 ignored.** A plug-in empirical-Bayes scheme treats `psi_hat` as known and so **understates
@@ -309,13 +510,26 @@ number uses the narrow version would be the wrong way round. Here the fix is che
 is taken as the **primary computation**:
 
 1. Draw `B_psi = 500` hyperparameter vectors `psi*_b` from the parametric bootstrap
-   distribution of `psi_hat` - simulate complete datasets from the fitted hierarchy,
-   re-estimate by marginal maximum likelihood, retain the estimates.
+   distribution of `psi_hat` - simulate complete datasets `D*_b` from the fitted hierarchy
+   with design held fixed and latents redrawn (DGP frozen above), re-estimate `psi*_b` by the
+   identical marginal-maximum-likelihood procedure, retain the estimates. A failed re-estimate
+   is discarded and replenished under the retention protocol above.
 2. For each `psi*_b` and each rubric independently, form the **Laplace approximation** to
-   the conditional posterior of `(mu_r, eta_r1, ..., eta_rV_r)` - dimension
-   `2(V_r + 1) <= 18` - at its mode, and take `M_b = 40` draws.
+   the conditional posterior of `(mu_r, eta_r1, ..., eta_rV_r)` **given the observed data `D`**
+   - `p(mu_r, eta_r1, ..., eta_rV_r | D, psi*_b)`, never given the simulated `D*_b` - dimension
+   `2(V_r + 1) <= 18` - at its mode found by Newton's method from the ALR-transform of the
+   method-of-moments point as the starting value, using the **observed** Hessian (the exact
+   second derivative of the log-density at the mode, not the Fisher-information / expected
+   Hessian) as the curvature matrix. If the observed Hessian is not negative-definite at the
+   located mode, the draw is discarded and replenished under the retention protocol above,
+   rather than substituting the expected Hessian or a damped variant, since either substitution
+   would silently change which distribution is being approximated. Take `M_b = 40` draws from
+   the resulting Gaussian approximation per retained outer draw.
 3. Pool the `B_psi * M_b = 20,000` draws per rubric. Every derived quantity is computed per
-   draw, including `R_rv = pi_P + 0.5 * pi_U` and `min over v of R_rv`.
+   draw, including `R_rv = pi_P + 0.5 * pi_U` and `min over v of R_rv`, using the **inclusive**
+   convention `R_rv >= c` throughout; a draw landing exactly on `c` counts as clearing the
+   floor. Since the draws are continuous, exact ties are measure-zero and this convention has
+   no practical effect beyond removing an otherwise-undefined edge case.
 
 **Monte Carlo error is governed by the outer draws, not the total.** The 20,000 draws are
 not 20,000 exchangeable draws: 500 outer values carry the hyperparameter uncertainty and 40
@@ -326,15 +540,35 @@ criterion is tied to the decision the number feeds:
 
 - The Monte Carlo standard error of `Pi_prop` is estimated by **batch means over the 500
   outer draws**, treating each outer draw's inner block as one batch, and is reported for
-  every unit.
-- A unit whose `Pi_prop` lies **within two Monte Carlo standard errors of `gamma`** is one
-  whose tier could flip on Monte Carlo noise alone. Such units are **adaptively refined** by
-  raising `B_psi` for that unit - 1,000, then 2,000, capped at 4,000 - until the interval
-  clears `gamma` or the cap is reached; units still ambiguous at the cap are reported as
-  **Monte Carlo indeterminate** rather than silently assigned.
+  every unit. The **interval** referred to throughout this subsection is the closed interval
+  `[Pi_prop - 2*MCSE, Pi_prop + 2*MCSE]`.
+- **The trigger, stated exactly.** A **primary decision event** is one of: the three
+  worst-variant floor events `Pi_prop(min >= c)` for `c` in `{0.75, 0.60, 0.50}`, and the
+  mandatory proportion-diagnostic event `Pi_prop(proportion >= kappa)`, both evaluated at
+  every rubric and every variant. If the above interval for **any** primary decision event
+  for a unit contains `gamma`, that unit's tier could flip on Monte Carlo noise alone and
+  refinement is triggered for that unit. Sensitivity-only evaluations - `gamma = 0.95`, the
+  pooled-mean tier, alternative `kappa` values, and any other §14 sensitivity display - are
+  explicitly **not** primary decision events and never trigger refinement on their own.
+- **Refinement is an extension of one global outer sequence, not four independent
+  bootstraps.** A single ordered sequence of outer hyperparameter draws `psi*_1, psi*_2, ...`
+  is generated once, under one master seed (§18). The base analysis uses draws `1..500`. For a
+  unit requiring refinement, the **same sequence** is extended - reusing draws `1..500` and
+  generating draws `501..1000`, then, if still ambiguous, `1001..2000`, then `1..4000` - and
+  **only the additional outer draws' own conditional Laplace draws are computed**; the
+  original 500 outer draws' `M_b = 40` inner draws are reused unchanged. This is what makes
+  "raising `B_psi` for that unit" a single well-defined operation rather than three
+  interpretations (extra outer draws for that rubric only, extra inner draws reusing the name
+  `B_psi`, or a wholly new global bootstrap): it is always extra outer draws, always from the
+  one shared sequence, always with fresh inner draws only for the newly added outer draws.
+- Units still ambiguous at the `B_psi = 4000` cap are assigned the status
+  **`MONTE_CARLO_INDETERMINATE`**, which is a distinct value in the tier column, disjoint from
+  `SUITABLE` / `PROMISING` / `BORDERLINE` / `NOT_SUITABLE`. It is never silently mapped to
+  `NOT_SUITABLE` or omitted from the recommendation table; the table carries the status
+  explicitly and the unit's best available `Pi_prop` and its MCSE are reported alongside it.
 - A global check reports tier assignments at `B_psi` = 250, 500 and 1,000 and the count of
   units whose tier changes, which is the quantity that matters rather than the stability of
-  any individual probability.
+  any individual probability. This check reuses prefixes of the same shared outer sequence.
 
 Cost is trivial at this scale: 500 marginal-likelihood fits plus 32,000 low-dimensional
 Laplace approximations, and no MCMC library.
@@ -355,7 +589,15 @@ on one number derived from this distribution.
   computed from the pooled draws above. This is **the decision quantity** in §6.
 - **`Pi_cond`**, the **conditional empirical-Bayes probability given `psi_hat`**, computed
   from the plug-in scheme. Reported alongside as the comparison, with the gap
-  `Pi_prop - Pi_cond` quoted as direct evidence of how much the propagation matters.
+  `Pi_prop - Pi_cond` quoted as direct evidence of how much the propagation matters. `Pi_cond`
+  is frozen identically to a single outer draw of the `Pi_prop` procedure with `psi*_1` fixed
+  at `psi_hat` itself: it conditions on the observed data `D`, uses the same Laplace
+  mode-finding and the same observed-Hessian rule, and takes `M_cond = 20,000` conditional
+  draws under a **dedicated seed stream** (§18) distinct from the `Pi_prop` streams, so its own
+  Monte Carlo error is not confounded with the outer-draw error of `Pi_prop`. Its own Monte
+  Carlo standard error is the ordinary binomial-proportion standard error at `M_cond` draws.
+  `Pi_prop - Pi_cond` is a **reported diagnostic only**; it is never compared to `gamma` and
+  never itself decides a tier.
 - **`p(theta | D, psi)`** remains a genuine **conditional posterior** and keeps that name;
   only the pooled mixture is barred from the word.
 
@@ -396,17 +638,69 @@ rubrics including the smallest `V_r`, the smallest `N_r`, and the most extreme o
 performance; and the **parametric bootstrap's own adequacy** as a representation of
 hyperparameter uncertainty, which is asymptotic and is stated as such.
 
-**Arm handling, and why pooling is equal weighting.** The estimand in §1 is an
-equal-weighted average over the 28 arms. Level 2 treats arm-to-arm variation as
-exchangeable noise, so pooling counts across arms delivers the equal-weight average **only
-if every variant is observed in exactly the same 28 arms with the same `N_r`**. Design
-implies this; the snapshot must confirm it. A **balance verification is therefore a
-precondition**: trace counts per variant are tabulated, and if any variant has missing
-traces, arm marginalisation is performed explicitly with equal weights rather than relying
-on pooling. Because Level 2 absorbs systematic arm effects into trace-level overdispersion,
-`phi` conflates them with stochastic variability - the same non-identifiable noise floor
-stated in §16 - and a sensitivity fit adding arm effects to the Level 2 mean structure is
-reported.
+**The importance-resampling check, frozen so it produces one comparable answer rather than
+an unspecified procedure.** For each purposive rubric, at `psi_hat` (not repeated per bootstrap
+draw, since the check targets the Laplace approximation's own adequacy rather than the
+propagation): draw `N_particles = 5,000` proposals from the Laplace Gaussian approximation
+itself as the importance proposal; compute importance weights as the ratio of the true
+ALR-Dirichlet-multinomial-plus-Gaussian-prior density to the Laplace Gaussian density at each
+proposal; compute the effective sample size `ESS = (sum of weights)^2 / sum of squared
+weights`. **Consequence, stated so two implementers cannot diverge on what happens next**: if
+`ESS / N_particles >= 0.10`, the Laplace approximation is accepted for that rubric and its
+importance-weighted first two moments are reported alongside the Laplace ones as a comparison
+table entry; if `ESS / N_particles < 0.10`, the Laplace approximation is flagged as
+**inadequate for that rubric**, the rubric's row in the comparison table is marked
+accordingly, and its `Pi_prop` in the main analysis is reported with an explicit caveat
+pointing to this failure rather than silently accepted at face value. No rubric's tier is
+changed by this check alone; it is a validity flag on the approximation, reported per the
+sensitivity matrix (§14).
+
+**The `Sigma_within` heterogeneity-diagnostic scalar, named exactly, since "per-rubric residual
+variant dispersion" is not self-defining.** For rubric `r`, compute the ALR residuals
+`e_rv = eta_hat_rv - eta_bar_r` for each of its `V_r` variants (the same point estimates used
+in method-of-moments initialisation), and define the rubric's dispersion scalar as
+`D_r = trace(sample covariance of {e_rv}) / (2)` when `V_r >= 3` (dividing the trace of the
+2x2 empirical covariance by its dimension to give an average per-coordinate variance), and as
+**undefined, reported as missing** when `V_r < 3`, since a covariance is not estimable from
+fewer than three points. `D_r` is then regressed on `V_r`, `N_r` and a dataset indicator; a
+coefficient significantly different from zero on any of the three is the directional warning
+described above.
+
+**Arm handling: the arm-free hierarchy above is the primary suitability estimator, full
+stop, and this resolves a contradiction an earlier revision left standing.** Level 2 as
+written contains **no arm-specific mean or fixed effect**; arm-to-arm variation is absorbed
+into the single trace-level concentration `phi`. A later section of an earlier revision
+additionally stated that suitability estimation uses arm fixed effects and then marginalises
+over them - a different likelihood, since a hierarchy with arm fixed effects and one without
+have different mean structures, different posterior widths, and in general different
+nonlinear functionals such as `Pi_prop(min >= c)`. The two cannot both be "the" primary
+computation, and the balance argument below does not make them equivalent: balance makes a
+**descriptive point mean** equal to the average of arm-specific means when every denominator
+is the same, but it does not make an arm-free hierarchical likelihood's posterior equal to an
+arm-fixed-effect likelihood's posterior, nor does it equate their nonlinear derived
+quantities. This plan resolves the contradiction in favour of the model actually written out
+above: **the arm-free four-level hierarchy of Levels 1-4 is the sole primary suitability
+estimator**, and the finite-population estimand of §1 is recovered because the hierarchy's
+pooled counts already average over the balanced 28-arm empirical distribution, not because a
+separate marginalisation step is applied to an arm-fixed-effect fit. Arm fixed effects are
+used only in the feature GLMs of §5.2 onward, where they serve a different, clustering
+purpose; §5.5 is restated to match. A sensitivity fit that adds arm effects to the Level 2
+mean structure is reported (§14) precisely because it is a genuine alternative model, not a
+reparameterisation of the primary one.
+
+**Why pooling still requires balance, even though no separate marginalisation step is
+applied.** Level 2 treats arm-to-arm variation as exchangeable noise, so pooling counts
+across arms yields the intended equal-weighted average **only if every variant is observed in
+exactly the same 28 arms with the same `N_r`**. Design implies this; the snapshot must confirm
+it. A **balance verification is therefore a precondition, and its failure is a hard blocking
+gate rather than a fallback to a different estimand**: trace counts per variant are tabulated
+against the exact target of 28 arms per variant (§18, Group 9 register), and if any variant
+falls short, the primary Layer 1 suitability analysis for that variant does **not** proceed on
+a silently reduced arm set - it is reported as blocked by the balance gate, and no
+observed-arm renormalisation is substituted for it, because renormalising over fewer arms
+changes the estimand rather than approximating it. Because Level 2 absorbs systematic arm
+effects into trace-level overdispersion, `phi` conflates them with stochastic variability -
+the same non-identifiable noise floor stated in §16.
 
 **Single inferential vocabulary.** Everything decision-facing uses **`Pi_prop` probabilities
 and quantiles** from this model, under that name and never as "the posterior". Wilson and
@@ -456,19 +750,67 @@ consistent only under stronger assumptions, its guaranteed positive semi-definit
 its sole compensating advantage. `statsmodels` exposes no multiway cluster-robust option, so
 this is implemented directly, consistent with the auditability requirement.
 
-**PSD step, which is part of the established procedure rather than a local repair.** The
-three-term estimator can be indefinite in finite samples, and MNW's own algorithm includes
-checking positive semi-definiteness and replacing `V_3` by its PSD projection when the check
-fails. It is still not mathematically neutral - the projection changes the matrix and
-therefore the Wald statistic - so it is reported rather than silently applied: compute the
-raw three-term matrix; test for positive semi-definiteness; if indefinite, record the fact
-and apply the predefined eigenvalue projection; report the frequency of occurrence.
-Crucially, **the identical projection is applied inside every bootstrap replicate** (§5.3),
-so the reference distribution is the distribution of the projected statistic and the step is
-absorbed into the inference rather than invalidating it.
+**The three finite-sample multipliers, written out rather than left implicit.** For cluster
+sums `S_g = sum over i in g of s_i`, `S_h = sum over i in h of s_i`, `S_gh = sum over i in
+(g,h) of s_i`, with `G` the number of rubric clusters actually present in the fitted sample,
+`H` the number of arm clusters, and `GH` the number of non-empty rubric-by-arm intersection
+cells:
+
+`B_G = (G / (G-1)) * sum over g of S_g S_g'`,
+
+`B_H = (H / (H-1)) * sum over h of S_h S_h'`,
+
+`B_I = (GH / (GH-1)) * sum over (g,h) of S_gh S_gh'`,
+
+`V_3 = A^-1 (B_G + B_H - B_I) A^-1`.
+
+This is the standard CGM finite-sample correction, one factor per term, each computed from the
+**number of clusters realised in that term** rather than a single global count - which matters
+because `G`, `H` and `GH` need not coincide with the nominal 64 rubrics and 28 arms once a
+family's analysis population (§11) excludes some rows. **Empty intersection cells do not enter
+`GH`**: an intersection cell with zero observations contributes nothing to the sum and is not
+counted in the multiplier's denominator, since counting empty cells would understate the
+correction. For the stacked two-outcome system of §11, whose two blocks have different
+observation counts, `G`, `H` and `GH` are each computed **once, from the union of rows
+contributing to either block** (a cluster is present if it contains at least one row in either
+the resolved or the conservative block), so a single set of multipliers applies to the whole
+stacked meat rather than one set per block.
+
+**The PSD step, written as an exact map rather than referenced by name.** The three-term
+estimator can be indefinite in finite samples, and MNW's own algorithm includes checking
+positive semi-definiteness and replacing `V_3` by its PSD projection when the check fails. The
+map applied, identically to the observed statistic and to every bootstrap replicate: (1)
+**symmetrise** `V_3 <- (V_3 + V_3') / 2` to remove floating-point asymmetry; (2)
+**eigendecompose** the symmetrised matrix; (3) **clip** every eigenvalue at `max(lambda_j, 0)`
+with tolerance `1e-10` (eigenvalues within `1e-10` of zero are treated as zero rather than
+negative, to avoid clipping numerical noise as a distinct case); (4) **reconstruct** `V_3` from
+the clipped eigenvalues and the original eigenvectors. The projection changes the matrix and
+therefore the Wald statistic, so it is reported rather than silently applied: test for
+positive semi-definiteness before the map; if indefinite, record the fact, apply the map, and
+report the frequency of occurrence. **The identical map is applied inside every bootstrap
+replicate** (§5.3), so the reference distribution is the distribution of the projected
+statistic and the step is absorbed into the inference rather than invalidating it.
+
+**The previously missing case: a singular observed `R V_3 R'` after the PSD map.** If the
+projected `R V_3 R'` remains singular (rank-deficient after clipping, meaning the restriction
+`R` probes a direction with zero estimated variance even after the PSD correction), `W_obs`
+itself is undefined and the family is reported as **non-computable**, entering the same gate as
+persistent bootstrap-replicate failure (§11's gate-to-BH mapping) rather than being silently
+skipped or assigned a placeholder statistic.
 
 Within-rubric features are estimated with **rubric fixed effects**. Features with both
 within- and between-rubric variation use the Mundlak decomposition in §11.
+
+**Every reported family coefficient is a conditional log-odds effect, and the estimand table
+is corrected to say so.** A logistic coefficient from a model containing arm and/or rubric
+fixed effects is conditional on those effects and is **non-collapsible**: it does not equal
+the log-odds effect from the corresponding marginal (population-averaged) model, and no
+standardisation or marginalisation step is defined anywhere in this plan that would produce a
+marginal quantity. "Marginal log-odds" is therefore withdrawn as a label for these
+coefficients (it previously appeared in §15); "marginal" is reserved exclusively for a
+quantity that has been explicitly standardised or averaged over a stated covariate
+distribution, and no such quantity is currently produced. This changes only the label, not
+the fitted coefficient.
 
 Exchangeable-GEE with one-way clustering is retained as a sensitivity analysis. Anchors:
 Liang & Zeger (1986); **Cameron, Gelbach & Miller (2011), *Journal of Business & Economic
@@ -531,23 +873,85 @@ observations each against roughly 625 per rubric.
    information matrix `A(beta_tilde)`. Restriction is what MNW's simulations find performs
    best, and imposing the null is what gives the bootstrap its reliability with few
    clusters.
-3. For `b = 1..B` with `B = 9999`:
-   - Draw **one** independent Rademacher weight `z_h` for each of the **28 arm clusters** -
-     the dimension with the fewest clusters. No rubric weights are drawn, and no products
-     are formed.
+3. **The reference sample size is `B = 9999` under sampling; a family with small finite
+   support instead enumerates its support exhaustively, in which case the reference sample
+   size is `S_f = 2^(H_f - 1)`, not `B`.** Which regime applies is decided per family and
+   detailed in full below the algorithm; the steps here are written for the sampled regime,
+   with the enumerated regime's differences stated where they occur. For `b = 1..B` with
+   `B = 9999` (sampled regime) or `b` ranging over the `S_f` enumerated sign vectors
+   (enumerated regime):
+   - **Sampled regime**: draw **one** independent Rademacher weight `z_h` for each of the
+     **28 arm clusters** (or `H_f` arm clusters for a family fitted on a subset, §11.1) - the
+     dimension with the fewest clusters. No rubric weights are drawn, and no products are
+     formed. **Enumerated regime**: rather than drawing, `b` ranges deterministically over one
+     representative sign vector per sign-flip pair, covering all `S_f = 2^(H_f - 1)` distinct
+     vectors exactly once each; the remaining computation in this step is identical between the
+     two regimes.
    - Perturbed score `S*_b = sum over i of z_h(i) * s_tilde_i`.
    - One-step update `beta*_b = beta_tilde + A(beta_tilde)^-1 * S*_b`, avoiding a re-fit per
      replicate. A full restricted-and-unrestricted re-fit is performed on a random 2% of
-     replicates, subject to the numerical validation criterion below.
-   - Bootstrap covariance `V*_b` built by the **same three-term formula** from the perturbed
-     contributions `z_h(i) * s_tilde_i`, with the **identical PSD step**, and with the
-     **bread held fixed at `A(beta_tilde)`** per the specification below. Studentising each
-     replicate by its own covariance is what makes this a bootstrap-t with asymptotic
-     refinement rather than a plain percentile bootstrap.
+     replicates (selected once per family by the master seed's dedicated stream, §18), subject
+     to the numerical validation criterion below and defined in full there.
+   - Bootstrap covariance `V*_b` built by the **same three-term formula and the same finite-sample
+     multipliers** from the perturbed contributions `z_h(i) * s_tilde_i`, with the **identical
+     PSD step**, and with the **bread held fixed at `A(beta_tilde)`** per the specification
+     below. Studentising each replicate by its own covariance is what makes this a bootstrap-t
+     with asymptotic refinement rather than a plain percentile bootstrap.
    - `W*_b = (R beta*_b)' (R V*_b R')^-1 (R beta*_b)`.
-   - If `R V*_b R'` remains singular after the PSD step, the replicate is discarded and
-     counted, subject to the singular-replicate protocol below.
-4. `p_f = (1 + #{ W*_b >= W_obs }) / (B + 1)`.
+   - **Two distinct failure modes, counted and handled separately, never conflated.** If `R
+     V*_b R'` remains singular after the PSD step, the replicate is discarded and counted as a
+     **singular replicate**, subject to the singular-replicate protocol below. Independently,
+     if the one-step `beta*_b` produces a non-finite `W*_b` (a diverging update, typically from
+     an ill-conditioned `A(beta_tilde)`), the replicate is discarded and counted as a
+     **non-finite replicate**; this is a distinct failure mode from singularity of the
+     restricted meat, since it can occur even when `R V*_b R'` is itself well-conditioned, and
+     mixing the two counts would hide which part of the computation is failing.
+   - **Replenishment, not denominator adjustment - sampled regime only.** Every discarded
+     replicate, of either kind, is **replaced by drawing a fresh Rademacher vector** and
+     repeating the replicate, so that exactly `B = 9999` **valid** replicates always enter the
+     count below; the denominator `B + 1` in the formula therefore always refers to the same
+     fixed `B`, and discards never bias `p_f` by silently counting a failed replicate as a
+     non-exceedance. If a family cannot reach 9999 valid replicates after a capped number of
+     replenishment attempts (10 * B), it is marked **non-computable** and enters the same gate
+     as a singular observed statistic (§11's gate-to-BH mapping), rather than reporting `p_f` on
+     a smaller effective `B`. **In the enumerated regime, replenishment does not apply**: a
+     discarded vector cannot be replaced, since the support is exhausted rather than resampled
+     and there is no further vector to draw. Its consequence is not exclusion from a
+     renormalised denominator but the bracket of step 4 below.
+4. **The `p_f` formula differs between the two regimes, and this difference - specifically
+   whether the `+1` correction applies, and how a discard is handled - was previously left
+   incompletely specified for the enumerated case.**
+   - **Sampled regime**: `p_f = (1 + #{ W*_b >= W_obs }) / (B + 1)`, computed over the
+     `B = 9999` valid replicates obtained after replenishment. The `+1` in both numerator and
+     denominator is the standard finite-resample correction that guarantees `p_f > 0` and
+     accounts for the observed statistic itself being one exchangeable draw under the null.
+   - **Enumerated regime: an assumption-free bracket on the true support `S_f`, not a point
+     value renormalised to the surviving count.** A revision of this section previously
+     computed `p_f = #{W*_s >= W_obs} / S_f_valid`, dividing by the count of vectors that
+     survived the singular- and non-finite-replicate rules. That is a **different quantity**
+     from the exact finite-support p-value, which is defined on the full support `S_f`: it
+     silently conditions the reference distribution on numerical success, and since `S_f` can
+     be as small as 32 for a thinly-clustered family (§16), a single discard can move the
+     reported value by several percentage points while looking like an ordinary computation.
+     The renormalisation is **withdrawn** (Appendix A.9) and replaced by a bracket that makes no
+     assumption about the discarded vectors' true statistic: let `E_valid` be the count of
+     surviving sign vectors with `W*_s >= W_obs`, and `D` the number discarded (singular or
+     non-finite, combined). Every discarded vector either would or would not have exceeded
+     `W_obs` had it been computable, so the true finite-support p-value satisfies
+
+     `p_f in [ E_valid / S_f , (E_valid + D) / S_f ]`,
+
+     with **both endpoints on the true support `S_f`**, never on `S_f_valid`. When `D = 0` the
+     bracket collapses to the point value `E_valid / S_f`, recovering the ordinary exhaustive
+     enumeration exactly. The **no-`+1` rule is unaffected by this change** and applies to both
+     endpoints identically: the `+1` correction exists to account for finite-sample resampling
+     error when the reference distribution approximates an infinite bootstrap distribution, and
+     exhaustive enumeration - whether or not every vector is computable - has no such error to
+     correct for, since the denominator `S_f` is the exact count of distinct attainable values,
+     not an approximation to one. Adjudication of the bracket against the ten-family BH
+     procedure is specified in §11.1. If `D = S_f` (every vector discarded), the bracket
+     degenerates to `[0, 1]` and the family is reported **non-computable**, entering the same
+     gate as a singular observed statistic (§11's gate-to-BH mapping).
 
 **The bread's evaluation point, frozen rather than left implicit.** `V*_b` is a sandwich
 `A^-1 B* A^-1`, so the replicate depends on where the bread `A` is evaluated. Frozen choice:
@@ -558,6 +962,23 @@ different expansion points. It makes each replicate an exact linear functional o
 weights, so the whole loop reduces to matrix products with nothing re-fitted. And it is the
 natural generalisation of the linear case, where the bread is `X'X` and does not depend on
 the coefficient at all, which is what keeps the `boottest` reduction meaningful.
+
+**"Full refit" has exactly one mathematical meaning, frozen here because the algorithm never
+constructs a bootstrap response and the phrase would otherwise admit several readings.** A
+full refit on replicate `b` means: solve the **perturbed restricted estimating equation**
+`sum over i of z_h(i) * s_i(beta) = 0` for `beta`, restricted to `R beta = 0`, by constrained
+Newton-Raphson (the restriction enforced by a Lagrange-multiplier augmentation of the score
+equations, initialised at `beta_tilde`, converged when the maximum absolute component of the
+Lagrangian score is below `1e-8`, capped at 50 iterations) to obtain a refitted `beta_tilde*_b`;
+then solve the corresponding **unrestricted** perturbed equation `sum over i of z_h(i) * s_i(beta)
+= 0` (no restriction, initialised at `beta_hat`, same convergence rule) to obtain a refitted
+`beta_hat*_b`; the restricted solve is performed **before** the unrestricted one, matching the
+order of the original two-step fit. This is the natural generalisation of the one-step update
+to a fully iterated solution of the same perturbed score equation - **not** a construction of
+any bootstrap response `y*`, which the score-based design exists specifically to avoid (§18.6
+test 5's fixture exercises exactly this equivalence). One arm weight `z_h(i)` multiplies both
+blocks of the stacked score for every observation in the refit, identically to the one-step
+loop (§11).
 
 **The validation replicates test this choice too.** On the 2% of replicates that are fully
 re-fitted, the bread is **recomputed at the refitted estimates**, so the difference between
@@ -596,7 +1017,11 @@ as the DGP choice.
 **Alternative pairings as declared sensitivity analyses**, since MNW give validity conditions
 per variant and the conditions differ: the DGP clustered by rubric; the DGP clustered by
 intersection; and the ordinary (unclustered) wild bootstrap, each with the same three-term
-CRVE. Disagreement among them is reported rather than resolved by preference.
+CRVE. Disagreement among them is reported rather than resolved by preference, and **the
+confirmatory `p_f` used in the BH procedure is always the primary arm-clustered restricted
+WCR value from the algorithm above; no sensitivity pairing ever substitutes for it, whatever
+the direction of disagreement**. This closes a specific ambiguity: reporting disagreement is
+not the same as leaving open which value counts, and here exactly one value counts.
 
 **Two honest extensions, labelled as such.** MNW's theory is developed for the linear
 regression model estimated by least squares. This analysis applies the three-term CRVE and
@@ -613,6 +1038,24 @@ exact check is available: MNW's procedures are implemented in the Stata package 
 (Roodman, MacKinnon, Nielsen & Webb, 2019) for the **linear** model. The implementation is
 first exercised on a linear reduction of the data with a fixed seed and must reproduce
 `boottest` to numerical tolerance before it is used on the GLM.
+
+**The oracle tuple, frozen completely rather than left as "reproduce `boottest`", and its
+dependency scope stated.** The linear reduction fixes: `y` = the resolved-only binary outcome
+recoded to a linear probability model on the criterion-in-trace grain (§11); `X` = the F6
+design matrix (`token_count` plus rubric fixed effects), chosen because it is purely
+between-rows with no stacking, no Mundlak split and no interaction, making it the simplest
+family that still exercises two-way clustering; cluster variables = rubric and arm, matching
+the production clustering exactly; `R` = the F6 restriction (`token_count` coefficient = 0);
+Stata options = `, reps(9999) bootcluster(arm) cluster(rubric arm) weighttype(rademacher)
+reps(9999) seed(<master boottest seed>)` with `weighttype(rademacher)` set explicitly because
+Stata's `boottest` default is Webb six-point weights, which is a different distribution and
+would silently fail to match if left at its default; seed = a dedicated value from the master
+seed's `boottest_oracle` stream (§18); tolerance = agreement of `p_f` to `1e-4` and of `W_obs`
+to relative `1e-6`. **Stata plus `boottest` is a one-off verification dependency, not a
+dependency of the analysis programme**: the reference run is executed once, its `(y, X, seed)`
+input and its output `p_f` and `W_obs` are committed to the repository as a fixture, and the
+Python test suite replays that fixture without invoking Stata, so the analysis run itself
+requires neither Stata nor the `boottest` package installed.
 
 The claim this earns must not be inflated. **`boottest` reproduction validates the linear
 special case; it is a regression-test oracle for the shared numerical components, not
@@ -639,19 +1082,60 @@ binding requirement is agreement of that indicator:
   re-run with full refitting in every replicate**, and the additional cost is accepted. The
   criterion is therefore consequential rather than decorative.
 
-**Singular-replicate protocol.** The 1% figure is a **reporting and investigation trigger,
-not a validity cliff**, since a bare cutoff would become another magic number. For every
-family the following are reported: the number of discarded replicates; the reason,
-distinguishing rank deficiency in `R V*_b R'` from numerical failure; the distribution of
-discards across families; and `p_f` recomputed under discard tolerances of 0%, 0.5%, 1% and
-2% as a sensitivity. Exceeding 1% triggers mandatory disclosure and a documented
-investigation rather than automatic rejection, because frequent singularity is usually
-**diagnostic** - it typically indicates a predictor nearly collinear with a cluster
-dimension, which is information about the design rather than noise to be discarded.
+**Singular- and non-finite-replicate protocol.** The 1% figure is a **reporting and
+investigation trigger, not a validity cliff**, since a bare cutoff would become another magic
+number. For every family the following are reported, with the two failure modes **always
+tabulated separately, never pooled into one discard count**: the number of singular
+replicates (rank-deficient `R V*_b R'` after the PSD map) and the number of non-finite
+replicates (diverging one-step `beta*_b`), each with its own count; the distribution of each
+across families; and, **for sampled-regime families**, `p_f` recomputed under discard
+tolerances of 0%, 0.5%, 1% and 2%, applied to the **combined** rate, as a sensitivity display
+only - never as the primary computation, which always replenishes to exactly `B = 9999` valid
+replicates per the algorithm above. Exceeding 1% **combined** triggers mandatory disclosure and
+a documented investigation rather than automatic rejection, because frequent singularity is
+usually **diagnostic** - it typically indicates a predictor nearly collinear with a cluster
+dimension, which is information about the design rather than noise to be discarded - while
+frequent non-finite replicates more often indicate near-collinearity in `A(beta_tilde)` itself.
+**For enumerated-regime families**, the discard-tolerance sensitivity display does not apply,
+since discards there are not resolved by recomputing at a chosen tolerance but by the bracket
+of step 4 above; the two failure counts are still reported, and the same 1% **combined**
+trigger, computed against `S_f` rather than `B`, applies to the disclosure requirement, in
+addition to the bracket itself and the BH adjudication of §11.1.
 
 **What is bootstrapped is the joint statistic**, never a single coefficient's t-ratio, so a
 family with three terms is tested at rank `q = 3`, extended per §11 to span both co-primary
 outcomes.
+
+**The attainable bootstrap support, and why it is reported for every family rather than
+assumed to be dense.** The sign-flip construction has finite support: with `H_f` arm clusters
+contributing to a family's fit, there are `2^H_f` possible Rademacher sign vectors, but
+`W*(-z) = W*(z)` **exactly** for every family, since `V*` is built from squared or paired sign
+products that are invariant to a global flip and `R beta*` under a full sign reversal merely
+negates (`R(beta_tilde - A^-1 S*) ` for `-z` equals the negation of the value for `z`, and the
+statistic is a quadratic form in that value). The bootstrap distribution therefore has at most
+`S_f = 2^(H_f - 1)` **distinct attainable values of `W*`**, not `2^H_f` and not the sampled
+count `B`. For every family, `H_f` and the resulting attainable support `S_f = 2^(H_f - 1)`
+are reported, using the name `S_f` fixed in the algorithm above rather than the bare formula,
+so the two regimes are referred to consistently throughout. **Where `S_f <= B`, the family is
+fitted in the enumerated regime**: the replicates are drawn by exhaustive enumeration of all
+`S_f` distinct sign vectors (one representative per sign-flip pair) rather than by sampling
+with replacement, and `p_f` is computed from that enumeration exactly as specified in step 4
+above - a point value `E_valid / S_f` when every vector is computable, widening to the bracket
+`[E_valid / S_f, (E_valid + D) / S_f]` when `D` vectors are discarded, never a value
+renormalised to `S_f_valid`; the replenishment rule does not apply since the support is
+exhausted rather than sampled. **Where `S_f > B`, the family is fitted in the sampled regime**,
+`B = 9999` draws with replenishment, exactly as the base algorithm specifies. In either regime,
+the **full attainable grid on the true support `S_f`** is published for every family alongside
+its `p_f` (or bracket), not merely the grid's minimum, so a reader can see directly which
+values `p_f` can and cannot take: `{1/S_f, 2/S_f, ..., S_f/S_f}` in the enumerated regime -
+**always denominated by `S_f`, never by a discard-dependent `S_f_valid`**, so the grid is a
+fixed property of the family's design (`H_f`) alone and does not itself move when a replicate
+is discarded; in the sampled regime the grid is the ordinary `(B+1)`-point bootstrap percentile
+grid. This finite-granularity finding is a **stated limitation** (§16), not a defect requiring
+a different bootstrap: MNW's asymptotic-pivotal argument for validity is unaffected by finite
+support, but finite support does cap the smallest reportable `p_f` and therefore the
+resolution of the BH procedure applied to it, including a **spillover onto other families**
+detailed in §16, now sharpened by the bracket's own adjudication rule in §11.1.
 
 **Known constraint.** Bootstrap performance is governed by the coarser dimension, and 28 arm
 clusters is modest - which is precisely why MNW's recommendation to cluster the DGP on that
@@ -688,17 +1172,54 @@ that depend on expectation-rich rubrics. Agreement between aggregated and full a
 the strongest available defence against dependence misspecification; disagreement is
 reported rather than resolved by preference.
 
+**The three collapsed estimators, frozen exactly, since naming the collapse unit does not
+determine the regression fitted on it.**
+
+- **Rubric-arm cell** (F1, F2, F9, F3's main effect). One row per `(rubric, arm)` pair, 64 x
+  28 = 1,792 rows before any family-specific population restriction (§11.1). Cell membership:
+  every criterion-in-trace row for that rubric's variants observed under that arm belongs to
+  the cell; a cell's collapsed response is `y_cell = (count of PASS, or count of
+  not-UNDETERMINED-PASS under the conservative coding) / n_cell`, with `n_cell` the criterion
+  count under criterion-weighting or `1` under rubric-weighting (in which case `y_cell` for
+  rubric-weighting is the **variant-averaged** cell proportion, not the raw criterion-weighted
+  proportion, so that a rubric's 28 cells each carry the rubric's total weight once regardless
+  of `N_r`). The collapsed model is a **binomial GLM on cell-level counts** (criterion-weighted:
+  binomial with denominator `n_cell`; rubric-weighted: quasi-binomial with weights normalising
+  every rubric's total weight to one) with the same family predictors as the confirmatory fit,
+  no rubric or arm fixed effects (since the cell is itself rubric-by-arm, a fixed effect per
+  cell would saturate the model), and a one-way cluster-robust covariance clustered by rubric
+  (the finer-grained dimension no longer available once collapsed to cell level; arm remains a
+  covariate but not a clustering dimension at this grain).
+- **Variant** (F5, F6, F7's within term, F10). One row per variant, 268 rows. Cell membership:
+  every criterion-in-trace row for that variant across all 28 arms. Collapsed response
+  `y_variant` analogous to the cell case above, criterion-weighted or rubric-weighted (the
+  latter giving every rubric's variants equal total weight, `1/V_r` each). Collapsed model: a
+  binomial or quasi-binomial GLM with **rubric fixed effects retained** (since these are
+  within-rubric families and the collapse must preserve the within-rubric contrast that
+  defines them), one-way cluster-robust covariance clustered by rubric.
+- **Expectation-arm cell** (F4, F8). One row per `(expectation, arm)` pair, 324 x 28 = 9,072
+  rows before restriction. Cell membership and response construction as for the rubric-arm
+  cell, substituted at expectation grain; the expectation-level features (F4's
+  `expectation_document_count`, F8's `answer_locality`) are constant within a cell by
+  construction. Collapsed model: binomial or quasi-binomial GLM, one-way cluster-robust
+  covariance clustered by rubric (expectations nest within rubrics).
+
+In every case, the aggregation-robustness fit is **descriptive and comparative**, reported
+alongside the confirmatory criterion-in-trace fit (§11) to show whether the confirmatory
+conclusion survives collapsing; it does not itself feed the ten-family BH set.
+
 ### 5.5 Arm treatment is per-analysis
 
 A blanket "arm as random effect" is withdrawn (Appendix A.6): 28 purposive configurations
 are not a sample from a superpopulation.
 
-- **Suitability estimates and tiers:** arm fixed effects are used for adjustment, and
-  **suitability summaries are then marginalised over the 28 arms with equal weights** to
-  recover the stated finite-population estimand. The equivalence between fixed effects and
-  an equal-weighted average is not automatic - it requires that explicit marginalisation
-  step - and in Layer 1 it holds through the balance argument in §5.1, which is verified
-  rather than assumed.
+- **Suitability estimates and tiers:** the **arm-free** four-level hierarchy of §5.1 is the
+  primary estimator; there are no arm fixed effects in this model. The finite-population
+  estimand of §1 is recovered because the hierarchy's counts are pooled across the balanced
+  28-arm empirical distribution directly, subject to the balance gate in §5.1 - not by fitting
+  an arm-fixed-effect model and marginalising it afterward. An earlier revision stated the
+  latter; that was a contradiction with §5.1's own likelihood and is withdrawn (§5.1,
+  Appendix A.8).
 - **Feature inference:** arm as fixed effects **and** as a clustering dimension in the
   two-way covariance.
 - **Variance partitioning:** arm as a variance component, reported as a **descriptive
@@ -708,6 +1229,28 @@ are not a sample from a superpopulation.
 
 Benjamini-Hochberg at q = 0.05 over the **ten** confirmatory family-level bootstrap
 p-values declared in §11, one per family. Anchor: Benjamini & Hochberg (1995).
+
+**The procedure is fully reproducible; the textbook guarantee attached to it is not, and the
+two are kept separate.** Given the ten p-values, ordered `p_(1) <= ... <= p_(10)`, BH computes
+`k = max{j : p_(j) <= j * 0.05 / 10}` and rejects the families corresponding to `p_(1), ...,
+p_(k)`; if no such `j` exists, none are rejected. That computation is exact and unambiguous
+once the ten inputs are fixed (§11.1 groups the input-freezing and gate-to-BH-mapping rules).
+
+**The 5% false-discovery-rate control claim requires a dependence condition this design does
+not establish, and no such unqualified claim is made anywhere in this report.** BH's classical
+guarantee holds under independence or under positive regression dependence on a subset (PRDS)
+of the test statistics. The ten families here are two-sided joint Wald statistics built from
+overlapping data - shared rubric clusters, shared arm clusters, and predictors correlated by
+design (§11's collinearity note) - so their dependence structure is neither established as
+independent nor verified as PRDS, and positive correlation among the underlying scores does
+not by itself establish PRDS for quadratic (two-sided) statistics. The report's own language is
+therefore: **"BH-adjusted confirmatory inference at nominal q = 0.05; the finite-sample false
+discovery rate guarantee is not claimed, because the dependence condition it requires is not
+established for two-sided joint Wald statistics on overlapping clusters."** This qualification
+applies wherever the ten-family procedure is described (§2, §11, §16, §20); no alternative
+multiplicity procedure is substituted (Appendix A.8 records Benjamini-Yekutieli as considered
+and not adopted, since arbitrary dependence would demand a `1/sum(1/i)` correction that this
+design has no basis to prefer over leaving the limitation stated).
 
 ## 6. Suitability decision rule
 
@@ -756,6 +1299,17 @@ rather than used as a gate.
 **Tier floors:** `SUITABLE` 0.75, `PROMISING` 0.60, `BORDERLINE` 0.50, `NOT_SUITABLE` below
 0.50.
 
+**The empty qualifying-floor set, made explicit rather than left to a bare "below 0.50"
+reading.** The rule takes the highest floor `c` in `{0.75, 0.60, 0.50}` for which
+`Pi_prop(min >= c) >= gamma`; it is possible for **none** of the three to satisfy the
+threshold - for example a unit with `Pi_prop(min >= 0.50) = 0.85`, which clears none of the
+three floors at `gamma = 0.90` despite a comfortably positive mean. "`NOT_SUITABLE` below 0.50"
+described the floors, not this case, and an earlier revision left the mapping to be inferred.
+It is now stated as part of the rule itself: **if the qualifying set is empty, `tier(u) =
+NOT_SUITABLE`**, with no separate unresolved status. `NOT_SUITABLE` is thereby exactly the
+disjunction "clears no floor" rather than a description of "score below 0.50", and the two can
+differ, which is why the explicit rule rather than the informal description governs.
+
 **A single confidence level.** The earlier "lower 95% bound" language is **removed** to
 avoid an unexplained mismatch with `gamma` = 0.90. There is one operational threshold,
 `gamma`, applied uniformly to `Pi_prop`.
@@ -769,8 +1323,19 @@ the code. They are inherited convention, not stakeholder-sanctioned utility boun
 is why the tier is named `PROMISING` rather than `LIKELY_SUITABLE`: a probabilistic-sounding
 label would invite exactly the misreading of `Pi_prop` that §5.1 forbids.
 
-An `UNCERTAIN` flag marks units whose **mean** of `min over v` clears a higher floor than
-`gamma` permits. All floors and `gamma` are locked before results are inspected (§19).
+**`UNCERTAIN`, defined as a comparison between two tiers, never as a score compared to
+`gamma`.** An earlier revision described the flag as marking units whose **mean** of `min over
+v` "clears a higher floor than `gamma` permits", which mixes two different scales - a
+`RubricV2`-scale mean compared against tier floors, and `gamma` = 0.90, a threshold on
+`Pi_prop` - without stating a Boolean predicate. The frozen definition uses only the two tier
+values already computed: let `tier_mean(u)` be the pooled-mean tier defined in §6.2 (the same
+decision rule applied to the per-draw arithmetic mean rather than the per-draw minimum), and
+`tier(u)` the primary worst-variant tier of this section. **`UNCERTAIN` marks any unit for
+which `tier_mean(u)` is strictly higher than `tier(u)`** in the ordering `SUITABLE >
+PROMISING > BORDERLINE > NOT_SUITABLE`. This is a restatement, in the frozen vocabulary, of
+the disagreement already described in §6.2 as a headline wording-sensitivity finding; `UNCERTAIN`
+is its flag, not a third quantity. All floors and `gamma` are locked before results are
+inspected (§19).
 
 ### 6.2 The mandatory proportion diagnostic, and the comparability problem it addresses
 
@@ -817,10 +1382,21 @@ a finding about the design rather than about the rubrics; and the full curve
 since at small `V_r` its step shape is more honest than any single value.
 
 Also reported for every rubric: **`V_r` itself, always**; the observed minimum of the
-shrunken variant means; and the pooled-mean tier. **Disagreement between the worst-variant
-tier and the pooled-mean tier is a headline wording-sensitivity finding** - a rubric that is
-`SUITABLE` on its mean but `BORDERLINE` on its worst variant is exactly a servable
-information need with a fragile phrasing.
+shrunken variant means; and the pooled-mean tier, now given a formula rather than named
+without one. **The pooled-mean tier applies the identical decision rule of §6.1 to the
+per-draw arithmetic mean instead of the per-draw minimum**, so the two tiers are mathematically
+parallel and differ only in which statistic of the draws they threshold. For each draw
+`(b, m)`, form `Rbar_r^(b,m) = V_r^-1 * sum over v of R_rv^(b,m)`, the simple average of that
+draw's variant-level `RubricV2` values; then
+
+`tier_mean(r) = the highest floor c such that Pi_prop( Rbar_r >= c ) >= gamma`,
+
+using the same pooled draws, the same `gamma`, and the same three floors as §6.1, with the
+same empty-set convention (`tier_mean(r) = NOT_SUITABLE` if no floor clears). **Disagreement
+between the worst-variant tier and the pooled-mean tier is a headline wording-sensitivity
+finding**, and is exactly what the `UNCERTAIN` flag above reports - a rubric that is `SUITABLE`
+on `tier_mean` but `BORDERLINE` on `tier(r)` is exactly a servable information need with a
+fragile phrasing.
 
 ### 6.3 Both recommendation units are deliverables
 
@@ -833,11 +1409,39 @@ not optional. Two tables:
 
 ### 6.4 Ranking and tier stability
 
-- **`Pi_prop`-based tier-membership probability** for each rubric and each variant - an
-  uncertainty probability for each tier assignment, not a posterior probability (§5.1);
-- frequency of rank reversal for adjacent pairs under resampling of the `Pi_prop` draws;
-- **leave-one-arm-out and leave-one-stage-out** stability of tier assignment and ranking,
-  since with 28 arms and no replication a few extreme configurations can move the ordering.
+**"Tier-membership probability" is withdrawn as a label, because a tier is not a random
+variable over the draws.** `tier(u)` is a **deterministic functional** of the entire `Pi_prop`
+distribution and the fixed constants `gamma` and the three floors: given the pooled draws, it
+has exactly one value, with no further randomness left to assign a probability to. What the
+draws *do* support directly is a probability over **score bands** - `Pi_prop(min in [a, b))`
+for adjoining ranges of the `RubricV2` scale - and that quantity is renamed **score-band
+probability** throughout (§15) to remove the implication that the tier itself is repeatedly
+estimated.
+
+- **Score-band probability** for each rubric and each variant: `Pi_prop(min over v of R_uv in
+  [a, b))` for the score bands defined by the three tier floors plus the interval below 0.50,
+  displayed as a stacked bar per unit. This replaces the withdrawn "tier-membership
+  probability" with the well-defined quantity the draws actually carry.
+- **Rank reversal, defined on one synchronised draw index, never on independently pooled
+  per-rubric draws.** Ranking by `min over v of R_uv` requires comparing the **same** draw
+  across rubrics, so the outer hyperparameter-bootstrap index `b = 1, ..., B_psi` is shared:
+  for outer draw `b`, every rubric's inner Laplace draws are indexed `m = 1, ..., M_b` from
+  that same outer draw, and a rank-reversal event for an adjacent pair `(u, u')` at draw `(b,
+  m)` is `1{min_u^(b,m) > min_u'^(b,m)}` disagreeing with the ordering of the point tiers.
+  Rank-reversal frequency is the average of this indicator over the shared draws. Units that
+  underwent the adaptive refinement of §5.1 contribute their refined draws only for the
+  outer-draw range actually shared with the comparison unit; comparisons that would require
+  draws beyond a unit's refined range are reported as **not comparable at that draw depth**
+  rather than silently truncated or extrapolated.
+- **Leave-one-arm-out and leave-one-stage-out, with the refit made explicit.** Each leave-out
+  analysis **fully re-estimates `psi_hat` and refits Layer 1 from scratch on the reduced arm
+  or stage set**, rather than reusing the full-data `psi_hat` with a reduced pooling weight;
+  this is the only reading under which the leave-out check tests sensitivity to a specific
+  configuration rather than merely re-weighting the same fitted model. The statistic compared
+  before and after removal is the **point tier** `tier(u)` from §6.1 (the deterministic
+  functional, not `Pi_prop` itself, since `Pi_prop` values are not comparable in isolation
+  across two different fitted hierarchies); stability is reported as the count and identity of
+  units whose point tier changes under each single-arm or single-stage removal.
 
 ## 7. Analysis hierarchy
 
@@ -845,14 +1449,44 @@ Top-down for presentation, bottom-up for estimation.
 
 - **Level 0 - configuration.** Descriptive characterisation of the 28 arms and three stages.
   No attempt to separate configuration effects from stochastic noise (§16).
-- **Level 1 - dataset.** **Descriptive and stratified estimation only.** Rubric populations
-  are disjoint, so any dataset contrast is a between-rubric contrast. Counts, median
-  `RubricV2`, and `Good` / `Acceptable`-or-better shares are reported; "Mallinckrodt is
-  inherently easier than EMC2" is not a permitted statement.
+- **Level 1 - dataset.** **Descriptive and stratified estimation only, with the unit and
+  weighting frozen rather than left implicit.** The unit is **the rubric**: one rubric, one
+  information need, one vote, since this is the unit that matches the primary recommendation
+  (§6). Every dataset summary - counts, median `RubricV2`, `Good` / `Acceptable`-or-better
+  shares - is computed by first summarising **within each rubric** (the rubric's `RubricV2` is
+  its already-defined §5.1 estimand; the rubric's grade share is the share of its variants at
+  or above the given grade) and then taking the median or share **across rubrics with equal
+  rubric weight**, never pooling raw traces or criteria, which would implicitly weight a dataset
+  by its total expectation count rather than by its number of distinct information needs.
+  Rubric populations are disjoint, so any dataset contrast is a between-rubric contrast;
+  "Mallinckrodt is inherently easier than EMC2" is not a permitted statement.
 - **Level 2 - use case.** Descriptive plus jointly-adjusted one-vs-rest effects where counts
-  permit. Genuinely multi-class and multi-label (1-3 labels per rubric; 10 of 11
-  `air_assist` use cases present, `compliance_review` absent), so naive group-by
-  double-counts and confounds co-occurring labels.
+  permit, **kept exploratory throughout**, since it is not one of the ten confirmatory families
+  and is not stacked, bootstrapped, or BH-controlled alongside them. Genuinely multi-class and
+  multi-label (1-3 labels per rubric; 10 of 11 `air_assist` use cases present,
+  `compliance_review` absent), so naive group-by double-counts and confounds co-occurring
+  labels. When fitted, the jointly-adjusted contrast is frozen as: **unit** rubric (one row per
+  rubric, matching Level 1's unit); **design** one binary indicator column per present use case,
+  all entered **jointly** in a single binomial GLM on the rubric-level outcome (so a rubric with
+  two labels contributes to both indicators' estimation simultaneously rather than being
+  double-counted across separate one-vs-rest fits); **adjustment** a dataset indicator, since
+  use-case prevalence differs by dataset; **no rubric fixed effects**, because `use_case` is
+  constant within rubric and a rubric fixed effect would make every use-case coefficient
+  unidentified for the same reason as F7's between-rubric term (§11.1).
+
+  **No cluster-robust covariance is used here, and this is a correction rather than the
+  original design.** An earlier revision clustered this fit's covariance by dataset - but
+  there are only **three** datasets, and a two-way or even one-way cluster-robust sandwich with
+  three clusters is not an inferentially reliable object: CGM-style asymptotics assume the
+  cluster count grows, and three is nowhere near that regime. Because dataset already enters as
+  a fixed-effect adjustment covariate, clustering the covariance on the same variable it is
+  adjusting for would in any case be close to degenerate. The covariance is instead
+  **HC3 heteroskedasticity-robust**, reported at the rubric level, and is labelled throughout as
+  **descriptive uncertainty only** - a visual band on an effect-size plot, never a p-value and
+  never a significance claim, since this analysis is already declared exploratory and a
+  formally invalid inferential claim would contradict that declaration rather than merely
+  under-power it. This is reported as an exploratory contrast with descriptive uncertainty
+  bands, not as an eleventh confirmatory family.
 - **Level 3 - rubric / information need.** Primary recommendation level (§6).
 - **Level 4 - variant / surface form.** Within-rubric modelling, and the second
   recommendation unit.
@@ -860,24 +1494,65 @@ Top-down for presentation, bottom-up for estimation.
   observations.
 - **Orthogonal layer - errors.** The ten `errors_*_v2` dimensions (§10).
 
-**Named RQ.** *How much of Simple Mode performance variation is **associated with** surface
-realisation, conditional on a fixed information need?* The word "attributable" is
-deliberately avoided, since §7.1 prohibits causal attribution and the two would contradict
-each other. The variants are paraphrases of a fixed information need against a fixed rubric -
+**Named RQ, reworded to match the quantity §7.1 now actually defines.** *How much of the
+between-need and within-need dispersion in the Layer 1 hierarchy is associated with the
+rubric level versus the variant (surface-realisation) level, on the ALR scale?* An earlier
+revision posed this question against an undefined general variance decomposition (below); it
+is now posed, and answered, against the one decomposition this plan's own machinery already
+produces. The word "attributable" is still deliberately avoided, since §7.1 prohibits causal
+attribution. The variants are paraphrases of a fixed information need against a fixed rubric -
 the closest thing to a natural experiment in this data, subject to the scope limit in §1.
 
-### 7.1 Variance partitioning, not attribution
+### 7.1 Variance partitioning: one defined decomposition, the rest descriptive
 
-Variance is partitioned across rubric, variant-within-rubric, expectation-within-rubric,
-arm, dataset and residual, framed as **partitioning and association, never attribution or
-causation**. No statement of the form "X% of success is caused by wording" is permitted.
+**The only variance decomposition with a confirmatory-grade defined model and scale is the one
+Layer 1 already fits, and this section is narrowed to state that rather than naming a
+six-component decomposition with no attached model.** An earlier revision listed rubric,
+variant-within-rubric, expectation-within-rubric, arm, dataset and residual as components of
+one `Var(total)` identity without specifying a response, link, scale or weighting for any of
+them - for a binary or ordinal outcome, a decomposition on the latent-logit scale and one on
+the observed-probability scale are not the same numbers, and "the implementation demonstrates"
+is not a specification. Rather than introduce a new formal variance-components model solely to
+answer this named RQ, the plan uses the decomposition Layer 1 (§5.1) already estimates:
 
-The crossed and balanced design **permits estimation** of the named components, but
-identifiability also depends on the exact variance-component parameterisation and coding,
-which the implementation demonstrates rather than assumes. What is definitely not
-identifiable is separating the highest-order interaction from replication noise, since there
-are no replicates: the residual is a composite of question-by-arm interaction and stochastic
-judge and agent variability.
+- **`Sigma_between`** - the between-rubric covariance of `mu_r` on the ALR scale, i.e. dispersion
+  **between information needs**.
+- **`Sigma_within`** - the pooled within-rubric covariance of `eta_rv` around `mu_r` on the ALR
+  scale, i.e. dispersion **between surface realisations of the same information need**.
+- **`phi`** - the trace-level Dirichlet concentration, i.e. residual dispersion **within a
+  variant across traces**, which as §5.1 states is never a clean noise parameter.
+
+These three quantities are reported on the **ALR scale on which they are fitted**, as
+covariance matrices (`Sigma_between`, `Sigma_within`) and a scalar (`phi`), not converted to a
+"percentage of variance explained" on the probability scale, since that conversion is exactly
+the undefined step the withdrawn six-component identity depended on. The named RQ above is
+answered by comparing **`trace(Sigma_between)`** against **`trace(Sigma_within)`** - both
+already estimated with hyperparameter uncertainty propagated (§5.1) - as a relative-magnitude
+statement on the ALR scale, framed as **partitioning and association, never attribution or
+causation**. The trace, not a summary eigenvalue, is the frozen comparison statistic: it is
+the **total variance across both ALR coordinates** and does not privilege either coordinate's
+direction, whereas the largest eigenvalue would report only the most-dispersed direction and
+silently discard the other. The individual eigenvalues of `Sigma_between` and `Sigma_within`
+are additionally reported **descriptively**, alongside the trace comparison, for a reader who
+wants the directional detail; they are not themselves the comparison statistic. No statement
+of the form "X% of success is caused by wording" is permitted, and no percentage-of-variance
+number is produced by this defined decomposition at all, precisely because the
+ALR-to-probability conversion needed to produce one is not specified.
+
+**Dataset, expectation-within-rubric and arm dispersion remain explicitly descriptive, not
+part of this defined decomposition.** Dataset-level spread is reported via the Level 1
+rubric-weighted summaries above; expectation-level heterogeneity is the subject of the Level 5
+expectation analysis and the §16 exchangeability limitation, not a variance-component share;
+arm dispersion is the descriptive variance share over the evaluated arm set already declared
+in §5.5. None of the three is assigned a numeric share of a total, since no such total is
+defined without the withdrawn six-component model.
+
+The crossed and balanced design **permits estimation** of the three Layer 1 components above,
+and their parameterisation is now fully fixed by §5.1 rather than left to the implementation
+to demonstrate. What is definitely not identifiable, even so, is separating the highest-order
+interaction from replication noise, since there are no replicates: `phi` remains a composite of
+question-by-arm interaction and stochastic judge and agent variability, exactly as §5.1 and §16
+state.
 
 ```mermaid
 flowchart TD
@@ -894,7 +1569,7 @@ flowchart TD
   Join --> GLM["Layer 2: binomial GLM<br/>plus three-term two-way sandwich"]
   GLM --> Boot["Layer 3: restricted wild cluster bootstrap<br/>arm-clustered DGP, joint Wald"]
   GLM --> Agg["Layer 4: aggregation robustness<br/>criterion- and rubric-weighted"]
-  Boot --> Families["Ten families, each stacked<br/>across both co-primary outcomes<br/>BH-FDR at q=0.05"]
+  Boot --> Families["Ten families, each stacked<br/>across both co-primary outcomes<br/>BH-adjusted, nominal q=0.05"]
   Agg --> Families
   Join --> Grade["Two-part grade model"]
   Join --> Errors["Error layer<br/>ten errors_v2 scorers"]
@@ -927,6 +1602,44 @@ error - whose dangerous cell is **high coverage with a critical error**, a confi
 well-covered, wrong answer. For a routing decision that cell matters more than
 incompleteness, and the two-part model estimates exactly the two quantities the typology
 displays.
+
+**Both parts frozen as explicit equations, since naming "binary model" and "proportional
+odds" leaves the link, covariates and clustering open.** Unit: trace `t`. Covariate set,
+**identical for both parts and equal to the union of the ten confirmatory families' primary
+and secondary terms** (§11), so the grade model is not a separate feature-selection exercise;
+arm and rubric enter as **fixed effects in both parts**, matching the feature-inference
+treatment of §5.2 (not the arm-free Layer 1 treatment of §5.1, since the grade model is a
+feature-inference object, not the suitability estimator). Covariance: the same **three-term
+two-way cluster-robust sandwich** (§5.2), clustered by rubric and arm, wherever an inferential
+claim (a p-value or interval) is reported for a grade-model coefficient; point estimates alone
+carry no inferential claim and may be reported without it.
+
+- **Part 1.** `logit Pr(C_t = 1 | X_t) = X_t' beta_C`, `C_t = 1{ordinal_grade = "Critical
+  Error"}`, fitted by the same binomial GLM machinery as the co-primary outcomes (§5.2).
+- **Part 2.** Conditional on `C_t = 0`, `logit Pr(G_t <= k | C_t = 0, X_t) = alpha_k - X_t'
+  beta_G` for `k` in `{Poor, Partial, Acceptable}` (three cut points for four ordered
+  categories), with `Poor < Partial < Acceptable < Good` the fixed ascending order and the
+  **negative** sign on `X_t' beta_G` the fixed convention, so that a positive `beta_G`
+  coefficient means higher covariate values are associated with **better** grades (higher
+  cumulative probability of exceeding a given cut point) - stated explicitly because the sign
+  convention for cumulative-logit models is not universal across textbooks and an unstated
+  convention would flip every coefficient's reported direction.
+- **Empty-category rule.** For rubrics where a grade category is structurally unreachable
+  (§4.4 - e.g. single-expectation rubrics, where `Partial` and `Acceptable` cannot occur), those
+  traces simply do not contribute an observation at the unreachable category; the proportional-odds
+  fit is not restricted to rubrics where all four categories are reachable, since excluding them
+  would be an outcome-correlated population restriction. If an entire **cut point** has zero
+  observations on one side across the whole fitted population (not merely within one rubric),
+  that cut point's `alpha_k` is reported as **inestimable** and the model is refit with that cut
+  point merged into its neighbour, disclosed as such.
+- **Missing `errors_*_v2` judgement, resolved for Part 1.** §10 already defines missingness as
+  "counted as missing, never as no error" for scorer-level prevalence. The same convention
+  applies to Part 1: a trace with **any** missing `errors_*_v2` judgement is **not** treated as
+  `C_t = 0` (a missing judgement is not evidence of the absence of a critical error) and is
+  **excluded** from Part 1's fitted population, with the exclusion count reported; it is
+  **not** dropped from Part 2, whose population is defined independently by `C_t` as actually
+  logged (via `ordinal_grade`), since a missing scorer judgement does not affect the logged
+  grade itself.
 
 **`expectations_to_next_grade` is defined against the implementation, not a formula.**
 Because the specification and implementation disagree, and because the `total_count == 0`
@@ -982,13 +1695,29 @@ For each of the ten scorers:
   means the scorer returned a judgement. Missing or errored output is counted as missing,
   never as "no error", and the missingness rate is reported.
 - **Co-occurrence** - the scorers are **not mutually exclusive**, so rates do not sum to one
-  and are never presented as a partition. UpSet-style plot plus a pairwise matrix.
+  and are never presented as a partition. UpSet-style plot plus a pairwise matrix. **Denominator,
+  frozen**: for a pair of scorers `(e, f)`, the co-occurrence rate uses the **jointly eligible**
+  denominator, traces where **both** `e` and `f` returned a judgement, `sum_t A_te * A_tf`, not
+  the denominator of either scorer's marginal prevalence alone; a trace missing either scorer's
+  judgement is excluded from that pair's co-occurrence estimate and counted in a reported
+  joint-missingness rate.
 - **Prevalence conditional on failure** - separates "wrong because incomplete" from "wrong
-  because erroneous".
+  because erroneous". **Failure, frozen as one indicator reused everywhere it is needed**:
+  `F_t = 1{RubricV2_t < 1}`, equivalently at least one criterion in the trace is not `PASS`.
+  Because materiality is uniform in this cohort (§3), this is the same as "at least one
+  material criterion is not `PASS`", so no separate material-only failure indicator is needed.
+  Conditional error prevalence for scorer `e` is `sum_t A_te * E_te * F_t / sum_t A_te * F_t`,
+  eligible **and** failed traces in the denominator.
 - **Relationship to `RubricV2`** - whether errors concentrate in low-coverage traces or occur
-  independently.
+  independently. **Declared descriptive/exploratory**: reported as a correlation or binned
+  comparison, carrying no confirmatory claim and entering no BH set, since it is not one of the
+  ten families of §11.
 - **Relationship to `Critical Error`** - which scorers drive the override, feeding Part 1 of
-  §8.
+  §8. **Declared descriptive/exploratory** in the same sense: a scorer-by-`Critical Error`
+  contingency table and marginal association, not a confirmatory test.
+- **Relationship to linguistic features** - reported per dimension as a descriptive/exploratory
+  breakdown, matching the two bullets above; no linguistic-feature-by-error relationship is
+  promoted to confirmatory status outside the ten families of §11.
 
 Reported as a rubric-by-error heat map, co-occurrence plot, and error rate by linguistic
 dimension. The complete absence of rubric-embedded `[[error_modes]]` is reported as a
@@ -1035,8 +1764,27 @@ that pairing wrong destroys the construction.** For the stacked parameter vector
   the **resolved subset only**, consistent with the indicator in the stacked score;
   `A(beta_conservative)` over all criteria.
 - **Meat**: the three-term two-way covariance of the stacked cluster sums, which is **not**
-  block-diagonal. Its off-diagonal blocks are the cross-outcome covariance contributed by
-  observations that appear in both blocks, that is the resolved ones.
+  block-diagonal. **Its off-diagonal blocks are cross-products of cluster sums, not
+  cross-products of individual observations, and an earlier revision misdescribed this in a
+  way that would have implemented the wrong quantity.** For cluster `c` (rubric, arm, or
+  their intersection, matching whichever term is being formed), the cluster sums are
+
+  `S_c^R = sum over i in c, resolved of s_i^resolved` and `S_c^C = sum over j in c, all of
+  s_j^conservative`,
+
+  and the off-diagonal block contributed by cluster `c` is the outer product `S_c^R (S_c^C)'`
+  - **not** a sum of per-observation products restricted to observations that appear in both
+  blocks. Because `S_c^C` sums over *every* criterion in the cluster, expanding the outer
+  product shows that it includes cross-terms between a resolved criterion's `s_i^resolved`
+  and an **unresolved** criterion's `s_j^conservative` whenever both criteria fall in cluster
+  `c`, alongside the terms where the same criterion contributes to both. **The zero-padded
+  stacked score of the previous paragraph is the sole object from which cluster sums are
+  formed; once it is formed, every within-cluster cross-product is retained automatically,
+  and no separate restriction to "observations appearing in both blocks" is applied or
+  needed.** Implementing the earlier, narrower description - restricting the off-diagonal
+  block to per-observation products over resolved rows only - omits the
+  resolved-with-unresolved cross-terms, understates `B_stacked`, and changes both `V_3` and
+  `W_obs`.
 - **Statistic**: `V_stacked = A_stacked^-1 * B_stacked * A_stacked^-1`, with the family
   restriction `R` spanning both blocks.
 
@@ -1044,10 +1792,11 @@ The off-diagonal meat blocks are **the entire reason for stacking**. If the meat
 block-diagonal the joint Wald statistic would decompose into **block-separable Wald
 components**, the two outcomes would contribute as if measured on disjoint data, and the
 construction would buy nothing over testing them separately. The off-diagonal meat blocks
-must therefore be **explicitly constructed**. A zero or near-zero realised value is a
+must therefore be **explicitly constructed from the cluster-sum products above**, not
+approximated by a per-observation restriction. A zero or near-zero realised value is a
 **possible empirical result**, not by itself evidence of a defect; the implementation must
 accordingly be tested on **synthetic data with deliberately non-zero cross-outcome score
-covariance**, where the off-diagonal block is required to be non-zero.
+covariance**, where the off-diagonal block is required to be non-zero (§18.6 test 4).
 
 **One arm weight multiplies both blocks of an observation's stacked contribution.** In the
 bootstrap the weight is drawn per arm and applied to the **whole stacked vector** for each
@@ -1082,7 +1831,10 @@ answer both questions.
   mention-some. Between-rubric.
 - **F3 Context-demand pressure.** Terms `expectation_count`, `g`, and their interaction,
   entered **separately, never as a ratio**, with **requested call count `c` as a covariate**.
-  H3: more expectations lowers full-satisfaction probability, potentially amplified at smaller
+  H3: more expectations lowers the **criterion-level pass probability** - the same
+  criterion-in-trace estimand every other family uses, not a trace-level "full-satisfaction"
+  probability, a wording an earlier revision used that would have invited a second, different
+  regression for this family alone (Group 4 note below) - potentially amplified at smaller
   `g`. Estimated on the hybrid subset only, conditional on `c` (§3.1), and **subject to the
   design-rank check**: if the realised design matrix is rank-deficient for the interaction, the
   interaction is demoted to exploratory and only the `expectation_count` main effect remains
@@ -1098,9 +1850,23 @@ answer both questions.
   difficulty. Within-rubric, rubric fixed effects.
 - **F6 Surface complexity.** Primary `token_count`; secondary `subordinate_clause_ratio`,
   `mean_dependency_length`. H6: greater surface complexity lowers performance. Within-rubric.
-- **F7 Illocution and clause type.** Primary `clause_type`, entered with the Mundlak
-  decomposition since it varies both within and between rubrics. H7: directive imperatives
-  differ from interrogatives.
+- **F7 Illocution and clause type.** Primary `clause_type`, **within-rubric term only**, with
+  rubric fixed effects retained. H7: directive imperatives differ from interrogatives, holding
+  the information need fixed. **This corrects a contradiction an earlier revision left
+  standing**: that revision entered `clause_type` with a full Mundlak within-between split
+  while simultaneously listing F7 among the within-rubric families that retain rubric fixed
+  effects. The two are incompatible, because `Xbar_r`, the between-rubric mean, is constant
+  within rubric and therefore lies exactly in the span of the 64 rubric dummies; with rubric
+  fixed effects present, its coefficient is not identified and cannot enter `R_f`. The
+  confirmatory restriction `R_f` for F7 therefore contains **only the within-rubric term**;
+  the between-rubric component is reported descriptively, not tested. A **declared sensitivity
+  analysis** refits F7 without rubric fixed effects, using a proper Mundlak specification in
+  which both the within- and between-rubric terms are identified and jointly restricted. That
+  sensitivity fit is **not an alternative implementation of the same test**: dropping the fixed
+  effects changes what identifies rubric-level dependence, from an unrestricted fixed effect per
+  rubric to the assumption that `mu_r` is exchangeable given the modelled covariates, so its
+  between-rubric coefficient is informative only under that changed identifying assumption, and
+  the report states this explicitly wherever the sensitivity fit is shown.
 - **F8 Answer locality.** Term `answer_locality`. H8: expectations satisfiable from a single
   passage pass more often than those needing cross-document aggregation. Expectation level;
   the sharpest test of the single-hop hypothesis.
@@ -1117,6 +1883,154 @@ interactions.
 Collinearity is expected within F5 and F6 and between `expectation_count` and
 `expectation_document_count`. Report a correlation matrix and VIF, and present both marginal
 and adjusted effects.
+
+### 11.1 Freezing the design matrices, so code constructs `R_f` rather than interpreting prose
+
+Two independent reviews found that naming a family by its terms does not determine the design
+matrix a fitting library actually builds. This subsection closes every fork that changes `q`,
+the fitted coefficient, or the rows entering a family.
+
+**Observation grain, frozen once for every family.** The confirmatory grain is
+**criterion-in-trace**: one row per `(criterion, trace)` pair, roughly 40,000 rows before any
+family-specific population restriction, with `y_i` the criterion's binary outcome under
+whichever co-primary coding is being fitted. No family is fitted at the trace or variant-arm
+cell grain in the confirmatory path; the trace- and variant-level collapses of §5.4 are the
+declared, separate aggregation-robustness analysis. F3's H3 wording above is corrected to this
+grain so the family does not read as a trace-level "all expectations pass" model while being
+fitted at criterion level.
+
+**Identical column sets across the two stacked blocks, and the rule when a level is empty in
+one.** The resolved-only block excludes `UNDETERMINED` criteria, so a categorical predictor
+can have a level populated in the conservative block but empty (or singleton) in the resolved
+block. Because the two blocks are stacked into one parameter vector `beta_stacked =
+(beta_resolved, beta_conservative)` (§5.2), `dim(beta_resolved)` must equal `dim(beta_conservative)`
+for the two to concatenate meaningfully, so: the **column set for every family is declared once,
+from the full corpus, before fitting**, and the same declared columns are used for both blocks
+regardless of which levels are realised in either block's subset. If a declared level has zero
+rows in one block, that block's column for the level is retained as a structural zero column
+(coefficient inestimable and reported as such for that block, not dropped from `R_f`, so the
+restriction's rank does not silently change between the two blocks).
+
+**Rubric fixed-effect coding, named exactly.** All within-rubric families (F5, F6, F7's
+within term, F10) and every family using rubric fixed effects for adjustment use **rubric
+`r = 1` as the dropped reference level**, chosen as the lowest-indexed rubric in the frozen
+catalogue ordering (§18). Before fitting, the design rank of the rubric-dummy block is asserted
+equal to 63 (64 rubrics minus the dropped reference); a library that silently drops additional
+collinear columns changes `q` without failing, which is exactly the failure this assertion
+exists to catch, so a rank mismatch here is a fitting error, not a silent adjustment.
+
+**Mundlak averaging unit, for F7's between-rubric term and any other Mundlak split.** `Xbar_r`
+is the mean of the variant-level predictor **over the rubric's designed variants**, that is
+`Xbar_r = V_r^-1 * sum over v of X_rv`, computed once per rubric from the variant-level feature
+values (not from criterion rows, which would implicitly weight by `expectation_count`, and not
+from trace counts, which would implicitly weight by arm coverage). This is the unit used
+wherever a Mundlak decomposition appears in this plan.
+
+**F3's term coding and cluster set, named exactly.** `g` and `c` enter as **numeric** terms
+(not as factors), since both are ordinal quantities on a common substantive scale
+(`10, 15, 20, 25, 30` for `g`; `1, 2, 3` for `c`) and the confirmatory hypothesis is about a
+monotone-with-count effect, not a per-level contrast; the interaction term is the numeric
+product `expectation_count * g`, not `expectation_count * C(g)`. `H_F3` is defined as the
+count of **distinct arm IDs realised in the hybrid subset** after the design-rank check of
+§3.1 is applied (the same check that can demote the interaction to exploratory), used
+consistently for F3's cluster indexing, its CRVE finite-sample multipliers, and its bootstrap
+weight draws (§5.3); F3 never uses the global count of 28 arms, and no empty global arm
+cluster is added to pad `H_F3` back up to 28.
+
+**Perfect separation in a rubric-fixed-effect logit, detected rather than left to the fitting
+library.** Before any confirmatory fit, each family's design is checked for perfect or
+quasi-perfect separation (a predictor or fixed-effect level under which the outcome is
+constant) using the standard diagnostic of an iteration count exceeding 100 with a coefficient
+magnitude still growing past `20` in absolute value on the logit scale. A family that triggers
+this diagnostic is **not silently fitted to whatever value the optimiser stops at**; it is
+reported as a separation event naming the offending level, and that level is absorbed into the
+reference category for the purposes of the confirmatory restriction, with the change disclosed
+in the family's reported design population.
+
+**The restriction-matrix table**, buildable by code without reading prose, one row per
+family and outcome block:
+
+| Family | Outcome block(s) | Primary term(s) in `R_f` | Secondary covariates (not in `R_f`) | Reference level(s) | `q` |
+|---|---|---|---|---|---|
+| F1 | both, stacked | `qdmr_step_count` | `hop_structure` | - | 2 |
+| F2 | both, stacked | `exhaustivity_requirement` | `negative_conclusiveness` | mention-some | 2 |
+| F3 | both, stacked | `expectation_count`, `g`, `expectation_count*g` | `c` | - | 6 (3 if interaction demoted) |
+| F4 | both, stacked | `log1p(expectation_document_count)` | - | - | 2 |
+| F5 | both, stacked | `referring_form_type` (within-rubric, rubric FE) | `named_entity_count` | full-name form | 2*(k-1) for `k` levels |
+| F6 | both, stacked | `token_count` (within-rubric, rubric FE) | `subordinate_clause_ratio`, `mean_dependency_length` | - | 2 |
+| F7 | both, stacked | `clause_type`, within-rubric term only (rubric FE) | between-rubric `Xbar_r` (descriptive only) | interrogative | 2*(k-1) for `k` levels |
+| F8 | both, stacked | `answer_locality` | - | single-passage | 2*(k-1) for `k` levels |
+| F9 | both, stacked | `recall_orientation` | - | precision-oriented | 2 |
+| F10 | both, stacked | `temporal_expression_present` (within-rubric, rubric FE) | - | absent | 2 |
+
+`q` counts restrictions across **both** stacked blocks, per §11's stacking rule; a `k`-level
+categorical restricts `k-1` non-reference levels per block, hence `2*(k-1)`. Exact level counts
+`k` for `referring_form_type`, `clause_type` and `answer_locality` are fixed when the codebook
+(§9, §12) is frozen and are appended to this table at that time; the table's structure, not its
+placeholder counts, is what is frozen now.
+
+**Analysis population, one rule for every family.** A family's analysis population is *the set
+of rows for which every predictor entering that family's `R_f` and secondary covariates is
+defined and, for P4 features, validated* (§13.2a) - stated once so "the family is fitted" has
+one meaning. Concretely: a `qdmr_step_count`-inapplicable row (§12 Dimension C) is **missing**
+for F1, not zero, and is excluded from F1's population rather than recoded; a `NOT_VALIDATED`
+P4 feature removes its family from the confirmatory population entirely (mapped per the gate
+below); no row is excluded because of its outcome value under either co-primary coding, since
+that would be outcome-based complete-case selection. The realised row count `n_f` for every
+family's population is reported beside its result.
+
+**Mapping from validation and computability gates to the ten-family BH input set, frozen so
+the set of ten never depends on which gates happened to fire.** A family's status feeds BH as
+follows: if every predictor in `R_f` is `VALIDATED` or deterministic (P1-P3), and the bootstrap
+produces a computable `p_f`, the family contributes its `p_f` as normal. If a required P4
+predictor is `VALIDATED_WITH_LIMITATIONS`, the family still contributes its `p_f`, but is
+flagged in the report as resting on a qualitatively gated measurement (§13.2a), unchanged from
+the existing rule. If a required P4 predictor is `NOT_VALIDATED`, or the DSL derivation gate of
+§13.4 fails for a family that depends on a corrected P4 estimate, that family's confirmatory
+`p_f` is **not computed**; the family is **demoted to exploratory** and is **excluded from the
+ten-input BH set**, which then runs on the remaining families only, with the reduction in family
+count and the reason disclosed prominently rather than silently changing "the ten families" to
+a smaller number without comment. If F3's interaction is demoted by the design-rank check
+(§3.1), F3 still contributes its `expectation_count` main-effect `p_f` to the same ten-input
+set; only the interaction term drops out of the confirmatory claim, not the family. If a
+family's observed or bootstrap statistic is non-computable (§5.2, §5.3 singular-observed-
+statistic and replenishment-exhaustion rules), that family is likewise excluded from the BH
+set and disclosed, exactly as for `NOT_VALIDATED`. No gate is ever resolved by which choice
+gives a nicer-looking BH result; each gate's outcome is determined by the frozen rules above,
+independent of the p-values it produces.
+
+**Adjudicating the enumerated-regime bracket (§5.3) against the whole ten-family BH set, not
+against the affected family's status alone.** Any family fitted in the enumerated regime with
+`D > 0` discarded sign vectors contributes not a point `p_f` but a bracket `[p_lower, p_upper]
+= [E_valid/S_f, (E_valid + D)/S_f]`. Whether that width matters is a question about **the
+entire ten-family decision**, not just the affected family's own rejection status, because
+BH's step-up rule (§5.6) lets one family's p-value change the threshold every other family is
+compared against - the same spillover mechanism already documented for F3's coarse support
+(§16). The adjudication rule:
+
+1. Run the standard ten-family BH step-up (§5.6) **twice**: once substituting `p_lower` for
+   every bracketed family, once substituting `p_upper` for every bracketed family, holding
+   every other family's `p_f` fixed at its own reported value in both runs.
+2. If the **resulting rejection set is identical between the two runs** - the same subset of
+   the ten families rejected in both - the discard is immaterial to the confirmatory outcome.
+   The results are reported normally, with every bracket disclosed alongside its family's
+   entry, and no family's status is marked as anything other than its ordinary rejected or
+   not-rejected outcome.
+3. If the two rejection sets **differ**, every family in their symmetric difference - including
+   a family with no discard of its own, if it is the one whose rejection flips because a
+   bracketed family's endpoint moved the BH threshold - receives the status **`BH_INDETERMINATE`**
+   rather than a definite rejected or not-rejected outcome. `BH_INDETERMINATE` is disclosed
+   exactly like `MONTE_CARLO_INDETERMINATE` (§5.1): a distinct status, never silently folded
+   into "not rejected".
+4. **Two evaluations suffice regardless of how many families are simultaneously bracketed**,
+   and this is asserted rather than merely hoped for: BH's step-up statistic `k = max{j :
+   p_(j) <= j * 0.05 / 10}` is monotone non-increasing in each input p-value taken in
+   isolation - decreasing any single p-value can only enlarge or leave unchanged the rejection
+   set, never shrink it - so the two rejection sets attainable by independently varying each
+   bracketed family within its own interval are exactly the ones realised at the all-`p_lower`
+   and all-`p_upper` corners. No intermediate combination of endpoints can produce a rejection
+   set outside the range spanned by those two corners, so checking the `2^k` combinations for
+   `k` simultaneously bracketed families is unnecessary.
 
 ## 12. Linguistic, morphosyntactic and structural dimensions
 
@@ -1328,6 +2242,44 @@ of one feature - *is this measurement distinguishable from its own matched naive
 and the answer is a status, not a score. The report presents them per feature with the
 baseline printed beside the value, and never sorts features by metric.
 
+**The gold sample is stratified with unequal inclusion probabilities (§13.3), so every
+confusion count above must be inclusion-probability-weighted, and this was previously named
+but not frozen.** For gold item `j` with realised label `Z_j`, model or rule-based predicted
+label `L_j`, and known stratum inclusion probability `pi_j` (§13.3), the corpus-level Horvitz-
+Thompson confusion cell estimate is
+
+`N_hat_ab = sum over j in gold with Z_j = a, L_j = b of (1 / pi_j)`,
+
+and **every** confusion-matrix-derived quantity in this gate - sensitivity, specificity,
+balanced accuracy, per-class precision and recall feeding macro-F1, and the weighted
+disagreement feeding quadratically weighted kappa - is computed from the `N_hat_ab` cells, not
+from raw unweighted gold counts. Unweighted counts would target the deliberately enriched gold
+sample's own composition rather than the roughly-592-item annotated corpus the gate is meant
+to validate for.
+
+**Interval construction, frozen as one procedure for every metric in the dossier.** All
+intervals in the evidence dossier - the assigned accuracy metric's interval, its class-level
+intervals, and Krippendorff alpha's interval - are computed by a **stratified nonparametric
+bootstrap**: resample gold items **with replacement, independently within each stratum**
+(preserving the stratified design rather than resampling the pooled gold set), recompute the
+Horvitz-Thompson-weighted metric on each resample, repeat for `2,000` resamples under a
+dedicated seed stream (§18), and report the **percentile interval** (2.5th to 97.5th
+percentile of the resampled metric) as the reported interval throughout §13.2a and §13.2. This
+is the one interval method referenced everywhere "with an uncertainty interval" or "with its
+interval" appears in this section; no alternative (Wald, exact binomial, or design-based
+linearisation) interval is used for any of these quantities.
+
+**The zero-denominator case for a binary feature, given a named status rather than left as an
+undefined metric.** If the realised gold data for a binary feature contain **no positives**
+(no gold item with `Z_j = 1`) or **no negatives** (no gold item with `Z_j = 0`), sensitivity or
+specificity respectively is `0/0` and balanced accuracy is undefined. This case is reported as
+**`METRIC_UNDEFINED_DEGENERATE_GOLD`**, a status distinct from the three validation statuses:
+it is not `NOT_VALIDATED` by the structural rules (which require a computed interval to
+compare against a baseline), and it is not silently treated as passing or failing. A feature in
+this state cannot proceed past the gate at all until the stratified sample of §13.3 is
+supplemented to include at least one instance of the missing class, and this requirement is
+disclosed as a pre-lock verification alongside the others in §19.
+
 **Three structural rules that are mechanical rather than discretionary.** These are
 comparisons against meaningful references, not invented thresholds:
 
@@ -1378,20 +2330,56 @@ Zapf et al. (2016) on coefficient choice for nominal data, PMC4974794; Cohen (19
 
 ### 13.3 Gold sample design
 
-**Stratified with known inclusion probabilities:**
+**Stratified with known inclusion probabilities, and the sampling algorithm itself now frozen
+as a deterministic procedure, not described only by its intent.** Two independent audits
+identified the same residual gap: "stratify by dataset and predicted label" does not, with two
+annotator models, say which model's label defines a stratum, and an item eligible for several
+strata was left with an unstated inclusion probability. Both are resolved below by making
+strata a **strict partition** - every item in exactly one stratum - so that the existing
+Horvitz-Thompson machinery of §13.2a is exact rather than approximate.
 
-- Stratify by **dataset** and by **predicted label** for the rarest categorical confirmatory
-  features, since simple random sampling would yield too few rare-label instances to estimate
-  their error rates at all.
-- Strata are determined by **outcome-blind preliminary annotation**, and **realised stratum
-  membership is frozen before gold adjudication begins**. Inclusion probabilities incorporate
-  the preliminary classification step, which closes a reproducibility objection about
-  data-dependent strata.
-- Size so every confirmatory categorical level receives at least 10-15 gold instances. This is
-  the **minimum coverage required for a non-degenerate diagnostic estimate, not a precision
-  guarantee**: ten observations do not give a precise sensitivity or specificity, so the
-  resulting intervals are reported and no greater precision is implied.
-- Report the realised design, achieved per-level counts, and inclusion probabilities.
+1. **Stratifying features, named rather than described as "the rarest".** The stratifying
+   features are the confirmatory categorical P4 features entering any family's `R_f` (§11.1);
+   the specific list is fixed by name when the codebook (§9, §12) freezes, and is not
+   determined by a runtime notion of rarity.
+2. **Stratum label, resolved for two annotators by agreement.** Each item's stratifying label
+   for a given feature is: the **shared** outcome-blind preliminary label, if both annotator
+   models agree; otherwise the item falls into a separate **`DISPUTED`** stratum for that
+   feature, sampled at its own rate rather than assigned to either model's label. This is a
+   deliberate choice, not a default: disagreement between the two annotators is exactly where
+   gold validation is most informative, and routing disputed items into their own stratum
+   ensures they are not diluted into whichever model happened to be consulted first.
+3. **Strata are a strict partition, resolved by a fixed priority order when an item is
+   eligible for more than one `(feature, level)` cell.** Every `(feature, level)` combination,
+   including `(feature, DISPUTED)`, defines one candidate stratum. An item eligible for
+   several such cells (because it carries preliminary labels for more than one confirmatory
+   feature) is assigned to the single candidate stratum with the **smallest realised corpus
+   frequency** among its eligible cells - rarest first, since that is where additional gold
+   coverage does the most to raise `N_h` toward the target below - with ties broken
+   alphabetically by feature name, then by level name (or `DISPUTED` sorting last within its
+   feature). Stratum membership is thus a **deterministic function of the frozen preliminary
+   annotation alone**, computed once, before any sampling occurs.
+4. **The draw**: for each stratum `h` with realised size `N_h`, a **simple random sample
+   without replacement** of size `n_h = min(12, N_h)` is drawn, strata visited in the same
+   fixed priority order as step 3 (rarest first), each draw made from the `gold_sampling` seed
+   stream (§18.2) advanced once per stratum in that order - so the sequence of draws, and
+   therefore the realised sample, is a deterministic function of the master seed and the frozen
+   strata alone.
+5. **Inclusion probability**, now exact rather than merely "known" in principle: because every
+   item belongs to exactly one stratum (step 3), the probability that item `j` in stratum `h`
+   is selected is precisely `pi_j = n_h / N_h`, with no correction needed for multi-stratum
+   exposure, since there is none. This is what makes the Horvitz-Thompson estimator of §13.2a
+   exact rather than approximate.
+6. **Coverage target, reconciled with §18.5.** The target per stratum is **exactly 12**
+   (§18.5), not "10-15"; the earlier range is withdrawn as a residual inconsistency from before
+   the target was frozen. Twelve remains the **minimum coverage required for a non-degenerate
+   diagnostic estimate, not a precision guarantee**: even twelve observations do not give a
+   precise sensitivity or specificity, so the resulting intervals are reported and no greater
+   precision is implied, and a stratum with `N_h < 12` is sampled in full (`n_h = N_h`) rather
+   than padded.
+7. Report the realised design: every stratum's `N_h`, `n_h` and `pi_j`, and the count of items
+   routed to each feature's `DISPUTED` stratum specifically, since a large disputed stratum is
+   itself a finding about inter-model reliability (§13.2).
 
 ### 13.4 Measurement-error correction, as a formal gate
 
@@ -1462,11 +2450,13 @@ nicer answer.
   clears the floor. Estimator §5.1 plus within-rubric contrasts. Display within-rubric slope
   plots plus variance-share bar.
 - **Which question properties predict success?** Unit variant. Outcome both co-primary
-  binaries, stacked. Estimand marginal log-odds per family. Estimator binomial GLM, three-term
-  two-way sandwich, arm-clustered restricted WCB. Display forest plot of family effects.
+  binaries, stacked. Estimand **conditional** log-odds per family, conditional on the rubric
+  and/or arm fixed effects entering that family's model (§5.2). Estimator binomial GLM,
+  three-term two-way sandwich, arm-clustered restricted WCB. Display forest plot of family
+  effects.
 - **Which expectation properties predict success?** Unit expectation-trace. Outcome three-state
-  or binary. Estimand marginal probability. Estimator as above. Display partial-dependence and
-  forest plots.
+  or binary. Estimand conditional probability, conditional on the same fixed effects. Estimator
+  as above. Display partial-dependence and forest plots.
 - **Does the context budget bind?** Unit expectation-trace, hybrid arms only, conditional on
   call count. Outcome binary. Estimand `expectation_count` by `g` interaction. Estimator GLM on
   the hybrid subset, subject to the design-rank check. Display pass rate against expectation
@@ -1477,13 +2467,15 @@ nicer answer.
 - **What quality level is reached when there is no error?** Unit trace. Outcome
   `Poor < Partial < Acceptable < Good`. Estimand cumulative log-odds. Estimator proportional
   odds conditional on no critical error; Part 2 of §8. Display stacked and diverging bars.
-- **How do datasets compare?** Unit dataset. Outcome `RubricV2` and grade shares. Estimand
-  descriptive distribution, stratified. Estimator stratified summary only. Display
-  small-multiple ECDFs with boundary mass.
+- **How do datasets compare?** Unit rubric, summarised per dataset with equal rubric weight
+  (§7 Level 1). Outcome `RubricV2` and grade shares. Estimand descriptive distribution,
+  stratified. Estimator stratified summary only. Display small-multiple ECDFs with boundary
+  mass.
 - **How uncertain is the recommendation?** Unit rubric and variant. Outcome tier assignment.
-  Estimand tier-membership probability and rank-reversal frequency. Estimator `Pi_prop` draws
-  plus leave-one-arm-out. Display tier-probability bars and rank-stability plot, with the
-  Monte Carlo standard error of `Pi_prop` and any Monte Carlo indeterminate units marked
+  Estimand **score-band probability** (§6.4) and rank-reversal frequency on the synchronised
+  outer-draw index. Estimator `Pi_prop` draws plus fully-refitted leave-one-arm-out and
+  leave-one-stage-out. Display score-band probability bars and rank-stability plot, with the
+  Monte Carlo standard error of `Pi_prop` and any `MONTE_CARLO_INDETERMINATE` units marked
   (§5.1).
 
 ## 15a. Five distinct uncertainties, never collapsed into one word
@@ -1574,6 +2566,60 @@ moves none of them but caps how much any of them can be trusted.
   `expectation_document_count` has uncertain construct validity - the reason F4 is two-sided.
 - **The grading specification and implementation disagree**, so tier floors are inherited
   convention, and 0.60 is an operational threshold with no external provenance.
+- **F3's arm-clustered bootstrap has coarse finite support, and this can cost other families
+  their BH rejection, not only F3's own.** F3 is fitted on the hybrid subset only (§3.1, §11),
+  which realises roughly `H_F3` in the single digits of distinct arms, so its bootstrap support
+  `2^(H_F3 - 1)` (§5.3) is small - at `H_F3 = 6`, 32 distinct values and a minimum attainable
+  `p_f` near 0.031. Quoting `p_f` against `B = 9999` would imply a resolution the sign-flip
+  construction cannot deliver. **This is not local to F3.** Benjamini-Hochberg is a step-up
+  procedure: `k = max{j : p_(j) <= j * 0.05 / 10}`, so a single p-value that is coarsened
+  upward by finite support can lower `k` and cost a *different*, better-resolved family its
+  rejection. With illustrative true values `(0.008, 0.009)`, ordinary BH rejects both at `k =
+  2`; if the smaller is floored to F3's minimum attainable value of 0.031 by coarse support,
+  `k = 0` and **both** are lost, even though the second family's own p-value was never coarse.
+  Per family, the minimum attainable p-value is reported beside the BH threshold it would need
+  to clear at each rank, so this interaction is visible rather than discovered after the fact.
+  **A discarded sign vector widens this into an explicit bracket rather than a point value**
+  (§5.3): `p_f in [E_valid/S_f, (E_valid + D)/S_f]` on the true support `S_f`, never
+  renormalised to the count of surviving vectors. Whenever the bracket is wide enough that the
+  ten-family BH rejection set differs between its two endpoints, every family in the resulting
+  symmetric difference - not only the bracketed family itself - is reported with status
+  `BH_INDETERMINATE` rather than a definite rejection outcome (§11.1). This is the coarse-
+  support limitation propagating through BH's own step-up structure in the way the illustrative
+  example above already shows it can.
+
+## 16a. Degenerate and failure case register
+
+Two independent reviews each enumerated a list of edge cases "that will occur", scattered
+across six different sections of Part I. Scattering them is exactly how such a case gets
+missed by an implementer reading one section at a time. This register collects every one of
+them in a single place, each with a **trigger** (how it is detected), the **defined
+behaviour** (what happens, in the terms already frozen in the relevant section), whether it is
+**counted and reported**, and whether it **blocks**. No entry here introduces a new rule; each
+cross-references the section that already defines its behaviour, or supplies the missing
+definition where none existed.
+
+| Case | Trigger | Defined behaviour | Reported | Blocks |
+|---|---|---|---|---|
+| Zero or near-zero component count in `(P,F,U)` | Any of the three counts is exactly 0 for a trace or the pooled variant used in initialisation | ALR boundary rule: additive smoothing `eps=0.5` applied to form the log-ratio only; the raw multinomial likelihood is unaffected (§5.1) | Yes, count of smoothed cases | No |
+| Rubric with `V_r = 1` (a single designed variant) | `min(V_r)` computed by the §18.1 coverage gate is `1` for at least one rubric | That rubric's one variant satisfies `eta_hat_r1 = eta_bar_r`, so it contributes the zero matrix to `Sigma_within`'s numerator and `0` to its pooled denominator - it drops out of the estimator with no operational branch (§5.1); the rubric is otherwise fitted normally, including its own `Pi_prop` | Yes, `min(V_r)`/`max(V_r)` and the affected rubric are disclosed | No on its own; the assertion `min(V_r) >= 2` is a reported invariant check, not itself a blocking condition unless it fails unexpectedly against the catalogue's expected range |
+| Non-convergent or non-PD outer MML fit | `L-BFGS` fails to converge, or returns a non-PD `Sigma_within`/`Sigma_between` | Discard and replenish the outer draw (§5.1 retention protocol) | Yes, per-rubric replenishment rate | Only if replenishment rate exceeds 5% (elevated-uncertainty disclosure, not a hard block) |
+| Laplace mode not found, or Hessian not negative-definite at the mode | Newton's method fails to converge, or the observed Hessian check fails | Discard and replenish the draw (§5.1 retention protocol); no substitution of the expected Hessian | Yes | No (replenished; only the corpus-level replenishment-rate disclosure) |
+| Importance-resampling ESS below threshold | `ESS / N_particles < 0.10` on a purposive-sample rubric (§5.1) | Laplace approximation flagged inadequate for that rubric; its `Pi_prop` carries an explicit caveat | Yes | No (caveat, not a block) |
+| Perfect or quasi-perfect separation in a family's fixed-effect logit | Iteration count > 100 with coefficient magnitude still growing past 20 on the logit scale (§11.1) | Offending level absorbed into the reference category; disclosed in the family's population statement | Yes | No |
+| Design matrix rank-deficient for F3's interaction | Realised hybrid-arm `c`-by-`g` grid fails the rank check (§3.1) | Interaction demoted to exploratory; `expectation_count` main effect remains confirmatory | Yes | No (demotion, not a block) |
+| All-`UNDETERMINED` trace | `U = N` for a trace (§4.3) | Contributes **zero rows** to the resolved-only model; contributes to the conservative model with every criterion scored a miss; the trace's **cluster** (rubric, arm) still exists and is estimated from the trace's siblings, so the cluster itself is never dropped even when one trace within it contributes nothing to one outcome block | Yes, prevalence reported per §4.3 | No |
+| Ineligible trace (plan-validation failure or `ERROR` status) | `trace_status` or `criteria_parse_status` indicates failure (§18.1) | Excluded from `T_rv` and from the arm-balance count for its variant | Yes | Contributes to the arm-balance gate's block for that variant if it drops `T_rv` below 28 |
+| Missing `errors_*_v2` judgement feeding grade Part 1 | A trace has no judgement for one or more of the ten scorers | Trace excluded from Part 1's fitted population (§8); **not** treated as `C_t = 0` | Yes, exclusion count | No (exclusion, not a block on the whole model) |
+| Singular observed `R V_3 R'` after the PSD map | Rank-deficient restricted covariance for the observed statistic (§5.2) | `W_obs` undefined; family marked non-computable, entering the gate-to-BH mapping (§11.1) | Yes | Yes - family excluded from the ten-input BH set, disclosed |
+| Singular bootstrap replicate `R V*_b R'` | Same check applied to a replicate (§5.3) | **Sampled regime**: discarded and replenished, up to the capped replenishment budget. **Enumerated regime**: discarded and counted toward `D`; contributes to the bracket `[E_valid/S_f, (E_valid+D)/S_f]`, never renormalised to a smaller denominator | Yes, per-family count, kept separate from non-finite replicates | Sampled: only if replenishment is exhausted (family non-computable). Enumerated: only if `D = S_f` (bracket degenerates to `[0,1]`, family non-computable); otherwise a wider bracket, adjudicated against the whole BH set per §11.1 |
+| Non-finite one-step `beta*_b` or `W*_b` | Diverging update, typically from ill-conditioned `A(beta_tilde)` (§5.3) | **Sampled regime**: discarded and replenished, counted **separately** from singular replicates. **Enumerated regime**: discarded and counted toward `D` alongside singular replicates, same bracket treatment | Yes, per-family count | Sampled: only if replenishment is exhausted. Enumerated: only if `D = S_f`; otherwise a wider bracket per §11.1 |
+| Empty proportional-odds cut point | Zero observations on one side of a cut point across the whole Part 2 fitted population (§8) | That `alpha_k` reported inestimable; model refit with the cut point merged into its neighbour | Yes | No (refit, not a block) |
+| Zero-denominator binary feature in gold validation | No positive or no negative gold items for a binary feature (§13.2a) | Status `METRIC_UNDEFINED_DEGENERATE_GOLD`; cannot proceed past the gate | Yes | Yes - blocks that feature until the gold sample is supplemented |
+
+**Success criterion for this register**: no case here should reach an implementer as an
+undefined branch in the code; every row either points to a section that already supplies the
+missing behaviour or, where none existed before this pass, states it directly in this table.
 
 ## 17. Closed-access search list
 
@@ -1611,47 +2657,264 @@ Query strings:
 
 # PART II - IMPLEMENTATION ARCHITECTURE
 
-## 18. Programme and annotation kit
+## 18. Programme, joins, seeds, artefacts and the annotation kit
 
 - New standalone programme: `es_index_explorer/question_analysis/` plus a
-  `question_suitability.py` CLI and `README-question-suitability.md`. Reuses
-  `es_index_explorer/mlflow_analysis/`. No new `mlflow_snapshot.py` subcommands.
+  `question_suitability.py` CLI and `README-question-suitability.md`. No new
+  `mlflow_snapshot.py` subcommands.
 - New `analysis` dependency group: `matplotlib`, `seaborn`, `statsmodels`, `scipy`. Pure
   Python, no R bridge and no PyMC - the Laplace-plus-Monte-Carlo design in §5.1 is
   deliberately chosen so no MCMC library is needed. `statsmodels` provides the binomial GLM
   fits; the **three-term two-way sandwich, the arm-clustered restricted WCB, and the four-level
   EB hierarchy are implemented directly**, since `statsmodels` exposes no multiway
-  cluster-robust option. Every number stays auditable.
-- Annotation kit: `annotation/prompts/system.md` generated from the codebook;
-  `annotation/prompts/questions/batch_NN.md` and `annotation/prompts/expectations/batch_NN.md`
-  in seeded-shuffle order, roughly 20-25 items each;
-  `annotation/schema/question_annotation.json` and
-  `annotation/schema/expectation_annotation.json`;
-  `annotation/responses/<model>/<item_type>/batch_NN.jsonl`.
-- Ingest validator: schema-checks pastes, reports coverage gaps, refuses malformed input, and
-  **refuses any file containing an outcome field** (§13.1).
-- Figures: PNG at Confluence-friendly resolution to `reports/figures/`. Visual grammar matches
-  measurement scale - ECDFs, strip and raincloud plots with explicit boundary-mass annotation
-  rather than box or violin plots - and **every distributional plot displays the varying
-  attainable resolution** (§4.4).
+  cluster-robust option. Every number stays auditable. `r1-evals`, **pinned to an exact git
+  revision, is a test-only dependency** (Group 18.1 test 7) - never a runtime dependency of the
+  `analysis` group, since `es_index_explorer` does not otherwise depend on it (verified: absent
+  from `pyproject.toml` and from every import in the repository).
 
-### 18.1 Implementation checks that are part of the specification
+### 18.1 Joins: what "reuses `mlflow_analysis`" means, exactly
+
+**The blanket instruction "reuses `es_index_explorer/mlflow_analysis/`" is withdrawn as
+written, because it is precisely broad enough to pull in a builder that silently drops 75% of
+the variants it should join.** `es_index_explorer/mlflow_analysis/rubric_analysis.py`'s
+`_rubric_question` helper returns **only the first `[[input]]` block** of a rubric TOML file,
+while `es_index_explorer/mlflow_analysis/snapshot.py`'s `_extract_questions_from_inputs`
+enumerates every `[[input]]` block when building `run_rubrics.parquet`, and assigns each one a
+real `variant_index`. An implementer who joins against the catalogue built by
+`_rubric_question` will match only variant 0 of every rubric to its TOML-side identity and
+exclude every other variant as a `question_mismatch` discrepancy row - a join that runs
+without error and silently collapses 268 variants to 64. This is not a hypothetical: it is
+what "reuse the catalogue builder" produces if followed literally.
+
+**Reuse allowlist, stated explicitly rather than left to "reuses the package".** In bounds: the
+parquet loading pattern and the ten fixed schemas of `_SNAPSHOT_PARQUET_FILES` in `snapshot.py`
+(`experiments`, `runs`, `run_metrics`, `trace_quality`, `trace_invocations`, `trace_criteria`,
+`run_rubrics`, `trace_failures`, `trace_retrieval`, `span_timings`); `run_rubrics.parquet`
+itself, which already carries a correct per-`[[input]]` `variant_index`;
+`experiment_arms.split_arm_and_dataset` for parsing the dataset suffix from an experiment short
+name; the `GRADE_ORDER`, `PASSING_GRADES` and `PERCENTILE_METHOD` constants. Out of bounds,
+explicitly: `rubric_analysis._rubric_question`, `rubric_analysis._build_catalogue`, and
+`rubric_analysis.analyze_rubrics` in their entirety, since all three are built around the
+first-input-only helper; `stage_a.py` and `stage_b.py`'s arm regexes are consulted as a pattern
+reference only and are not imported, since neither covers Stage C (below).
+
+**Variant identity, frozen as the join key.** A variant's key is `(rubric TOML relative path,
+variant_index)`, where `variant_index` is the **positional index of the `[[input]]` block in
+the TOML file's `[[input]]` array**, zero-based, with TOML declaration order authoritative.
+Building this key requires enumerating **every** `[[input]]` block for every rubric file -
+stated as an explicit instruction here because the plan must say it positively, not leave it
+to be inferred from "reuse the catalogue builder". On the snapshot side, `variant_index` is
+read from `trace_invocations.parquet`, itself parsed by `snapshot.py`'s
+`_parse_rubric_span_indices` from the `invoke_..._<rubric>_v<variant>` span-name pattern, with
+the documented default `variant_index = 0` when a span name carries no `_vN` suffix at all
+(single-variant rubrics never emit a suffix). **The span-derived `variant_index` and the
+`run_rubrics.parquet` roster `variant_index` for the same `(run_id, rubric_index)` must agree**;
+a mismatch is a join discrepancy, reported and excluded from the eligible population, on the
+same footing as the existing `question_mismatch` and `identity_mismatch` discrepancy types.
+
+**Exact coverage as a pre-lock, blocking structural verification, not a descriptive count.**
+Once joined, the catalogue and the snapshot together must reproduce **exactly**: 64 rubrics; 268
+variants; 324 expectations; 28 traces (arms) for every one of the 268 variants. Any shortfall -
+a rubric with the wrong variant count, a variant missing one or more of its 28 arms, an
+expectation count that does not match the TOML - **blocks the primary Layer 1 analysis for the
+affected unit** (the §5.1 balance gate is this verification's consequence at the variant level;
+this verification is the same check stated at the corpus level) rather than being logged as an
+informational deviation. §3's counts are stated as exact for this reason: a hedge ("roughly
+268") and a blocking gate on the value 268 cannot coexist in the same document.
+
+**`min(V_r)` and `max(V_r)` are recorded and asserted here, closing an assumption the plan
+elsewhere states but never verifies.** §1, §5.1 and §6.1 each describe the designed variant
+set as "roughly 2 to 8 phrasings", but nothing before this pass checked that against the
+catalogue, and it matters concretely: `Sigma_within`'s pooled method-of-moments estimator
+(§5.1) is well defined for any `V_r >= 1`, including `V_r = 1` by explicit convention, but the
+`gamma = 0.90` threshold's own justification (§6.1) and the proportion diagnostic's collapse
+behaviour (§6.2) are stated in terms of the 2-to-8 range. This verification therefore
+**computes and records `min(V_r)` and `max(V_r)` across all 64 rubrics and asserts
+`min(V_r) >= 2`**, run alongside the rubric/variant/expectation/arm counts above. If the
+assertion holds - which the catalogue is expected to show, since it is exactly the reason
+"roughly 2 to 8" was written in the first place - the `V_r = 1` handling in §5.1 is a stated
+invariant of the estimator rather than a code path the S cohort ever exercises. If it fails,
+the affected rubric is disclosed and its `Sigma_within` contribution follows the zero-numerator,
+zero-denominator convention already specified in §5.1, without blocking the rest of the corpus,
+since `Sigma_within` is pooled globally and a single `V_r = 1` rubric contributing nothing to
+the pooled estimator is not itself a data-integrity failure the way a wrong arm count is.
+
+**Other join keys and grains.**
+
+- **Arm key, covering all three stages, not two.** `stage_a.py` and `stage_b.py` supply regexes
+  for `S-A-...` and `S-B-...` experiment short names respectively; **no Stage C regex exists
+  in the current codebase**, so the arm key for Stage C runs must be added, following the same
+  `split_arm_and_dataset`-then-pattern-match structure, matching the `S-C-...-rlow` naming
+  established in `10-simple-mode-experiment-design.md` and `12-stage-c-selection-from-stage-a-b.md`.
+  The frozen arm key for every trace, regardless of stage, is the parsed `arm_id` (the
+  short name with its dataset suffix removed), never the raw `experiment_name` or `run_id`,
+  since either of those would create one cluster per run rather than one cluster per
+  configuration where Stage C repeats a Stage A or B configuration under a different
+  `run_id`.
+- **Criterion grain.** Confirmatory rows are built from `trace_criteria.parquet`
+  (`expectation_name`, `material`, `state` per `(run_id, trace_id, rubric_file_path)`), joined
+  to `trace_invocations.parquet` for `(rubric_index, variant_index)` and to the arm key above.
+  `N_r` is recovered as the **count of distinct `expectation_name` values for rubric `r` in the
+  TOML catalogue**, cross-checked against the count of `trace_criteria` rows per trace for that
+  rubric (which must match `N_r` exactly for every trace, per the coverage verification above).
+- **Eligible-trace rule.** A trace is eligible for the confirmatory join if `trace_status`
+  indicates successful completion and `criteria_parse_status` (on `trace_invocations`) indicates
+  a successfully parsed criterion set; a plan-validation failure or an `ERROR` trace status
+  (`trace_failures.parquet`) makes the trace **ineligible**, excluded from `T_rv` and therefore
+  from the arm-balance count - so an ineligible trace for one arm is exactly the situation the
+  balance gate is designed to catch, and the two are the same mechanism applied at two points.
+- **`RubricV2` as reconstruction check only.** The logged `RubricV2` value (if present in
+  `trace_quality.parquet`) is recomputed from the joined criterion states and compared; a
+  mismatch is a data-integrity finding (§8's integrity check). The **logged** value is never
+  used as a model input anywhere in Layer 1, Layer 2, or any confirmatory family - only the
+  recomputed value from criterion states is.
+- **`expectation_document_count`.** Defined as the count of **unique** document IDs in an
+  expectation's `document_ids` field, deduplicated by exact string match before counting -
+  since the 4-03 rubric example (§12 Dimension H) shows raw lists that could in principle
+  contain duplicates, and a redundancy-proxy feature should not be inflated by duplicate
+  entries within a single expectation's own list.
+
+### 18.2 Seeds
+
+One **master seed**, fixed at analysis-lock time (§19) and recorded with the lock, from which
+every stochastic component of the analysis derives an **independent, named stream** by a fixed
+hash-based derivation, named to a specific cryptographic hash rather than a language-level
+built-in - because language built-ins are exactly the kind of implicit choice this plan exists
+to remove, and it is a real one here: Python's built-in `hash()` on strings is randomly salted
+per process by default (`PYTHONHASHSEED`), so two runs of literally the same code would derive
+different stream seeds from the same master seed and produce different draws. The frozen
+derivation is
+
+`stream_seed = int.from_bytes(sha256(f"{master_seed}:{stream_name}".encode("utf-8")).digest()[:8], byteorder="big")`,
+
+taking the first 8 bytes (64 bits) of the SHA-256 digest of the canonical UTF-8 string
+`"<master_seed>:<stream_name>"`, interpreted as a big-endian unsigned integer and used to seed
+`numpy.random.default_rng`. **The language built-in `hash()` is explicitly forbidden** for
+this derivation, in Python or any other runtime, precisely because its cross-process stability
+is not guaranteed by the language and would silently break reproducibility. No stream's
+sequence depends on the order in which streams happen to be consumed, since each is derived
+independently from the same master seed:
+
+- `layer1_bootstrap` - the `B_psi` outer hyperparameter draws and their replenishment (§5.1).
+- `laplace_draws` - the `M_b` inner conditional draws per outer draw, and `Pi_cond`'s `M_cond`
+  draws (§5.1).
+- `glm_bootstrap` - the arm-clustered Rademacher draws for every family's WCR (§5.3), and the
+  2% full-refit validation subsample selection.
+- `boottest_oracle` - the one-off Stata `boottest` reference run (§5.3), consumed exactly once
+  and never touched again after the fixture is committed.
+- `gold_sampling` - the stratified gold sample draw (§13.3) and the stratified bootstrap
+  intervals of §13.2a.
+- `annotation_shuffle` - the seeded-shuffle batch ordering (§13.1) and the feature-validation
+  seeded-shuffle judging order (§13.2a).
+- `diagnostic_resampling` - the importance-resampling check (§5.1), the leave-one-arm-out and
+  leave-one-stage-out refits (§6.4), and any other stability diagnostic not covered above.
+
+### 18.3 Artefact schemas
+
+Every intermediate object referenced elsewhere in this plan is a named, schematised artefact,
+not an implicit in-memory structure:
+
+- **`criterion_table`** - one row per `(rubric_id, variant_index, arm_id, trace_id,
+  expectation_name)`: `state` (`PASS`/`FAIL`/`UNDETERMINED`), `material`, join-eligibility flags.
+- **`trace_pfu_table`** - one row per `(rubric_id, variant_index, arm_id, trace_id)`: `P`, `F`,
+  `U`, `N_r`, derived `RubricV2` (recomputed, §18.1), `ordinal_grade` (logged and recomputed).
+- **`design_matrix_<family>`** - one per confirmatory family, at the criterion-in-trace grain
+  (§11.1), with the frozen column set for both stacked outcome blocks and the population
+  restriction already applied.
+- **`restriction_matrix_<family>`** - `R_f` as a literal matrix keyed to `design_matrix_<family>`'s
+  columns, generated from the §11.1 table, not hand-maintained separately from it.
+- **`pi_prop_draws`** - one archive per rubric: the pooled `(b, m)` draws of `R_rv` for every
+  variant, **required to persist** rather than being discarded after computing `Pi_prop`, since
+  leave-one-arm-out comparisons and rank-reversal frequency (§6.4) both require access to the
+  underlying draws, not merely the summary probability.
+- **`recommendation_table_rubric`** and **`recommendation_table_variant`** - the two §6.3
+  deliverables, columns: unit identifier, `tier`, `UNCERTAIN` flag, `V_r` (rubric table only),
+  score-band probabilities, `MONTE_CARLO_INDETERMINATE` flag where applicable.
+- **`bootstrap_results_<family>`** - `W_obs`, `p_f`, `H_f`, attainable support and grid,
+  singular- and non-finite-replicate counts, and the one-step/full-refit validation outcome.
+
+### 18.4 CLI
+
+`question_suitability.py` exposes one subcommand per release-sequence step (§19): `join`
+(builds the artefacts of §18.3 up to `trace_pfu_table` and runs the coverage verification of
+§18.1, exiting non-zero and refusing to proceed if coverage fails); `annotate-emit` (writes the
+seeded-shuffle annotation batches); `annotate-ingest` (runs the outcome-field-refusing
+validator, §18.6 test 6); `gold-adjudicate` (records human gold and the delayed blind re-code);
+`validate-features` (runs the §13.2a gate in seeded-shuffle order); `fit` (Layers 1-4 and the
+ten families, refusing to run unless every prior step's completion is recorded); `report`
+(renders the recommendation tables and figures). Each subcommand's non-zero exit codes are
+reserved by category: `1` malformed input, `2` coverage or balance gate failure, `3` a
+prior release-sequence step not yet completed, `4` a numerical non-computability (§5.2, §5.3).
+The `fit` subcommand is the enforcement point for the §19 release sequence: it checks for the
+recorded completion of every earlier step before running.
+
+### 18.5 Annotation constants, frozen rather than left as ranges
+
+- **Annotator models**, named exactly rather than "two strong models": fixed to two named
+  models with pinned versions, recorded in the lock (§19) at the time annotation begins, since
+  naming specific commercial model versions in a specification meant to remain accurate for
+  years would itself go stale; what is frozen here is the **process** - exactly two models
+  unless a third's marginal cost is negligible (§20), both versions recorded at lock time and
+  never silently upgraded mid-annotation-run.
+- **Batch size**: fixed at exactly **24** items per batch (midpoint of the "20-25" range,
+  chosen only for a round, seed-reproducible per-batch count; 592 items = 24 full batches of 24
+  plus one final batch of 16 - both sizes recorded, and the seeded shuffle in §18.2 determines
+  membership, not order-of-appearance in the corpus).
+- **Gold sample size**: **exactly 12 per stratum** (`n_h = min(12, N_h)`), the single target
+  used throughout §13.3's now fully deterministic stratified-sampling algorithm - agreement-
+  based strata forming a strict partition, so no cross-stratum deduplication is needed - with
+  the realised per-stratum `N_h`, `n_h` and `pi_j` reported per §13.3's own reporting
+  requirement.
+
+### 18.6 Implementation checks that are part of the specification
 
 These are not optional engineering hygiene; each one tests a property the methodology relies
-on, and each is named in Part I:
+on. Each entry below states its **fixture** (the input the test constructs or uses), its
+**expected invariant**, its **tolerance**, and its **failure action** - the four things a name
+alone does not supply.
 
-1. **Arm balance** - trace counts per variant equal across the 28 arms, else explicit
-   marginalisation (§5.1).
-2. **`boottest` reproduction** on a linear reduction with a fixed seed, scope bounded per
-   §5.3.
-3. **Invariant-block unit test** - `V*_arm` and `V*_intersection` must not drift across
-   bootstrap replicates (§5.3).
-4. **Off-diagonal meat test** - on synthetic data with deliberately non-zero cross-outcome
-   score covariance, the stacked off-diagonal block must be non-zero (§11).
-5. **One-step versus full-refit indicator agreement** at 99%, with full-refit fallback
-   (§5.3).
-6. **Outcome-field refusal** in the annotation ingest validator (§13.1).
-7. **Grade integrity** - recomputed grade against logged `ordinal_grade` (§8).
+1. **Arm balance.** Fixture: `trace_pfu_table` grouped by `(rubric_id, variant_index)`.
+   Invariant: exactly 28 rows (one per arm) per group, matching the §18.1 coverage
+   verification. Tolerance: exact integer equality, no rounding. Failure action: the affected
+   variant's Layer 1 contribution is blocked and reported per §5.1's hard gate; the run does not
+   proceed to `fit` for the affected rubric.
+2. **`boottest` reproduction.** Fixture: the committed `(y, X, cluster, R, seed)` tuple and
+   Stata output of §5.3's frozen oracle tuple. Invariant: Python-computed `p_f` and `W_obs`
+   match the committed Stata output. Tolerance: `p_f` to `1e-4`, `W_obs` to relative `1e-6`.
+   Failure action: the GLM bootstrap implementation is blocked from use on any family until the
+   discrepancy is resolved; this is a pre-modelling gate (§19).
+3. **Invariant-block unit test.** Fixture: any one confirmatory family's bootstrap run.
+   Invariant: `V*_arm` and `V*_intersection` are bit-identical (or within floating-point
+   `allclose` at `rtol=1e-9`) across all `B` replicates. Tolerance: as stated. Failure action:
+   the bootstrap implementation has a bug and the family's `p_f` is not reported until fixed.
+4. **Off-diagonal meat test.** Fixture: synthetic two-outcome data constructed with a
+   deliberately non-zero cross-outcome score covariance (specified by drawing `s_i^resolved`
+   and `s_i^conservative` from a bivariate distribution with a fixed non-zero correlation,
+   rather than independently). Invariant: the computed `B_stacked` off-diagonal block is
+   non-zero and matches the analytically expected value to `rtol=1e-6`. Failure action: the
+   stacked-meat construction is blocked from use until fixed.
+5. **One-step versus full-refit indicator agreement.** Fixture: the 2% full-refit validation
+   subsample, selected once per family from the `glm_bootstrap` seed stream (§18.2). Invariant:
+   agreement of `1{W* >= W_obs}` in at least 99% of the subsample. Tolerance: as stated, with
+   the secondary `rtol < 0.01` on `W*` itself. Failure action: the family is re-run with full
+   refitting in every replicate (§5.3), at the stated additional cost.
+6. **Outcome-field refusal.** Fixture: an annotation response file containing at least one
+   outcome-adjacent field name (`rubric_v2`, `pass_rate`, `grade`, `ordinal_grade`, `tier`, or
+   any column present in `trace_pfu_table` or `recommendation_table_*`). Invariant: the ingest
+   validator raises and refuses to ingest the file. Tolerance: exact field-name match, case
+   insensitive. Failure action: the batch is rejected and must be re-generated from a
+   clean annotation response.
+7. **Grade integrity.** Fixture: `trace_pfu_table` rows with their logged `ordinal_grade`.
+   Invariant: `compute_ordinal_grade`, imported from a **pinned exact revision of `r1-evals`
+   added as a test-only dependency** (never a runtime dependency of the `analysis` group, per
+   §18), called directly on the recomputed criterion states, matches the logged value.
+   Reimplementing the function locally is explicitly **not** an acceptable substitute for this
+   test, since the entire point of "called directly as the authoritative function" (§8) is to
+   avoid a second implementation that could silently drift from the first. Failure action:
+   mismatches are counted and reported per §8's integrity check, distinguishing error-driven
+   from coverage-driven mismatches; a mismatch rate above 1% blocks the release sequence pending
+   investigation, matching the disclosure-not-automatic-rejection posture of §5.3's singular-
+   replicate protocol.
 
 ## 19. Analysis lock procedure
 
@@ -1663,10 +2926,21 @@ preregistration. Replaced by **pre-specified and analysis-locked**:
   its alternatives declared as sensitivity analyses, the bootstrap numerical-validation
   criterion, and the DSL gate outcome are committed and **git-tagged** before any outcome model
   is fitted.
-- The `boottest` reproduction check on the linear reduction (§5.3) is run and its result
-  committed **before the lock**, since it validates code rather than reading outcomes in any
-  way that could inform a specification choice.
 - Anything decided after the lock appears in a clearly marked post-hoc section.
+
+**The `boottest` check is a pre-modelling gate, not a pre-lock one, and an earlier revision's
+wording made those the same step when they cannot be.** §5.3 requires the `boottest`
+reproduction check to run and be committed "before the lock", and this document is itself the
+lock artefact - so requiring the check before a lock that this very file constitutes is not
+executable: the check cannot both precede the document's own commit and be described inside
+that document as already done. The corrected sequencing is stated once, here, and referenced
+rather than repeated: **the specification lock (this document's git tag) precedes
+implementation**; **the `boottest` oracle check is a pre-modelling gate that runs after the
+specification is locked but before any outcome model is fitted**, positioned as step 0 of the
+release sequence below. This is consistent with the check's own purpose, stated in §5.3: it
+validates code against a numerical reference, not against outcomes, so running it after the
+specification lock costs nothing in terms of outcome-blindness, and the earlier "before the
+lock" language is withdrawn as a sequencing error rather than a substantive one.
 
 **How the lock is recorded without circularity.** §19 previously required the tag's commit SHA
 to be quoted in this report, which is impossible: the SHA does not exist until this file is
@@ -1685,8 +2959,15 @@ the content names the tag.
 
 **Release sequence, in order, each step committed before the next begins:**
 
-1. Pre-lock structural verifications (below).
-2. Outcome-blind annotation of all roughly 592 items.
+0. **`boottest` pre-modelling gate** (§18.6 test 2) - run once, immediately after the
+   specification lock, before any other step below.
+1. Pre-lock-adjacent structural verifications (below) - despite the name carried over from the
+   earlier revision, these in fact run **after** the specification lock and **before**
+   annotation, for the reason just stated; "pre-lock" describes their role relative to outcome
+   modelling being unlocked, not relative to this document's own git tag.
+2. Outcome-blind annotation of all **exactly 592** items (268 questions + 324 expectation
+   descriptions, both exact per the coverage gate of §18), in batches of the frozen size
+   (§18.5).
 3. Human gold adjudication, then the delayed blind re-code.
 4. The confirmatory feature-validation gate (§13.2a), applied in seeded-shuffle order,
    decisions committed one at a time, blind to outcomes and to any coefficient estimate.
@@ -1696,11 +2977,13 @@ the content names the tag.
 The test the sequence is designed to pass: *could another competent researcher execute the same
 validation and the same bootstrap without making a judgment call this plan has not documented?*
 
-**Pre-lock verification steps that must run first**, since each can change the specification:
-the arm-balance check (§5.1), the design-rank check for F3 (§3.1), the degenerate-case census
-(§4.3), and the grade integrity check (§8). These read outcome data, so they run under a
-documented restriction: they produce counts and structural diagnostics only, never
-feature-outcome associations.
+**Verification steps that must run at step 1**, since each can change the specification and
+each must complete before annotation begins: the **exact-coverage verification of §18.1**
+(64 rubrics, 268 variants, 324 expectations, 28 arms per variant); the arm-balance check (§5.1,
+the same mechanism applied per-variant); the design-rank check for F3 (§3.1); the
+degenerate-case census (§4.3, extended to the full register of §16a); and the grade integrity
+check (§8, §18.6 test 7). These read outcome data, so they run under a documented restriction:
+they produce counts and structural diagnostics only, never feature-outcome associations.
 
 ## 20. Deliverables and status
 
@@ -1710,33 +2993,46 @@ markers); `reports/14-question-linguistic-codebook.md`; **the rubric-level and v
 recommendation tables** (§6.3); the programme skeleton and dependency group.
 
 **Closed decisions carried into the lock:** `gamma` = 0.90 (§6.1); `kappa` = 0.75 (§6.2); one
-joint family test stacked across both co-primary outcomes, preserving ten FDR hypotheses
-(§11); the confirmatory feature-validation gate as a frozen rubric with three statuses, a
-mandatory dossier, three structural rules, scale-matched accuracy metrics with matched naive
-baselines, and a stated boundary between the two passing statuses (§13.2a); the **three-term
-CRVE plus restricted wild cluster bootstrap with the DGP clustered on the arm dimension**, with
-the other MNW pairings declared as sensitivity analyses and **the bread held fixed at
-`A(beta_tilde)` in one-step replicates** (§5.3); hyperparameter uncertainty propagated into the
-decision quantity, with `Pi_prop` named as a propagated empirical-Bayes uncertainty measure
-rather than a posterior and `gamma` therefore an operational threshold rather than a
-credibility level (§5.1); exact rank deficiency as the sole mechanical demotion trigger for F3
-(§3.1).
+joint family test stacked across both co-primary outcomes, preserving ten confirmatory
+families, BH-adjusted at nominal q = 0.05 without an unqualified FDR-control guarantee (§5.6,
+§11); the confirmatory feature-validation gate as a frozen rubric with three statuses plus the
+degenerate-gold status of §13.2a, a mandatory dossier, three structural rules, scale-matched
+accuracy metrics with matched naive baselines, Horvitz-Thompson weighting, a stratified
+bootstrap interval, and a stated boundary between the two passing statuses (§13.2a); the
+**three-term CRVE with explicit finite-sample multipliers and PSD map, plus restricted wild
+cluster bootstrap with the DGP clustered on the arm dimension**, with the other MNW pairings
+declared as sensitivity analyses that never displace the confirmatory `p_f`, **the bread held
+fixed at `A(beta_tilde)` in one-step replicates**, full refit defined as the perturbed
+estimating equation with no bootstrap response ever constructed, and replenishment to exactly
+`B = 9999` valid replicates (§5.3); hyperparameter uncertainty propagated into the decision
+quantity via a fully specified fitting, boundary, DGP and retention procedure, with `Pi_prop`
+named as a propagated empirical-Bayes uncertainty measure rather than a posterior and `gamma`
+therefore an operational threshold rather than a credibility level (§5.1); exact rank
+deficiency as the sole mechanical demotion trigger for F3 (§3.1); every confirmatory family's
+restriction matrix, analysis population and design-matrix coding (§11.1); every remaining edge
+of the decision rule, including the empty-floor-set mapping, the `UNCERTAIN` and pooled-mean-tier
+formulas, and the score-band-probability rename (§6); and the full join, seed, artefact and CLI
+contract, the exact-coverage structural verification, and the seven test oracles with their
+fixtures, tolerances and failure actions (§18).
 
-**Two annotator models is the default**, with a third only if the marginal cost is negligible.
-This is a resourcing choice rather than a methodological blocker: human gold is the primary
-validity criterion, alpha remains computable with two coders, and what a third would add is
-information about model-to-model heterogeneity rather than anything the validity argument
-depends on.
+**Two annotator models is the default**, with named models and pinned versions recorded at
+lock time (§18.5) and a third only if the marginal cost is negligible. This is a resourcing
+choice rather than a methodological blocker: human gold is the primary validity criterion,
+alpha remains computable with two coders, and what a third would add is information about
+model-to-model heterogeneity rather than anything the validity argument depends on.
 
-**No methodological choice remains open. The remaining work is implementation, plus validation
-of the two explicitly declared extensions** - the transfer from linear regression to GLM
-estimating equations, and the stacking across two co-primary outcomes. That is deliberately
-weaker than "only implementation and resourcing remain", because these two are genuine
-departures from the cited theory rather than engineering details: they are specified, bounded
-and testable, but their validation is real work and its outcome is not guaranteed in advance.
-The `boottest` oracle covers the shared numerical components only (§5.3), so the extensions
-rest on internal consistency checks, and if those fail the fallback is the documented
-full-refit route rather than a new method.
+**No methodological choice remains open, and after this pass no computational or
+implementation-contract choice that could alter a confirmatory number remains open either.**
+Two things genuinely remain, stated as such rather than folded into "implementation": first,
+validation of the two explicitly declared extensions - the transfer from linear regression to
+GLM estimating equations, and the stacking across two co-primary outcomes - since the
+`boottest` oracle covers their shared numerical components only (§5.3), so the extensions rest
+on internal consistency checks, and if those fail the fallback is the documented full-refit
+route rather than a new method; second, the honest acknowledgement that a handful of frozen
+constants (§18.5's annotation batch size and per-level gold count) were fixed for
+reproducibility rather than derived from a principled optimum, and freezing them buys
+reproducibility, not correctness. Both are stated in the open rather than discovered by a
+future implementer.
 
 ---
 
@@ -1954,3 +3250,81 @@ Smaller corrections, recorded because each was a claim the plan could not suppor
   causal attribution.
 - **"Pre-registered".** A Markdown file in a working tree is not a preregistration. Replaced by
   **pre-specified and analysis-locked**, implemented by the git tag in §19.
+
+## A.9 Corrections from the implementation-contract completion pass
+
+Five further claims, identified by two independent post-freeze audits (one a narrow
+mathematical audit, one an implementation-contract audit), are withdrawn or qualified here in
+the same spirit as A.1-A.8: not as a redesign, but as a record of specific overclaims and gaps
+this pass closed, kept visible so they are not reintroduced.
+
+- **Divergence between the two co-primary outcomes as evidence the identifying assumption is
+  strained.** Withdrawn: `Pr(PASS|X) = Pr(R=1|X) * Pr(Y*=1|R=1,X)` shows the two outcomes
+  diverge whenever resolution is incomplete, **regardless of whether the assumption holds**, so
+  raw divergence is arithmetic, not diagnostic. Replaced by decomposing divergence into the
+  resolution probability and the conditional pass probability, and by examining whether the
+  resolution probability itself varies with the confirmatory features (§4.2).
+- **"Marginal log-odds" for coefficients from models containing fixed effects.** Withdrawn: a
+  logistic coefficient conditional on rubric and/or arm fixed effects is non-collapsible and is
+  not equal to any marginal (population-averaged) quantity, and no marginalisation step was
+  ever defined that would produce one. Every family coefficient is now labelled **conditional**
+  (§5.2, §15).
+- **Arm fixed effects in the primary Layer 1 suitability estimator.** Withdrawn: §5.1's Level 2
+  contains no arm term, so a later section's claim that suitability uses arm fixed effects
+  "then marginalises" described a different likelihood from the one actually written out, and
+  the balance argument does not equate the two. The arm-free hierarchy is now stated once, as
+  the sole primary suitability estimator; arm fixed effects are confirmed to belong to the
+  feature GLMs only (§5.1, §5.5).
+- **The off-diagonal stacked meat as a sum of per-observation products over resolved
+  observations.** Withdrawn: the actual object is an outer product of cluster sums, one of
+  which sums over *all* criteria in the cluster, so the off-diagonal block necessarily includes
+  resolved-with-unresolved cross-terms that the per-observation description would have omitted.
+  Restated via the explicit cluster-sum formula, with the zero-padded stacked score identified
+  as the sole object cluster sums are formed from (§11).
+- **An unqualified "FDR-controlled at q = 0.05" claim for the ten-family BH procedure.**
+  Withdrawn: the classical BH guarantee requires independence or PRDS among the test
+  statistics, and the ten joint Wald statistics here share clusters and correlated predictors
+  by design, with neither condition established. Replaced by "BH-adjusted confirmatory
+  inference at nominal q = 0.05" without the unconditional guarantee (§5.6). **Benjamini-Yekutieli
+  was considered as a distribution-free alternative and deliberately not adopted**: BY controls
+  FDR under arbitrary dependence by applying a `1 / sum_{i=1}^{10}(1/i) ≈ 1/2.93` correction
+  factor to the BH threshold, which is provably valid here but is also markedly more
+  conservative than the situation may warrant, since the ten statistics are correlated rather
+  than adversarially dependent. Adopting BY would trade a stated limitation for an
+  unquantified loss of power, with no way to know in advance how much; stating the limitation
+  honestly was judged the better trade, and this record exists so a future reviewer does not
+  have to rediscover why BY was not simply substituted in.
+- **The unconstrained `mu_0 + d(r)` parameterisation in Layer 1's Level 4.** Withdrawn: a final
+  mathematical audit found that estimating `mu_0` and all three dataset offsets `d(r)` without
+  a constraint leaves the split between them non-identified, since `mu_0 + d(r) =
+  (mu_0 + a) + (d(r) - a)` for any `a` gives an identical likelihood - a flat ridge that a
+  gradient-based optimiser has no signal to resolve and that can trigger the parametric
+  bootstrap's discard-and-replenish protocol on draws that never actually failed to fit.
+  Replaced by fixing `d(EMC2 UAT set_1) = (0, 0)` as a reference-dataset constraint, under which
+  `mu_0` becomes that dataset's ALR mean and the other two `d(r)` become deviations from it
+  (§5.1). The **identified quantities `mu_0 + d(r)` are unaffected**; only the arbitrary split
+  is fixed. A sum-to-zero constraint would have resolved the same non-identifiability equally
+  validly and was not adopted only because the reference-dataset form is easier to read as a
+  direct per-dataset contrast.
+- **The `+1` bootstrap correction applied to an exhaustively enumerated p-value.** Withdrawn as
+  a case the finite-support fix (§5.3) had not yet addressed: the standard formula
+  `p_f = (1 + #{W* >= W_obs})/(B + 1)` corrects for the resampling error of an approximate,
+  finite Monte Carlo draw from an in-principle-infinite reference distribution. Under
+  exhaustive enumeration of a family's finite Rademacher support (`S_f = 2^(H_f - 1)` distinct
+  sign vectors, applying whenever `S_f <= B`), there is no resampling error to correct for,
+  since every attainable value of `W*` is already included; applying `+1` in that regime would
+  assert one more distinct value exists than actually does. This part of the fix stands.
+- **The `S_f_valid` renormalisation for discarded enumerated sign vectors.** Withdrawn in a
+  further audit: the immediately preceding fix replaced the `+1` correction with
+  `p_f = #{W*_s >= W_obs} / S_f_valid`, dividing by the count of vectors that survived the
+  singular- and non-finite-replicate rules rather than by the full support `S_f`. That
+  renormalisation is itself a different, conditional quantity from the exact finite-support
+  p-value, which is defined on `S_f`: it silently treats numerical failure as informative about
+  the discarded vectors' statistics, when in fact each discarded vector simply has an unknown
+  outcome. With `S_f` as small as 32 for a thinly-clustered family, a single discard could move
+  the reported point value by several percentage points while looking like an unremarkable
+  computation. Replaced by the assumption-free bracket `p_f in [E_valid/S_f, (E_valid+D)/S_f]`
+  on the true support `S_f`, collapsing to the exact point value when `D = 0`, with its width
+  adjudicated against the entire ten-family BH rejection set rather than against the affected
+  family's status alone, since BH's step-up structure can let the bracket's width flip a
+  different family's rejection (§11.1, §16).
