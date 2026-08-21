@@ -68,7 +68,26 @@ def build_parser() -> argparse.ArgumentParser:
         command_parser = subparsers.add_parser(
             command.value, help=COMMAND_HELP[command]
         )
-        if command is WorkflowCommand.STATUS:
+        if command is WorkflowCommand.JOIN:
+            command_parser.add_argument(
+                "--snapshot-dir",
+                type=Path,
+                default=None,
+                help="Schema-v3 MLflow snapshot directory.",
+            )
+            command_parser.add_argument(
+                "--rubric-root",
+                type=Path,
+                default=None,
+                help="Local r1-evals rubric_data directory.",
+            )
+            command_parser.add_argument(
+                "--task",
+                type=Path,
+                default=None,
+                help="Air Assist task TOML containing the use-case taxonomy.",
+            )
+        elif command is WorkflowCommand.STATUS:
             command_parser.add_argument("--json", action="store_true", dest="as_json")
     return parser
 
@@ -89,7 +108,11 @@ def main(
         if command is WorkflowCommand.STATUS:
             return _show_status(args.analysis_root, as_json=args.as_json, output=output)
         workspace = AnalysisWorkspace.initialize(args.analysis_root, args.specification)
-        handler = (handlers or {}).get(command)
+        handler = (
+            handlers.get(command)
+            if handlers is not None
+            else _production_handler(command, args)
+        )
         if handler is None:
             assert_can_start(workspace.load_state(), command)
             raise PrerequisiteError(
@@ -102,6 +125,22 @@ def main(
     except AnalysisError as error:
         print(f"error: {error.message}", file=error_output)
         return int(error.exit_code)
+
+
+def _production_handler(
+    command: WorkflowCommand, args: argparse.Namespace
+) -> StepAction | None:
+    if command is not WorkflowCommand.JOIN:
+        return None
+    from es_index_explorer.question_analysis.join import JoinConfig, run_join
+
+    defaults = JoinConfig()
+    config = JoinConfig(
+        snapshot_dir=args.snapshot_dir or defaults.snapshot_dir,
+        rubric_root=args.rubric_root or defaults.rubric_root,
+        task_path=args.task or defaults.task_path,
+    )
+    return lambda workspace: run_join(workspace, config)
 
 
 def _show_status(root: Path, *, as_json: bool, output: TextIO) -> int:

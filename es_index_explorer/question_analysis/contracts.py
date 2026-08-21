@@ -14,7 +14,18 @@ ANNOTATION_BATCH_SIZE = 24
 GOLD_SAMPLE_PER_STRATUM = 12
 ANNOTATOR_MODELS = ("Claude Opus 5 (high thinking)", "GPT-5.6 Sol")
 OUTCOME_FIELD_DENYLIST = frozenset(
-    {"rubric_v2", "pass_rate", "grade", "ordinal_grade", "tier"}
+    {
+        "p",
+        "f",
+        "u",
+        "state",
+        "error_override",
+        "rubric_v2",
+        "pass_rate",
+        "grade",
+        "ordinal_grade",
+        "tier",
+    }
 )
 
 

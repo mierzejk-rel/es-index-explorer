@@ -190,18 +190,21 @@ Verified in `10-simple-mode-experiment-design.md`:
   matrix, not on literal level crossing**, because partial crossing can leave an
   interaction weakly rather than wholly unidentifiable.
 
-**The mechanical rule is exact rank deficiency, and only that.** If the realised design
-matrix is rank-deficient for the specified interaction, the interaction is demoted to
-exploratory and only the `expectation_count` main effect remains confirmatory. An earlier
-revision also demoted on being "numerically ill-conditioned", which reintroduced exactly
-the arbitrary-threshold problem this plan avoids elsewhere: without a pre-specified
-cutoff, one analyst's acceptable VIF is another's disqualifying one, and the choice would
-be made after seeing the data. So the condition number of the interaction block and the
-variance inflation factor of the interaction term are **reported as diagnostics** and, if
-large, trigger a written caveat that the interaction estimate is imprecise and its
-interval wide - which the interval will show anyway. They do **not** trigger automatic
-demotion. Rank is a property of the design that can be checked without any threshold;
-conditioning is a matter of degree that cannot.
+**The mechanical rule is exact rank deficiency, and only that.** Let `X_full` contain
+`[1, expectation_count, g, expectation_count*g, c]` and let `X_reduced` omit only
+`expectation_count*g`. The interaction is identified exactly when
+`rank(X_full) > rank(X_reduced)`; rank deficiency already present in `X_reduced`, for example
+because a secondary covariate is constant, does not itself demote an independently identified
+interaction. If the interaction does not increase rank, it is demoted to exploratory and only
+the `expectation_count` main effect remains confirmatory. An earlier revision also demoted on
+being "numerically ill-conditioned", which reintroduced exactly the arbitrary-threshold
+problem this plan avoids elsewhere: without a pre-specified cutoff, one analyst's acceptable
+VIF is another's disqualifying one, and the choice would be made after seeing the data. So the
+condition number of the interaction block and the variance inflation factor of the interaction
+term are **reported as diagnostics** and, if large, trigger a written caveat that the
+interaction estimate is imprecise and its interval wide - which the interval will show anyway.
+They do **not** trigger automatic demotion. Rank is a property of the design that can be checked
+without any threshold; conditioning is a matter of degree that cannot.
 
 - Stage B arms use the union merge and have **no `g` parameter** (lines 320-321), so they
   cannot contribute to context-budget analysis.
@@ -1497,9 +1500,10 @@ Top-down for presentation, bottom-up for estimation.
   all entered **jointly** in a single binomial GLM on the rubric-level outcome (so a rubric with
   two labels contributes to both indicators' estimation simultaneously rather than being
   double-counted across separate one-vs-rest fits); **adjustment** a dataset indicator, since
-  use-case prevalence differs by dataset; **no rubric fixed effects**, because `use_case` is
-  constant within rubric and a rubric fixed effect would make every use-case coefficient
-  unidentified for the same reason as F7's between-rubric term (§11.1).
+  use-case prevalence differs by dataset; **no rubric fixed effects**, because each binary
+  indicator derived from the catalogue's `use_cases` list is constant within rubric and a
+  rubric fixed effect would make every use-case coefficient unidentified for the same reason
+  as F7's between-rubric term (§11.1).
 
   **No cluster-robust covariance is used here, and this is a correction rather than the
   original design.** An earlier revision clustered this fit's covariance by dataset - but
@@ -1682,6 +1686,13 @@ only once to generate the immutable fixture at its recorded `r1-evals-new` revis
 SHA. The metric is **undefined and reported as such** for traces whose grade derives from the
 error override or from the all-`UNDETERMINED` convention.
 
+The runtime lookup receives the all-criterion `(P, F, U)` counts only because §18.1 enforces
+`material = true` for every expectation as a blocking invariant of this locked cohort. Under
+that invariant, all-criterion and material-only counts are identical. If a future catalogue
+contains any non-material expectation, the join blocks rather than silently applying this
+fixture to mixed-material counts; supporting such a cohort would require a separately specified
+material-aware oracle that reproduces the authoritative helpful-criterion fallback.
+
 **Integrity check.** Recompute the grade from criterion states and compare against the
 logged `ordinal_grade`. Since `detected_error_modes` is empty throughout, any `Critical
 Error` must trace to an `errors_*_v2` scorer. Mismatches quantify how much of the headline
@@ -1691,7 +1702,10 @@ defect. The §4.3 degenerate cases are checked here.
 ## 9. Feature provenance, and three distinct kinds of quality
 
 - **P1 deterministic structural** - rubric metadata: `expectation_count`,
-  `expectation_document_count`, `use_case`, `variant_count`.
+  `expectation_document_count`, `use_cases`, `variant_count`. The source TOML field
+  `meta.use_case` accepts a scalar or list, its labels are validated against the
+  `specification.use_cases` task taxonomy, and catalogues store the normalized,
+  order-preserving result as `use_cases: list[str]`.
 - **P2 parser-derived** - English UD parses: `token_count`, `dependency_tree_depth`,
   `mean_dependency_length`, `clause_count`, `subordinate_clause_ratio`,
   `complex_nominals_per_clause`, `named_entity_count`, `temporal_expression_present`.
@@ -2154,8 +2168,8 @@ exploratory only.
 
 ### Dimension G - Task and intent framing
 
-`recall_orientation`, `cognitive_process_level`, plus existing `use_case` labels at no
-annotation cost.
+`recall_orientation`, `cognitive_process_level`, plus existing catalogue `use_cases` labels at
+no annotation cost.
 
 Anchors: **Oard & Webber (2013), *Foundations and Trends in Information Retrieval*
 7(2-3):99-237** (verified); Broder (2002); Rose & Levinson (2004); Ingwersen & Jarvelin
@@ -2735,6 +2749,8 @@ parquet loading pattern and the ten fixed schemas of `_SNAPSHOT_PARQUET_FILES` i
 (`experiments`, `runs`, `run_metrics`, `trace_quality`, `trace_invocations`, `trace_criteria`,
 `run_rubrics`, `trace_failures`, `trace_retrieval`, `span_timings`); `run_rubrics.parquet`
 itself, which already carries a correct per-`[[input]]` `variant_index`;
+`snapshot.decode_quality_value`, which reconstructs values from schema-v3's typed
+`trace_quality` columns for the RubricV2 and error-scorer integrity checks;
 `experiment_arms.split_arm_and_dataset` for parsing the dataset suffix from an experiment short
 name; the `GRADE_ORDER`, `PASSING_GRADES` and `PERCENTILE_METHOD` constants. Out of bounds,
 explicitly: `rubric_analysis._rubric_question`, `rubric_analysis._build_catalogue`, and
@@ -2752,7 +2768,12 @@ silently stop being a valid assumption if a future cohort reused a rubric path a
 segments. Building this key requires enumerating **every** `[[input]]` block for every rubric
 file - stated as an explicit instruction here because the plan must say it positively, not
 leave it to be inferred from "reuse the catalogue builder". On the snapshot side,
-`variant_index` is read from `trace_invocations.parquet`, itself parsed by `snapshot.py`'s
+the frozen schema-v3 `run_rubrics.parquet` roster carries the rubric filename rather than this
+canonical root-relative path. The join therefore requires a one-to-one catalogue mapping from
+`(eval_dataset, rubric_file_name)` to `source_path`, rejects duplicate or missing mappings, and
+then joins on the frozen `(eval_dataset, source_path, variant_index)` key. This is a strict
+canonicalisation against the authoritative catalogue, not a suffix or format fallback.
+The `variant_index` is read from `trace_invocations.parquet`, itself parsed by `snapshot.py`'s
 `_parse_rubric_span_indices` from the `invoke_..._<rubric>_v<variant>` span-name pattern, with
 the documented default `variant_index = 0` when a span name carries no `_vN` suffix at all
 (single-variant rubrics never emit a suffix). **The span-derived `variant_index` and the
@@ -2805,6 +2826,13 @@ rest of the corpus, since `Sigma_within` is pooled globally and a single `V_r = 
 contributing nothing to the pooled estimator is not itself a data-integrity failure the way a
 wrong arm count is.
 
+**Uniform materiality is a blocking cohort invariant.** The catalogue must contain exactly
+314 material expectations and zero non-material expectations, with
+`material_expectation_count == expectation_count` for every rubric. A failure blocks the join:
+the aggregate grade-oracle key and `expectations_to_next_grade` are valid for this cohort only
+because the material-only and all-criteria sets coincide (§3, §8). The pipeline does not
+reinterpret a mixed-material catalogue using all-criterion counts.
+
 **The F3 design-rank check and the full §16a degenerate-case census run here too, before
 annotation begins, not deferred to family-fitting.** §3.1's design-rank check on the realised
 hybrid-arm `c`-by-`g` grid, and every §16a register row observable at join time (all-
@@ -2829,9 +2857,12 @@ re-derived, when the family's design matrix is built in §11.1.
 - **Criterion grain.** Confirmatory rows are built from `trace_criteria.parquet`
   (`expectation_name`, `material`, `state` per `(run_id, trace_id, rubric_file_path)`), joined
   to `trace_invocations.parquet` for `(rubric_index, variant_index)` and to the arm key above.
-  `N_r` is recovered as the **count of distinct `expectation_name` values for rubric `r` in the
-  TOML catalogue**, cross-checked against the count of `trace_criteria` rows per trace for that
-  rubric (which must match `N_r` exactly for every trace, per the coverage verification above).
+  `N_r` is recovered as the **number of `[[expectations]]` entries for rubric `r` in the TOML
+  catalogue**, equivalently the count of stable expectation identities (`expectation_id` /
+  `expectation_index`). Repeated `expectation_name` values remain separate expectations and
+  must never be deduplicated by name. `N_r` is cross-checked against the count of
+  `trace_criteria` rows per trace for that rubric, which must match exactly for every trace per
+  the coverage verification above.
 - **Eligible-trace rule.** A trace is eligible for the confirmatory join if `trace_status`
   indicates successful completion and `criteria_parse_status` (on `trace_invocations`) indicates
   a successfully parsed criterion set; a plan-validation failure or an `ERROR` trace status
@@ -2894,9 +2925,12 @@ schematised artefact or artefact family, not an implicit in-memory structure:
   seed, named-stream derivations, workflow-step completion and the outcome-modelling unlock.
 - **`rubric_catalogue.parquet`, `variant_catalogue.parquet` and
   `expectation_catalogue.parquet`** - the complete all-`[[input]]` catalogue at its three stable
-  identity grains.
+  identity grains, including list-valued `use_cases` normalized from source `meta.use_case`
+  against the `specification.use_cases` task taxonomy.
 - **`criterion_table.parquet`** - one row per `(rubric_id, variant_index, arm_id, trace_id,
-  expectation_name)`: `state` (`PASS`/`FAIL`/`UNDETERMINED`), `material`, join-eligibility flags.
+  expectation_id)`: `expectation_index`, non-key `expectation_name`, `state`
+  (`PASS`/`FAIL`/`UNDETERMINED`), `material`, join-eligibility flags. `expectation_name` is not
+  an identity key because names may repeat within one rubric.
 - **`trace_pfu_table.parquet`** - one row per `(rubric_id, variant_index, arm_id, trace_id)`: `P`, `F`,
   `U`, `N_r`, derived `RubricV2` (recomputed, §18.1), `ordinal_grade` (logged and recomputed).
 - **`join_discrepancies.parquet` and `structural_verification.json`** - row-level join failures,

@@ -44,6 +44,7 @@ fixtures are added with the statistical oracle.
 uv run question_suitability.py --help
 uv run question_suitability.py status
 uv run question-suitability status
+uv run question-suitability join
 ```
 
 The public commands are:
@@ -60,9 +61,14 @@ status
 annotation/gold/validation unlock and the recorded oracle pass. `status` is
 read-only and works for an uninitialized root.
 
-The foundation shell exposes every command but fails closed until that
-command's implementation is registered by its implementation segment. It
-never marks a placeholder command complete.
+`join` is implemented. It reads the frozen schema-v3 snapshot and authoritative
+rubric TOMLs, then writes the three catalogues, criterion and PFU tables,
+discrepancies, structural verification, the frozen F3 rank decision, and
+`partial_reports/01-data-contract.md`. Override its default sibling-repository
+locations with `--snapshot-dir`, `--rubric-root`, and `--task`.
+
+Later commands remain unavailable until their implementation segment registers
+them. The shell never marks a placeholder command complete.
 
 Exit categories are stable:
 

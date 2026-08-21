@@ -1,0 +1,20 @@
+{
+  "error_override": "Any detected rubric error mode or truthy errors_* scorer judgement",
+  "fixture_sha256": "66c76224ed9ac7ba5f9fd6e9ba45ec285cf28fd491aaa4058e48015f9964883a",
+  "function": "r1_evals.rubrics.ordinal_grading_v2.compute_ordinal_grade",
+  "generator": "generate_grade_oracle_fixture.py",
+  "generator_sha256": "d76514e883d79549cf17a33b8a6763681e2f96eefce6c3645e894989f1fae471",
+  "key": [
+    "P",
+    "F",
+    "U",
+    "error_override"
+  ],
+  "max_n": 21,
+  "r1_evals_repository_head": "41978dbd459ec3dfed9adcf3cc3695aae31a1551",
+  "schema_version": 1,
+  "source_git_blob_sha": "894e81b024e68b219b6c2052f2ea3dbe7c182043",
+  "source_last_commit": "d196048ad424f5a7f82fd11ee5cbdfc9008dc4b0",
+  "source_path": "src/r1_evals/rubrics/ordinal_grading_v2.py",
+  "source_sha256": "d714fb2f42d0eded7d98d4c793bc29877fadbc295e7055c845cc6b9a26532529"
+}

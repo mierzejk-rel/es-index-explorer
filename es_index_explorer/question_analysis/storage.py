@@ -6,7 +6,9 @@ import tempfile
 from collections.abc import Mapping
 from datetime import UTC, datetime
 from hashlib import sha256
+from io import BytesIO
 from pathlib import Path
+from typing import TYPE_CHECKING
 
 from pydantic import BaseModel
 
@@ -16,6 +18,9 @@ from es_index_explorer.question_analysis.contracts import (
     WorkflowCommand,
 )
 from es_index_explorer.question_analysis.errors import MalformedInputError
+
+if TYPE_CHECKING:
+    import pandas as pd
 
 ARTIFACT_DIRECTORIES = (
     "tables",
@@ -140,6 +145,29 @@ class ArtifactStore:
         return self.write_bytes(
             relative_path,
             canonical_json_bytes(value),
+            created_by=created_by,
+            now=now,
+        )
+
+    def write_parquet(
+        self,
+        relative_path: str | Path,
+        frame: "pd.DataFrame",
+        *,
+        created_by: WorkflowCommand,
+        now: datetime | None = None,
+    ) -> ArtifactMetadata:
+        """Write a deterministic, index-free Parquet artifact."""
+        buffer = BytesIO()
+        frame.to_parquet(
+            buffer,
+            engine="pyarrow",
+            index=False,
+            compression="zstd",
+        )
+        return self.write_bytes(
+            relative_path,
+            buffer.getvalue(),
             created_by=created_by,
             now=now,
         )

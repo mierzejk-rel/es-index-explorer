@@ -50,6 +50,32 @@ DEFAULT_RESOURCES = {
     / "question_analysis"
     / "resources"
     / "stanza-en-resource-manifest.json",
+    "ordinal_grade_oracle": PROJECT_ROOT
+    / "es_index_explorer"
+    / "question_analysis"
+    / "resources"
+    / "ordinal-grade-oracle-v1.json",
+    "ordinal_grade_oracle_provenance": PROJECT_ROOT
+    / "es_index_explorer"
+    / "question_analysis"
+    / "resources"
+    / "ordinal-grade-oracle-v1.provenance.json",
+    "segment2_arms_source": PROJECT_ROOT
+    / "es_index_explorer"
+    / "question_analysis"
+    / "arms.py",
+    "segment2_catalogue_source": PROJECT_ROOT
+    / "es_index_explorer"
+    / "question_analysis"
+    / "catalogue.py",
+    "segment2_grade_oracle_source": PROJECT_ROOT
+    / "es_index_explorer"
+    / "question_analysis"
+    / "grade_oracle.py",
+    "segment2_join_source": PROJECT_ROOT
+    / "es_index_explorer"
+    / "question_analysis"
+    / "join.py",
 }
 
 StepAction = Callable[["AnalysisWorkspace"], Iterable[ArtifactMetadata] | None]

@@ -60,7 +60,7 @@ def test_unimplemented_command_fails_closed(tmp_path: Path) -> None:
             str(tmp_path / "analysis"),
             "--specification",
             str(_specification(tmp_path)),
-            "join",
+            "oracle",
         ],
         stderr=error_output,
     )

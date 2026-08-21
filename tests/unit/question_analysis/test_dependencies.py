@@ -71,6 +71,11 @@ def test_annotation_constants_match_locked_specification() -> None:
         "GPT-5.6 Sol",
     )
     assert OUTCOME_FIELD_DENYLIST == {
+        "p",
+        "f",
+        "u",
+        "state",
+        "error_override",
         "rubric_v2",
         "pass_rate",
         "grade",

@@ -38,7 +38,13 @@ def test_manifest_round_trip_and_frozen_layout(tmp_path: Path) -> None:
     assert manifest.analysis_lock_tag == ANALYSIS_LOCK_TAG
     assert manifest.stream_seeds == named_stream_seeds()
     assert set(manifest.resources) == {
+        "ordinal_grade_oracle",
+        "ordinal_grade_oracle_provenance",
         "r_oracle_dockerfile",
+        "segment2_arms_source",
+        "segment2_catalogue_source",
+        "segment2_grade_oracle_source",
+        "segment2_join_source",
         "stanza_en_resource_manifest",
     }
     assert workspace.load_manifest() == manifest
