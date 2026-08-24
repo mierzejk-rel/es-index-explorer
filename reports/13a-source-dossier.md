@@ -44,8 +44,11 @@ Status meanings:
 
 - **Dayal (2016), _Questions_.** DOI
   [10.1093/acprof:oso/9780199281268.001.0001](https://doi.org/10.1093/acprof:oso/9780199281268.001.0001).
-  Chapters 2–3 support mention-some, weakly exhaustive, and mention-all distinctions and
-  the use of negative-polarity forms as diagnostics. **verified-paywalled**.
+  User-supplied book. Chapters 1 and 3, pp. 16, 57, 67, and 82–87, define mention-some,
+  weakly exhaustive, and strongly exhaustive answers and use NPI licensing as evidence for a
+  grammatical strong-versus-weak/non-exhaustive distinction. Dayal also records caveats on
+  negation diagnostics. This does not make the presence of *any* an automatic
+  `negative_conclusiveness` label. **verified; human-confirmed**.
 - **Groenendijk & Stokhof (1984), _Studies on the Semantics of Questions and the
   Pragmatics of Answers_.**
   [Part I](https://pure.uva.nl/ws/files/1989717/27444_Proefschrift_001_257.PDF);
@@ -55,18 +58,16 @@ Status meanings:
   non-exhaustive answers; pp. 394–395 names mention-some and mention-all interrogatives.
   This supports partition semantics and the mention-some/mention-all distinction, but not the
   project’s separate `weakly_exhaustive` level. **verified-open; human-confirmed**.
-- **Hamblin (1973), “Questions in Montague English.”** Original record
-  [JSTOR 25000703](https://www.jstor.org/stable/25000703); later reprint DOI
-  [10.1007/978-94-010-2506-5_9](https://doi.org/10.1007/978-94-010-2506-5_9).
-  Questions as sets of possible answers anchor alternative semantics.
-  **verified-paywalled**.
 - **Karttunen (1977), “Syntax and Semantics of Questions.”** DOI
-  [10.1007/BF00351935](https://doi.org/10.1007/BF00351935). True complete and partial
-  answers anchor the answerhood code. **verified-paywalled**.
+  [10.1007/BF00351935](https://doi.org/10.1007/BF00351935);
+  user-supplied article. Pages 7–10 model questions as sets of true-answer propositions while
+  treating less-than-exhaustive direct answers as context-sensitive pragmatics rather than a
+  strict semantic ambiguity. **verified; human-confirmed**.
 - **Beck & Rullmann (1999), “A Flexible Approach to Exhaustivity in Questions.”**
   DOI [10.1023/A:1008373224343](https://doi.org/10.1023/A:1008373224343).
-  The construction-sensitive treatment motivates separate weak and strong exhaustivity
-  labels. **verified-paywalled**.
+  User-supplied article. Pages 249–250 present a Karttunen-based semantics with separate
+  weakly and strongly exhaustive answerhood notions and motivate retaining a flexible
+  question-denotation system. **verified; human-confirmed**.
 - **George (2011), _Question Embedding and the Semantics of Answers_.**
   [UCLA dissertation PDF](https://linguistics.ucla.edu/wp-content/uploads/2021/11/old_brgeorge_dissertation_web_june2011.pdf).
   The abstract and Chapter 1, pp. 13–18, define mention-some, weakly exhaustive, and strongly
@@ -75,10 +76,11 @@ Status meanings:
   category as an annotation possibility rather than assuming its necessity.
   **verified-open; human-confirmed**.
 - **Karttunen (1971), “Some Observations on Factivity.”** DOI
-  [10.1080/08351817109370248](https://doi.org/10.1080/08351817109370248), and
-  **Kiparsky & Kiparsky (1970), “Fact.”** DOI
-  [10.1515/9783111350219.143](https://doi.org/10.1515/9783111350219.143).
-  Factive predicates anchor `presupposition_load`. **verified-paywalled**.
+  [10.1080/08351817109370248](https://doi.org/10.1080/08351817109370248);
+  user-supplied article. Pages 55–56 describe the standard factive presupposition account and
+  immediately caution that verb identity alone does not determine whether a complement is
+  presupposed. This supports contextual `presupposition_load`, not a verb-list rule.
+  **verified; human-confirmed**.
 - **Roberts (2012), “Information Structure in Discourse.”** DOI
   [10.3765/sp.5.6](https://doi.org/10.3765/sp.5.6). Sections 2–3 provide the
   question-under-discussion account of contextual answer relevance. **verified-open**.
@@ -116,11 +118,11 @@ Status meanings:
 ## Dimension D — reference and lexical anchoring
 
 - **Gundel, Hedberg & Zacharski (1993), “Cognitive Status and the Form of Referring
-  Expressions.”** DOI [10.2307/416535](https://doi.org/10.2307/416535). The Givenness
-  Hierarchy anchors form and identifiability. **verified-paywalled**.
-- **Ariel (1990), _Accessing Noun-Phrase Antecedents_.** ISBN 9780415055932. The
-  accessibility hierarchy supports contrasts among conventional names, aliases, and
-  maximally identifying forms. **verified-paywalled**.
+  Expressions.”** DOI [10.2307/416535](https://doi.org/10.2307/416535);
+  user-supplied article. Pages 274–277 introduce six implicationally related cognitive
+  statuses and map referring forms to those statuses. This anchors the general relation between
+  form and identifiability, not the project’s full-name/alias/email labels.
+  **verified; human-confirmed**.
 
 ## Dimension E — morphosyntactic complexity
 
@@ -337,6 +339,5 @@ two-sided, potentially confounded redundancy proxy.
 The unresolved items are deliberately visible rather than promoted to verified:
 
 1. Keep Graesser & Person as supporting context; do not use it to add labels.
-2. Keep Hamblin’s original record distinct from the later reprint DOI.
-3. Preserve the explicit qualification that neither MacKinnon–Nielsen–Webb nor
+2. Preserve the explicit qualification that neither MacKinnon–Nielsen–Webb nor
    Kline–Santos establishes the complete two-way-clustered GLM procedure end to end.

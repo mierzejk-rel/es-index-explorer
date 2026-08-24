@@ -156,6 +156,87 @@ reconstructed from model memory.
 
 ## Dimension B — answerhood and exhaustivity
 
+### Dayal (2016) — human-confirmed
+
+- **Full source:** Veneeta Dayal, *Questions*, Oxford University Press.
+- **Links:** [DOI](https://doi.org/10.1093/acprof:oso/9780199281268.001.0001);
+  [user-supplied local PDF](sources/Dayal,%20Veneeta%20-%20Questions.pdf).
+- **Research Plan use:** §12 Dimension B: mention-some, weak/strong exhaustivity, and NPI
+  evidence about exhaustivity.
+- **Quotations:**
+
+  > “Three types of answers are analyzed from this perspective: weakly exhaustive, strongly
+  > exhaustive, and non-exhaustive answers.”
+
+  > “The terms non-exhaustive answers and mention-some answers are used interchangeably, as
+  > are the terms exhaustive answers and mention-all answers.”
+
+  > “Negative polarity items in questions … provide a strong argument in favor of a
+  > grammatical distinction between strong exhaustiveness and weak/non-exhaustiveness.”
+
+  > “They argue that NPI licensing goes hand in hand with strong exhaustiveness.”
+
+- **Locator:** Chapter 1, p. 16; Chapter 3, pp. 57 and 82–87. Page 67 records caveats on the
+  negation diagnostic, including domain uncertainty and complementation failure.
+- **Why used:** Directly anchors the three answer types and the grammatical evidence NPIs can
+  provide about exhaustivity.
+- **Assessment:** **SUPPORTED** for answer-type and exhaustivity diagnostics. It does not
+  define the project’s `negative_conclusiveness` label and does not permit classification from
+  the token *any* alone.
+- **Human verdict:** [x] quotations confirmed [x] locators confirmed [x] retain source with
+  diagnostic caveat
+
+### Karttunen (1977) — human-confirmed
+
+- **Full source:** Lauri Karttunen, “Syntax and Semantics of Questions,” *Linguistics and
+  Philosophy* 1:3–44.
+- **Links:** [DOI](https://doi.org/10.1007/BF00351935);
+  [user-supplied local PDF](sources/Karttunen%20-%20Syntax%20and%20semantics%20of%20questions%20.pdf).
+- **Research Plan use:** §12 Dimension B: question denotations, true answers, and contextual
+  partial answers.
+- **Quotations:**
+
+  > “Hamblin’s idea was to let every direct question denote a set of propositions, namely, the
+  > set of propositions expressed by possible answers to it.”
+
+  > “I choose to make questions denote the set of propositions expressed by their true answers
+  > instead of the set of propositions expressed by their possible answers.”
+
+  > “If indirect questions denote sets of propositions that jointly constitute a true and
+  > complete answer to the question…”
+
+- **Locator:** pp. 7–10. Footnote 4 on p. 7 separately notes that direct wh-questions can
+  pragmatically solicit more or less complete answers depending on context.
+- **Why used:** Provides true-answer-set semantics while preserving a semantic/pragmatic
+  distinction for partial answers.
+- **Assessment:** **SUPPORTED** for true-answer sets and weak-exhaustive background. It does
+  not by itself supply the project’s three annotation labels.
+- **Human verdict:** [x] quotations confirmed [x] locators confirmed [x] retain with caveat
+
+### Beck & Rullmann (1999) — human-confirmed
+
+- **Full source:** Sigrid Beck and Hotze Rullmann, “A Flexible Approach to Exhaustivity in
+  Questions,” *Natural Language Semantics* 7:249–298.
+- **Links:** [DOI](https://doi.org/10.1023/A:1008373224343);
+  [user-supplied local PDF](sources/Beck%20-%20A%20Flexible%20Approach%20to%20Exhaustivity%20in%20Questions.pdf).
+- **Research Plan use:** §12 Dimension B: weak and strong exhaustivity.
+- **Quotations:**
+
+  > “A semantics for interrogatives is presented which is based on Karttunen’s theory, but in a
+  > flexible manner incorporates both weak and strong exhaustivity.”
+
+  > “The first of these is weakly exhaustive and the second strongly exhaustive.”
+
+  > “…the basic denotation of a question is a set of propositions which intuitively constitute
+  > its possible answers.”
+
+- **Locator:** Abstract and Introduction, pp. 249–250.
+- **Why used:** Direct primary-source support for distinct weakly and strongly exhaustive
+  answerhood notions.
+- **Assessment:** **SUPPORTED** as a primary weak/strong exhaustivity source. The project’s
+  coding rules remain a separate operationalization.
+- **Human verdict:** [x] quotations confirmed [x] locators confirmed [x] retain source
+
 ### Groenendijk & Stokhof (1984) — human-confirmed
 
 - **Full source:** Jeroen Groenendijk and Martin Stokhof, *Studies on the Semantics of
@@ -267,6 +348,32 @@ reconstructed from model memory.
 - **Assessment:** **SUPPORTED** for dialogue context/QUD. It does not define the project’s
   mention-some, weakly exhaustive, or mention-all labels.
 - **Human verdict:** [x] quotations confirmed [x] locators confirmed [x] retain as context
+
+### Karttunen (1971) — human-confirmed
+
+- **Full source:** Lauri Karttunen, “Some Observations on Factivity,” *Papers in Linguistics*
+  4(1):55–69.
+- **Links:** [DOI](https://doi.org/10.1080/08351817109370248);
+  [user-supplied local PDF](sources/Karttunen%20-%20Some%20observations%20on%20factivity.pdf).
+- **Research Plan use:** §12 Dimension B: contextual `presupposition_load`.
+- **Quotations:**
+
+  > “There is a general agreement that factive verbs involve presuppositions…”
+
+  > “…a sentence with a factive predicate is said to presuppose the truth of its complement
+  > sentence.”
+
+  > “The main verb does not alone determine whether the complement is actually presupposed to
+  > be true. The mood of the main sentence and the type of the complement also have to be taken
+  > into account.”
+
+- **Locator:** pp. 55–56.
+- **Why used:** Provides factivity/presupposition background while explicitly requiring
+  contextual and structural qualification.
+- **Assessment:** **SUPPORTED** for contextual annotation. It rules out a simple verb-list
+  implementation of `presupposition_load`.
+- **Human verdict:** [x] quotations confirmed [x] locators confirmed [x] retain Karttunen
+  [x] remove unsupplied Kiparsky & Kiparsky
 
 ## Dimension C — retrieval-decomposition complexity
 
@@ -380,6 +487,36 @@ reconstructed from model memory.
 - **Assessment:** **PARTIAL.** It supports hierarchical question classification, not this
   project’s decomposition labels.
 - **Human verdict:** [ ] accept as context [ ] remove
+
+## Dimension D — reference and lexical anchoring
+
+### Gundel, Hedberg & Zacharski (1993) — human-confirmed
+
+- **Full source:** Jeanette K. Gundel, Nancy Hedberg, and Ron Zacharski, “Cognitive Status and
+  the Form of Referring Expressions in Discourse,” *Language* 69(2):274–307.
+- **Links:** [DOI](https://doi.org/10.2307/416535);
+  [user-supplied local PDF](sources/Gundel%20-%20Cognitive%20Status%20and%20the%20Form%20of%20Referring%20Expressions%20in%20Discourse.pdf).
+- **Research Plan use:** §12 Dimension D: general relation between referring-expression form,
+  cognitive status, and identifiability.
+- **Quotations:**
+
+  > “We propose six implicationally related cognitive statuses relevant for explicating the use
+  > of referring expressions in natural language discourse.”
+
+  > “We propose that there are six cognitive statuses relevant to the form of referring
+  > expressions in natural language discourse…”
+
+  > “The statuses are thus ordered from most restrictive (in focus) to least restrictive
+  > (type identifiable)…”
+
+- **Locator:** Abstract, p. 274; §2, pp. 275–277.
+- **Why used:** Establishes that referring forms conventionally signal assumptions about the
+  addressee’s cognitive status and identifiability.
+- **Assessment:** **SUPPORTED** as general referring-form theory. It does not validate the
+  project’s `full_name_form`, `alias_or_handle`, and `email_address` categories or their
+  precedence.
+- **Human verdict:** [x] quotations confirmed [x] locators confirmed [x] retain with scope
+  caveat
 
 ## Dimension E — morphosyntactic complexity
 
@@ -1138,72 +1275,6 @@ but the closed primary text was not available. Supplying wording from training m
 fabrication. The user must supply the relevant pages or confirm access before any passage can
 be treated as evidence.
 
-## Dimension B
-
-### Dayal (2016), _Questions_
-
-- **Lookup:** Veneeta Dayal, Oxford University Press.
-  [DOI](https://doi.org/10.1093/acprof:oso/9780199281268.001.0001);
-  ISBN 9780199281268.
-- **Research Plan use:** §12 Dimension B, lines 2098–2109: answerhood, exhaustivity,
-  mention-some/mention-all, and NPI diagnostics.
-- **Requested passage:** Chapters 2–3.
-- **Quotation:** **USER ACCESS REQUIRED.**
-- **Human verdict:** [ ] supply chapters [ ] remove [ ] replace
-
-### Hamblin (1973), “Questions in Montague English”
-
-- **Lookup:** *Foundations of Language* 10(1):41–53.
-  [JSTOR record](https://www.jstor.org/stable/25000703). A later reprint, not the original
-  article, has [this DOI](https://doi.org/10.1007/978-94-010-2506-5_9).
-- **Research Plan use:** §12 Dimension B: questions as sets of possible answers.
-- **Quotation:** **USER ACCESS REQUIRED.**
-- **Human verdict:** [ ] supply article [ ] remove [ ] replace
-
-### Karttunen (1977), “Syntax and Semantics of Questions”
-
-- **Lookup:** *Linguistics and Philosophy* 1:3–44.
-  [DOI](https://doi.org/10.1007/BF00351935).
-- **Research Plan use:** §12 Dimension B: true complete/partial answers and weak exhaustivity.
-- **Quotation:** **USER ACCESS REQUIRED.**
-- **Human verdict:** [ ] supply article [ ] remove [ ] replace
-
-### Beck & Rullmann (1999), “A Flexible Approach to Exhaustivity in Questions”
-
-- **Lookup:** *Natural Language Semantics* 7(3):249–298.
-  [DOI](https://doi.org/10.1023/A:1008373224343).
-- **Research Plan use:** §12 Dimension B: weak and strong exhaustivity.
-- **Quotation:** **USER ACCESS REQUIRED.**
-- **Human verdict:** [ ] supply article [ ] remove [ ] replace
-
-### Karttunen (1971) and Kiparsky & Kiparsky (1970)
-
-- **Lookup:** Lauri Karttunen, “Some Observations on Factivity,”
-  [DOI](https://doi.org/10.1080/08351817109370248); Paul and Carol Kiparsky, “Fact,”
-  [DOI](https://doi.org/10.1515/9783111350219.143).
-- **Research Plan use:** §12 Dimension B: factivity and `presupposition_load`.
-- **Quotation:** **USER ACCESS REQUIRED for both sources.**
-- **Human verdict:** [ ] supply sources [ ] remove one/both [ ] replace
-
-## Dimension D
-
-### Gundel, Hedberg & Zacharski (1993)
-
-- **Lookup:** “Cognitive Status and the Form of Referring Expressions in Discourse,”
-  *Language* 69(2):274–307. [DOI](https://doi.org/10.2307/416535).
-- **Research Plan use:** §12 Dimension D, lines 2132–2140: Givenness Hierarchy,
-  referring-expression form, and identifiability.
-- **Quotation:** **USER ACCESS REQUIRED.**
-- **Human verdict:** [ ] supply article [ ] remove [ ] replace
-
-### Ariel (1990), _Accessing Noun-Phrase Antecedents_
-
-- **Lookup:** Mira Ariel, Routledge. [Reissue DOI](https://doi.org/10.4324/9781315857473);
-  ISBN 9780415055932.
-- **Research Plan use:** §12 Dimension D: accessibility markers and hierarchy.
-- **Quotation:** **USER ACCESS REQUIRED.**
-- **Human verdict:** [ ] supply source [ ] remove [ ] replace
-
 ## Dimension E
 
 ### Kyle & Crossley (2018)
@@ -1341,6 +1412,33 @@ be treated as evidence.
   been implemented. The additive log-ratio transform remains a frozen mathematical
   parameterization in the Research Plan, but it must not be described as externally validated
   by Aitchison.
+
+## Hamblin (1973)
+
+- **Source:** Charles L. Hamblin, “Questions in Montague English.”
+- **Former Research Plan use:** questions as sets of possible answers.
+- **Decision:** **REMOVED at user request.** The user could not obtain a primary source for
+  human verification.
+- **Impact:** documentation only. Groenendijk & Stokhof and George retain the
+  questions/answers and answerhood foundations used by Dimension B.
+
+## Ariel (1990)
+
+- **Source:** Mira Ariel, *Accessing Noun-Phrase Antecedents*.
+- **Former Research Plan use:** accessibility hierarchy context for Dimension D.
+- **Decision:** **REMOVED at user request.** The user could not obtain a primary source for
+  human verification.
+- **Impact:** documentation only. Gundel, Hedberg & Zacharski remains the direct
+  referring-form theoretical anchor.
+
+## Kiparsky & Kiparsky (1970)
+
+- **Source:** Paul Kiparsky and Carol Kiparsky, “Fact.”
+- **Former Research Plan use:** original factivity/presupposition analysis.
+- **Decision:** **REMOVED.** The supplied file was Karttunen (1971), not the Kiparskys’
+  source, so no primary passage could be human-verified.
+- **Impact:** documentation only. Karttunen (1971) remains the verified contextual factivity
+  anchor.
 
 # 5. Impact guide if a source fails verification
 

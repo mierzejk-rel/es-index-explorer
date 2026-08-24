@@ -2114,22 +2114,34 @@ Ch. 3, pp. 121, 123, and 127 (human-verified sentence-mood/clause-force distinct
 
 ### Dimension B - Answerhood and exhaustivity
 
-The mention-some versus mention-all distinction, with negative-polarity items as Dayal's
-diagnostic - exactly the form of `Is there any evidence that Joe Doe did XYZ?`. Labels:
-mention-all / weakly exhaustive / mention-some; plus negative-conclusiveness and
-presupposition load.
+The mention-some versus mention-all distinction is represented with three labels:
+mention-all / weakly exhaustive / mention-some. Dayal's negative-polarity-item evidence is
+used as a diagnostic of strong versus weak/non-exhaustive readings, not as an automatic
+definition of the project-specific `negative_conclusiveness` label. A form such as
+`Is there any evidence that Joe Doe did XYZ?` therefore requires annotation under the
+codebook's semantic rule rather than being classified from the word *any* alone.
+`negative_conclusiveness` and presupposition load remain separate labels.
 
-Anchors: **Dayal (2016), *Questions*, Oxford Surveys in Semantics and Pragmatics, OUP, Ch.
-2-3** (verified); **Groenendijk & Stokhof (1984), *Studies on the Semantics of Questions and
-the Pragmatics of Answers*, [part I](https://pure.uva.nl/ws/files/1989717/27444_Proefschrift_001_257.PDF)
+Anchors: **Dayal (2016), *Questions*,
+[doi:10.1093/acprof:oso/9780199281268.001.0001](https://doi.org/10.1093/acprof:oso/9780199281268.001.0001),
+Chs. 1 and 3, pp. 16, 57, 67, and 82–87 (human-verified answer-type and NPI/exhaustivity
+anchor)**; **Groenendijk & Stokhof (1984), *Studies on the Semantics of Questions and the
+Pragmatics of Answers*, [part I](https://pure.uva.nl/ws/files/1989717/27444_Proefschrift_001_257.PDF)
 pp. 214–216 and [part II](https://pure.uva.nl/ws/files/1989719/27445_Proefschrift_258_577.PDF)
-pp. 278 and 394–395 (human-verified)**; Hamblin (1973); Karttunen (1977); Beck & Rullmann
-(1999); **George (2011), *Question Embedding and the Semantics of Answers*,
+pp. 278 and 394–395 (human-verified)**; **Karttunen (1977), "Syntax and Semantics of
+Questions," [doi:10.1007/BF00351935](https://doi.org/10.1007/BF00351935),
+pp. 7–10 (human-verified true-answer-set semantics with pragmatic partial-answer caveat)**;
+**Beck & Rullmann (1999), "A Flexible Approach to Exhaustivity in Questions,"
+[doi:10.1023/A:1008373224343](https://doi.org/10.1023/A:1008373224343),
+pp. 249–250 (human-verified primary weak/strong exhaustivity source)**;
+**George (2011), *Question Embedding and the Semantics of Answers*,
 [dissertation PDF](https://linguistics.ucla.edu/wp-content/uploads/2021/11/old_brgeorge_dissertation_web_june2011.pdf),
 pp. 13–18 (human-verified; defines mention-some, weakly exhaustive, and strongly exhaustive
 answers while questioning whether weak exhaustivity is always independently needed)**;
-Karttunen (1971) and Kiparsky & Kiparsky (1970) presupposition; Roberts (2012) QUD,
-*Semantics and Pragmatics* 5; **Ginzburg (2012), *The Interactive Stance*,
+**Karttunen (1971), "Some Observations on Factivity,"
+[doi:10.1080/08351817109370248](https://doi.org/10.1080/08351817109370248),
+pp. 55–56 (human-verified factivity/presupposition anchor with contextual caveat)**;
+Roberts (2012) QUD, *Semantics and Pragmatics* 5; **Ginzburg (2012), *The Interactive Stance*,
 [doi:10.1093/acprof:oso/9780199697922.001.0001](https://doi.org/10.1093/acprof:oso/9780199697922.001.0001),
 Chs. 2–4, pp. 18, 20, 32, and 66 (human-verified; dialogue-context/QUD anchor, not an
 exhaustivity taxonomy source)**.
@@ -2162,8 +2174,10 @@ Under givenness theory an email address is maximally uniquely-identifying while 
 not be corpus-familiar - testable *within* rubric. Features: `named_entity_count`,
 `entity_density`, `referring_form_type`, `temporal_expression_present`.
 
-Anchors: **Gundel, Hedberg & Zacharski (1993), *Language* 69(2):274-307,
-doi:10.2307/416535** (verified); Ariel (1990).
+Anchor: **Gundel, Hedberg & Zacharski (1993), "Cognitive Status and the Form of Referring
+Expressions in Discourse," [doi:10.2307/416535](https://doi.org/10.2307/416535),
+pp. 274–277 (human-verified general referring-form/cognitive-status theory; it does not
+define the project’s full-name/alias/email categories)**.
 
 ### Dimension E - Morphosyntactic complexity
 
@@ -2710,8 +2724,8 @@ missing behaviour or, where none existed before this pass, states it directly in
 
 ## 17. Closed-access search list
 
-Books, priority order: Dayal (2016) *Questions*, OUP - **Ch. 2-3 essential**; Quirk et al.
-(1985); Biber et al. (1999); Aikhenvald (2010) *Imperatives and Commands*;
+Books, priority order: Quirk et al. (1985); Biber et al. (1999); Aikhenvald (2010)
+*Imperatives and Commands*;
 Krippendorff (2019) *Content Analysis* 4th ed.; Pustejovsky & Stubbs (2012) *Natural Language
 Annotation for Machine Learning*; Agresti (2010) *Analysis of Ordinal Categorical Data*;
 Ingwersen & Jarvelin (2005) *The Turn*; Anderson & Krathwohl (2001).
