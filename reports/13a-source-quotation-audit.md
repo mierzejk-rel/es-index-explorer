@@ -593,6 +593,32 @@ reconstructed from model memory.
   exact UD relation sets. Its inclusion of non-finite clauses also differs from Lu.
 - **Human verdict:** [ ] accept [ ] reject [ ] needs more evidence
 
+### Kyle & Crossley (2018) — human-confirmed
+
+- **Full source:** Kristopher Kyle and Scott A. Crossley, “Measuring Syntactic Complexity in
+  L2 Writing Using Fine-Grained Clausal and Phrasal Indices,” *Modern Language Journal*
+  102(2):333–349.
+- **Links:** [DOI](https://doi.org/10.1111/modl.12468);
+  [user-supplied local PDF](sources/Kyle%20&%20Crossley%20(2018)%20-%20Measuring%20Syntactic%20Complexity%20in%20L2%20Writing%20Using%20Fine-Grained%20Clausal%20and%20Phrasal%20Indices.pdf).
+- **Research Plan use:** §12 Dimension E: motivation for fine-grained clausal and phrasal
+  complexity measures.
+- **Quotations:**
+
+  > “Fine-grained indices of phrasal complexity were better predictors of writing quality than
+  > either traditional or fine-grained clausal indices…”
+
+  > “Large-grained indices are not sensitive enough to provide such information.”
+
+  > “Using fine-grained indices of syntactic complexity may provide a clearer understanding of
+  > the relationship between syntactic complexity and L2 writing proficiency.”
+
+- **Locator:** Abstract and pp. 1–2.
+- **Why used:** Supports reporting interpretable fine-grained dimensions rather than relying
+  only on broad length/subordination indices.
+- **Assessment:** **PARTIAL.** The study concerns TOEFL essays and does not validate this
+  project’s exact UD features or short-text setting.
+- **Human verdict:** [x] quotations confirmed [x] locators confirmed [x] retain as context
+
 ### Petrov, Das & McDonald (2012)
 
 - **Full source:** Slav Petrov, Dipanjan Das, and Ryan McDonald, “A Universal Part-of-Speech
@@ -768,6 +794,33 @@ reconstructed from model memory.
 - **Human verdict:** [x] quotations confirmed [x] locators confirmed [x] retain source and
   correct the plan wording
 
+### Flesch (1948) — human-confirmed
+
+- **Full source:** Rudolf Flesch, “A New Readability Yardstick,” *Journal of Applied
+  Psychology* 32(3):221–233.
+- **Links:** [DOI](https://doi.org/10.1037/h0057532);
+  [user-supplied local PDF](sources/Flesch%20-%20A%20New%20Readability%20Yardstick.pdf).
+- **Research Plan use:** §12 Dimension F: deciding whether classical readability formulas are
+  appropriate for roughly 15-token questions.
+- **Quotations:**
+
+  > “The formula was based on a count of three language elements: average sentence length in
+  > words, number of affixes, and number of references to people.”
+
+  > “The average time needed to test a 100-word sample is six minutes.”
+
+  > “The criterion used in the original formula was McCall-Crabbs’ Standard test lessons in
+  > reading.”
+
+- **Locator:** pp. 221–223. Page 223 also expresses average word length as syllables per
+  100 words.
+- **Why used:** Establishes that the formula was developed and applied on passages and
+  100-word samples.
+- **Assessment:** **SUPPORTED for scope exclusion only.** It does not validate performance on
+  approximately 15-token questions and does not show that the formula is generally unreliable.
+- **Human verdict:** [x] quotations confirmed [x] locators confirmed [x] retain as validation
+  context
+
 ### Kincaid et al. (1975)
 
 - **Full source:** J. Peter Kincaid, Robert P. Fishburne Jr., Richard L. Rogers, and Brad S.
@@ -806,6 +859,57 @@ reconstructed from model memory.
 - **Human verdict:** [ ] accept [ ] reject
 
 ## Dimension G — task and intent framing
+
+### Ingwersen & Järvelin (2005) — human-confirmed
+
+- **Full source:** Peter Ingwersen and Kalervo Järvelin, *The Turn: Integration of Information
+  Seeking and Retrieval in Context*, Springer.
+- **Links:** [DOI](https://doi.org/10.1007/1-4020-3851-8);
+  [user-supplied local PDF](sources/Ingwersen%20-%20The%20Turn.pdf).
+- **Research Plan use:** §12 Dimension G: contextual task framing.
+- **Quotations:**
+
+  > “…it is still blind to study plain (documentary) information seeking without a work task
+  > (or leisure interest) context…”
+
+  > “Information Seeking and Information Retrieval research need each other—and an
+  > understanding of their context.”
+
+  > “Search Task. The task to be carried out by a cognitive seeking actor(s) as a means to
+  > obtain information associated with fulfilling a work task.”
+
+- **Locator:** pp. 3 and 19–20.
+- **Why used:** Establishes that retrieval behavior must be interpreted relative to broader
+  work/search tasks and context.
+- **Assessment:** **SUPPORTED** for contextual task framing. It does not define the project’s
+  binary `recall_orientation` label.
+- **Human verdict:** [x] quotations confirmed [x] locators confirmed [x] retain as context
+
+### Anderson & Krathwohl (2001) — human-confirmed
+
+- **Full source:** Lorin W. Anderson and David R. Krathwohl (eds.), *A Taxonomy for Learning,
+  Teaching, and Assessing: A Revision of Bloom’s Taxonomy of Educational Objectives*.
+- **Links:** ISBN 9780801319037;
+  [user-supplied local PDF](sources/A%20Taxonomy%20for%20Learning,%20Teaching,%20and%20Assessing.pdf).
+- **Research Plan use:** §12 Dimension G: `cognitive_process_level`.
+- **Quotations:**
+
+  > “The cognitive process dimension … contains six categories: Remember, Understand, Apply,
+  > Analyze, Evaluate, and Create.”
+
+  > “The continuum underlying the cognitive process dimension is assumed to be cognitive
+  > complexity…”
+
+  > “Remember means to retrieve relevant knowledge from long-term memory. Understand is
+  > defined as constructing the meaning of instructional messages…”
+
+- **Locator:** pp. 5 and 30–31. The latter pages define all six categories.
+- **Why used:** Supplies both the label inventory and its stated cognitive-complexity ordering.
+- **Assessment:** **SUPPORTED** for an ordinal exploratory `cognitive_process_level`.
+  The taxonomy’s continuum is an explicit assumption and later annotation validity must still
+  be assessed.
+- **Human verdict:** [x] quotations confirmed [x] locators confirmed [x] retain as ordinal
+  taxonomy
 
 ### Belkin, Oddy & Brooks (1982) — human-confirmed
 
@@ -943,6 +1047,80 @@ reconstructed from model memory.
   confirmed [x] retain with semantic caveat
 
 ## Annotation and measurement validation
+
+### Krippendorff (2019) — human-confirmed
+
+- **Full source:** Klaus Krippendorff, *Content Analysis: An Introduction to Its Methodology*,
+  4th edition, SAGE.
+- **Links:** [DOI](https://doi.org/10.4135/9781071878781);
+  [user-supplied local PDF](sources/Content%20Analysis%20-%20An%20Introduction%20to%20Its%20Methodology.pdf).
+- **Research Plan use:** §13: explicit coding instructions, replicability, and
+  Krippendorff’s alpha.
+- **Quotations:**
+
+  > “Teamwork, however, needs to be organized reliably.”
+
+  > “Recording/coding: relying on coding instructions”
+
+  > “The analyst’s written instructions … include all the information the analyst can
+  > communicate to other analysts so that they can replicate the design or evaluate it
+  > critically.”
+
+  > “…α [is] arguably the most general and flexible agreement measure with appropriate
+  > reliability interpretations in content analysis and similar efforts to generate data…”
+
+- **Locator:** pp. 5, 88, 90, and 291.
+- **Why used:** Supports the codebook, reproducibility discipline, and use of alpha for
+  annotation reliability.
+- **Assessment:** **SUPPORTED** as methodology context. It does not independently validate the
+  project’s particular LLM workflow or frozen bootstrap implementation.
+- **Human verdict:** [x] quotations confirmed [x] locators confirmed [x] retain source
+
+### Cohen (1960) — human-confirmed
+
+- **Full source:** Jacob Cohen, “A Coefficient of Agreement for Nominal Scales,”
+  *Educational and Psychological Measurement* 20(1):37–46.
+- **Links:** [DOI](https://doi.org/10.1177/001316446002000104);
+  [user-supplied local PDF](sources/Cohen%20-%20A%20Coefficient%20of%20Agreement%20for%20Nominal%20Scales.pdf).
+- **Research Plan use:** §13: chance-corrected nominal agreement background.
+- **Quotations:**
+
+  > “the only useful level of measurement obtainable is nominal scaling … placement in a set of
+  > k unordered categories.”
+
+  > “Unlike stronger measurement situations, discrepancies between paired judgments are
+  > treated as equal to each other…”
+
+  > “The purpose of this article is to present a coefficient to measure the degree of agreement
+  > in nominal scales…”
+
+- **Locator:** pp. 37–39.
+- **Assessment:** **SUPPORTED** for nominal two-rater chance-corrected agreement. Alpha remains
+  the project’s primary reliability coefficient.
+- **Human verdict:** [x] quotations confirmed [x] locators confirmed [x] retain as background
+
+### Cohen (1968) — human-confirmed
+
+- **Full source:** Jacob Cohen, “Weighted Kappa: Nominal Scale Agreement with Provision for
+  Scaled Disagreement or Partial Credit,” *Psychological Bulletin* 70(4):213–220.
+- **Links:** [DOI](https://doi.org/10.1037/h0026256);
+  [user-supplied local PDF](sources/Cohen%20-%20Weighted%20kappa%20-%20Nominal%20scale%20agreement%20provision%20for%20scaled%20disagreement%20or%20partial%20credit.pdf).
+- **Research Plan use:** §13.2a: quadratically weighted kappa for ordinal
+  `cognitive_process_level`.
+- **Quotations:**
+
+  > “The KW provides for the incorporation of ratio-scaled degrees of disagreement (or
+  > agreement) … such that disagreements of varying gravity … are weighted accordingly.”
+
+  > “Although providing for partial credit, KW is fully chance corrected.”
+
+  > “The weights assigned are an integral part of how agreement is defined and therefore how it
+  > is measured with KW.”
+
+- **Locator:** p. 213 and p. 215.
+- **Assessment:** **SUPPORTED** for predetermined weighted agreement on the frozen ordinal
+  scale. The project’s quadratic weight choice remains its own pre-specified decision.
+- **Human verdict:** [x] quotations confirmed [x] locators confirmed [x] retain source
 
 ### Artstein & Poesio (2008)
 
@@ -1165,6 +1343,53 @@ reconstructed from model memory.
   clustered, restricted-arm construction.
 - **Human verdict:** [ ] accept general framework [ ] reject [ ] require derivation
 
+### Davidson & Flachaire (2008) — human-confirmed
+
+- **Full source:** Russell Davidson and Emmanuel Flachaire, “The Wild Bootstrap, Tamed at
+  Last,” *Journal of Econometrics* 146(1):162–169.
+- **Links:** [DOI](https://doi.org/10.1016/j.jeconom.2008.08.003);
+  [user-supplied local PDF](sources/Davidson%20-%20The%20wild%20bootstrap,%20tamed%20at%20last.pdf).
+- **Research Plan use:** §5.3: wild-bootstrap background and Rademacher candidate context.
+- **Quotations:**
+
+  > “The wild bootstrap is studied in the context of regression models with heteroskedastic
+  > disturbances.”
+
+  > “Simulation experiments show that this does not prevent the preferred version from having
+  > the smallest error in rejection probability in small and medium-sized samples.”
+
+- **Locator:** Abstract, p. 162.
+- **Assessment:** **PARTIAL.** The source concerns heteroskedastic linear-regression
+  bootstrap inference. It does not validate the project’s multiway clustered score bootstrap
+  or prescribe its Rademacher choice.
+- **Human verdict:** [x] quotations confirmed [x] locators confirmed [x] retain as limited
+  background
+
+### Cameron, Gelbach & Miller (2008) — human-confirmed
+
+- **Full source:** A. Colin Cameron, Jonah B. Gelbach, and Douglas L. Miller,
+  “Bootstrap-Based Improvements for Inference with Clustered Errors,” *Review of Economics
+  and Statistics* 90(3):414–427.
+- **Links:** [DOI](https://doi.org/10.1162/rest.90.3.414);
+  [user-supplied local PDF](sources/Cameron%20-%20Bootstrap-Based%20Improvements%20for%20Inference%20with%20Clustered%20Errors.pdf).
+- **Research Plan use:** §5.3: few-cluster and cluster-bootstrap background.
+- **Quotations:**
+
+  > “The usual solution is to calculate cluster-robust standard errors that permit
+  > heteroskedasticity and within-cluster error correlation, but presume that the number of
+  > clusters is large.”
+
+  > “Standard asymptotic tests can over-reject, however, with few (five to thirty) clusters.”
+
+  > “We investigate inference using cluster bootstrap-t procedures that provide asymptotic
+  > refinement.”
+
+- **Locator:** Abstract, p. 414.
+- **Assessment:** **PARTIAL.** It supports the few-cluster problem and bootstrap refinement,
+  not the project’s exact restricted multiway GLM score-bootstrap.
+- **Human verdict:** [x] quotations confirmed [x] locators confirmed [x] retain as limited
+  background
+
 ### MacKinnon, Nielsen & Webb (2021)
 
 - **Full source:** James G. MacKinnon, Morten Ørregaard Nielsen, and Matthew D. Webb, “Wild
@@ -1275,82 +1500,6 @@ but the closed primary text was not available. Supplying wording from training m
 fabrication. The user must supply the relevant pages or confirm access before any passage can
 be treated as evidence.
 
-## Dimension E
-
-### Kyle & Crossley (2018)
-
-- **Lookup:** “Measuring Syntactic Complexity in L2 Writing Using Fine-Grained Clausal and
-  Phrasal Indices,” *Modern Language Journal* 102(2):333–349.
-  [DOI](https://doi.org/10.1111/modl.12468).
-- **Research Plan use:** §12 Dimension E: fine-grained clausal and phrasal complexity.
-- **Quotation:** **USER ACCESS REQUIRED unless an authorized author copy is supplied.**
-- **Human verdict:** [ ] supply article [ ] remove [ ] replace
-
-## Dimension F
-
-### Flesch (1948), “A New Readability Yardstick”
-
-- **Lookup:** *Journal of Applied Psychology* 32(3):221–233.
-  [DOI](https://doi.org/10.1037/h0057532).
-- **Research Plan use:** §12 Dimension F: exclusion of classical readability formulas for
-  roughly 15-token questions.
-- **Quotation:** **USER ACCESS REQUIRED.**
-- **Assessment:** Even if the formula is verified, a separate source is needed for the
-  approximately-15-token unreliability claim.
-- **Human verdict:** [ ] supply article [ ] remove claim [ ] find short-text source
-
-## Dimension G
-
-### Ingwersen & Järvelin (2005), _The Turn_
-
-- **Lookup:** Springer. [DOI](https://doi.org/10.1007/1-4020-3851-8);
-  ISBN 9781402038501.
-- **Research Plan use:** §12 Dimension G: contextual information seeking, work tasks, and
-  search tasks.
-- **Requested passage:** Chapters 2 and 6.
-- **Quotation:** **USER ACCESS REQUIRED.**
-- **Human verdict:** [ ] supply chapters [ ] remove [ ] replace
-
-### Anderson & Krathwohl (2001)
-
-- **Lookup:** *A Taxonomy for Learning, Teaching, and Assessing*; ISBN 9780321084057.
-- **Research Plan use:** §12 Dimension G: six cognitive-process categories.
-- **Requested passage:** Chapters 3–5.
-- **Quotation:** **USER ACCESS REQUIRED.**
-- **Human verdict:** [ ] supply chapters [ ] remove [ ] replace
-
-## Annotation and statistical methodology
-
-### Krippendorff (2019), _Content Analysis_, 4th edition
-
-- **Lookup:** SAGE. [DOI](https://doi.org/10.4135/9781071878781);
-  ISBN 9781506395661.
-- **Research Plan use:** §13: alpha, disagreement functions, reliability, and codebook
-  discipline.
-- **Requested passage:** Chapters 7 and 12, especially §§12.2–12.4.
-- **Quotation:** **USER ACCESS REQUIRED.**
-- **Human verdict:** [ ] supply chapters [ ] remove [ ] replace
-
-### Cohen (1960), Cohen (1968), and Fleiss (1971)
-
-- **Lookup:** Cohen (1960) [DOI](https://doi.org/10.1177/001316446002000104);
-  Cohen (1968) [DOI](https://doi.org/10.1037/h0026256);
-  Fleiss (1971) [DOI](https://doi.org/10.1037/h0031619).
-- **Research Plan use:** §13: nominal kappa, weighted kappa, and multi-rater historical
-  comparators.
-- **Quotation:** **USER ACCESS REQUIRED for all three.**
-- **Human verdict:** [ ] supply sources [ ] remove one/more [ ] replace
-
-### Davidson & Flachaire (2008) and Cameron, Gelbach & Miller (2008)
-
-- **Lookup:** Davidson–Flachaire
-  [DOI](https://doi.org/10.1016/j.jeconom.2008.08.003); CGM
-  [DOI](https://doi.org/10.1162/rest.90.3.414).
-- **Research Plan use:** §5.3: Rademacher weights and few-cluster bootstrap inference.
-- **Quotation:** **USER ACCESS REQUIRED for final journal versions.** Public working-paper
-  copies should be audited separately before these are accepted as verified-open.
-- **Human verdict:** [ ] audit working papers [ ] supply final articles [ ] remove/replace
-
 ### McCullagh (1980) and Agresti (2010)
 
 - **Lookup:** McCullagh, “Regression Models for Ordinal Data,”
@@ -1439,6 +1588,16 @@ be treated as evidence.
   source, so no primary passage could be human-verified.
 - **Impact:** documentation only. Karttunen (1971) remains the verified contextual factivity
   anchor.
+
+## Fleiss (1971)
+
+- **Source:** Joseph L. Fleiss, “Measuring Nominal Scale Agreement Among Many Raters.”
+- **Former Research Plan use:** historical many-rater nominal-agreement comparator.
+- **Decision:** **REMOVED.** Although the supplied article is correct, it is not used by the
+  fixed two-annotator workflow: alpha is the primary reliability metric and Cohen (1968)
+  provides the weighted-kappa basis for the ordinal feature.
+- **Impact:** documentation only; no workflow, artifact, or completed feature depends on this
+  historical comparator.
 
 # 5. Impact guide if a source fails verification
 

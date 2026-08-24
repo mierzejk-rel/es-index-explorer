@@ -137,8 +137,11 @@ Status meanings:
   [Georgia State full text](https://scholarworks.gsu.edu/alesl_diss/35/). The tooling
   chapters support dependency-based fine-grained indices. **verified-open**.
 - **Kyle & Crossley (2018), “Measuring Syntactic Complexity in L2 Writing.”** DOI
-  [10.1111/modl.12468](https://doi.org/10.1111/modl.12468). Fine-grained clausal and
-  phrasal indices motivate reporting separate dimensions. **verified-paywalled**.
+  [10.1111/modl.12468](https://doi.org/10.1111/modl.12468);
+  user-supplied article. The abstract and pp. 1–2 motivate fine-grained clausal and phrasal
+  indices because broad measures do not identify the structures driving complexity. The
+  evidence comes from TOEFL essays and does not validate this project’s exact UD rules or
+  short-question setting. **verified; human-confirmed**.
 - **Petrov, Das & McDonald (2012), “A Universal Part-of-Speech Tagset.”**
   [Open text](https://aclanthology.org/L12-1115/). The universal inventory supports coarse
   grammatical categories. **verified-open**.
@@ -175,12 +178,13 @@ not claim byte-for-byte equivalence to constituency-based L2SCA.
   reports `100` tokens as the shortest development-tested length. This supports excluding MTLD
   from roughly 15-token questions without claiming general unreliability.
   **verified; human-confirmed**.
-- **Flesch (1948).** DOI [10.1037/h0057532](https://doi.org/10.1037/h0057532), and
-  **Kincaid et al. (1975), DTIC ADA006655.**
-  [Open report](https://apps.dtic.mil/sti/citations/ADA006655). Their applications use
-  passages and do not validate readability formulas for approximately 15-token questions;
-  this anchors a scope exclusion only. **verified-open** for Kincaid;
-  **verified-paywalled** for Flesch.
+- **Flesch (1948), “A New Readability Yardstick.”** DOI
+  [10.1037/h0057532](https://doi.org/10.1037/h0057532);
+  user-supplied article. Pages 221–223 describe applications to documents, a 100-word sample,
+  and reading-test passages. **Kincaid et al. (1975), DTIC ADA006655**
+  ([open report](https://apps.dtic.mil/sti/citations/ADA006655)) likewise uses passages.
+  Neither validates readability formulas for approximately 15-token questions; these sources
+  anchor a scope exclusion only. **verified; Flesch human-confirmed**.
 - **Lee, Jang & Lee (2021), LingFeat.** DOI
   [10.18653/v1/2021.emnlp-main.834](https://doi.org/10.18653/v1/2021.emnlp-main.834).
   The feature inventory is exploratory only. **verified-open**.
@@ -197,8 +201,10 @@ not claim byte-for-byte equivalence to constituency-based L2SCA.
   [10.1145/988672.988675](https://doi.org/10.1145/988672.988675). Intent taxonomies
   anchor precision-oriented known-item versus recall-oriented review. **verified-open**.
 - **Ingwersen & Järvelin (2005), _The Turn_.** DOI
-  [10.1007/1-4020-3851-8](https://doi.org/10.1007/1-4020-3851-8). The contextual framework
-  anchors work/search-task distinctions. **verified-paywalled**.
+  [10.1007/1-4020-3851-8](https://doi.org/10.1007/1-4020-3851-8);
+  user-supplied book. Pages 3 and 19–20 argue that information seeking/retrieval must be
+  studied in context and distinguish work tasks from search tasks. This anchors task/context
+  framing but not the binary `recall_orientation` coding. **verified; human-confirmed**.
 - **Belkin, Oddy & Brooks (1982), “ASK for Information Retrieval: Part I. Background and
   Theory.”** DOI [10.1108/eb026722](https://doi.org/10.1108/eb026722);
   user-supplied repository PDF. The abstract and introduction, p. 61, state that information
@@ -207,8 +213,10 @@ not claim byte-for-byte equivalence to constituency-based L2SCA.
   This anchors open-ended information-need context but not the binary `recall_orientation`
   coding. **verified-open; human-confirmed**.
 - **Anderson & Krathwohl (2001), revised educational taxonomy.** ISBN 9780801319037.
-  The cognitive-process dimension supplies the named exploratory labels.
-  **verified-paywalled**.
+  User-supplied book. Pages 5 and 30–31 define
+  `remember < understand < apply < analyze < evaluate < create` along an assumed
+  cognitive-complexity continuum. This supports treating `cognitive_process_level` as ordinal,
+  activating the later ordinal-validation branch. **verified; human-confirmed**.
 - **Graesser & Person (1994), “Question Asking During Tutoring.”** DOI
   [10.3102/00028312031001104](https://doi.org/10.3102/00028312031001104). Table 1's
   content categories and classification dimensions provide supporting taxonomy context;
@@ -238,20 +246,23 @@ two-sided, potentially confounded redundancy proxy.
   DOI [10.1162/coli.07-034-R2](https://doi.org/10.1162/coli.07-034-R2);
   [open text](https://aclanthology.org/J08-4004/). Sections 2–4 distinguish reliability
   from validity and match agreement coefficients to scale. **verified-open**.
-- **Krippendorff (2019), _Content Analysis_, 4th ed.** ISBN 9781506395661. Reliability
-  chapters anchor alpha, disagreement functions, and codebook discipline.
-  **verified-paywalled**.
+- **Krippendorff (2019), _Content Analysis_, 4th ed.** DOI
+  [10.4135/9781071878781](https://doi.org/10.4135/9781071878781);
+  ISBN 9781506395661; user-supplied book. Pages 5, 88, and 90 support explicit coding
+  instructions and replicability; p. 291 motivates alpha as a flexible agreement measure.
+  **verified; human-confirmed**.
 - **Zapf et al. (2016), nominal inter-rater reliability.** DOI
   [10.1186/s12874-016-0200-9](https://doi.org/10.1186/s12874-016-0200-9);
   [open text](https://pmc.ncbi.nlm.nih.gov/articles/PMC4974794/). Coefficient and interval
   choice depend on design and scale. **verified-open**.
-- **Cohen (1960), kappa.** DOI
-  [10.1177/001316446002000104](https://doi.org/10.1177/001316446002000104), and
-  **Cohen (1968), weighted kappa.** DOI
-  [10.1037/h0026256](https://doi.org/10.1037/h0026256), and
-  **Fleiss (1971), multi-rater agreement.** DOI
-  [10.1037/h0031619](https://doi.org/10.1037/h0031619). Historical comparators, not
-  substitutes for the frozen alpha contract. **verified-paywalled**.
+- **Cohen (1960), “A Coefficient of Agreement for Nominal Scales.”** DOI
+  [10.1177/001316446002000104](https://doi.org/10.1177/001316446002000104);
+  user-supplied article. Pages 37–39 define chance-corrected nominal two-rater agreement.
+  **Cohen (1968), “Weighted Kappa.”** DOI
+  [10.1037/h0026256](https://doi.org/10.1037/h0026256); user-supplied article. Pages 213 and
+  215 define chance-corrected weighted agreement and require weights to be set before data
+  collection. These sources support the fixed ordinal metric, while alpha remains the primary
+  reliability coefficient. **verified; human-confirmed**.
 - **Gilardi, Alizadeh & Kubli (2023), LLM text annotation.** DOI
   [10.1073/pnas.2305016120](https://doi.org/10.1073/pnas.2305016120). Human-labelled
   evaluation supports testing LLM annotators but not treating inter-LLM agreement as validity.
@@ -301,11 +312,14 @@ two-sided, potentially confounded redundancy proxy.
   [10.1080/07350015.2019.1677473](https://doi.org/10.1080/07350015.2019.1677473);
   Queen’s Working Paper 1415. The three-term CRVE and arm-clustered restricted WCR pairing
   are used exactly as qualified in §5.3. **verified-open**.
-- **Davidson & Flachaire (2008), wild-bootstrap weights.** DOI
-  [10.1016/j.jeconom.2008.08.003](https://doi.org/10.1016/j.jeconom.2008.08.003), and
-  **Cameron, Gelbach & Miller (2008), bootstrap-based improvements.** DOI
-  [10.1162/rest.90.3.414](https://doi.org/10.1162/rest.90.3.414). These anchor
-  Rademacher weights and few-cluster inference. **verified-paywalled**.
+- **Davidson & Flachaire (2008), “The Wild Bootstrap, Tamed at Last.”** DOI
+  [10.1016/j.jeconom.2008.08.003](https://doi.org/10.1016/j.jeconom.2008.08.003);
+  user-supplied article. **Cameron, Gelbach & Miller (2008), “Bootstrap-Based Improvements
+  for Inference with Clustered Errors.”** DOI
+  [10.1162/rest.90.3.414](https://doi.org/10.1162/rest.90.3.414); user-supplied article.
+  Their abstracts, p. 162 and p. 414, respectively provide heteroskedastic linear-regression
+  and few-cluster bootstrap background. They do not validate the project’s exact restricted
+  multiway GLM score-bootstrap. **verified; human-confirmed with scope limits**.
 - **Benjamini & Hochberg (1995), FDR step-up.** DOI
   [10.1111/j.2517-6161.1995.tb02031.x](https://doi.org/10.1111/j.2517-6161.1995.tb02031.x).
   The exact step-up rule is used with the dependence qualification stated in the plan.

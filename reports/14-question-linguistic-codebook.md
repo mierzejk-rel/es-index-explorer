@@ -155,8 +155,9 @@ Generic questions without a focal named referent are missing with `no_focal_refe
 - `recall_orientation`: `precision_oriented` or `recall_oriented`. Known-item or single-fact
   requests are precision-oriented; requests to find, list, review, or summarize all relevant
   material are recall-oriented.
-- `cognitive_process_level`: nominal exploratory labels `remember`, `understand`, `apply`,
-  `analyze`, `evaluate`, or `create`. No ordinal inference is attached to these labels.
+- `cognitive_process_level`: ordinal exploratory labels
+  `remember < understand < apply < analyze < evaluate < create`, following the source’s
+  assumed cognitive-complexity continuum.
 
 ## 7. P4 expectation annotation contract
 
@@ -179,9 +180,10 @@ sources for one fact.
 
 - Binary labels use balanced accuracy in the later validation gate.
 - Multi-class labels use macro-F1.
+- `cognitive_process_level` is ordinal and uses quadratically weighted kappa; the §13.2a
+  ordinal-feature branch is active for this feature.
 - Counts are numeric, not categorical.
-- Every categorical label in this closed taxonomy is nominal. The §13.2a ordinal-feature
-  branch is therefore inert.
+- Every other categorical label in this closed taxonomy is binary or nominal.
 
 ## 9. Missingness and edge cases
 

@@ -1179,8 +1179,14 @@ clusters is modest - which is precisely why MNW's recommendation to cluster the 
 dimension is the right choice here, and why Layer 4 exists as an independent check. Anchors
 additionally: **MacKinnon, Nielsen & Webb (2021), *Journal of Business & Economic Statistics*
 39(2):505-519** and its working-paper version, Queen's Economics Department Working Paper
-1415; Davidson & Flachaire (2008) on Rademacher weights; Cameron, Gelbach & Miller (2008),
-*Review of Economics and Statistics* 90(3):414-427.
+1415; **Davidson & Flachaire (2008), "The Wild Bootstrap, Tamed at Last,"
+[doi:10.1016/j.jeconom.2008.08.003](https://doi.org/10.1016/j.jeconom.2008.08.003),
+p. 162 (human-verified heteroskedastic linear-regression background only)**;
+**Cameron, Gelbach & Miller (2008), "Bootstrap-Based Improvements for Inference with
+Clustered Errors," [doi:10.1162/rest.90.3.414](https://doi.org/10.1162/rest.90.3.414),
+p. 414 (human-verified few-cluster bootstrap-t background only)**. Neither source validates
+the exact restricted multiway GLM score-bootstrap; that claim remains limited to the
+MNW/Kline–Santos synthesis and the required R-oracle checks.
 
 ### 5.4 Layer 4 - aggregation-based robustness analysis
 
@@ -2187,8 +2193,11 @@ Features: `token_count`, `dependency_tree_depth`, `mean_dependency_length`, `cla
 
 Anchors: **de Marneffe, Manning, Nivre & Zeman (2021), *Computational Linguistics*
 47(2):255-308, doi:10.1162/coli_a_00402** (verified); **Lu (2010), *IJCL* 15(4):474-496,
-doi:10.1075/ijcl.15.4.02lu** (verified); Kyle (2016) TAASSC; Kyle & Crossley (2018), *Modern
-Language Journal* 102(2):333-349; Petrov, Das & McDonald (2012); **Gibson (1998),
+doi:10.1075/ijcl.15.4.02lu** (verified); Kyle (2016) TAASSC; **Kyle & Crossley (2018),
+"Measuring Syntactic Complexity in L2 Writing Using Fine-Grained Clausal and Phrasal
+Indices," [doi:10.1111/modl.12468](https://doi.org/10.1111/modl.12468),
+pp. 1–2 (human-verified fine-grained-measurement context, not validation of this project’s
+UD rules or short-text setting)**; Petrov, Das & McDonald (2012); **Gibson (1998),
 "Linguistic Complexity: Locality of Syntactic Dependencies,"
 [doi:10.1016/S0010-0277(98)00034-1](https://doi.org/10.1016/S0010-0277(98)00034-1),
 pp. 1, 8, and 11–13 (human-verified; theoretical locality context, not the definition of
@@ -2208,10 +2217,11 @@ New (2009) SUBTLEX-US; Hale (2001); Levy (2008).
 **Excluded from confirmatory work:** MTLD is excluded because McCarthy & Jarvis (2010),
 p. 384, state that shorter texts are harder to evaluate confidently and report `100` tokens
 as the shortest length tested during development—far above this corpus's roughly 15-token
-questions. Classical readability formulas (Flesch 1948; Kincaid et al. 1975) are also excluded:
-their cited applications use passages, and no retained source validates them for strings this
-short. These are scope/validation exclusions, not claims that the measures are generally
-unreliable.
+questions. Classical readability formulas are also excluded: **Flesch (1948), "A New
+Readability Yardstick," [doi:10.1037/h0057532](https://doi.org/10.1037/h0057532),
+pp. 221–223 (human-verified)** and Kincaid et al. (1975) derive and apply their measures to
+passages/100-word samples, and no retained source validates them for strings this short. These
+are scope/validation exclusions, not claims that the measures are generally unreliable.
 LingFeat (**Lee, Jang & Lee 2021, EMNLP, doi:10.18653/v1/2021.emnlp-main.834**, verified) is
 exploratory only.
 
@@ -2221,11 +2231,16 @@ exploratory only.
 no annotation cost.
 
 Anchors: **Oard & Webber (2013), *Foundations and Trends in Information Retrieval*
-7(2-3):99-237** (verified); Broder (2002); Rose & Levinson (2004); Ingwersen & Jarvelin
-(2005), *The Turn*; **Belkin, Oddy & Brooks (1982), "ASK for Information Retrieval:
+7(2-3):99-237** (verified); Broder (2002); Rose & Levinson (2004); **Ingwersen &
+Järvelin (2005), *The Turn*,
+[doi:10.1007/1-4020-3851-8](https://doi.org/10.1007/1-4020-3851-8),
+pp. 3 and 19–20 (human-verified task/context anchor, not the definition of
+`recall_orientation`)**; **Belkin, Oddy & Brooks (1982), "ASK for Information Retrieval:
 Part I. Background and Theory," [doi:10.1108/eb026722](https://doi.org/10.1108/eb026722),
 p. 61 (human-verified; supporting context, not the definition of `recall_orientation`)**;
-Anderson & Krathwohl (2001). To verify: Graesser & Person (1994).
+**Anderson & Krathwohl (2001), *A Taxonomy for Learning, Teaching, and Assessing*,
+pp. 5 and 30–31 (human-verified; `cognitive_process_level` is ordinal along the stated
+cognitive-complexity continuum)**. To verify: Graesser & Person (1994).
 
 ### Dimension H - Evidence demand
 
@@ -2331,8 +2346,10 @@ baseline:**
   **macro-F1 achieved by the majority-class predictor on the realised gold class
   distribution**, computed and quoted rather than assumed.
 - **Ordinal features**: the assigned metric is **quadratically weighted kappa**, baseline
-  **0**. The frozen codebook declares no categorical feature ordinal, so this branch is
-  **inert**. Counts remain numeric and all categorical labels are binary or nominal.
+  **0**. The frozen codebook declares `cognitive_process_level` ordinal, with the order
+  `remember < understand < apply < analyze < evaluate < create`; the ordinal branch is
+  therefore **active for that feature**. Counts remain numeric and all other categorical labels
+  are binary or nominal.
 
 **These are feature-scale-specific validity screens, not comparable numbers.** Balanced
 accuracy, macro-F1, quadratically weighted kappa and Krippendorff alpha are on different
@@ -2425,9 +2442,17 @@ The gate is thus locked as a procedure: gold data feeds the frozen rubric, the r
 a pre-specified status, and only then is outcome modelling unlocked.
 
 Anchors: **Artstein & Poesio (2008), *Computational Linguistics* 34(4):555-596,
-doi:10.1162/coli.07-034-R2** (verified); Krippendorff (2019), *Content Analysis* 4th ed.;
-Zapf et al. (2016) on coefficient choice for nominal data, PMC4974794; Cohen (1960); Fleiss
-(1971); Gilardi, Alizadeh & Kubli (2023), *PNAS* 120(30), doi:10.1073/pnas.2305016120.
+doi:10.1162/coli.07-034-R2** (verified); **Krippendorff (2019), *Content Analysis*, 4th ed.,
+pp. 5, 88, 90, and 291 (human-verified alpha/codebook/replicability context)**;
+Zapf et al. (2016) on coefficient choice for nominal data, PMC4974794;
+**Cohen (1960), "A Coefficient of Agreement for Nominal Scales,"
+[doi:10.1177/001316446002000104](https://doi.org/10.1177/001316446002000104),
+pp. 37–39 (human-verified nominal chance-corrected agreement context)**;
+**Cohen (1968), "Weighted Kappa,"
+[doi:10.1037/h0026256](https://doi.org/10.1037/h0026256),
+pp. 213 and 215 (human-verified predetermined weighted agreement for ordinal
+`cognitive_process_level`)**; Gilardi, Alizadeh & Kubli (2023), *PNAS* 120(30),
+doi:10.1073/pnas.2305016120.
 
 ### 13.3 Gold sample design
 
@@ -2725,10 +2750,8 @@ missing behaviour or, where none existed before this pass, states it directly in
 ## 17. Closed-access search list
 
 Books, priority order: Quirk et al. (1985); Biber et al. (1999); Aikhenvald (2010)
-*Imperatives and Commands*;
-Krippendorff (2019) *Content Analysis* 4th ed.; Pustejovsky & Stubbs (2012) *Natural Language
-Annotation for Machine Learning*; Agresti (2010) *Analysis of Ordinal Categorical Data*;
-Ingwersen & Jarvelin (2005) *The Turn*; Anderson & Krathwohl (2001).
+*Imperatives and Commands*; Pustejovsky & Stubbs (2012) *Natural Language Annotation for
+Machine Learning*; Agresti (2010) *Analysis of Ordinal Categorical Data*.
 
 Statistical layer: Cameron & Trivedi (2005) *Microeconometrics*; Davidson & MacKinnon (2004)
 *Econometric Theory and Methods* on bootstrap inference; Carroll et al. (2006) *Measurement
