@@ -23,6 +23,56 @@ reconstructed from model memory.
 
 ## Dimension A — illocution and clause type
 
+### Searle (1969) — human-confirmed
+
+- **Full source:** John R. Searle, *Speech Acts: An Essay in the Philosophy of Language*,
+  Cambridge University Press.
+- **Links:** [DOI](https://doi.org/10.1017/CBO9781139173438);
+  [user-supplied local PDF](sources/Searle%20-%20Speech%20Acts%20An%20Essay%20in%20the%20Philosophy%20of%20Language.pdf).
+- **Research Plan use:** §12 Dimension A: separating propositional content from illocutionary
+  force.
+- **Quotations:**
+
+  > “I am distinguishing between the illocutionary act and the propositional content of the
+  > illocutionary act.”
+
+  > “The illocutionary force indicator shows how the proposition is to be taken…”
+
+  > “Illocutionary force indicating devices in English include at least: word order, stress,
+  > intonation contour, punctuation, the mood of the verb, and the so-called performative
+  > verbs.”
+
+- **Locator:** pp. 30–31.
+- **Why used:** Supports treating grammatical and prosodic form as evidence about force while
+  maintaining a distinction between force and propositional content.
+- **Assessment:** **SUPPORTED** as general speech-act theory. It does not define the project’s
+  four clause labels or its UD rules.
+- **Human verdict:** [x] quotations confirmed [x] locators confirmed [x] retain source
+
+### Searle (1976) — human-confirmed
+
+- **Full source:** John R. Searle, “A Classification of Illocutionary Acts,” *Language in
+  Society* 5(1):1–23.
+- **Links:** [DOI](https://doi.org/10.1017/S0047404500006837);
+  [user-supplied local PDF](sources/Searle%20-%20A%20Classification%20of%20Illocutionary%20Acts%20(Unknown)%20(z-library.sk,%201lib.sk,%20z-lib.sk).pdf).
+- **Research Plan use:** §12 Dimension A: directive illocutionary acts.
+- **Quotations:**
+
+  > “The five basic kinds of illocutionary acts are: representatives (or assertives),
+  > directives, commissives, expressives, and declarations.”
+
+  > “The illocutionary point of request is the same as that of commands: both are attempts to
+  > get hearers to do something.”
+
+  > “The illocutionary point of [directives] consists in the fact that they are attempts … by
+  > the speaker to get the hearer to do something.”
+
+- **Locator:** Abstract, p. 1; pp. 3 and 11.
+- **Why used:** Defines directives and distinguishes their illocutionary purpose.
+- **Assessment:** **SUPPORTED** for directive theory, not as a grammatical clause-type
+  classifier.
+- **Human verdict:** [x] quotations confirmed [x] locators confirmed [x] retain source
+
 ### Sadock & Zwicky (1985) — human-confirmed
 
 - **Full source:** Jerrold M. Sadock and Arnold M. Zwicky, “Speech Act Distinctions in
@@ -49,6 +99,59 @@ reconstructed from model memory.
   polar from information questions, and retaining the three core sentence-type families.
 - **Assessment:** **SUPPORTED** as a theoretical taxonomy anchor. It does not validate the
   project’s exact four-level mapping or UD heuristics.
+- **Human verdict:** [x] quotations confirmed [x] locators confirmed [x] retain source
+
+### Huddleston & Pullum (2002) — human-confirmed
+
+- **Full source:** Rodney Huddleston and Geoffrey K. Pullum, *The Cambridge Grammar of the
+  English Language*, Cambridge University Press.
+- **Links:** ISBN 9780521431460;
+  [user-supplied local PDF](sources/The%20Cambridge%20Grammar%20of%20the%20English%20Language%20(Rodney%20Huddleston%20Geoffrey%20K.%20Pullum)%20(z-library.sk,%201lib.sk,%20z-lib.sk).pdf).
+- **Research Plan use:** §12 Dimension A: the four clause labels and the form/use distinction.
+- **Quotations:**
+
+  > “It is essential therefore to maintain a sharp conceptual distinction between the
+  > grammatical clause types and the categories of meaning or use…”
+
+  > “Open interrogatives contain an interrogative phrase based on one of the interrogative
+  > words who, whom, whose, which, what, when, where, how, etc.”
+
+  > “Imperatives are characteristically used as directives…”
+
+  > “Declaratives can be used with either direct or indirect directive force.”
+
+- **Locator:** Chapter 10, pp. 854, 856, 858, 929, 939, and 941.
+- **Why used:** Directly distinguishes closed and open interrogatives and documents imperative,
+  interrogative, and declarative directives.
+- **Assessment:** **SUPPORTED** as the primary source for `open_interrogative`,
+  `closed_interrogative`, `directive_imperative`, and `declarative_request`. The project’s
+  deterministic UD precedence remains its own operationalization.
+- **Human verdict:** [x] quotations confirmed [x] locators confirmed [x] retain as primary
+  clause-type source
+
+### Portner (2018) — human-confirmed
+
+- **Full source:** Paul Portner, *Mood*, Oxford University Press.
+- **Links:** [DOI](https://doi.org/10.1093/oso/9780199547524.001.0001);
+  [user-supplied local PDF](sources/Mood%20(Paul%20Portner).pdf).
+- **Research Plan use:** §12 Dimension A: sentence mood, clause type, and sentential force.
+- **Quotations:**
+
+  > “The difference between the concepts of clause type and sentence mood is that the former
+  > are primarily identified in terms of grammatical form, while the latter are primarily
+  > identified in terms of meaning.”
+
+  > “Traditional grammatical descriptions make use of such clause types as declarative,
+  > interrogative, and imperative.”
+
+  > “Sentential forces are the fundamental conversational functions with which sentence moods
+  > are associated.”
+
+- **Locator:** Chapter 3, pp. 121, 123, and 127.
+- **Why used:** Supports deriving form-based evidence while keeping clause form distinct from
+  conversational force.
+- **Assessment:** **SUPPORTED** as theoretical architecture. It does not itself determine the
+  project’s four labels or parser heuristics.
 - **Human verdict:** [x] quotations confirmed [x] locators confirmed [x] retain source
 
 ## Dimension B — answerhood and exhaustivity
@@ -1034,48 +1137,6 @@ No quotation is provided in this section. Metadata or publisher contents may hav
 but the closed primary text was not available. Supplying wording from training memory would be
 fabrication. The user must supply the relevant pages or confirm access before any passage can
 be treated as evidence.
-
-## Dimension A
-
-### Searle (1969), _Speech Acts_
-
-- **Lookup:** John R. Searle, *Speech Acts: An Essay in the Philosophy of Language*,
-  Cambridge University Press. [DOI](https://doi.org/10.1017/CBO9781139173438);
-  ISBN 9780521096263.
-- **Research Plan use:** §12 Dimension A, lines 2087–2096: propositional content versus
-  illocutionary force.
-- **Requested passage:** Chapter 3, pp. 54–71.
-- **Quotation:** **USER ACCESS REQUIRED.**
-- **Human verdict:** [ ] supply pages [ ] remove source [ ] replace source
-
-### Searle (1976), “A Classification of Illocutionary Acts”
-
-- **Lookup:** *Language in Society* 5(1):1–23.
-  [DOI](https://doi.org/10.1017/S0047404500006837).
-- **Research Plan use:** §12 Dimension A: directive versus assertive and other illocutionary
-  classes.
-- **Quotation:** **USER ACCESS REQUIRED.**
-- **Human verdict:** [ ] supply source [ ] remove [ ] replace
-
-### Huddleston & Pullum (2002), _The Cambridge Grammar of the English Language_
-
-- **Lookup:** Cambridge University Press; ISBN 9780521431460.
-- **Research Plan use:** §12 Dimension A: open/closed interrogatives, declaratives, imperatives,
-  and force.
-- **Requested passage:** Chapter 10, pp. 851–946.
-- **Quotation:** **USER ACCESS REQUIRED.**
-- **Human verdict:** [ ] supply chapter [ ] remove [ ] replace
-
-### Portner (2018), _Mood_
-
-- **Lookup:** Paul Portner, Oxford University Press.
-  [DOI](https://doi.org/10.1093/oso/9780199547524.001.0001);
-  ISBN 9780199547524.
-- **Research Plan use:** §12 Dimension A: sentence mood, clause type, sentential force, and
-  imperative diagnostics.
-- **Requested passage:** Chapter 3, especially §§3.1–3.2.
-- **Quotation:** **USER ACCESS REQUIRED.**
-- **Human verdict:** [ ] supply chapter [ ] remove [ ] replace
 
 ## Dimension B
 

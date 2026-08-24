@@ -2098,10 +2098,19 @@ not interrogatives. Labels: open (wh) interrogative / closed (polar) interrogati
 directive imperative / declarative request. Partly derivable from UD (`PronType=Int`,
 `Mood=Imp`, root `VerbForm`), so P2/P3 where possible.
 
-Anchors: Searle (1969, 1976); **Sadock & Zwicky (1985), "Speech Act Distinctions in
-Syntax," [author PDF](https://web.stanford.edu/~zwicky/speech-act-distinctions.pdf),
-§§1.1 and 2.1, pp. 155–160 (human-verified)**; Huddleston & Pullum (2002), *CGEL*
-Ch. 10; Portner (2018), *Mood*, OUP.
+Anchors: **Searle (1969), *Speech Acts*,
+[doi:10.1017/CBO9781139173438](https://doi.org/10.1017/CBO9781139173438),
+pp. 30–31 (human-verified force/content distinction)**; **Searle (1976), "A Classification
+of Illocutionary Acts,"
+[doi:10.1017/S0047404500006837](https://doi.org/10.1017/S0047404500006837),
+pp. 1, 3, and 11 (human-verified directive taxonomy)**; **Sadock & Zwicky (1985),
+"Speech Act Distinctions in Syntax,"
+[author PDF](https://web.stanford.edu/~zwicky/speech-act-distinctions.pdf),
+§§1.1 and 2.1, pp. 155–160 (human-verified)**; **Huddleston & Pullum (2002),
+*The Cambridge Grammar of the English Language*, Ch. 10, pp. 854, 856, 858, 929, 939,
+and 941 (human-verified primary clause-type source)**; **Portner (2018), *Mood*,
+[doi:10.1093/oso/9780199547524.001.0001](https://doi.org/10.1093/oso/9780199547524.001.0001),
+Ch. 3, pp. 121, 123, and 127 (human-verified sentence-mood/clause-force distinction)**.
 
 ### Dimension B - Answerhood and exhaustivity
 
@@ -2701,9 +2710,8 @@ missing behaviour or, where none existed before this pass, states it directly in
 
 ## 17. Closed-access search list
 
-Books, priority order: Dayal (2016) *Questions*, OUP - **Ch. 2-3 essential**; Huddleston &
-Pullum (2002) *CGEL* Ch. 10; Portner (2018) *Mood*; Quirk et al. (1985); Biber et al. (1999);
-Aikhenvald (2010) *Imperatives and Commands*;
+Books, priority order: Dayal (2016) *Questions*, OUP - **Ch. 2-3 essential**; Quirk et al.
+(1985); Biber et al. (1999); Aikhenvald (2010) *Imperatives and Commands*;
 Krippendorff (2019) *Content Analysis* 4th ed.; Pustejovsky & Stubbs (2012) *Natural Language
 Annotation for Machine Learning*; Agresti (2010) *Analysis of Ordinal Categorical Data*;
 Ingwersen & Jarvelin (2005) *The Turn*; Anderson & Krathwohl (2001).

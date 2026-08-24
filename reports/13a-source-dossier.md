@@ -13,12 +13,15 @@ Status meanings:
 ## Dimension A — illocution and clause type
 
 - **Searle (1969), _Speech Acts_.** DOI
-  [10.1017/CBO9781139173438](https://doi.org/10.1017/CBO9781139173438). Chapters 2–3
-  separate propositional content from illocutionary force. **verified-paywalled**.
+  [10.1017/CBO9781139173438](https://doi.org/10.1017/CBO9781139173438);
+  user-supplied book. Pages 30–31 distinguish illocutionary force from propositional content
+  and list word order, stress, intonation, punctuation, verb mood, and performative verbs as
+  force-indicating devices. **verified; human-confirmed**.
 - **Searle (1976), “A Classification of Illocutionary Acts.”** DOI
   [10.1017/S0047404500006837](https://doi.org/10.1017/S0047404500006837).
-  The directive class anchors requests that are not surface interrogatives.
-  **verified-paywalled**.
+  User-supplied article. Pages 1, 3, and 11 define the five illocutionary classes and define
+  directives as attempts by the speaker to get the hearer to act. This anchors directive
+  theory, not the grammatical clause taxonomy. **verified; human-confirmed**.
 - **Sadock & Zwicky (1985), “Speech Act Distinctions in Syntax,” in Shopen,
   _Language Typology and Syntactic Description_, vol. I, ch. 6.**
   [Author PDF](https://web.stanford.edu/~zwicky/speech-act-distinctions.pdf).
@@ -27,13 +30,15 @@ Status meanings:
   as the three frequent basic sentence types. These passages anchor the core clause inventory
   but not the project’s exact UD classifier. **verified-open; human-confirmed**.
 - **Huddleston & Pullum (2002), _The Cambridge Grammar of the English Language_.**
-  ISBN 9780521431460. Chapter 10 distinguishes open and closed interrogatives,
-  declaratives, and imperatives while separating clause type from force.
-  **verified-paywalled**.
+  ISBN 9780521431460; user-supplied book. Chapter 10, pp. 854, 856, 858, 929, 939, and
+  941, distinguishes clause form from use, gives separate open/closed interrogative syntax,
+  and documents imperative, interrogative, and declarative directives. This is the primary
+  source for the four project clause labels. **verified; human-confirmed**.
 - **Portner (2018), _Mood_.** DOI
   [10.1093/oso/9780199547524.001.0001](https://doi.org/10.1093/oso/9780199547524.001.0001).
-  The sentence-mood and imperative chapters support using `Mood=Imp` as evidence rather
-  than equating morphology with force. **verified-paywalled**.
+  User-supplied book. Chapter 3, pp. 121, 123, and 127, distinguishes clause type,
+  sentence mood, and sentential force and recognizes declarative, interrogative, and
+  imperative as basic types. **verified; human-confirmed**.
 
 ## Dimension B — answerhood, exhaustivity, and presupposition
 
