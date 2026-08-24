@@ -37,6 +37,20 @@ def test_help_lists_all_fourteen_commands() -> None:
         assert command.value in help_text
 
 
+def test_features_parser_accepts_explicit_resource_setup(tmp_path: Path) -> None:
+    arguments = build_parser().parse_args(
+        [
+            "features",
+            "--stanza-model-dir",
+            str(tmp_path / "stanza"),
+            "--download-resources",
+        ]
+    )
+
+    assert arguments.stanza_model_dir == tmp_path / "stanza"
+    assert arguments.download_resources
+
+
 def test_status_is_read_only_for_uninitialized_root(tmp_path: Path) -> None:
     root = tmp_path / "missing"
     output = StringIO()

@@ -76,6 +76,34 @@ DEFAULT_RESOURCES = {
     / "es_index_explorer"
     / "question_analysis"
     / "join.py",
+    "segment3_codebook": PROJECT_ROOT
+    / "reports"
+    / "14-question-linguistic-codebook.md",
+    "segment3_contracts_source": PROJECT_ROOT
+    / "es_index_explorer"
+    / "question_analysis"
+    / "contracts.py",
+    "segment3_spacy_manifest": PROJECT_ROOT
+    / "es_index_explorer"
+    / "question_analysis"
+    / "resources"
+    / "spacy-en-resource-manifest.json",
+    "segment3_features_source": PROJECT_ROOT
+    / "es_index_explorer"
+    / "question_analysis"
+    / "features.py",
+    "segment3_linguistics_source": PROJECT_ROOT
+    / "es_index_explorer"
+    / "question_analysis"
+    / "linguistics.py",
+    "segment3_nlp_resources_source": PROJECT_ROOT
+    / "es_index_explorer"
+    / "question_analysis"
+    / "nlp_resources.py",
+    "segment3_storage_source": PROJECT_ROOT
+    / "es_index_explorer"
+    / "question_analysis"
+    / "storage.py",
 }
 
 StepAction = Callable[["AnalysisWorkspace"], Iterable[ArtifactMetadata] | None]
@@ -95,6 +123,7 @@ def _tool_versions() -> dict[str, str]:
     }
     for distribution in (
         "cursor-sdk",
+        "en-core-web-sm",
         "matplotlib",
         "numpy",
         "pandas",

@@ -7,6 +7,40 @@
     "lemma",
     "depparse"
   ],
+  "selected_models": {
+    "backward_charlm": {
+      "md5": "1405948b125b4264fd17509d1b6175ca",
+      "package": "1billion"
+    },
+    "depparse": {
+      "md5": "fa261267dcc449374c589ce8436f0234",
+      "package": "combined_charlm"
+    },
+    "forward_charlm": {
+      "md5": "468b3377455fa0311565d46865f55afb",
+      "package": "1billion"
+    },
+    "lemma": {
+      "md5": "cc8fd88147aa2172ccee976e8db9c1f8",
+      "package": "combined_nocharlm"
+    },
+    "mwt": {
+      "md5": "6e49e64f630823cfcd8ab62ca59f42fc",
+      "package": "combined"
+    },
+    "pos": {
+      "md5": "9de7bf3317248a3956c2b2f789b5fd1d",
+      "package": "combined_charlm"
+    },
+    "pretrain": {
+      "md5": "c339580492002fb1f759537dfbc57fb2",
+      "package": "conll17"
+    },
+    "tokenize": {
+      "md5": "249f1bb1c4aa1ee38b5690df8fc96937",
+      "package": "combined_nocharlm"
+    }
+  },
   "resources_sha256": "4e41c1df152146fa26ed0c006a08feea7a60bb3414bb6d57dbda24ad2e3cb99c",
   "resources_url": "https://raw.githubusercontent.com/stanfordnlp/stanza-resources/main/resources_1.14.0.json",
   "schema_version": 1,

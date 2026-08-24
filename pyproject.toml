@@ -23,6 +23,7 @@ question-suitability = "es_index_explorer.question_analysis.cli:entrypoint"
 
 [dependency-groups]
 analysis = [
+    "en-core-web-sm",
     "matplotlib>=3.11.1",
     "numpy>=2.4.6",
     "pandas>=3.0.3",
@@ -85,3 +86,4 @@ explicit = true
 [tool.uv.sources]
 torch = [{ index = "pytorch-cpu" }]
 torchvision = [{ index = "pytorch-cpu" }]
+en-core-web-sm = { url = "https://github.com/explosion/spacy-models/releases/download/en_core_web_sm-3.8.0/en_core_web_sm-3.8.0-py3-none-any.whl" }

@@ -13,6 +13,7 @@ from typing import TYPE_CHECKING
 from pydantic import BaseModel
 
 from es_index_explorer.question_analysis.contracts import (
+    SCHEMA_VERSION,
     ArtifactMetadata,
     FileFingerprint,
     WorkflowCommand,
@@ -51,6 +52,13 @@ def fingerprint_file(path: Path, *, label: str | None = None) -> FileFingerprint
         sha256=sha256_file(path),
         size_bytes=path.stat().st_size,
     )
+
+
+def versioned_frame(frame: "pd.DataFrame") -> "pd.DataFrame":
+    """Add the shared artifact schema version to a table."""
+    versioned = frame.copy()
+    versioned.insert(0, "artifact_schema_version", SCHEMA_VERSION)
+    return versioned
 
 
 def canonical_json_bytes(value: BaseModel | Mapping[str, object]) -> bytes:

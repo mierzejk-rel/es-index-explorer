@@ -87,6 +87,18 @@ def build_parser() -> argparse.ArgumentParser:
                 default=None,
                 help="Air Assist task TOML containing the use-case taxonomy.",
             )
+        elif command is WorkflowCommand.FEATURES:
+            command_parser.add_argument(
+                "--stanza-model-dir",
+                type=Path,
+                default=None,
+                help="Directory containing the pinned Stanza English models.",
+            )
+            command_parser.add_argument(
+                "--download-resources",
+                action="store_true",
+                help="Download and verify missing pinned Stanza models before extraction.",
+            )
         elif command is WorkflowCommand.STATUS:
             command_parser.add_argument("--json", action="store_true", dest="as_json")
     return parser
@@ -130,17 +142,29 @@ def main(
 def _production_handler(
     command: WorkflowCommand, args: argparse.Namespace
 ) -> StepAction | None:
-    if command is not WorkflowCommand.JOIN:
-        return None
-    from es_index_explorer.question_analysis.join import JoinConfig, run_join
+    if command is WorkflowCommand.JOIN:
+        from es_index_explorer.question_analysis.join import JoinConfig, run_join
 
-    defaults = JoinConfig()
-    config = JoinConfig(
-        snapshot_dir=args.snapshot_dir or defaults.snapshot_dir,
-        rubric_root=args.rubric_root or defaults.rubric_root,
-        task_path=args.task or defaults.task_path,
-    )
-    return lambda workspace: run_join(workspace, config)
+        defaults = JoinConfig()
+        join_config = JoinConfig(
+            snapshot_dir=args.snapshot_dir or defaults.snapshot_dir,
+            rubric_root=args.rubric_root or defaults.rubric_root,
+            task_path=args.task or defaults.task_path,
+        )
+        return lambda workspace: run_join(workspace, join_config)
+    if command is WorkflowCommand.FEATURES:
+        from es_index_explorer.question_analysis.features import (
+            FeatureConfig,
+            run_features,
+        )
+
+        defaults = FeatureConfig()
+        feature_config = FeatureConfig(
+            stanza_model_dir=args.stanza_model_dir or defaults.stanza_model_dir,
+            download_resources=args.download_resources,
+        )
+        return lambda workspace: run_features(workspace, feature_config)
+    return None
 
 
 def _show_status(root: Path, *, as_json: bool, output: TextIO) -> int:

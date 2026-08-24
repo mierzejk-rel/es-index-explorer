@@ -43,7 +43,7 @@ from es_index_explorer.question_analysis.grade_oracle import (
     DEFAULT_GRADE_ORACLE_PROVENANCE,
     GradeOracle,
 )
-from es_index_explorer.question_analysis.storage import sha256_file
+from es_index_explorer.question_analysis.storage import sha256_file, versioned_frame
 from es_index_explorer.question_analysis.workspace import (
     PROJECT_ROOT,
     AnalysisWorkspace,
@@ -1321,10 +1321,7 @@ def _sorted_catalogue(catalogue: Catalogue) -> Catalogue:
     )
 
 
-def _versioned(frame: pd.DataFrame) -> pd.DataFrame:
-    versioned = frame.copy()
-    versioned.insert(0, "artifact_schema_version", 1)
-    return versioned
+_versioned = versioned_frame
 
 
 def _require_unique(frame: pd.DataFrame, columns: list[str], label: str) -> None:

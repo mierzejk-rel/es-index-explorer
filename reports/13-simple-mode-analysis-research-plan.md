@@ -730,8 +730,15 @@ and quantiles** from this model, under that name and never as "the posterior". W
 Jeffreys intervals appear only for raw descriptive proportions in tables and are labelled as
 such.
 
-Anchors: Efron & Morris (1975); Gelman & Hill (2007); Aitchison (1986) on log-ratio
-coordinates.
+Anchors: **Efron & Morris (1975), "Data Analysis Using Stein's Estimator and Its
+Generalizations," [doi:10.1080/01621459.1975.10479864](https://doi.org/10.1080/01621459.1975.10479864),
+pp. 311–312 (human-verified; general empirical-Bayes shrinkage context, not the exact
+Layer 1 model)**; **Gelman & Hill (2007), *Data Analysis Using Regression and
+Multilevel/Hierarchical Models*,
+[doi:10.1017/CBO9780511790942](https://doi.org/10.1017/CBO9780511790942),
+pp. 7, 251, and 253–254 (human-verified partial-pooling anchor)**. The additive log-ratio
+transform remains the frozen mathematical parameterization defined above, without an external
+source claim.
 
 ### 5.2 Layer 2 - mean structure and two-way cluster-robust covariance
 
@@ -1708,7 +1715,9 @@ defect. The §4.3 degenerate cases are checked here.
   order-preserving result as `use_cases: list[str]`.
 - **P2 parser-derived** - English UD parses: `token_count`, `dependency_tree_depth`,
   `mean_dependency_length`, `clause_count`, `subordinate_clause_ratio`,
-  `complex_nominals_per_clause`, `named_entity_count`, `temporal_expression_present`.
+  `complex_nominals_per_clause`, `named_entity_count`, `temporal_expression_present`;
+  `coordination_count` is retained as deterministic exploratory P2 and does not enter a
+  confirmatory restriction.
 - **P3 rule-based semantic** - deterministic rules over parses, e.g. `clause_type` from
   `PronType=Int` and `Mood=Imp`. Rules published in the codebook.
 - **P4 LLM-annotated semantic and pragmatic** - `exhaustivity_requirement`,
@@ -2001,18 +2010,17 @@ family and outcome block:
 | F2 | both, stacked | `exhaustivity_requirement` | `negative_conclusiveness` | mention-some | 2 |
 | F3 | both, stacked | `expectation_count`, `g`, `expectation_count*g` | `c` | - | 6 (3 if interaction demoted) |
 | F4 | both, stacked | `log1p(expectation_document_count)` | - | - | 2 |
-| F5 | both, stacked | `referring_form_type` (within-rubric, rubric FE) | `named_entity_count` | full-name form | 2*(k-1) for `k` levels |
+| F5 | both, stacked | `referring_form_type` (within-rubric, rubric FE) | `named_entity_count` | `full_name_form` | 4 (`k=3`) |
 | F6 | both, stacked | `token_count` (within-rubric, rubric FE) | `subordinate_clause_ratio`, `mean_dependency_length` | - | 2 |
-| F7 | both, stacked | `clause_type`, within-rubric term only (rubric FE) | between-rubric `Xbar_r` (descriptive only) | interrogative | 2*(k-1) for `k` levels |
-| F8 | both, stacked | `answer_locality` | - | single-passage | 2*(k-1) for `k` levels |
+| F7 | both, stacked | `clause_type`, within-rubric term only (rubric FE) | between-rubric `Xbar_r` (descriptive only) | `open_interrogative` | 6 (`k=4`) |
+| F8 | both, stacked | `answer_locality` | - | `single_passage` | 2 (`k=2`) |
 | F9 | both, stacked | `recall_orientation` | - | precision-oriented | 2 |
 | F10 | both, stacked | `temporal_expression_present` (within-rubric, rubric FE) | - | absent | 2 |
 
 `q` counts restrictions across **both** stacked blocks, per §11's stacking rule; a `k`-level
-categorical restricts `k-1` non-reference levels per block, hence `2*(k-1)`. Exact level counts
-`k` for `referring_form_type`, `clause_type` and `answer_locality` are fixed when the codebook
-(§9, §12) is frozen and are appended to this table at that time; the table's structure, not its
-placeholder counts, is what is frozen now.
+categorical restricts `k-1` non-reference levels per block, hence `2*(k-1)`. The frozen
+codebook defines three `referring_form_type` levels, four `clause_type` levels, and two
+`answer_locality` levels, with the references shown above.
 
 **Analysis population, one rule for every family.** A family's analysis population is *the set
 of rows for which every predictor entering that family's `R_f` and secondary covariates is
@@ -2090,9 +2098,10 @@ not interrogatives. Labels: open (wh) interrogative / closed (polar) interrogati
 directive imperative / declarative request. Partly derivable from UD (`PronType=Int`,
 `Mood=Imp`, root `VerbForm`), so P2/P3 where possible.
 
-Anchors: Searle (1969, 1976); Sadock & Zwicky (1985) in Shopen, *Language Typology and
-Syntactic Description*; Huddleston & Pullum (2002), *CGEL* Ch. 10; Portner (2018), *Mood*,
-OUP.
+Anchors: Searle (1969, 1976); **Sadock & Zwicky (1985), "Speech Act Distinctions in
+Syntax," [author PDF](https://web.stanford.edu/~zwicky/speech-act-distinctions.pdf),
+§§1.1 and 2.1, pp. 155–160 (human-verified)**; Huddleston & Pullum (2002), *CGEL*
+Ch. 10; Portner (2018), *Mood*, OUP.
 
 ### Dimension B - Answerhood and exhaustivity
 
@@ -2102,10 +2111,19 @@ mention-all / weakly exhaustive / mention-some; plus negative-conclusiveness and
 presupposition load.
 
 Anchors: **Dayal (2016), *Questions*, Oxford Surveys in Semantics and Pragmatics, OUP, Ch.
-2-3** (verified); Groenendijk & Stokhof (1984); Hamblin (1973); Karttunen (1977); Beck &
-Rullmann (1999); George (2011); Ladusaw (1979) NPI; Karttunen (1971) and Kiparsky & Kiparsky
-(1970) presupposition; Roberts (2012) QUD, *Semantics and Pragmatics* 5; Ginzburg (2012),
-*The Interactive Stance*, OUP.
+2-3** (verified); **Groenendijk & Stokhof (1984), *Studies on the Semantics of Questions and
+the Pragmatics of Answers*, [part I](https://pure.uva.nl/ws/files/1989717/27444_Proefschrift_001_257.PDF)
+pp. 214–216 and [part II](https://pure.uva.nl/ws/files/1989719/27445_Proefschrift_258_577.PDF)
+pp. 278 and 394–395 (human-verified)**; Hamblin (1973); Karttunen (1977); Beck & Rullmann
+(1999); **George (2011), *Question Embedding and the Semantics of Answers*,
+[dissertation PDF](https://linguistics.ucla.edu/wp-content/uploads/2021/11/old_brgeorge_dissertation_web_june2011.pdf),
+pp. 13–18 (human-verified; defines mention-some, weakly exhaustive, and strongly exhaustive
+answers while questioning whether weak exhaustivity is always independently needed)**;
+Karttunen (1971) and Kiparsky & Kiparsky (1970) presupposition; Roberts (2012) QUD,
+*Semantics and Pragmatics* 5; **Ginzburg (2012), *The Interactive Stance*,
+[doi:10.1093/acprof:oso/9780199697922.001.0001](https://doi.org/10.1093/acprof:oso/9780199697922.001.0001),
+Chs. 2–4, pp. 18, 20, 32, and 66 (human-verified; dialogue-context/QUD anchor, not an
+exhaustivity taxonomy source)**.
 
 **Cross-check:** annotated exhaustivity can be validated against observed expectation counts.
 A question annotated mention-some whose rubric demands twelve distinct facts is either
@@ -2136,7 +2154,7 @@ not be corpus-familiar - testable *within* rubric. Features: `named_entity_count
 `entity_density`, `referring_form_type`, `temporal_expression_present`.
 
 Anchors: **Gundel, Hedberg & Zacharski (1993), *Language* 69(2):274-307,
-doi:10.2307/416535** (verified); Ariel (1990); Prince (1981).
+doi:10.2307/416535** (verified); Ariel (1990).
 
 ### Dimension E - Morphosyntactic complexity
 
@@ -2147,8 +2165,11 @@ Features: `token_count`, `dependency_tree_depth`, `mean_dependency_length`, `cla
 Anchors: **de Marneffe, Manning, Nivre & Zeman (2021), *Computational Linguistics*
 47(2):255-308, doi:10.1162/coli_a_00402** (verified); **Lu (2010), *IJCL* 15(4):474-496,
 doi:10.1075/ijcl.15.4.02lu** (verified); Kyle (2016) TAASSC; Kyle & Crossley (2018), *Modern
-Language Journal* 102(2):333-349; Petrov, Das & McDonald (2012); Gibson (1998, 2000) DLT;
-Futrell, Mahowald & Gibson (2015), *PNAS*; Yngve (1960).
+Language Journal* 102(2):333-349; Petrov, Das & McDonald (2012); **Gibson (1998),
+"Linguistic Complexity: Locality of Syntactic Dependencies,"
+[doi:10.1016/S0010-0277(98)00034-1](https://doi.org/10.1016/S0010-0277(98)00034-1),
+pp. 1, 8, and 11–13 (human-verified; theoretical locality context, not the definition of
+the token-distance feature)**; Futrell, Mahowald & Gibson (2015), *PNAS*; Yngve (1960).
 
 Tooling: **Stanza English UD, frozen as the sole authoritative dependency parser** for this
 dimension (§18) - not "spaCy or Stanza" as an open choice, since running both and reconciling
@@ -2161,8 +2182,13 @@ in the codebook.
 Mean log lexical frequency, domain-term density, per-token surprisal. Anchors: Brysbaert &
 New (2009) SUBTLEX-US; Hale (2001); Levy (2008).
 
-**Excluded from confirmatory work:** MTLD (McCarthy & Jarvis 2010) and classical readability
-formulas (Flesch 1948; Kincaid et al. 1975) are unreliable on roughly 15-token strings.
+**Excluded from confirmatory work:** MTLD is excluded because McCarthy & Jarvis (2010),
+p. 384, state that shorter texts are harder to evaluate confidently and report `100` tokens
+as the shortest length tested during development—far above this corpus's roughly 15-token
+questions. Classical readability formulas (Flesch 1948; Kincaid et al. 1975) are also excluded:
+their cited applications use passages, and no retained source validates them for strings this
+short. These are scope/validation exclusions, not claims that the measures are generally
+unreliable.
 LingFeat (**Lee, Jang & Lee 2021, EMNLP, doi:10.18653/v1/2021.emnlp-main.834**, verified) is
 exploratory only.
 
@@ -2173,20 +2199,24 @@ no annotation cost.
 
 Anchors: **Oard & Webber (2013), *Foundations and Trends in Information Retrieval*
 7(2-3):99-237** (verified); Broder (2002); Rose & Levinson (2004); Ingwersen & Jarvelin
-(2005), *The Turn*; Belkin, Oddy & Brooks (1982) ASK; Anderson & Krathwohl (2001). To verify:
-Graesser & Person (1994).
+(2005), *The Turn*; **Belkin, Oddy & Brooks (1982), "ASK for Information Retrieval:
+Part I. Background and Theory," [doi:10.1108/eb026722](https://doi.org/10.1108/eb026722),
+p. 61 (human-verified; supporting context, not the definition of `recall_orientation`)**;
+Anderson & Krathwohl (2001). To verify: Graesser & Person (1994).
 
 ### Dimension H - Evidence demand
 
 **Previously specified on a misreading; corrected here** (Appendix A.7).
 
-Verified facts. `document_ids` appears only in the Pydantic model, in parsers that set it to
-`None`, and in the rubric TOML data. It appears in **no grading, prompt or scorer code**, so
-the judge never sees it. `models_v2.py` documents it as nothing more than "Optional list of
-supporting document IDs". The semantics is demonstrably **not conjunctive**: in
-`4-03.rubric.toml` a single expectation asserting that one named physician was one of three
-presenters at one 2012 event carries **21 document IDs**, and a sibling carries 26. Those
-documents each independently attest the fact.
+Verified at `r1-evals` revision
+[`41978dbd459ec3dfed9adcf3cc3695aae31a1551`](https://github.com/relativityone/r1-evals/commit/41978dbd459ec3dfed9adcf3cc3695aae31a1551)
+(human-confirmed). Direct `document_ids` references in Python source occur only in the
+Pydantic models and parsers that set the field to `None`; no prompt, grader, or scorer directly
+names it. `models_v2.py` documents it as "Optional list of supporting document IDs".
+`4-03.rubric.toml` attaches 21, 26, and 28 IDs to three individual factual expectations.
+This establishes that the field can contain many IDs for one fact, but **does not establish**
+whether every document independently attests the fact or whether the list has conjunctive or
+disjunctive semantics. The field is therefore treated only as ambiguous authoring metadata.
 
 Consequences:
 
@@ -2278,9 +2308,8 @@ baseline:**
   **macro-F1 achieved by the majority-class predictor on the realised gold class
   distribution**, computed and quoted rather than assumed.
 - **Ordinal features**: the assigned metric is **quadratically weighted kappa**, baseline
-  **0**. This branch applies only to features the codebook declares ordinal, and that list is
-  fixed when the codebook is frozen; if the closed taxonomy contains none, the branch is inert
-  and is recorded as such rather than left as a dangling provision.
+  **0**. The frozen codebook declares no categorical feature ordinal, so this branch is
+  **inert**. Counts remain numeric and all categorical labels are binary or nominal.
 
 **These are feature-scale-specific validity screens, not comparable numbers.** Balanced
 accuracy, macro-F1, quadratically weighted kappa and Krippendorff alpha are on different
@@ -2673,16 +2702,15 @@ missing behaviour or, where none existed before this pass, states it directly in
 ## 17. Closed-access search list
 
 Books, priority order: Dayal (2016) *Questions*, OUP - **Ch. 2-3 essential**; Huddleston &
-Pullum (2002) *CGEL* Ch. 10; Portner (2018) *Mood*; Ginzburg (2012) *The Interactive Stance*;
-Quirk et al. (1985); Biber et al. (1999); Aikhenvald (2010) *Imperatives and Commands*;
+Pullum (2002) *CGEL* Ch. 10; Portner (2018) *Mood*; Quirk et al. (1985); Biber et al. (1999);
+Aikhenvald (2010) *Imperatives and Commands*;
 Krippendorff (2019) *Content Analysis* 4th ed.; Pustejovsky & Stubbs (2012) *Natural Language
 Annotation for Machine Learning*; Agresti (2010) *Analysis of Ordinal Categorical Data*;
-Gelman & Hill (2007); Ingwersen & Jarvelin (2005) *The Turn*; Anderson & Krathwohl (2001).
+Ingwersen & Jarvelin (2005) *The Turn*; Anderson & Krathwohl (2001).
 
 Statistical layer: Cameron & Trivedi (2005) *Microeconometrics*; Davidson & MacKinnon (2004)
 *Econometric Theory and Methods* on bootstrap inference; Carroll et al. (2006) *Measurement
-Error in Nonlinear Models*; Aitchison (1986) *The Statistical Analysis of Compositional Data*;
-Hardin & Hilbe (2013) *Generalized Estimating Equations* 2nd ed.
+Error in Nonlinear Models*; Hardin & Hilbe (2013) *Generalized Estimating Equations* 2nd ed.
 
 Query strings:
 
@@ -3413,21 +3441,22 @@ cluster-robust covariance.
 
 ## A.7 The evidence-cardinality reading of `document_ids`
 
-**Rejected because `document_ids` is authoring metadata that the judge never sees, and its
-semantics is disjunctive rather than conjunctive.**
+**Rejected because the available code and rubric metadata do not establish that
+`document_ids` is a scored conjunctive evidence requirement.**
 
 Dimension H originally treated per-expectation `document_ids` as an evidence requirement,
 yielding features `evidence_budget_ratio` and `rubric_evidence_union` and a "structural
 upper-bound" hypothesis: that a rubric needing more distinct documents than the context budget
 `g` could not be satisfied.
 
-**Two verified facts destroyed this.** First, `document_ids` appears in **no grading, prompt or
-scorer code** - only in the Pydantic model, in parsers that set it to `None`, and in the TOML
-data - so it never reaches the judge and cannot function as a requirement. Second, the
-semantics is not conjunctive: in `4-03.rubric.toml` a single expectation asserting that one
-named physician was one of three presenters at one 2012 event carries **21 document IDs**, and a
-sibling carries 26. Those documents each **independently attest** the same fact, so the count
-measures redundancy, not required breadth.
+**Two revision-certified observations invalidate that strong reading.** First, a direct source
+search finds `document_ids` only in the Pydantic models and parsers that set it to `None`; no
+prompt, grader, or scorer directly names the field. This does not rule out indirect
+serialization, but provides no evidence that the field is an explicit scoring requirement.
+Second, `4-03.rubric.toml` attaches 21, 26, and 28 IDs to three individual factual
+expectations. That high multiplicity undermines interpreting the count as the number of
+distinct required claims, but does not prove independent attestation or establish conjunctive
+or disjunctive document semantics.
 
 **Replacement:** `evidence_budget_ratio` and `rubric_evidence_union` withdrawn;
 `expectation_document_count` retained only as a **possible proxy for evidence redundancy with
@@ -3435,9 +3464,8 @@ the direction tested rather than assumed**, which is why F4 is two-sided; `expec
 recast as **context-demand pressure** rather than a structural bound, since one chunk can carry
 evidence for several expectations so `N > g` does not imply unsatisfiability.
 
-**This is the clearest case in the project of a hypothesis inverted by reading the code.** The
-original expected sign was negative on structural grounds; the replacement has no predicted
-sign at all.
+**The original structural hypothesis was therefore unsupported by the available source
+contract.** The replacement has no predicted sign.
 
 ## A.8 Terminology and framing corrections
 

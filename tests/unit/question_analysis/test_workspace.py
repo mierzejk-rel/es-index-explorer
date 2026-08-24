@@ -45,6 +45,13 @@ def test_manifest_round_trip_and_frozen_layout(tmp_path: Path) -> None:
         "segment2_catalogue_source",
         "segment2_grade_oracle_source",
         "segment2_join_source",
+        "segment3_codebook",
+        "segment3_contracts_source",
+        "segment3_features_source",
+        "segment3_linguistics_source",
+        "segment3_nlp_resources_source",
+        "segment3_spacy_manifest",
+        "segment3_storage_source",
         "stanza_en_resource_manifest",
     }
     assert workspace.load_manifest() == manifest

@@ -13,6 +13,11 @@ from es_index_explorer.question_analysis.contracts import (
     GOLD_SAMPLE_PER_STRATUM,
     OUTCOME_FIELD_DENYLIST,
 )
+from es_index_explorer.question_analysis.errors import MalformedInputError
+from es_index_explorer.question_analysis.nlp_resources import (
+    load_stanza_manifest,
+    verify_stanza_resources,
+)
 
 pytestmark = pytest.mark.unit
 
@@ -51,6 +56,44 @@ def test_stanza_resource_catalogue_is_versioned_and_hashed() -> None:
     assert manifest["stanza_version"] == version("stanza")
     assert len(manifest["resources_sha256"]) == 64
     assert manifest["processors"] == ["tokenize", "mwt", "pos", "lemma", "depparse"]
+    assert set(manifest["selected_models"]) == {
+        "backward_charlm",
+        "depparse",
+        "forward_charlm",
+        "lemma",
+        "mwt",
+        "pos",
+        "pretrain",
+        "tokenize",
+    }
+    assert all(
+        len(model["md5"]) == 32 for model in manifest["selected_models"].values()
+    )
+
+
+def test_stanza_runtime_catalogue_checksum_is_enforced(tmp_path: Path) -> None:
+    (tmp_path / "resources.json").write_text("{}", encoding="utf-8")
+
+    with pytest.raises(
+        MalformedInputError, match="resource catalogue checksum mismatch"
+    ):
+        verify_stanza_resources(tmp_path, load_stanza_manifest())
+
+
+def test_spacy_ner_model_is_versioned_and_hashed() -> None:
+    path = (
+        PROJECT_ROOT
+        / "es_index_explorer"
+        / "question_analysis"
+        / "resources"
+        / "spacy-en-resource-manifest.json"
+    )
+    manifest = json.loads(path.read_text(encoding="utf-8"))
+
+    assert manifest["model"] == "en_core_web_sm"
+    assert manifest["model_version"] == version("en-core-web-sm")
+    assert manifest["pipeline_component"] == "ner"
+    assert len(manifest["wheel_sha256"]) == 64
 
 
 def test_r_oracle_base_image_is_digest_pinned() -> None:
