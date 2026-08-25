@@ -2252,16 +2252,24 @@ Features: `token_count`, `dependency_tree_depth`, `mean_dependency_length`, `cla
 `coordination_count`.
 
 Anchors: **de Marneffe, Manning, Nivre & Zeman (2021), *Computational Linguistics*
-47(2):255-308, doi:10.1162/coli_a_00402** (verified); **Lu (2010), *IJCL* 15(4):474-496,
-doi:10.1075/ijcl.15.4.02lu** (verified); Kyle (2016) TAASSC; **Kyle & Crossley (2018),
+47(2):255-308, doi:10.1162/coli_a_00402** (human-verified UD-tree context, not
+constituency equivalence); **Lu (2010), *IJCL* 15(4):474-496,
+doi:10.1075/ijcl.15.4.02lu** (human-verified L2SCA context; the project’s UD rules are
+analogous operationalizations, not an L2SCA reimplementation); **Kyle (2016), TAASSC**
+(human-verified dependency-feature context, not validation of the exact UD relation sets);
+**Kyle & Crossley (2018),
 "Measuring Syntactic Complexity in L2 Writing Using Fine-Grained Clausal and Phrasal
 Indices," [doi:10.1111/modl.12468](https://doi.org/10.1111/modl.12468),
 pp. 1–2 (human-verified fine-grained-measurement context, not validation of this project’s
-UD rules or short-text setting)**; Petrov, Das & McDonald (2012); **Gibson (1998),
+UD rules or short-text setting)**; **Petrov, Das & McDonald (2012)** (human-verified
+coarse-POS context, not validation of the clause or complex-nominal rules); **Gibson (1998),
 "Linguistic Complexity: Locality of Syntactic Dependencies,"
 [doi:10.1016/S0010-0277(98)00034-1](https://doi.org/10.1016/S0010-0277(98)00034-1),
 pp. 1, 8, and 11–13 (human-verified; theoretical locality context, not the definition of
-the token-distance feature)**; Futrell, Mahowald & Gibson (2015), *PNAS*; Yngve (1960).
+the token-distance feature)**; **Futrell, Mahowald & Gibson (2015), *PNAS***
+(human-verified word-distance definition; the selected-arc mean is project-specific);
+**Yngve (1960)** (human-verified temporary-storage/constituency-depth context, not support
+for the UD root-to-token-depth feature).
 
 Tooling: **Stanza English UD, frozen as the sole authoritative dependency parser** for this
 dimension (§18) - not "spaCy or Stanza" as an open choice, since running both and reconciling

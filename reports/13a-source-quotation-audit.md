@@ -493,18 +493,15 @@ precedence.
 - **Human verdict:** [x] quotations confirmed [x] locators confirmed [x] retain with scope
 caveat
 
-
-
 ## Dimension E — morphosyntactic complexity
 
-
-
-### de Marneffe, Manning, Nivre & Zeman (2021)
+### de Marneffe, Manning, Nivre & Zeman (2021) — human-confirmed
 
 - **Full source:** Marie-Catherine de Marneffe, Christopher D. Manning, Joakim Nivre, and
 Daniel Zeman, “Universal Dependencies,” *Computational Linguistics* 47(2):255–308.
 - **Links:** [DOI](https://doi.org/10.1162/coli_a_00402);
-[open text](https://aclanthology.org/2021.cl-2.11/).
+[open text](https://aclanthology.org/2021.cl-2.11/);
+[user-supplied local PDF](sources/Manning%20-%20Universal%20Dependencies.pdf).
 - **Research Plan use:** §12 Dimension E, lines 2142–2158: UD relations, morphology, tree
 structure, and Stanza-based implementation.
 - **Quotation:**
@@ -518,16 +515,16 @@ structure, and Stanza-based implementation.
 - **Assessment:** **PARTIAL.** It supports the parse representation but explicitly warns that
 UD does not reproduce phrase-internal constituency. It cannot by itself validate
 constituency-equivalent L2SCA measurements.
-- **Human verdict:** [ ] accept [ ] reject [ ] needs more evidence
+- **Human verdict:** [x] quotations confirmed [x] locators confirmed [x] retain with scope
+  caveat
 
-
-
-### Lu (2010)
+### Lu (2010) — human-confirmed
 
 - **Full source:** Xiaofei Lu, “Automatic Analysis of Syntactic Complexity in Second Language
 Writing,” *International Journal of Corpus Linguistics* 15(4):474–496.
 - **Links:** [DOI](https://doi.org/10.1075/ijcl.15.4.02lu);
-[publisher PDF](https://www.jbe-platform.com/docserver/fulltext/ijcl.15.4.02lu.pdf).
+[publisher PDF](https://www.jbe-platform.com/docserver/fulltext/ijcl.15.4.02lu.pdf);
+[user-supplied local PDF](sources/Lu%20-%20Automatic%20analysis%20of%20syntactic%20complexity%20in%20second%20language%20writing.pdf).
 - **Research Plan use:** §12 Dimension E, lines 2144–2158: L2SCA clauses, dependent clauses,
 DC/C, complex nominals, and CN/C.
 - **Quotation:**
@@ -544,16 +541,18 @@ and CN/C.
 `xcomp` without Lu’s finite-subject requirement, add relations/categories not present in
 Lu’s definition, and omit some Lu classes. They are analogous project operationalizations,
 not a faithful L2SCA reimplementation.
-- **Human verdict:** [ ] accept [ ] reject [ ] revise implementation
+- **Human verdict:** [x] quotations confirmed [x] locators confirmed [x] retain as a
+  non-equivalent operationalization
 
 
 
-### Kyle (2016)
+### Kyle (2016) — human-confirmed
 
 - **Full source:** Kristopher Kyle, *Measuring Syntactic Development in L2 Writing:
 Fine Grained Indices of Syntactic Complexity and Usage-Based Indices of Syntactic
 Sophistication*, PhD dissertation, Georgia State University.
-- **Link:** [DOI and full text](https://doi.org/10.57709/8501051).
+- **Links:** [DOI and full text](https://doi.org/10.57709/8501051);
+  [user-supplied local PDF](sources/Kyle%20-%20Measuring%20Syntactic%20Development%20in%20L2%20Writing.pdf).
 - **Research Plan use:** §12 Dimension E, lines 2148–2158: TAASSC and dependency-based
 complexity tooling.
 - **Quotation:**
@@ -564,7 +563,8 @@ complexity tooling.
 - **Why used:** Supports dependency-based fine-grained features.
 - **Assessment:** **PARTIAL.** It supports dependency features generally, not this project’s
 exact UD relation sets. Its inclusion of non-finite clauses also differs from Lu.
-- **Human verdict:** [ ] accept [ ] reject [ ] needs more evidence
+- **Human verdict:** [x] quotations confirmed [x] locators confirmed [x] retain with scope
+  caveat
 
 
 
@@ -592,11 +592,12 @@ project’s exact UD features or short-text setting.
 
 
 
-### Petrov, Das & McDonald (2012)
+### Petrov, Das & McDonald (2012) — human-confirmed
 
 - **Full source:** Slav Petrov, Dipanjan Das, and Ryan McDonald, “A Universal Part-of-Speech
 Tagset,” *LREC 2012*, pp. 2089–2096.
-- **Link:** [Open text](https://aclanthology.org/L12-1115/).
+- **Links:** [open text](https://aclanthology.org/L12-1115/);
+  [user-supplied local PDF](sources/Petrov%20-%20A%20Universal%20Part-of-Speech%20Tagset.pdf).
 - **Research Plan use:** §12 Dimension E, lines 2148–2152: universal POS categories.
 - **Quotation:**
   > “We did not rely on intrinsic definitions of the above categories. Instead, each category
@@ -605,7 +606,8 @@ Tagset,” *LREC 2012*, pp. 2089–2096.
 - **Why used:** Supports coarse operational POS categories.
 - **Assessment:** **PARTIAL.** Its twelve-tag inventory predates the current UD/Stanza UPOS
 inventory and does not validate clause or complex-nominal rules.
-- **Human verdict:** [ ] accept [ ] reject [ ] needs more evidence
+- **Human verdict:** [x] quotations confirmed [x] locators confirmed [x] retain with scope
+  caveat
 
 
 
@@ -640,12 +642,13 @@ operationalization.
 
 
 
-### Futrell, Mahowald & Gibson (2015)
+### Futrell, Mahowald & Gibson (2015) — human-confirmed
 
 - **Full source:** Richard Futrell, Kyle Mahowald, and Edward Gibson, “Large-Scale Evidence of
 Dependency Length Minimization in 37 Languages,” *PNAS* 112(33):10336–10341.
 - **Links:** [DOI](https://doi.org/10.1073/pnas.1502134112);
-[open text](https://pmc.ncbi.nlm.nih.gov/articles/PMC4547262/).
+[open text](https://pmc.ncbi.nlm.nih.gov/articles/PMC4547262/);
+[user-supplied local PDF](sources/Futrell%20-%20Large-scale%20evidence%20of%20dependency%20length%20minimization%20in%2037%20languages.pdf).
 - **Research Plan use:** §12 Dimension E, lines 2144–2152: dependency length.
 - **Quotation:**
   > “We calculate the length of a single dependency arc as the number of words between a head
@@ -654,16 +657,18 @@ Dependency Length Minimization in 37 Languages,” *PNAS* 112(33):10336–10341.
 - **Why used:** Defines word-distance dependency length.
 - **Assessment:** **PARTIAL.** The project’s mean over selected non-root, non-punctuation arcs
 is a project-specific aggregation.
-- **Human verdict:** [ ] accept [ ] reject [ ] needs more evidence
+- **Human verdict:** [x] quotations confirmed [x] locators confirmed [x] retain with scope
+  caveat
 
 
 
-### Yngve (1960)
+### Yngve (1960) — human-confirmed
 
 - **Full source:** Victor H. Yngve, “A Model and an Hypothesis for Language Structure,”
 *Proceedings of the American Philosophical Society* 104(5):444–466.
 - **Links:** [MIT record](https://dspace.mit.edu/handle/1721.1/4453);
-[public PDF](https://aclanthology.org/www.mt-archive.info/50/ProcAmPhilSoc-1960-Yngve.pdf).
+[public PDF](https://aclanthology.org/www.mt-archive.info/50/ProcAmPhilSoc-1960-Yngve.pdf);
+[user-supplied local PDF](sources/Yngve%20-%20A%20MODEL%20AND%20AN%20HYPOTHESIS%20FOR%20LANGUAGE%20STRUCTURE.pdf).
 - **Research Plan use:** §12 Dimension E, lines 2144–2152; the dossier linked it to
 `dependency_tree_depth`.
 - **Quotation:**
@@ -674,13 +679,10 @@ is a project-specific aggregation.
 - **Assessment:** **NOT SUPPORTED.** Yngve depth concerns temporary storage of unexpanded
 constituency nodes during left-to-right generation. Maximum UD root-to-word arc count is a
 different construct.
-- **Human verdict:** [ ] accept [ ] remove source [ ] change feature rationale
-
-
+- **Human verdict:** [x] quotations confirmed [x] locators confirmed [x] retain as
+  non-equivalent theoretical context
 
 ## Dimension F — exploratory lexical and information-theoretic sources
-
-
 
 ### Brysbaert & New (2009)
 

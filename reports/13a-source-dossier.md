@@ -134,15 +134,18 @@ Status meanings:
 ## Dimension E — morphosyntactic complexity
 
 - **de Marneffe et al. (2021), “Universal Dependencies.”** DOI
-  [10.1162/coli_a_00402](https://doi.org/10.1162/coli_a_00402). Sections 2–4 define
-  UD relations, morphological features, and tree structure. **verified-open**.
+  [10.1162/coli_a_00402](https://doi.org/10.1162/coli_a_00402);
+  user-supplied article. Sections 2–4 define UD relations, morphological features, and tree
+  structure. **verified; human-confirmed**.
 - **Lu (2010), “Automatic Analysis of Syntactic Complexity in Second Language Writing.”**
-  DOI [10.1075/ijcl.15.4.02lu](https://doi.org/10.1075/ijcl.15.4.02lu). Sections 2–3
-  and the measure definitions anchor clauses, dependent clauses, complex nominals, DC/C,
-  and CN/C. **verified-open**.
+  DOI [10.1075/ijcl.15.4.02lu](https://doi.org/10.1075/ijcl.15.4.02lu);
+  user-supplied article. Sections 2–3 and the measure definitions anchor clauses, dependent
+  clauses, complex nominals, DC/C, and CN/C. The project’s UD rules are analogous
+  operationalizations, not a faithful L2SCA reimplementation. **verified; human-confirmed**.
 - **Kyle (2016), TAASSC dissertation.**
-  [Georgia State full text](https://scholarworks.gsu.edu/alesl_diss/35/). The tooling
-  chapters support dependency-based fine-grained indices. **verified-open**.
+  [Georgia State full text](https://scholarworks.gsu.edu/alesl_diss/35/);
+  user-supplied dissertation. The tooling chapters support dependency-based fine-grained
+  indices, but not the project’s exact UD relation sets. **verified; human-confirmed**.
 - **Kyle & Crossley (2018), “Measuring Syntactic Complexity in L2 Writing.”** DOI
   [10.1111/modl.12468](https://doi.org/10.1111/modl.12468);
   user-supplied article. The abstract and pp. 1–2 motivate fine-grained clausal and phrasal
@@ -150,8 +153,9 @@ Status meanings:
   evidence comes from TOEFL essays and does not validate this project’s exact UD rules or
   short-question setting. **verified; human-confirmed**.
 - **Petrov, Das & McDonald (2012), “A Universal Part-of-Speech Tagset.”**
-  [Open text](https://aclanthology.org/L12-1115/). The universal inventory supports coarse
-  grammatical categories. **verified-open**.
+  [Open text](https://aclanthology.org/L12-1115/); user-supplied article. The universal
+  inventory supports coarse grammatical categories, but not the project’s clause or
+  complex-nominal rules. **verified; human-confirmed**.
 - **Gibson (1998), “Linguistic Complexity: Locality of Syntactic Dependencies.”** DOI
   [10.1016/S0010-0277(98)00034-1](https://doi.org/10.1016/S0010-0277(98)00034-1);
   user-supplied local PDF. The abstract and §2.2, pp. 1, 8, and 11–13, state that longer
@@ -159,11 +163,13 @@ Status meanings:
   intervening discourse referents, so this source supplies theoretical locality context rather
   than the project’s exact mean token-distance definition. **verified; human-confirmed**.
 - **Futrell, Mahowald & Gibson (2015), dependency-length minimization.** DOI
-  [10.1073/pnas.1502134112](https://doi.org/10.1073/pnas.1502134112). Cross-linguistic
-  evidence validates dependency length as a structural property. **verified-open**.
+  [10.1073/pnas.1502134112](https://doi.org/10.1073/pnas.1502134112);
+  user-supplied article. It defines arc length by word distance, while the project’s mean
+  over selected arcs is its own aggregation. **verified; human-confirmed**.
 - **Yngve (1960), “A Model and an Hypothesis for Language Structure.”**
-  [JSTOR 985230](https://www.jstor.org/stable/985230). Stack-depth limits anchor the
-  tree-depth measure. **verified-open**.
+  [JSTOR 985230](https://www.jstor.org/stable/985230); user-supplied article. Its
+  temporary-storage depth for left-to-right constituency generation is not equivalent to
+  the project’s maximum UD root-to-token arc count. **verified; human-confirmed**.
 
 The codebook explicitly labels its UD clause/CN definitions as operationalizations; it does
 not claim byte-for-byte equivalence to constituency-based L2SCA.
