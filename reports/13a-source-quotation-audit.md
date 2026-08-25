@@ -283,12 +283,12 @@ caveat
 
 
 
-### Roberts (2012)
+### Roberts (2012) — human-confirmed
 
 - **Full source:** Craige Roberts, “Information Structure in Discourse: Towards an Integrated
 Formal Theory of Pragmatics,” *Semantics & Pragmatics* 5, Article 6:1–69.
 - **Links:** [DOI](https://doi.org/10.3765/sp.5.6);
-[full text](https://semprag.org/index.php/sp/article/download/sp.5.6/pdf).
+[user-supplied local PDF](sources/Roberts%20-%20Information%20structure%20in%20discourse%20-%20Towards%20an%20integrated%20formal%20theory%20of%20pragmatics.pdf).
 - **Research Plan use:** §12 Dimension B, lines 2105–2109: question-under-discussion context
 and answer relevance.
 - **Quotation:**
@@ -298,7 +298,7 @@ and answer relevance.
 alternatives.”
 - **Why used:** Makes answer relevance conditional on the active question under discussion.
 - **Assessment:** **SUPPORTED** for contextual relevance.
-- **Human verdict:** [ ] accept [ ] reject
+- **Human verdict:** [x] quotations confirmed [x] locators confirmed [x] retain source
 
 
 
@@ -355,12 +355,12 @@ implementation of `presupposition_load`.
 
 
 
-### Wolfson et al. (2020)
+### Wolfson et al. (2020) — human-confirmed
 
 - **Full source:** Tomer Wolfson et al., “Break It Down: A Question Understanding Benchmark,”
 *TACL* 8:183–198.
 - **Links:** [DOI](https://doi.org/10.1162/tacl_a_00309);
-[full text](https://aclanthology.org/2020.tacl-1.13.pdf).
+[user-supplied local PDF](sources/Wolfson%20-%20BREAK%20It%20Down%20-%20A%20Question%20Understanding%20Benchmark.pdf).
 - **Research Plan use:** §12 Dimension C, lines 2115–2126: QDMR steps and operators.
 - **Quotation:**
   > “QDMR Definition Given a question x, its QDMR is a sequence of n steps, s = ⟨s1, ..., sn⟩,
@@ -368,16 +368,16 @@ implementation of `presupposition_load`.
 - **Locator:** §2, “QDMR Definition,” article p. 185 (PDF p. 3).
 - **Assessment:** **SUPPORTED** for counting decomposition steps and treating each as one query
 operation. The project’s three-way applicability rule remains its own convention.
-- **Human verdict:** [ ] accept [ ] reject
+- **Human verdict:** [x] quotations confirmed [x] locators confirmed [x] retain source
 
 
 
-### Yang et al. (2018), HotpotQA
+### Yang et al. (2018), HotpotQA — human-confirmed
 
 - **Full source:** Zhilin Yang et al., “HotpotQA: A Dataset for Diverse, Explainable Multi-hop
 Question Answering,” *EMNLP 2018*, pp. 2369–2380.
 - **Links:** [DOI](https://doi.org/10.18653/v1/D18-1259);
-[full text](https://aclanthology.org/D18-1259.pdf).
+[user-supplied local PDF](sources/Yang%20-%20HOTPOTQA%20-%20A%20Dataset%20for%20Diverse,%20Explainable%20Multi-hop%20Question%20Answering.pdf).
 - **Research Plan use:** §12 Dimension C, lines 2117–2118 and 2126–2127: bridge and comparison
 `hop_structure`.
 - **Quotations:**
@@ -386,17 +386,17 @@ Question Answering,” *EMNLP 2018*, pp. 2369–2380.
   > HOTPOTQA, in which we require systems to compare two entities on some shared properties...”
 - **Locator:** §2, article pp. 2370–2371 (PDF pp. 2–3).
 - **Assessment:** **SUPPORTED** for distinct bridge and comparison structures.
-- **Human verdict:** [ ] accept [ ] reject
+- **Human verdict:** [x] quotations confirmed [x] locators confirmed [x] retain source
 
 
 
-### Ho et al. (2020), 2WikiMultiHopQA
+### Ho et al. (2020), 2WikiMultiHopQA — human-confirmed
 
 - **Full source:** Xanh Ho, Anh-Khoa Duong Nguyen, Saku Sugawara, and Akiko Aizawa,
 “Constructing A Multi-hop QA Dataset for Comprehensive Evaluation of Reasoning Steps,”
 *COLING 2020*, pp. 6609–6625.
 - **Links:** [DOI](https://doi.org/10.18653/v1/2020.coling-main.580);
-[full text](https://aclanthology.org/2020.coling-main.580.pdf).
+[user-supplied local PDF](sources/Ho%20-%20Constructing%20A%20Multi-hop%20QA%20Dataset%20for%20Comprehensive%20Evaluation%20of%20Reasoning%20Steps.pdf).
 - **Research Plan use:** §12 Dimension C: compositional, comparison, and bridge structures.
 - **Quotation:**
   > “In our dataset, we have the following four types of questions: (1) comparison,
@@ -406,16 +406,17 @@ Question Answering,” *EMNLP 2018*, pp. 2369–2380.
 - **Locator:** §2.2, “Question Types,” article p. 6611 (PDF p. 3).
 - **Assessment:** **SUPPORTED** as source taxonomy context. Mapping it to the project’s
 four-level `hop_structure` remains an operational simplification.
-- **Human verdict:** [ ] accept [ ] reject [ ] revise mapping
+- **Human verdict:** [x] quotations confirmed [x] locators confirmed [x] retain source
+  [ ] revise mapping
 
 
 
-### Trivedi et al. (2022), MuSiQue
+### Trivedi et al. (2022), MuSiQue — human-confirmed
 
 - **Full source:** Harsh Trivedi, Niranjan Balasubramanian, Tushar Khot, and Ashish Sabharwal,
 “MuSiQue: Multihop Questions via Single-hop Question Composition,” *TACL* 10:539–554.
 - **Links:** [DOI](https://doi.org/10.1162/tacl_a_00475);
-[full text](https://aclanthology.org/2022.tacl-1.31.pdf).
+[user-supplied local PDF](sources/Trivedi%20-%20MuSiQue%20-%20Multihop%20Questions%20via%20Single-hop%20Question%20Composition.pdf).
 - **Research Plan use:** §12 Dimension C: connected hop composition and shortcut filtering.
 - **Quotations:**
   > “An edge (qj, qi) ∈ edges(GQ) indicates that the reasoning step qi relies critically on
@@ -425,17 +426,17 @@ four-level `hop_structure` remains an operational simplification.
 - **Locator:** article p. 541 (PDF p. 3) and p. 543 (PDF p. 5).
 - **Assessment:** **SUPPORTED** for connected hops and filtering shortcut-solvable
 compositions.
-- **Human verdict:** [ ] accept [ ] reject
+- **Human verdict:** [x] quotations confirmed [x] locators confirmed [x] retain source
 
 
 
-### Jeong et al. (2024), Adaptive-RAG
+### Jeong et al. (2024), Adaptive-RAG — human-confirmed
 
 - **Full source:** Soyeong Jeong et al., “Adaptive-RAG: Learning to Adapt
 Retrieval-Augmented Large Language Models through Question Complexity,” *NAACL 2024*,
 pp. 7036–7050.
 - **Links:** [DOI](https://doi.org/10.18653/v1/2024.naacl-long.389);
-[full text](https://aclanthology.org/2024.naacl-long.389.pdf).
+[user-supplied local PDF](sources/Jeong%20-%20Adaptive-RAG%20-%20Learning%20to%20Adapt%20Retrieval-Augmented%20Large%20Language%20Models%20through%20Question%20Complexity.pdf).
 - **Research Plan use:** §12 Dimension C, lines 2128–2130: complexity-sensitive routing.
 - **Quotation:**
   > “Our adaptive approach can select the most suitable strategy for retrieval-augmented LLMs,
@@ -443,15 +444,15 @@ pp. 7036–7050.
   > of given queries determined by our classifier.”
 - **Locator:** Figure 2 caption, article p. 7037 (PDF p. 2).
 - **Assessment:** **SUPPORTED** for the routing premise, not for this project’s exact features.
-- **Human verdict:** [ ] accept [ ] reject
+- **Human verdict:** [x] quotations confirmed [x] locators confirmed [x] retain source
 
 
 
-### Li & Roth (2002)
+### Li & Roth (2002) — human-confirmed
 
 - **Full source:** Xin Li and Dan Roth, “Learning Question Classifiers,” *COLING 2002*.
 - **Links:** [DOI](https://doi.org/10.3115/1072228.1072378);
-[full text](https://aclanthology.org/C02-1150.pdf).
+[user-supplied local PDF](sources/Li%20-%20Learning%20Question%20Classifiers.pdf).
 - **Research Plan use:** §12 Dimension C: controlled question-type classification.
 - **Quotation:**
   > “We define a two-layered taxonomy, which represents a natural semantic classification for
@@ -460,7 +461,7 @@ pp. 7036–7050.
 - **Locator:** §2.2, “Question Hierarchy,” PDF p. 2.
 - **Assessment:** **PARTIAL.** It supports hierarchical question classification, not this
 project’s decomposition labels.
-- **Human verdict:** [ ] accept as context [ ] remove
+- **Human verdict:** [x] quotations confirmed [x] locators confirmed [x] retain as context
 
 
 

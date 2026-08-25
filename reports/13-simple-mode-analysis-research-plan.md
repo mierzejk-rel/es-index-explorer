@@ -2191,7 +2191,10 @@ answers while questioning whether weak exhaustivity is always independently need
 **Karttunen (1971), "Some Observations on Factivity,"
 [doi:10.1080/08351817109370248](https://doi.org/10.1080/08351817109370248),
 pp. 55–56 (human-verified factivity/presupposition anchor with contextual caveat)**;
-Roberts (2012) QUD, *Semantics and Pragmatics* 5; **Ginzburg (2012), *The Interactive Stance*,
+**Roberts (2012), "Information Structure in Discourse,"
+[doi:10.3765/sp.5.6](https://doi.org/10.3765/sp.5.6),
+p. 6 (human-verified QUD/contextual-relevance anchor)**;
+**Ginzburg (2012), *The Interactive Stance*,
 [doi:10.1093/acprof:oso/9780199697922.001.0001](https://doi.org/10.1093/acprof:oso/9780199697922.001.0001),
 Chs. 2–4, pp. 18, 20, 32, and 66 (human-verified; dialogue-context/QUD anchor, not an
 exhaustivity taxonomy source)**.
@@ -2211,11 +2214,24 @@ not designed for. Three-way flag: applicable (interrogative) / applicable after 
 which case the step count is **missing, never zero**. Without this, `qdmr_step_count` would
 silently equate inapplicability with zero decomposition steps.
 
-Anchors: **Wolfson et al. (2020), TACL 8, doi:10.1162/tacl_a_00309** (verified); Yang et al.
-(2018) HotpotQA; Ho et al. (2020) 2WikiMultiHopQA; Trivedi et al. (2022) MuSiQue; **Jeong et
-al. (2024) Adaptive-RAG, NAACL, doi:10.18653/v1/2024.naacl-long.389** (verified - prior art
-for this study's premise: classify question complexity to route between no-retrieval,
-single-step and multi-step); **Li & Roth (2002), COLING, ACL C02-1150** (verified).
+Anchors: **Wolfson et al. (2020), "Break It Down,"
+[doi:10.1162/tacl_a_00309](https://doi.org/10.1162/tacl_a_00309),
+§2, p. 185 (human-verified QDMR-step source)**;
+**Yang et al. (2018), HotpotQA,
+[doi:10.18653/v1/D18-1259](https://doi.org/10.18653/v1/D18-1259),
+§2, pp. 2370–2371 (human-verified bridge/comparison source)**;
+**Ho et al. (2020), 2WikiMultiHopQA,
+[doi:10.18653/v1/2020.coling-main.580](https://doi.org/10.18653/v1/2020.coling-main.580),
+§2.2, p. 6611 (human-verified multi-hop taxonomy context)**;
+**Trivedi et al. (2022), MuSiQue,
+[doi:10.1162/tacl_a_00475](https://doi.org/10.1162/tacl_a_00475),
+pp. 541 and 543 (human-verified connected-hop/shortcut source)**;
+**Jeong et al. (2024), Adaptive-RAG,
+[doi:10.18653/v1/2024.naacl-long.389](https://doi.org/10.18653/v1/2024.naacl-long.389),
+Figure 2, p. 7037 (human-verified prior art for complexity-sensitive routing)**;
+**Li & Roth (2002), "Learning Question Classifiers,"
+[doi:10.3115/1072228.1072378](https://doi.org/10.3115/1072228.1072378),
+§2.2, p. 2 (human-verified question-taxonomy context)**.
 
 ### Dimension D - Reference and lexical anchoring
 

@@ -82,8 +82,10 @@ Status meanings:
   presupposed. This supports contextual `presupposition_load`, not a verb-list rule.
   **verified; human-confirmed**.
 - **Roberts (2012), “Information Structure in Discourse.”** DOI
-  [10.3765/sp.5.6](https://doi.org/10.3765/sp.5.6). Sections 2–3 provide the
-  question-under-discussion account of contextual answer relevance. **verified-open**.
+  [10.3765/sp.5.6](https://doi.org/10.3765/sp.5.6);
+  user-supplied article. Page 6 defines relevant alternatives by the question/topic under
+  discussion. This provides a QUD-based contextual-relevance anchor.
+  **verified; human-confirmed**.
 - **Ginzburg (2012), _The Interactive Stance_.** DOI
   [10.1093/acprof:oso/9780199697922.001.0001](https://doi.org/10.1093/acprof:oso/9780199697922.001.0001).
   User-supplied full book. Chapters 2–4, pp. 18, 20, 32, and 66, define QUD as the current
@@ -96,24 +98,29 @@ Status meanings:
 
 - **Wolfson et al. (2020), “Break It Down.”** DOI
   [10.1162/tacl_a_00309](https://doi.org/10.1162/tacl_a_00309);
-  [open text](https://aclanthology.org/2020.tacl-1.13/). Sections 2–3 define QDMR steps and
-  operators. **verified-open**.
+  user-supplied article. Section 2, p. 185 defines QDMR as a sequence of single-query steps.
+  **verified; human-confirmed**.
 - **Yang et al. (2018), HotpotQA.** DOI
-  [10.18653/v1/D18-1259](https://doi.org/10.18653/v1/D18-1259). Sections 2–3 anchor bridge
-  and comparison questions. **verified-open**.
+  [10.18653/v1/D18-1259](https://doi.org/10.18653/v1/D18-1259);
+  user-supplied article. Section 2, pp. 2370–2371 distinguishes bridge entities and comparison
+  questions. **verified; human-confirmed**.
 - **Ho et al. (2020), 2WikiMultiHopQA.** DOI
-  [10.18653/v1/2020.coling-main.580](https://doi.org/10.18653/v1/2020.coling-main.580).
-  Sections 2–3 support compositional and comparison structures. **verified-open**.
+  [10.18653/v1/2020.coling-main.580](https://doi.org/10.18653/v1/2020.coling-main.580);
+  user-supplied article. Section 2.2, p. 6611 defines comparison, inference, compositional,
+  and bridge-comparison question types. **verified; human-confirmed**.
 - **Trivedi et al. (2022), MuSiQue.** DOI
   [10.1162/tacl_a_00475](https://doi.org/10.1162/tacl_a_00475). Sections 2–3 anchor
-  connected single-hop composition and shortcut filtering. **verified-open**.
+  connected single-hop composition and shortcut filtering. Pages 541 and 543 define critical
+  predecessor dependence and identify disconnected shortcut-solvable edges.
+  **verified; human-confirmed**.
 - **Jeong et al. (2024), Adaptive-RAG.** DOI
   [10.18653/v1/2024.naacl-long.389](https://doi.org/10.18653/v1/2024.naacl-long.389).
-  Sections 2–3 support complexity-sensitive routing. **verified-open**.
+  User-supplied article. Figure 2, p. 7037, describes query-complexity routing among iterative,
+  single, and no-retrieval strategies. **verified; human-confirmed**.
 - **Li & Roth (2002), “Learning Question Classifiers.”** DOI
   [10.3115/1072228.1072378](https://doi.org/10.3115/1072228.1072378);
-  [open text](https://aclanthology.org/C02-1150/). The coarse/fine hierarchy anchors
-  question-type controls. **verified-open**.
+  user-supplied article. Section 2.2 defines a two-level hierarchy of 6 coarse and 50 fine
+  question/answer classes. **verified; human-confirmed**.
 
 ## Dimension D — reference and lexical anchoring
 
@@ -334,13 +341,17 @@ two-sided, potentially confounded redundancy proxy.
 - **Phipson & Smyth (2010), finite Monte Carlo p-values.** DOI
   [10.2202/1544-6115.1585](https://doi.org/10.2202/1544-6115.1585). Including the
   observed arrangement anchors the sampled-regime `+1` formula. **verified-open**.
-- **McCullagh (1980), proportional odds.** DOI
+- **McCullagh (1980), “Regression Models for Ordinal Data.”** DOI
   [10.1111/j.2517-6161.1980.tb01109.x](https://doi.org/10.1111/j.2517-6161.1980.tb01109.x);
-  **Agresti (2010), _Analysis of Ordinal Categorical Data_, 2nd ed., ISBN 9780470082898**;
-  and **Liddell & Kruschke (2018).** DOI
+  user-supplied article. Pages 109–110 develop ordinal-response models without assuming
+  cardinal scores and identify proportional odds as a practical model.
+  **Agresti (2010), _Analysis of Ordinal Categorical Data_, 2nd ed.** DOI
+  [10.1002/9780470594001](https://doi.org/10.1002/9780470594001);
+  user-supplied book. Pages 10, 44, 47–48, and 58 develop cumulative logits and the
+  proportional-odds restriction. **Liddell & Kruschke (2018).** DOI
   [10.1016/j.jesp.2018.08.009](https://doi.org/10.1016/j.jesp.2018.08.009).
-  These anchor grade-model ordering and ordinal interpretation. **verified-open** for
-  Liddell–Kruschke; **verified-paywalled** for McCullagh/Agresti.
+  These anchor grade-model ordering and ordinal interpretation. **verified; human-confirmed**
+  for McCullagh/Agresti and **verified-open** for Liddell–Kruschke.
 - **Cameron & Trivedi (2005), _Microeconometrics: Methods and Applications_.** DOI
   [10.1017/CBO9780511811241](https://doi.org/10.1017/CBO9780511811241);
   user-supplied book. The overview and Chapter 24, pp. xii and 813–814, identify nonlinear
