@@ -2279,19 +2279,23 @@ in the codebook.
 
 ### Dimension F - Lexical and information-theoretic (exploratory only)
 
-Mean log lexical frequency, domain-term density, per-token surprisal. Anchors: Brysbaert &
-New (2009) SUBTLEX-US; Hale (2001); Levy (2008).
+Mean log lexical frequency, domain-term density, per-token surprisal. Anchors:
+**Brysbaert & New (2009), SUBTLEX-US** (human-verified lexical-frequency context; not the
+project’s token aggregation or short-question validation); **Hale (2001)** and **Levy (2008)**
+(human-verified general surprisal context; not a commitment to a particular modern model).
 
 **Excluded from confirmatory work:** MTLD is excluded because McCarthy & Jarvis (2010),
 p. 384, state that shorter texts are harder to evaluate confidently and report `100` tokens
 as the shortest length tested during development—far above this corpus's roughly 15-token
 questions. Classical readability formulas are also excluded: **Flesch (1948), "A New
 Readability Yardstick," [doi:10.1037/h0057532](https://doi.org/10.1037/h0057532),
-pp. 221–223 (human-verified)** and Kincaid et al. (1975) derive and apply their measures to
+pp. 221–223 (human-verified)** and **Kincaid et al. (1975), “Derivation of New Readability
+Formulas”** (human-verified report-abstract context) derive and apply their measures to
 passages/100-word samples, and no retained source validates them for strings this short. These
 are scope/validation exclusions, not claims that the measures are generally unreliable.
-LingFeat (**Lee, Jang & Lee 2021, EMNLP, doi:10.18653/v1/2021.emnlp-main.834**, verified) is
-exploratory only.
+LingFeat (**Lee, Jang & Lee 2021, EMNLP, doi:10.18653/v1/2021.emnlp-main.834**,
+human-verified) is exploratory only; that restriction is the project’s methodological choice,
+not the source’s conclusion.
 
 ### Dimension G - Task and intent framing
 

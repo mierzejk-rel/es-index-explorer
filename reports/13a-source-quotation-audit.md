@@ -684,7 +684,7 @@ different construct.
 
 ## Dimension F — exploratory lexical and information-theoretic sources
 
-### Brysbaert & New (2009)
+### Brysbaert & New (2009) — human-confirmed
 
 - **Full source:** Marc Brysbaert and Boris New, “Moving Beyond Kučera and Francis: A Critical
 Evaluation of Current Word Frequency Norms and the Introduction of a New and Improved Word
@@ -700,11 +700,12 @@ Frequency Measure for American English,” *Behavior Research Methods* 41(4):977
 - **Why used:** Supports SUBTLEX-US as a lexical frequency norm.
 - **Assessment:** **PARTIAL.** It does not define the project’s token aggregation or validate
 the measure for short questions.
-- **Human verdict:** [ ] accept [ ] reject [ ] needs more evidence
+- **Human verdict:** [x] quotations confirmed [x] locators confirmed [x] retain with scope
+  caveat
 
 
 
-### Hale (2001)
+### Hale (2001) — human-confirmed
 
 - **Full source:** John Hale, “A Probabilistic Earley Parser as a Psycholinguistic Model,”
 *NAACL 2001*.
@@ -717,11 +718,12 @@ the measure for short questions.
 - **Locator:** Abstract, p. 159.
 - **Why used:** Defines incremental word surprisal.
 - **Assessment:** **SUPPORTED** for the general construct, not for any particular modern model.
-- **Human verdict:** [ ] accept [ ] reject
+- **Human verdict:** [x] quotations confirmed [x] locators confirmed [x] retain with scope
+  caveat
 
 
 
-### Levy (2008)
+### Levy (2008) — human-confirmed
 
 - **Full source:** Roger Levy, “Expectation-Based Syntactic Comprehension,” *Cognition*
 106(3):1126–1177.
@@ -734,7 +736,8 @@ the measure for short questions.
 - **Locator:** Abstract, p. 1126.
 - **Why used:** Defines expectation-based surprisal.
 - **Assessment:** **SUPPORTED** for the general construct.
-- **Human verdict:** [ ] accept [ ] reject
+- **Human verdict:** [x] quotations confirmed [x] locators confirmed [x] retain for the
+  general construct
 
 
 
@@ -789,9 +792,7 @@ approximately 15-token questions and does not show that the formula is generally
 - **Human verdict:** [x] quotations confirmed [x] locators confirmed [x] retain as validation
 context
 
-
-
-### Kincaid et al. (1975)
+### Kincaid et al. (1975) — human-confirmed
 
 - **Full source:** J. Peter Kincaid, Robert P. Fishburne Jr., Richard L. Rogers, and Brad S.
 Chissom, *Derivation of New Readability Formulas … for Navy Enlisted Personnel*, Research
@@ -807,11 +808,12 @@ formulas for roughly 15-token questions.
 - **Why used:** Establishes the source population and passage domain.
 - **Assessment:** **NOT SUPPORTED for ‘unreliable’.** It supports “not validated for short
 questions,” not unreliability at approximately 15 tokens.
-- **Human verdict:** [ ] retain as design caution [ ] remove claim [ ] find better source
+- **Human verdict:** [x] quotations confirmed [x] locators confirmed [x] retain as a
+  short-text validation caution
 
 
 
-### Lee, Jang & Lee (2021)
+### Lee, Jang & Lee (2021) — human-confirmed
 
 - **Full source:** Bruce W. Lee, Yoo Sung Jang, and Jason Lee, “Pushing on Text Readability
 Assessment: A Transformer Meets Handcrafted Linguistic Features,” *EMNLP 2021*,
@@ -824,7 +826,8 @@ pp. 10669–10686.
 - **Why used:** Establishes the existence and breadth of LingFeat.
 - **Assessment:** **PARTIAL.** “Exploratory only” is the project’s caution, not the source’s
 conclusion.
-- **Human verdict:** [ ] accept [ ] reject
+- **Human verdict:** [x] quotations confirmed [x] locators confirmed [x] retain as
+  exploratory context
 
 
 

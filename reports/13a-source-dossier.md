@@ -177,13 +177,17 @@ not claim byte-for-byte equivalence to constituency-based L2SCA.
 ## Dimension F — exploratory lexical features
 
 - **Brysbaert & New (2009), SUBTLEX-US.** DOI
-  [10.3758/BRM.41.4.977](https://doi.org/10.3758/BRM.41.4.977). Anchors mean log
-  lexical frequency. **verified-open**.
+  [10.3758/BRM.41.4.977](https://doi.org/10.3758/BRM.41.4.977); user-supplied article.
+  Anchors the lexical-frequency norm, but not the project’s token aggregation or its
+  applicability to short questions. **verified; human-confirmed**.
 - **Hale (2001), probabilistic Earley parsing.** DOI
-  [10.3115/1073336.1073357](https://doi.org/10.3115/1073336.1073357), and
-  **Levy (2008), expectation-based comprehension.** DOI
-  [10.1016/j.cognition.2007.05.006](https://doi.org/10.1016/j.cognition.2007.05.006).
-  These define and interpret surprisal. **verified-open**.
+  [10.3115/1073336.1073357](https://doi.org/10.3115/1073336.1073357);
+  user-supplied article. Defines incremental word surprisal as a general construct, not a
+  particular modern model. **verified; human-confirmed**.
+- **Levy (2008), expectation-based comprehension.** DOI
+  [10.1016/j.cognition.2007.05.006](https://doi.org/10.1016/j.cognition.2007.05.006);
+  user-supplied article. Defines the general expectation-based surprisal interpretation.
+  **verified; human-confirmed**.
 - **McCarthy & Jarvis (2010), “MTLD, vocd-D, and HD-D.”** DOI
   [10.3758/BRM.42.2.381](https://doi.org/10.3758/BRM.42.2.381);
   user-supplied article. The abstract reports strong MTLD validity and no observed text-length
@@ -194,13 +198,16 @@ not claim byte-for-byte equivalence to constituency-based L2SCA.
 - **Flesch (1948), “A New Readability Yardstick.”** DOI
   [10.1037/h0057532](https://doi.org/10.1037/h0057532);
   user-supplied article. Pages 221–223 describe applications to documents, a 100-word sample,
-  and reading-test passages. **Kincaid et al. (1975), DTIC ADA006655**
+  and reading-test passages. **verified; Flesch human-confirmed**.
+- **Kincaid et al. (1975), DTIC ADA006655**
   ([open report](https://apps.dtic.mil/sti/citations/ADA006655)) likewise uses passages.
-  Neither validates readability formulas for approximately 15-token questions; these sources
-  anchor a scope exclusion only. **verified; Flesch human-confirmed**.
+  The Flesch and Kincaid sources do not validate readability formulas for approximately
+  15-token questions; they anchor a scope exclusion only. **verified; human-confirmed**.
 - **Lee, Jang & Lee (2021), LingFeat.** DOI
-  [10.18653/v1/2021.emnlp-main.834](https://doi.org/10.18653/v1/2021.emnlp-main.834).
-  The feature inventory is exploratory only. **verified-open**.
+  [10.18653/v1/2021.emnlp-main.834](https://doi.org/10.18653/v1/2021.emnlp-main.834);
+  user-supplied article. The feature inventory remains exploratory only; that restriction is
+  the project’s methodological decision rather than the source’s conclusion.
+  **verified; human-confirmed**.
 
 ## Dimension G — task and intent framing
 
