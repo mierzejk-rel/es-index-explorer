@@ -829,11 +829,7 @@ conclusion.
 - **Human verdict:** [x] quotations confirmed [x] locators confirmed [x] retain as
   exploratory context
 
-
-
 ## Dimension G — task and intent framing
-
-
 
 ### Ingwersen & Järvelin (2005) — human-confirmed
 
@@ -905,9 +901,7 @@ expressible rather than as precise best-match queries.
 `recall_orientation` label; Oard & Webber is the direct high-recall/high-precision anchor.
 - **Human verdict:** [x] quotations confirmed [x] locators confirmed [x] retain as context
 
-
-
-### Oard & Webber (2013)
+### Oard & Webber (2013) — human-confirmed
 
 - **Full source:** Douglas W. Oard and William Webber, “Information Retrieval for
 E-Discovery,” *Foundations and Trends in Information Retrieval* 7(2–3):99–237.
@@ -920,11 +914,12 @@ E-Discovery,” *Foundations and Trends in Information Retrieval* 7(2–3):99–
 - **Locator:** §1, p. 101.
 - **Why used:** Directly distinguishes high-recall review from high-precision retrieval.
 - **Assessment:** **SUPPORTED.**
-- **Human verdict:** [ ] accept [ ] reject
+- **Human verdict:** [x] quotations confirmed [x] locators confirmed [x] retain as the
+  direct recall-orientation anchor
 
 
 
-### Broder (2002)
+### Broder (2002) — human-confirmed
 
 - **Full source:** Andrei Broder, “A Taxonomy of Web Search,” *SIGIR Forum* 36(2):3–10.
 - **Links:** [DOI](https://doi.org/10.1145/792550.792552);
@@ -936,11 +931,12 @@ E-Discovery,” *Foundations and Trends in Information Retrieval* 7(2–3):99–
 - **Locator:** §3, “A taxonomy of web searches,” approximately p. 5.
 - **Why used:** Supports classifying search intent.
 - **Assessment:** **PARTIAL.** The project’s binary recall-orientation mapping is new.
-- **Human verdict:** [ ] accept [ ] reject [ ] needs more evidence
+- **Human verdict:** [x] quotations confirmed [x] locators confirmed [x] retain with the
+  binary-mapping caveat
 
 
 
-### Rose & Levinson (2004)
+### Rose & Levinson (2004) — human-confirmed
 
 - **Full source:** Daniel E. Rose and Danny Levinson, “Understanding User Goals in Web Search,”
 *WWW 2004*, pp. 13–19.
@@ -953,11 +949,12 @@ E-Discovery,” *Foundations and Trends in Information Retrieval* 7(2–3):99–
 - **Locator:** Table 1, “The Search Goal Hierarchy,” approximately p. 15.
 - **Why used:** Supports known-item and open-ended intent distinctions.
 - **Assessment:** **PARTIAL.** It does not establish the exact project binary label.
-- **Human verdict:** [ ] accept [ ] reject [ ] needs more evidence
+- **Human verdict:** [x] quotations confirmed [x] locators confirmed [x] retain with the
+  binary-mapping caveat
 
 
 
-### Graesser & Person (1994)
+### Graesser & Person (1994) — human-confirmed
 
 - **Full source:** Arthur C. Graesser and Natalie K. Person, “Question Asking During Tutoring,”
 *American Educational Research Journal* 31(1):104–137.
@@ -971,7 +968,8 @@ E-Discovery,” *Foundations and Trends in Information Retrieval* 7(2–3):99–
 - **Locator:** “Theoretical Dimensions That Address Question Quality,” pp. 108–109; Table 1.
 - **Why used:** Supports question-content taxonomy context.
 - **Assessment:** **PARTIAL.** It should not add labels to the frozen codebook.
-- **Human verdict:** [ ] accept as context [ ] remove
+- **Human verdict:** [x] quotations confirmed [x] locators confirmed [x] retain as
+  taxonomy context only
 
 
 

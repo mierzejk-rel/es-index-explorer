@@ -213,13 +213,19 @@ not claim byte-for-byte equivalence to constituency-based L2SCA.
 
 - **Oard & Webber (2013), “Information Retrieval for E-Discovery.”** DOI
   [10.1561/1500000025](https://doi.org/10.1561/1500000025);
-  [author PDF](https://user.eng.umd.edu/~oard/pdf/fntir13.pdf). Workflow, review, and
-  evaluation sections anchor high-recall orientation. **verified-open**.
+  user-supplied article. Section 1, p. 101, directly contrasts e-discovery’s high-recall
+  focus with the high-precision focus of many end-user applications. **verified;
+  human-confirmed**.
 - **Broder (2002), “A Taxonomy of Web Search.”** DOI
-  [10.1145/792550.792552](https://doi.org/10.1145/792550.792552), and
-  **Rose & Levinson (2004), “Understanding User Goals in Web Search.”** DOI
-  [10.1145/988672.988675](https://doi.org/10.1145/988672.988675). Intent taxonomies
-  anchor precision-oriented known-item versus recall-oriented review. **verified-open**.
+  [10.1145/792550.792552](https://doi.org/10.1145/792550.792552); user-supplied article.
+  Its three-class navigational/informational/transactional taxonomy supports intent
+  classification, not the project’s binary recall-orientation mapping. **verified;
+  human-confirmed**.
+- **Rose & Levinson (2004), “Understanding User Goals in Web Search.”** DOI
+  [10.1145/988672.988675](https://doi.org/10.1145/988672.988675); user-supplied article.
+  Table 1 distinguishes known-website goals from open-ended, unconstrained-depth questions.
+  It supports intent context, not the project’s binary recall-orientation mapping.
+  **verified; human-confirmed**.
 - **Ingwersen & Järvelin (2005), _The Turn_.** DOI
   [10.1007/1-4020-3851-8](https://doi.org/10.1007/1-4020-3851-8);
   user-supplied book. Pages 3 and 19–20 argue that information seeking/retrieval must be
@@ -238,9 +244,10 @@ not claim byte-for-byte equivalence to constituency-based L2SCA.
   cognitive-complexity continuum. This supports treating `cognitive_process_level` as ordinal,
   activating the later ordinal-validation branch. **verified; human-confirmed**.
 - **Graesser & Person (1994), “Question Asking During Tutoring.”** DOI
-  [10.3102/00028312031001104](https://doi.org/10.3102/00028312031001104). Table 1's
-  content categories and classification dimensions provide supporting taxonomy context;
-  they do not add labels to the frozen codebook. **verified-open**.
+  [10.3102/00028312031001104](https://doi.org/10.3102/00028312031001104);
+  user-supplied article. Table 1's content categories and classification dimensions provide
+  supporting taxonomy context; they do not add labels to the frozen codebook. **verified;
+  human-confirmed**.
 
 ## Dimension H — evidence demand
 

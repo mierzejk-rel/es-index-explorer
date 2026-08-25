@@ -2303,7 +2303,10 @@ not the source’s conclusion.
 no annotation cost.
 
 Anchors: **Oard & Webber (2013), *Foundations and Trends in Information Retrieval*
-7(2-3):99-237** (verified); Broder (2002); Rose & Levinson (2004); **Ingwersen &
+7(2-3):99-237** (human-verified direct high-recall/high-precision distinction);
+**Broder (2002)** (human-verified intent taxonomy, not the project’s binary
+`recall_orientation` mapping); **Rose & Levinson (2004)** (human-verified known-item versus
+open-ended-goal context, not the binary mapping); **Ingwersen &
 Järvelin (2005), *The Turn*,
 [doi:10.1007/1-4020-3851-8](https://doi.org/10.1007/1-4020-3851-8),
 pp. 3 and 19–20 (human-verified task/context anchor, not the definition of
@@ -2312,7 +2315,9 @@ Part I. Background and Theory," [doi:10.1108/eb026722](https://doi.org/10.1108/e
 p. 61 (human-verified; supporting context, not the definition of `recall_orientation`)**;
 **Anderson & Krathwohl (2001), *A Taxonomy for Learning, Teaching, and Assessing*,
 pp. 5 and 30–31 (human-verified; `cognitive_process_level` is ordinal along the stated
-cognitive-complexity continuum)**. To verify: Graesser & Person (1994).
+cognitive-complexity continuum)**; **Graesser & Person (1994), “Question Asking During
+Tutoring”** (human-verified question-content-taxonomy context only; it adds no labels to the
+frozen codebook).
 
 ### Dimension H - Evidence demand
 
