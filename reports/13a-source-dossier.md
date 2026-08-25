@@ -341,12 +341,12 @@ two-sided, potentially confounded redundancy proxy.
   [10.1016/j.jesp.2018.08.009](https://doi.org/10.1016/j.jesp.2018.08.009).
   These anchor grade-model ordering and ordinal interpretation. **verified-open** for
   Liddell–Kruschke; **verified-paywalled** for McCullagh/Agresti.
-- **Cameron & Trivedi (2005), _Microeconometrics_, ISBN 9780521848053**;
-  **Davidson & MacKinnon (2004), _Econometric Theory and Methods_, ISBN 9780195123722**;
-  **Carroll et al. (2006), _Measurement Error in Nonlinear Models_, ISBN
-  9781584886334**; and **Hardin & Hilbe (2013), _Generalized Estimating Equations_,
-  ISBN 9781439881132** remain closed-access implementation references.
-  **verified-paywalled metadata; exact passages to-verify**.
+- **Cameron & Trivedi (2005), _Microeconometrics: Methods and Applications_.** DOI
+  [10.1017/CBO9780511811241](https://doi.org/10.1017/CBO9780511811241);
+  user-supplied book. The overview and Chapter 24, pp. xii and 813–814, identify nonlinear
+  models, robust inference, bootstrap methods, and clustered samples, and explain why
+  independence assumptions fail within clusters. This is general implementation context only,
+  not validation of the project’s exact multiway covariance/bootstrap. **verified; human-confirmed**.
 
 ## Open verification queue
 

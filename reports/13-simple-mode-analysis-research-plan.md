@@ -13,8 +13,8 @@ split into two parts that are intended to be read independently:
   annotation protocol, sensitivity matrix, limitations, and the degenerate-and-failure case
   register (§16a). Part I can be read without reference to this repository.
 - **Part II - Implementation architecture.** Programme layout, join keys, seeds, artefact
-  schemas, dependencies, the annotation kit, the frozen test oracles, and the analysis-lock
-  procedure.
+  schemas, dependencies, the annotation kit, the frozen test oracles, the contract uniqueness
+  index (§18.7), and the analysis-lock procedure.
 - **Appendix A** preserves the methodological audit trail: constructions that were
   specified during design and then rejected, with the reason each failed. It is part of
   the specification, not a footnote, because several of the rejections bear directly on how
@@ -37,14 +37,22 @@ A subsequent **implementation-alignment pass** produced the current text and is 
 Appendix A.10. It corrected the empirically false inventory and every dependent gate, replaced
 the unavailable Stata oracle and direct `r1-evals` dependency with reproducible fixtures,
 froze the parser/NER and Cursor SDK annotation runtimes and master seed, and decomposed the CLI
-and release sequence into their implementation boundaries. **No methodological choice remains
-open, and - as of this alignment pass - no computational or implementation-contract choice
-that could change a confirmatory number is left unfrozen either**, with two honest exceptions
-stated rather than hidden: the R `fwildclusterboot` oracle validates the linear special case
-only, so the GLM and stacking extensions of §5.3 and §11 still rest on internal consistency
-checks; and a small number of frozen constants (the annotation batch size, the exact per-level
-gold count) have no principled value and were fixed only for reproducibility, not because that
-value is demonstrably correct.
+and release sequence into their implementation boundaries.
+
+A seventh **implementation-contract uniqueness pass**, recorded in Appendix A.11, closed the
+remaining confirmatory-number forks that an independent contract review had listed as still
+open after the sixth pass: the GLM bread `A(beta)` as expected versus observed information,
+the original unrestricted and restricted GLM solvers (as distinct from the already-frozen
+full-refit solver), leftover nominal cluster counts of 64 that contradicted the frozen 63-rubric
+inventory, and the unnamed DGP of the off-diagonal-meat oracle. **No methodological choice
+remains open, and - as of this uniqueness pass - no computational or implementation-contract
+choice that could change a confirmatory number is left unfrozen either**, with two honest
+exceptions stated rather than hidden: the R `fwildclusterboot` oracle validates the linear
+special case only, so the GLM and stacking extensions of §5.3 and §11 still rest on internal
+consistency checks; and a small number of frozen constants (the annotation batch size, the
+exact per-level gold count) have no principled value and were fixed only for reproducibility,
+not because that value is demonstrably correct. §18.7 indexes every named fork from that
+review to the clause that froze it.
 
 ---
 
@@ -320,7 +328,7 @@ The phrase "Dirichlet-multinomial with a joint posterior" does not determine a
 computation, because several distinct models hide behind it. The model is therefore
 written out.
 
-**Indices.** Rubric `r = 1..64`; variant `v = 1..V_r` within rubric `r`; trace
+**Indices.** Rubric `r = 1..63`; variant `v = 1..V_r` within rubric `r`; trace
 `t = 1..T_rv`, one per evaluated arm; expectation count `N_r`, fixed by the rubric and
 therefore constant across all traces of all variants of `r`.
 
@@ -780,6 +788,25 @@ consistent only under stronger assumptions, its guaranteed positive semi-definit
 its sole compensating advantage. `statsmodels` exposes no multiway cluster-robust option, so
 this is implemented directly, consistent with the auditability requirement.
 
+**The bread `A(beta)`, frozen as the Bernoulli-logit Fisher information, which for this GLM
+equals the observed Hessian.** The score contribution is `s_i(beta) = x_i (y_i - mu_i(beta))`.
+Differentiating again, the Hessian of the log-likelihood is
+`-sum_i mu_i(beta)(1 - mu_i(beta)) x_i x_i'`. The bread is the **negative** of that Hessian:
+
+`A(beta) = sum_i mu_i(beta) (1 - mu_i(beta)) x_i x_i' = X' W(beta) X`,
+
+with `W(beta) = diag(mu_i(beta)(1 - mu_i(beta)))`. For Bernoulli logit this matrix is
+simultaneously the expected (Fisher) information and the observed information; the two
+readings that would diverge for other GLMs therefore coincide here, and no implementer
+choice remains. `A` is this matrix evaluated at the coefficient named in each use
+(`beta_hat` for the observed sandwich of this section, `beta_tilde` for every one-step
+replicate of §5.3). Substituting a finite-difference Hessian from a different optimiser, a
+robust sandwich bread, or `statsmodels`' default covariance (which already includes a meat)
+is forbidden: only this `X'WX` bread is used, with the meat supplied by the three-term score
+construction below. For the stacked two-outcome system of §11,
+`A_stacked = blockdiag(A(beta_resolved), A(beta_conservative))`, each block formed from that
+block's own `X` and `W`.
+
 **The three finite-sample multipliers, written out rather than left implicit.** For cluster
 sums `S_g = sum over i in g of s_i`, `S_h = sum over i in h of s_i`, `S_gh = sum over i in
 (g,h) of s_i`, with `G` the number of rubric clusters actually present in the fitted sample,
@@ -884,25 +911,37 @@ than to design a new one.
 the **restricted wild cluster bootstrap (WCR) based on the three-term CRVE, with a bootstrap
 DGP clustered along the dimension having the fewest clusters**, because that preserves
 intra-cluster correlation for the dimension whose clusters are on average largest. For this
-design: rubric has 64 clusters, arm has 28, so **the bootstrap DGP is clustered by arm**.
+design: rubric has 63 clusters, arm has 28, so **the bootstrap DGP is clustered by arm**.
 One Rademacher weight per arm, applied to every observation in that arm. This is also the
 favourable case here, since arm clusters are the larger ones - roughly 1,430 criterion
 observations each against roughly 625 per rubric.
 
 **Setup.** Observation `i` has covariate row `x_i`, response `y_i` in {0,1}, rubric cluster
-`g(i)` in 1..64, arm cluster `h(i)` in 1..28. Logit link, so the score contribution is
-`s_i(beta) = x_i * (y_i - mu_i(beta))`. Family `f` imposes `R beta = 0` of rank `q`.
+`g(i)` in 1..63, arm cluster `h(i)` in 1..28. Logit link, so the score contribution is
+`s_i(beta) = x_i * (y_i - mu_i(beta))`. Family `f` imposes `R beta = 0` of rank `q`. The
+bread `A(beta)` is the Bernoulli-logit Fisher information `X' W(beta) X` of §5.2, not a
+numerical Hessian and not a `statsmodels` default covariance.
 
 **Algorithm.**
 
-1. Fit unrestricted, giving `beta_hat`. Build the three-term CRVE
+1. Fit unrestricted by Newton-Raphson on the unperturbed score `sum_i s_i(beta) = 0`,
+   initialised at the zero vector, converged when the maximum absolute score component is
+   below `1e-8`, capped at 50 iterations (the same convergence rule as the full-refit
+   unrestricted solve below), giving `beta_hat`. `statsmodels` IRLS is permitted only as a
+   check that it reproduces this Newton solution to `rtol=1e-8` on `beta_hat`; it is not
+   itself the confirmatory solver. Build the three-term CRVE
    `V_3 = V_rubric + V_arm - V_(rubric intersect arm)` from `{s_i(beta_hat)}`, with the §5.2
-   PSD step. Observed statistic `W_obs = (R beta_hat)' (R V_3 R')^-1 (R beta_hat)`.
-2. Fit **restricted** under `R beta = 0`, giving `beta_tilde`, fitted means `mu_tilde_i`,
-   restricted score contributions `s_tilde_i = x_i * (y_i - mu_tilde_i)`, and the
-   information matrix `A(beta_tilde)`. Restriction is what MNW's simulations find performs
-   best, and imposing the null is what gives the bootstrap its reliability with few
-   clusters.
+   bread `A(beta_hat)` and PSD step. Observed statistic
+   `W_obs = (R beta_hat)' (R V_3 R')^-1 (R beta_hat)`.
+2. Fit **restricted** under `R beta = 0` by the **same** constrained Newton-Raphson as the
+   full-refit restricted solve below (Lagrange-multiplier augmentation of the score
+   equations), applied to the **unperturbed** score `sum_i s_i(beta) = 0`, initialised at
+   `beta_hat`, same `1e-8` / 50-iteration rule, giving `beta_tilde`, fitted means
+   `mu_tilde_i`, restricted score contributions `s_tilde_i = x_i * (y_i - mu_tilde_i)`, and
+   the information matrix `A(beta_tilde)` of §5.2. Reparameterisation (dropping columns in
+   the span of `R`) and penalised or soft constraints are not used. Restriction is what
+   MNW's simulations find performs best, and imposing the null is what gives the bootstrap
+   its reliability with few clusters.
 3. **The reference sample size is `B = 9999` under sampling; a family with small finite
    support instead enumerates its support exhaustively, in which case the reference sample
    size is `S_f = 2^(H_f - 1)`, not `B`.** Which regime applies is decided per family and
@@ -1639,8 +1678,13 @@ quality continuum. Replacement, mirroring the short-circuit in `compute_ordinal_
 
 - **Part 1.** Binary model for `P(Critical Error)`.
 - **Part 2.** Conditional on no critical error, proportional odds over
-  `Poor < Partial < Acceptable < Good`. Anchors: McCullagh (1980); Agresti (2010); Liddell &
-  Kruschke (2018).
+  `Poor < Partial < Acceptable < Good`. Anchors: **McCullagh (1980), "Regression Models for
+  Ordinal Data," [doi:10.1111/j.2517-6161.1980.tb01109.x](https://doi.org/10.1111/j.2517-6161.1980.tb01109.x),
+  pp. 109–110 (human-verified ordinal/proportional-odds source)**;
+  **Agresti (2010), *Analysis of Ordinal Categorical Data*, 2nd ed.,
+  pp. 10, 44, 47–48, and 58 (human-verified cumulative-logit/proportional-odds source)**;
+  and Liddell & Kruschke (2018). The proportional-odds assumption remains a model assumption
+  to be checked at fit time.
 
 This is the formal counterpart of the **coverage-by-error typology** - coverage crossed with
 error - whose dangerous cell is **high coverage with a critical error**, a confident,
@@ -1916,7 +1960,7 @@ answer both questions.
   standing**: that revision entered `clause_type` with a full Mundlak within-between split
   while simultaneously listing F7 among the within-rubric families that retain rubric fixed
   effects. The two are incompatible, because `Xbar_r`, the between-rubric mean, is constant
-  within rubric and therefore lies exactly in the span of the 64 rubric dummies; with rubric
+  within rubric and therefore lies exactly in the span of the 63 rubric dummies; with rubric
   fixed effects present, its coefficient is not identified and cannot enter `R_f`. The
   confirmatory restriction `R_f` for F7 therefore contains **only the within-rubric term**;
   the between-rubric component is reported descriptively, not tested. A **declared sensitivity
@@ -2615,7 +2659,7 @@ blur, so each has a name that is used consistently in the report and in figure c
 - **Hyperparameter uncertainty** - from estimating the empirical-Bayes hierarchy. Quantified
   by the parametric bootstrap and propagated into `Pi_prop` (§5.1). Shrinks with more rubrics,
   not more traces.
-- **Bootstrap inference uncertainty** - from having 28 arm clusters and 64 rubric clusters for
+- **Bootstrap inference uncertainty** - from having 28 arm clusters and 63 rubric clusters for
   the confirmatory tests. Quantified by the WCR procedure (§5.3). Not reducible within this
   snapshot.
 - **Annotation uncertainty** - from imperfect semantic labels on P3 and P4 features.
@@ -2753,9 +2797,9 @@ Books, priority order: Quirk et al. (1985); Biber et al. (1999); Aikhenvald (201
 *Imperatives and Commands*; Pustejovsky & Stubbs (2012) *Natural Language Annotation for
 Machine Learning*; Agresti (2010) *Analysis of Ordinal Categorical Data*.
 
-Statistical layer: Cameron & Trivedi (2005) *Microeconometrics*; Davidson & MacKinnon (2004)
-*Econometric Theory and Methods* on bootstrap inference; Carroll et al. (2006) *Measurement
-Error in Nonlinear Models*; Hardin & Hilbe (2013) *Generalized Estimating Equations* 2nd ed.
+Statistical layer: **Cameron & Trivedi (2005), *Microeconometrics: Methods and Applications*,
+[doi:10.1017/CBO9780511811241](https://doi.org/10.1017/CBO9780511811241),
+pp. xii and 813–814 (human-verified clustered-sample/robust-inference context only)**.
 
 Query strings:
 
@@ -2988,6 +3032,8 @@ independently from the same master seed:
   seeded-shuffle judging order (§13.2a).
 - `diagnostic_resampling` - the importance-resampling check (§5.1), the leave-one-arm-out and
   leave-one-stage-out refits (§6.4), and any other stability diagnostic not covered above.
+- `oracle_offdiag` - the synthetic two-outcome scores of the off-diagonal meat oracle
+  (§18.6 test 4). Consumed only by that oracle; never mixed into a confirmatory fit.
 
 ### 18.3 Artefact schemas
 
@@ -3151,12 +3197,19 @@ alone does not supply.
    Invariant: `V*_arm` and `V*_intersection` are bit-identical (or within floating-point
    `allclose` at `rtol=1e-9`) across all `B` replicates. Tolerance: as stated. Failure action:
    the bootstrap implementation has a bug and the family's `p_f` is not reported until fixed.
-4. **Off-diagonal meat test.** Fixture: synthetic two-outcome data constructed with a
-   deliberately non-zero cross-outcome score covariance (specified by drawing `s_i^resolved`
-   and `s_i^conservative` from a bivariate distribution with a fixed non-zero correlation,
-   rather than independently). Invariant: the computed `B_stacked` off-diagonal block is
-   non-zero and matches the analytically expected value to `rtol=1e-6`. Failure action: the
-   stacked-meat construction is blocked from use until fixed.
+4. **Off-diagonal meat test.** Fixture: a committed synthetic stacked-score matrix, not a
+   live GLM fit. Draw `n = 400` pairs `(s_i^R, s_i^C)` from a bivariate normal with mean
+   `0`, variances `1`, and correlation `rho = 0.5`, using `numpy.random.default_rng` seeded
+   by the `oracle_offdiag` stream (§18.2). Partition the 400 rows into two rubric clusters
+   of 200 and two arm clusters of 200, fully crossed (four intersection cells of 100), with
+   rows `0..99` in `(g=1, h=1)`, `100..199` in `(g=1, h=2)`, `200..299` in `(g=2, h=1)`,
+   `300..399` in `(g=2, h=2)`. Each outcome block is treated as a scalar parameter, so the
+   stacked meat is `2 x 2`. The reference off-diagonal is computed from the same fixture by
+   an independent cluster-sum implementation of §5.2's three-term formula including the CGM
+   multipliers (`G = H = GH = 2`) and the bread `A = I_2` (identity, since this oracle
+   tests the meat, not the bread). Invariant: the implementation's `B_stacked[0, 1]` equals
+   that reference to `rtol=1e-6` and is strictly non-zero. Failure action: the stacked-meat
+   construction is blocked from use until fixed.
 5. **One-step versus full-refit indicator agreement.** Fixture: the 2% full-refit validation
    subsample, selected once per family from the `glm_bootstrap` seed stream (§18.2). Invariant:
    agreement of `1{W* >= W_obs}` in at least 99% of the subsample. Tolerance: as stated, with
@@ -3189,6 +3242,49 @@ alone does not supply.
    check, distinguishing error-driven from coverage-driven mismatches; a mismatch rate above
    1% blocks the release sequence pending investigation, matching the
    disclosure-not-automatic-rejection posture of §5.3's singular-replicate protocol.
+
+### 18.7 Contract uniqueness index
+
+An implementation-contract review listed the forks that would still have let two implementers
+produce different confirmatory numbers while both believing they followed this plan. Every
+named fork is frozen in the clause below. This index is a map, not a second specification:
+if the index and the named clause ever appear to disagree, the named clause governs.
+
+| Fork | Frozen clause |
+|---|---|
+| Layer 1 MML algorithm, log-Cholesky / `log(phi)`, L-BFGS, nested Laplace | §5.1 |
+| Method-of-moments formulae, including pooled `Sigma_within` denominator `sum_r (V_r - 1)` | §5.1 |
+| ALR boundary: `eps = 0.5` smoothing on ALR only; raw multinomial unsmoothed | §5.1 |
+| `psi*` DGP: design held fixed, latents redrawn; Laplace conditions on observed `D` | §5.1 |
+| Laplace Hessian: observed, not expected; non-PD Hessian discarded and replenished | §5.1 |
+| Adaptive `B_psi`: one shared outer sequence 500→1000→2000→4000; inclusive `R_rv >= c` | §5.1 |
+| Identifiability: `d(EMC2 UAT set_1) = (0, 0)`; primary Layer 1 arm-free | §5.1, §5.5 |
+| Heterogeneity scalar `D_r`; importance resampling `N_particles = 5000`, ESS/N ≥ 0.10 | §5.1 |
+| GLM observation grain: criterion-in-trace for every confirmatory family | §11.1 |
+| F3 outcome: criterion-level pass, not trace full-satisfaction; `g`, `c` numeric | §11.1 |
+| F3 interaction `expectation_count * g`; `H_F3` = distinct hybrid arms, not padded to 28 | §11.1 |
+| Bread `A(beta) = X' W(beta) X`, Fisher = observed Hessian for Bernoulli logit | §5.2 |
+| CGM finite-sample factors `B_G`, `B_H`, `B_I`; empty cells not in `GH` | §5.2 |
+| PSD map: symmetrise, eigendecompose, clip `max(lambda, 0)` at `1e-10`, reconstruct | §5.2 |
+| Dropped FE: rubric `r = 1`; rank assert 62 | §11.1 |
+| Mundlak `Xbar_r` over designed variants, not criterion rows or traces | §11.1 |
+| Original unrestricted fit: Newton on unperturbed score; IRLS is a check only | §5.3 step 1 |
+| Original restricted fit: Lagrange Newton on unperturbed score, not reparameterisation | §5.3 step 2 |
+| Full refit: solve perturbed score equations; **no `y*`** | §5.3 |
+| Sampled `p_f`: replenish to exactly `B = 9999` valid; `(1 + #)/(B + 1)` | §5.3 |
+| Enumerated `p_f`: bracket on `S_f`, no `+1`, no `S_f_valid` renormalisation | §5.3, §11.1 |
+| Linear oracle: R `fwildclusterboot` in digest-pinned Docker, not Stata `boottest` | §5.3, §18.6 test 2 |
+| Master seed `20`; SHA-256 named streams, never Python `hash()` | §18.2 |
+| Variant key `(eval_dataset, source_path, variant_index)`; enumerate all `[[input]]` | §18.1 |
+| Arm key = parsed `arm_id`; failed traces ineligible | §18.1 |
+| `mlflow_analysis` reuse allowlist vs out-of-bounds (`_rubric_question`, `_build_catalogue`) | §18.1 |
+| Logged `RubricV2` reconstruction check only; unique `document_ids` count | §18.1 |
+| CLI, artefact schemas, draw archives | §18.3, §18.4 |
+| Oracle is a pre-modelling gate, not a pre-lock gate | §19 |
+| Seven specification checks as oracles: fixture, invariant, tolerance, failure action | §18.6 |
+| Off-diagonal meat DGP: `n = 400`, `rho = 0.5`, fully-crossed 2×2, identity bread | §18.6 test 4 |
+| Variance partitioning: Layer 1 `trace(Sigma_between)` vs `trace(Sigma_within)` on ALR scale | §7.1 |
+| Grade Part 1: missing `errors_*_v2` excludes the trace; not treated as not-critical | §8 |
 
 ## 19. Analysis lock procedure
 
@@ -3289,10 +3385,11 @@ accuracy metrics with matched naive baselines, Horvitz-Thompson weighting, a str
 bootstrap interval, and a stated boundary between the two passing statuses (§13.2a); the
 **three-term CRVE with explicit finite-sample multipliers and PSD map, plus restricted wild
 cluster bootstrap with the DGP clustered on the arm dimension**, with the other MNW pairings
-declared as sensitivity analyses that never displace the confirmatory `p_f`, **the bread held
-fixed at `A(beta_tilde)` in one-step replicates**, full refit defined as the perturbed
-estimating equation with no bootstrap response ever constructed, and replenishment to exactly
-`B = 9999` valid replicates (§5.3); hyperparameter uncertainty propagated into the decision
+declared as sensitivity analyses that never displace the confirmatory `p_f`, **the bread
+`A(beta) = X' W(beta) X` held fixed at `A(beta_tilde)` in one-step replicates**, original
+and full-refit solvers defined as Newton / Lagrange Newton on (un)perturbed score equations
+with no bootstrap response ever constructed, and replenishment to exactly
+`B = 9999` valid replicates (§5.2, §5.3); hyperparameter uncertainty propagated into the decision
 quantity via a fully specified fitting, boundary, DGP and retention procedure, with `Pi_prop`
 named as a propagated empirical-Bayes uncertainty measure rather than a posterior and `gamma`
 therefore an operational threshold rather than a credibility level (§5.1); exact rank
@@ -3664,3 +3761,37 @@ recorded here because each would otherwise be easy to reintroduce from an older 
   features, outcome-blind annotation, gold work and feature validation may proceed
   independently before it (§19). Grade-fixture generation and integrity remain owned by
   `join`; the `oracle` command owns only the independent R bootstrap reference.
+
+## A.11 Corrections from the implementation-contract uniqueness pass
+
+Four remaining confirmatory-number forks, identified by treating this report as an
+implementation contract after the alignment pass, are closed here. None redesigns the
+method; each names the unique computation the method already required.
+
+- **The bread `A(beta)` as "the information matrix" without saying expected or observed.**
+  Withdrawn as an implementer choice: for a GLM those two matrices need not coincide, and
+  a finite-difference Hessian from a different optimiser is a third matrix. Replaced by the
+  Bernoulli-logit Fisher information `A(beta) = X' W(beta) X` with
+  `W = diag(mu(1-mu))`, which for this GLM equals the observed Hessian, evaluated at the
+  coefficient named in each use (§5.2). `statsmodels`' default covariance is forbidden as a
+  bread because it already includes a meat.
+- **The original unrestricted and restricted GLM fits as unnamed library calls.** Withdrawn
+  as a fork from the already-frozen full-refit solver: two implementers could obtain
+  `beta_hat` and `beta_tilde` from IRLS, from column-dropping reparameterisation, or from
+  a penalty, and then disagree on every subsequent sandwich and bootstrap number while
+  sharing the full-refit definition. Replaced by Newton-Raphson on the unperturbed score
+  for the unrestricted fit, and by the same Lagrange-multiplier Newton as the full-refit
+  restricted solve applied to the unperturbed score for the restricted fit (§5.3 steps 1–2).
+- **Leftover nominal cluster counts of 64.** Withdrawn as a contradiction with the frozen
+  63-rubric inventory of Appendix A.10: `r = 1..64`, "64 rubric clusters", and "64 rubric
+  dummies" would have let an implementer set `G = 64` in a CGM factor or build 64 dummies
+  while the catalogue, rank assertion and coverage gates all require 63. Replaced by
+  `r = 1..63` everywhere those counts are used as indices or cluster totals (§5.1, §5.3,
+  §11, §15a). Historical statements of the withdrawn 64/268/324 inventory remain as
+  withdrawn statements.
+- **The off-diagonal meat oracle as "a bivariate distribution with a fixed non-zero
+  correlation".** Withdrawn as a named invariant without a DGP: two implementers could
+  pick different `n`, `rho`, cluster partitions and breads and still claim to have tested
+  a non-zero off-diagonal. Replaced by `n = 400`, `rho = 0.5`, a fully-crossed 2×2
+  partition of 100, identity bread, `G = H = GH = 2`, and the `oracle_offdiag` stream
+  (§18.2, §18.6 test 4).
