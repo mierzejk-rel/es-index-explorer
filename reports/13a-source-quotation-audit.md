@@ -1345,19 +1345,21 @@ to test, not an established fact about these grades.
 
 
 
-### Liang & Zeger (1986)
+### Liang & Zeger (1986) — human-confirmed
 
 - **Full source:** Kung-Yee Liang and Scott L. Zeger, “Longitudinal Data Analysis Using
 Generalized Linear Models,” *Biometrika* 73(1):13–22.
-- **Link:** [DOI](https://doi.org/10.1093/biomet/73.1.13).
+- **Links:** [DOI](https://doi.org/10.1093/biomet/73.1.13);
+  [user-supplied local PDF](sources/Liang%20%26%20Zeger%20(1986)%20-%20Longitudinal%20Data%20Analysis%20Using%20Generalized%20Linear%20Models.pdf).
 - **Research Plan use:** §5.2: GEE-style scores and robust sandwich covariance.
 - **Quotation:**
   > “The consistency of β̂ and of its variance estimate depends only on the correct
   > specification of the mean, not on the correct choice of R.”
-- **Locator:** §3, pp. 17–18.
+- **Locator:** §3.1, p. 16.
 - **Assessment:** **PARTIAL.** It does not establish two-way clustering, the plan’s finite
 sample corrections, or its wild bootstrap.
-- **Human verdict:** [ ] accept [ ] reject
+- **Human verdict:** [x] quotation confirmed [x] locator confirmed [x] retain with
+  one-way-longitudinal scope caveat
 
 
 
@@ -1384,38 +1386,46 @@ background
 
 
 
-### Cameron, Gelbach & Miller (2011)
+### Cameron, Gelbach & Miller (2011) — human-confirmed
 
 - **Full source:** A. Colin Cameron, Jonah B. Gelbach, and Douglas L. Miller, “Robust Inference
 With Multiway Clustering,” *JBES* 29(2):238–249.
-- **Link:** [DOI](https://doi.org/10.1198/jbes.2010.07136).
+- **Links:** [DOI](https://doi.org/10.1198/jbes.2010.07136);
+  [user-supplied local PDF](sources/Cameron%202011%20-%20Robust%20Inference%20With%20Multiway%20Clustering.pdf).
 - **Research Plan use:** §5.2: two-way inclusion–exclusion covariance.
 - **Quotation:**
-  > “The variance matrix is computed by adding the two one-way cluster-robust variance
-  > matrices, and subtracting the cluster-robust variance matrix computed using clustering on
-  > the intersection of the two cluster dimensions.”
-- **Locator:** §2; working-paper p. 8, published pp. 240–241.
+  > “In the two-way clustering case, we obtain three different cluster-robust ‘variance’
+  > matrices for the estimator by one-way clustering in, respectively, the first dimension, the
+  > second dimension, and by the intersection of the first and second dimensions … Then we add
+  > the first two variance matrices and subtract the third.”
+- **Locator:** Introduction, p. 238.
 - **Assessment:** **SUPPORTED** for the three-term structure. It does not validate every
 finite-sample correction frozen by the plan.
-- **Human verdict:** [ ] accept [ ] reject [ ] inspect correction
+- **Human verdict:** [x] quotation confirmed [x] locator confirmed [x] retain with
+  finite-sample-correction caveat
 
 
 
-### Kline & Santos (2012)
+### Kline & Santos (2012) — human-confirmed
 
 - **Full source:** Patrick Kline and Andres Santos, “A Score Based Approach to Wild Bootstrap
 Inference,” *Journal of Econometric Methods* 1(1):23–41.
 - **Links:** [DOI](https://doi.org/10.1515/2156-6674.1006);
 [author PDF](https://eml.berkeley.edu/~pkline/papers/ScoreFinal_web.pdf).
+- **Local copy:** [user-supplied PDF](sources/Kline%202012%20-%20A%20Score%20Based%20Approach%20to%20Wild%20Bootstrap%20Inference.pdf).
 - **Research Plan use:** §5.3: score perturbation instead of invalid bootstrap Bernoulli
 responses.
-- **Quotation — abstract:**
-  > “We propose a new wild bootstrap procedure for inference in models defined by moment
-  > restrictions. Our approach perturbs the scores of the unrestricted model in a manner that
-  > is robust to heteroskedasticity of unknown form.”
+- **Quotations — abstract:**
+  > “We propose a generalization of the wild bootstrap of Wu (1986) and Liu (1988) based upon
+  > perturbing the scores of M-estimators.”
+  > “We establish the consistency of the procedure for Wald and Lagrange Multiplier type tests
+  > and tests of moment restrictions for a wide class of M-estimators under clustering and
+  > potential misspecification.”
+- **Locator:** Abstract, p. 1 of the supplied author manuscript.
 - **Assessment:** **PARTIAL.** It does not establish the plan’s GLM-specific, two-way
 clustered, restricted-arm construction.
-- **Human verdict:** [ ] accept general framework [ ] reject [ ] require derivation
+- **Human verdict:** [x] quotations confirmed [x] locator confirmed [x] retain general
+  framework; the project-specific extension still requires derivation
 
 
 
@@ -1463,29 +1473,34 @@ background
 
 
 
-### MacKinnon, Nielsen & Webb (2021)
+### MacKinnon, Nielsen & Webb (2021) — human-confirmed
 
 - **Full source:** James G. MacKinnon, Morten Ørregaard Nielsen, and Matthew D. Webb, “Wild
 Bootstrap and Asymptotic Inference With Multiway Clustering,” *JBES* 39(2):505–519.
-- **Link:** [DOI](https://doi.org/10.1080/07350015.2019.1677473).
+- **Links:** [DOI](https://doi.org/10.1080/07350015.2019.1677473);
+  [user-supplied local PDF](sources/MacKinnon%202021%20-%20Wild%20Bootstrap%20and%20Asymptotic%20Inference%20With%20Multiway%20Clustering.pdf).
 - **Research Plan use:** §5.3: three-term CRVE and bootstrap clustering on the few-cluster
 dimension.
-- **Quotation:**
-  > “When one dimension has few clusters and the other has many, clustering only by the former
-  > dimension, with or without the wild cluster bootstrap, generally seems to be the best
-  > approach.”
-- **Locator:** §7, Conclusion.
+- **Quotations:**
+  > “The two-term CRVE is consistent under less general conditions than the three-term one.”
+  > “Overall, the method of inference with the lowest error in rejection percentage throughout
+  > our extensive set of simulations is the restricted wild cluster bootstrap based on the
+  > three-term CRVE coupled with a bootstrap DGP that is clustered along the dimension with the
+  > smallest number of clusters.”
+- **Locator:** §7, Conclusion, p. 518.
 - **Assessment:** **PARTIAL.** It supports the few-cluster rationale, not the exact GLM score
 implementation or an unconditional arm-only rule.
-- **Human verdict:** [ ] accept rationale [ ] reject [ ] require derivation
+- **Human verdict:** [x] quotations confirmed [x] locator confirmed [x] retain for the linear
+  model; the GLM score-bootstrap synthesis still requires derivation
 
 
 
-### Benjamini & Hochberg (1995)
+### Benjamini & Hochberg (1995) — human-confirmed
 
 - **Full source:** Yoav Benjamini and Yosef Hochberg, “Controlling the False Discovery Rate:
 A Practical and Powerful Approach to Multiple Testing,” *JRSS B* 57(1):289–300.
-- **Link:** [DOI](https://doi.org/10.1111/j.2517-6161.1995.tb02031.x).
+- **Links:** [DOI](https://doi.org/10.1111/j.2517-6161.1995.tb02031.x);
+  [user-supplied local PDF](sources/Benjamini%201995%20-%20Controlling%20the%20False%20Discovery%20Rate-%20A%20Practical%20and%20Powerful%20Approach%20to%20Multiple%20Testing.pdf).
 - **Research Plan use:** §5.6: ten-family BH step-up computation.
 - **Quotation:**
   > “Let k be the largest i for which P_{(i)} \leq (i/m)q^*; then reject all
@@ -1493,27 +1508,29 @@ A Practical and Powerful Approach to Multiple Testing,” *JRSS B* 57(1):289–3
 - **Locator:** §3.1, p. 292.
 - **Assessment:** **SUPPORTED** for the computation. The original proof does not provide an
 unqualified guarantee for the plan’s dependent Wald tests.
-- **Human verdict:** [ ] accept procedure [ ] reject
+- **Human verdict:** [x] quotation confirmed [x] locator confirmed [x] retain procedure with
+  dependence caveat
 
 
 
-### Benjamini & Yekutieli (2001)
+### Benjamini & Yekutieli (2001) — human-confirmed
 
 - **Full source:** Yoav Benjamini and Daniel Yekutieli, “The Control of the False Discovery
 Rate in Multiple Testing Under Dependency,” *Annals of Statistics* 29(4):1165–1188.
-- **Link:** [DOI](https://doi.org/10.1214/aos/1013699998).
+- **Links:** [DOI](https://doi.org/10.1214/aos/1013699998);
+  [user-supplied local PDF](sources/Benjamini%202001%20-%20The%20Control%20of%20the%20False%20Discovery%20Rate%20in%20Multiple%20Testing%20Under%20Dependency.pdf).
 - **Research Plan use:** §5.6: PRDS and arbitrary-dependence qualifications.
-- **Quotation:**
-  > “When the test statistics have positive regression dependency on each of the test
-  > statistics corresponding to the true null hypotheses, the Benjamini and Hochberg procedure
-  > controls the FDR at level less than or equal to m_0q/m.”
-  > “For all other forms of dependency, the procedure with
-  > q/\sum_{i=1}^{m}(1/i) in place of q controls the FDR at level less than or equal to
-  > m_0q/m.”
-- **Locator:** Theorems 1.2–1.3, pp. 1167–1168.
+- **Quotations:**
+  > “If the joint distribution of the test statistics is PRDS on the subset of test statistics
+  > corresponding to true null hypotheses, the Benjamini Hochberg procedure controls the FDR
+  > at level less than or equal to m₀q/m.”
+  > “When the Benjamini Hochberg procedure is conducted with q/(Σᵐᵢ₌₁ 1/i) taking the place
+  > of q in (1), it always controls the FDR at level less than or equal to m₀q/m.”
+- **Locator:** Theorems 1.2–1.3, pp. 1168–1169.
 - **Assessment:** **SUPPORTED** for the caveat. The plan establishes neither PRDS nor the
 arbitrary-dependence correction and therefore must not claim finite-sample 5% FDR control.
-- **Human verdict:** [ ] accept limitation [ ] revise multiplicity plan
+- **Human verdict:** [x] quotations confirmed [x] locators confirmed [x] retain limitation;
+  the arbitrary-dependence correction remains deliberately unadopted
 
 
 

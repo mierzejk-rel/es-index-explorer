@@ -782,11 +782,10 @@ Cameron-Gelbach-Miller two-way sandwich
 `V_3 = V_rubric + V_arm - V_(rubric intersect arm)`
 
 built from the GLM score contributions. The three-term form is chosen deliberately over the
-two-term `V_rubric + V_arm`: MacKinnon, Nielsen & Webb show that **only the three-term CRVE
-is consistent in all the dependence cases they consider**, whereas the two-term version is
-consistent only under stronger assumptions, its guaranteed positive semi-definiteness being
-its sole compensating advantage. `statsmodels` exposes no multiway cluster-robust option, so
-this is implemented directly, consistent with the auditability requirement.
+two-term `V_rubric + V_arm`: **MacKinnon, Nielsen & Webb (2021), Conclusion, p. 518
+(human-verified)** state that the two-term CRVE is consistent under less general conditions
+than the three-term version. `statsmodels` exposes no multiway cluster-robust option, so this
+is implemented directly, consistent with the auditability requirement.
 
 **The bread `A(beta)`, frozen as the Bernoulli-logit Fisher information, which for this GLM
 equals the observed Hessian.** The score contribution is `s_i(beta) = x_i (y_i - mu_i(beta))`.
@@ -870,9 +869,12 @@ distribution, and no such quantity is currently produced. This changes only the 
 the fitted coefficient.
 
 Exchangeable-GEE with one-way clustering is retained as a sensitivity analysis. Anchors:
-Liang & Zeger (1986); **Cameron, Gelbach & Miller (2011), *Journal of Business & Economic
-Statistics* 29(2):238-249**, which develops multiway cluster-robust inference for nonlinear
-estimators including logit, not only OLS.
+**Liang & Zeger (1986), §3.1, p. 16 (human-verified)** for GEE consistency under a correctly
+specified mean despite misspecified working correlation; **Cameron, Gelbach & Miller (2011),
+*Journal of Business & Economic Statistics* 29(2):238-249, Introduction, p. 238
+(human-verified)** for the two-way add-add-subtract covariance and multiway cluster-robust
+inference for nonlinear estimators including logit. Neither source establishes the plan’s
+complete finite-sample or bootstrap construction.
 
 ### 5.3 Layer 3 - the score-based restricted wild cluster bootstrap for two-way clustered inference
 
@@ -893,8 +895,9 @@ an algorithm rather than a label.
 (estimating-function) wild bootstrap never constructs a bootstrap response, which removes
 the invalid-response problem of Appendix A.2 entirely while preserving the wild bootstrap's
 cluster-level sign-flip structure. Anchor: **Kline & Santos (2012), "A Score Based Approach
-to Wild Bootstrap Inference", *Journal of Econometric Methods* 1(1):23-41**, which develops
-score perturbation for general M-estimators including Wald tests and clustered settings.
+to Wild Bootstrap Inference", *Journal of Econometric Methods* 1(1):23-41, Abstract
+(human-verified)**, which develops score perturbation for general M-estimators including Wald
+tests and clustered settings.
 
 **Resolution part two: the weighting scheme is taken from the established menu, not
 invented.** MacKinnon, Nielsen & Webb propose **eight** procedures: wild bootstrap or wild
@@ -907,7 +910,8 @@ conditions. There is therefore no generic "multiway wild bootstrap" independent 
 pairing, and the correct move is to select the pairing their simulations recommend rather
 than to design a new one.
 
-**Selected pairing, with its rationale from the source.** MNW's overall recommendation is
+**Selected pairing, with its rationale from the source.** MNW's overall recommendation
+(Conclusion, p. 518, human-verified) is
 the **restricted wild cluster bootstrap (WCR) based on the three-term CRVE, with a bootstrap
 DGP clustered along the dimension having the fewest clusters**, because that preserves
 intra-cluster correlation for the dimension whose clusters are on average largest. For this
@@ -1310,7 +1314,8 @@ are not a sample from a superpopulation.
 ### 5.6 Multiplicity
 
 Benjamini-Hochberg at q = 0.05 over the **ten** confirmatory family-level bootstrap
-p-values declared in §11, one per family. Anchor: Benjamini & Hochberg (1995).
+p-values declared in §11, one per family. Anchor: **Benjamini & Hochberg (1995), §3.1,
+p. 292 (human-verified)**.
 
 **The procedure is fully reproducible; the textbook guarantee attached to it is not, and the
 two are kept separate.** Given the ten p-values, ordered `p_(1) <= ... <= p_(10)`, BH computes
@@ -1320,8 +1325,9 @@ once the ten inputs are fixed (§11.1 groups the input-freezing and gate-to-BH-m
 
 **The 5% false-discovery-rate control claim requires a dependence condition this design does
 not establish, and no such unqualified claim is made anywhere in this report.** BH's classical
-guarantee holds under independence or under positive regression dependence on a subset (PRDS)
-of the test statistics. The ten families here are two-sided joint Wald statistics built from
+guarantee holds under independence; **Benjamini & Yekutieli (2001), Theorem 1.2,
+pp. 1168–1169 (human-verified)** extends it to positive regression dependence on a subset
+(PRDS) of the test statistics. The ten families here are two-sided joint Wald statistics built from
 overlapping data - shared rubric clusters, shared arm clusters, and predictors correlated by
 design (§11's collinearity note) - so their dependence structure is neither established as
 independent nor verified as PRDS, and positive correlation among the underlying scores does
@@ -1330,9 +1336,9 @@ therefore: **"BH-adjusted confirmatory inference at nominal q = 0.05; the finite
 discovery rate guarantee is not claimed, because the dependence condition it requires is not
 established for two-sided joint Wald statistics on overlapping clusters."** This qualification
 applies wherever the ten-family procedure is described (§2, §11, §16, §20); no alternative
-multiplicity procedure is substituted (Appendix A.8 records Benjamini-Yekutieli as considered
-and not adopted, since arbitrary dependence would demand a `1/sum(1/i)` correction that this
-design has no basis to prefer over leaving the limitation stated).
+multiplicity procedure is substituted (Appendix A.8 records the **Benjamini–Yekutieli
+Theorem 1.3** harmonic correction as considered and not adopted, since this design has no
+basis to prefer that conservative alternative over leaving the limitation stated).
 
 ## 6. Suitability decision rule
 

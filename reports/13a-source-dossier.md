@@ -336,20 +336,29 @@ two-sided, potentially confounded redundancy proxy.
   and no pooling, motivate partial pooling, model group coefficients jointly, and explain how
   small groups shrink more toward the overall mean. **verified; human-confirmed**.
 - **Liang & Zeger (1986), GEE.** DOI
-  [10.1093/biomet/73.1.13](https://doi.org/10.1093/biomet/73.1.13), and
-  **Cameron, Gelbach & Miller (2011), multiway clustering.** DOI
-  [10.1198/jbes.2010.07136](https://doi.org/10.1198/jbes.2010.07136). These anchor
-  estimating equations and the inclusion–exclusion covariance. **verified-open metadata**;
-  CGM full text was checked.
+  [10.1093/biomet/73.1.13](https://doi.org/10.1093/biomet/73.1.13);
+  user-supplied article. Section 3.1, p. 16, establishes consistency under a correctly
+  specified mean despite misspecified working correlation. It does not establish two-way
+  clustering, finite-sample corrections, or the wild bootstrap. **verified; human-confirmed**.
+- **Cameron, Gelbach & Miller (2011), multiway clustering.** DOI
+  [10.1198/jbes.2010.07136](https://doi.org/10.1198/jbes.2010.07136);
+  user-supplied article. The Introduction, p. 238, states the two-way inclusion–exclusion
+  construction: add the two dimension-specific one-way covariance matrices and subtract the
+  intersection matrix. It does not validate every finite-sample correction frozen in the plan.
+  **verified; human-confirmed**.
 - **Kline & Santos (2012), score-based wild bootstrap.** DOI
   [10.1515/2156-6674.1006](https://doi.org/10.1515/2156-6674.1006);
-  [author PDF](https://eml.berkeley.edu/~pkline/papers/ScoreFinal_web.pdf). Score
-  perturbation supports a bootstrap without invalid Bernoulli responses. **verified-open**.
+  user-supplied author manuscript. The abstract describes perturbing M-estimator scores and
+  establishes consistency for specified tests under clustering and potential misspecification.
+  It supports avoiding invalid bootstrap responses, but not the plan’s exact restricted,
+  two-way clustered GLM construction. **verified; human-confirmed**.
 - **MacKinnon, Nielsen & Webb (2021), “Wild Bootstrap and Asymptotic Inference with
   Multiway Clustering.”** DOI
   [10.1080/07350015.2019.1677473](https://doi.org/10.1080/07350015.2019.1677473);
-  Queen’s Working Paper 1415. The three-term CRVE and arm-clustered restricted WCR pairing
-  are used exactly as qualified in §5.3. **verified-open**.
+  user-supplied article. Its conclusion, p. 518, reports the best simulated performance for
+  the restricted wild cluster bootstrap using the three-term CRVE and a DGP clustered on the
+  dimension with the fewest clusters. The result is for linear regression and does not prove
+  the plan’s GLM score-bootstrap extension. **verified; human-confirmed**.
 - **Davidson & Flachaire (2008), “The Wild Bootstrap, Tamed at Last.”** DOI
   [10.1016/j.jeconom.2008.08.003](https://doi.org/10.1016/j.jeconom.2008.08.003);
   user-supplied article. **Cameron, Gelbach & Miller (2008), “Bootstrap-Based Improvements
@@ -359,13 +368,16 @@ two-sided, potentially confounded redundancy proxy.
   and few-cluster bootstrap background. They do not validate the project’s exact restricted
   multiway GLM score-bootstrap. **verified; human-confirmed with scope limits**.
 - **Benjamini & Hochberg (1995), FDR step-up.** DOI
-  [10.1111/j.2517-6161.1995.tb02031.x](https://doi.org/10.1111/j.2517-6161.1995.tb02031.x).
-  The exact step-up rule is used with the dependence qualification stated in the plan.
-  **verified-open**.
+  [10.1111/j.2517-6161.1995.tb02031.x](https://doi.org/10.1111/j.2517-6161.1995.tb02031.x);
+  user-supplied article. Section 3.1, p. 292, gives the exact step-up rule and proves control
+  for independent test statistics. The rule is used with the plan’s dependence qualification.
+  **verified; human-confirmed**.
 - **Benjamini & Yekutieli (2001), FDR under dependency.** DOI
-  [10.1214/aos/1013699998](https://doi.org/10.1214/aos/1013699998). The PRDS and
-  arbitrary-dependence results anchor the plan's limitation on the classical BH guarantee.
-  **verified-open**.
+  [10.1214/aos/1013699998](https://doi.org/10.1214/aos/1013699998);
+  user-supplied article. Theorems 1.2–1.3, pp. 1168–1169, establish BH control under PRDS and
+  control under arbitrary dependence after the harmonic correction. These results anchor the
+  plan’s limitation; the correction remains deliberately unadopted. **verified;
+  human-confirmed**.
 - **Mundlak (1978), pooling time series and cross-sections.**
   [JSTOR 1913646](https://www.jstor.org/stable/1913646). Cluster means anchor the frozen
   within/between decomposition. **verified-open**.
