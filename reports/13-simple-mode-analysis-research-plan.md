@@ -2419,6 +2419,8 @@ baseline:**
   baseline is **0.5**, the value achieved by any constant or random-guessing classifier
   regardless of class prevalence - which is why balanced accuracy rather than raw accuracy is
   used, since raw accuracy on a 90-10 feature is beaten by always predicting the majority.
+  **Brodersen et al. (2010), §III, p. 3122, human-verified**, supplies the class-average
+  definition, but not the survey weighting or interval procedure below.
 - **Multi-class features**: the assigned metric is **macro-F1**, and its naive baseline is the
   **macro-F1 achieved by the majority-class predictor on the realised gold class
   distribution**, computed and quoted rather than assumed.
@@ -2444,7 +2446,11 @@ Thompson confusion cell estimate is
 
 `N_hat_ab = sum over j in gold with Z_j = a, L_j = b of (1 / pi_j)`,
 
-and **every** confusion-matrix-derived quantity in this gate - sensitivity, specificity,
+which applies the population-total estimator derived by **Horvitz & Thompson (1952),
+equations (6)–(7), p. 669 (human-verified)** to each confusion cell. That source establishes
+the weighted cell totals, not every nonlinear ratio or its variance.
+
+**Every** confusion-matrix-derived quantity in this gate - sensitivity, specificity,
 balanced accuracy, per-class precision and recall feeding macro-F1, and the weighted
 disagreement feeding quadratically weighted kappa - is computed from the `N_hat_ab` cells, not
 from raw unweighted gold counts. Unweighted counts would target the deliberately enriched gold
@@ -2455,13 +2461,21 @@ to validate for.
 intervals in the evidence dossier - the assigned accuracy metric's interval, its class-level
 intervals, and Krippendorff alpha's interval - are computed by a **stratified nonparametric
 bootstrap**: resample gold items **with replacement, independently within each stratum**
-(preserving the stratified design rather than resampling the pooled gold set), recompute the
-Horvitz-Thompson-weighted metric on each resample, repeat for `2,000` resamples under a
-dedicated seed stream (§18), and report the **percentile interval** (2.5th to 97.5th
-percentile of the resampled metric) as the reported interval throughout §13.2a and §13.2. This
-is the one interval method referenced everywhere "with an uncertainty interval" or "with its
-interval" appears in this section; no alternative (Wald, exact binomial, or design-based
-linearisation) interval is used for any of these quantities.
+(retaining the observed stratum sample sizes rather than resampling the pooled gold set),
+recompute the Horvitz-Thompson-weighted metric on each resample, repeat for `2,000` resamples
+under a dedicated seed stream (§18), and report the **percentile interval** (2.5th to 97.5th
+percentile of the resampled metric) as the reported interval throughout §13.2a and §13.2.
+This is the one interval method referenced everywhere "with an uncertainty interval" or
+"with its interval" appears in this section; no alternative (Wald, exact binomial, or
+design-based linearisation) interval is used for any of these quantities.
+
+**Evidence boundary for that frozen interval:** **Mashreghi, Haziza & Léger (2016),
+human-verified**, surveys design-aware finite-population bootstraps and warns that percentile
+intervals are not interchangeable across methods. It does **not** validate this exact
+within-stratum, with-replacement percentile bootstrap for Horvitz–Thompson-weighted nonlinear
+metrics. The procedure above is therefore a project-specific pre-specification whose
+finite-population coverage must be established by simulation before confirmatory use; the
+source is retained as a limitation and design-caution anchor, not as direct validation.
 
 **The zero-denominator case for a binary feature, given a named status rather than left as an
 undefined metric.** If the realised gold data for a binary feature contain **no positives**
@@ -2519,17 +2533,22 @@ The gate is thus locked as a procedure: gold data feeds the frozen rubric, the r
 a pre-specified status, and only then is outcome modelling unlocked.
 
 Anchors: **Artstein & Poesio (2008), *Computational Linguistics* 34(4):555-596,
-doi:10.1162/coli.07-034-R2** (verified); **Krippendorff (2019), *Content Analysis*, 4th ed.,
+doi:10.1162/coli.07-034-R2** (human-verified; agreement-based reliability is necessary but
+insufficient for coding-schema validity); **Krippendorff (2019), *Content Analysis*, 4th ed.,
 pp. 5, 88, 90, and 291 (human-verified alpha/codebook/replicability context)**;
-Zapf et al. (2016) on coefficient choice for nominal data, PMC4974794;
+**Zapf et al. (2016), “Measuring inter-rater reliability for nominal data,”
+[PMC4974794](https://pmc.ncbi.nlm.nih.gov/articles/PMC4974794/)** (human-verified
+simulation context for scale- and MCAR-missingness-sensitive coefficient selection and
+standard-bootstrap intervals; not validation of this project’s exact procedure);
 **Cohen (1960), "A Coefficient of Agreement for Nominal Scales,"
 [doi:10.1177/001316446002000104](https://doi.org/10.1177/001316446002000104),
 pp. 37–39 (human-verified nominal chance-corrected agreement context)**;
 **Cohen (1968), "Weighted Kappa,"
 [doi:10.1037/h0026256](https://doi.org/10.1037/h0026256),
 pp. 213 and 215 (human-verified predetermined weighted agreement for ordinal
-`cognitive_process_level`)**; Gilardi, Alizadeh & Kubli (2023), *PNAS* 120(30),
-doi:10.1073/pnas.2305016120.
+`cognitive_process_level`)**; **Gilardi, Alizadeh & Kubli (2023), *PNAS* 120(30),
+doi:10.1073/pnas.2305016120** (human-verified task-specific comparison against
+human-labelled data; not evidence that inter-LLM agreement establishes validity).
 
 ### 13.3 Gold sample design
 
@@ -2589,7 +2608,9 @@ Horvitz-Thompson machinery of §13.2a is exact rather than approximate.
 Direct use of imperfect surrogate labels biases downstream regressions and invalidates
 intervals **even at 80-90% surrogate accuracy**, so correction is required for P4 features.
 Anchor: **Egami, Hinck, Stewart & Wei (2023), "Using Imperfect Surrogates for Downstream
-Inference", NeurIPS, arXiv:2306.04746**.
+Inference", NeurIPS, arXiv:2306.04746** (human-verified general result: direct surrogate-label
+use produced substantial bias and invalid intervals even at 80–90% accuracy in the studied
+settings).
 
 This is **not** a general-purpose cure. Design-based supervised learning is developed for
 M-estimators and GMM; our setting adds **clustered dependence and a two-way cluster-robust

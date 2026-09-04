@@ -271,8 +271,8 @@ two-sided, potentially confounded redundancy proxy.
 
 - **Artstein & Poesio (2008), “Inter-Coder Agreement for Computational Linguistics.”**
   DOI [10.1162/coli.07-034-R2](https://doi.org/10.1162/coli.07-034-R2);
-  [open text](https://aclanthology.org/J08-4004/). Sections 2–4 distinguish reliability
-  from validity and match agreement coefficients to scale. **verified-open**.
+  user-supplied article. Section 2.1, p. 557, explains that agreement-based reliability is a
+  prerequisite for coding-scheme validity but cannot ensure it. **verified; human-confirmed**.
 - **Krippendorff (2019), _Content Analysis_, 4th ed.** DOI
   [10.4135/9781071878781](https://doi.org/10.4135/9781071878781);
   ISBN 9781506395661; user-supplied book. Pages 5, 88, and 90 support explicit coding
@@ -280,8 +280,11 @@ two-sided, potentially confounded redundancy proxy.
   **verified; human-confirmed**.
 - **Zapf et al. (2016), nominal inter-rater reliability.** DOI
   [10.1186/s12874-016-0200-9](https://doi.org/10.1186/s12874-016-0200-9);
-  [open text](https://pmc.ncbi.nlm.nih.gov/articles/PMC4974794/). Coefficient and interval
-  choice depend on design and scale. **verified-open**.
+  user-supplied article. Its simulated nominal-data results recommend Fleiss’ K or
+  Krippendorff’s alpha with standard bootstrap intervals when complete, and Krippendorff’s
+  alpha for non-nominal scales or MCAR missingness. This is a context-specific recommendation,
+  not validation of the project’s exact bootstrap or missing-code-pair procedure.
+  **verified; human-confirmed**.
 - **Cohen (1960), “A Coefficient of Agreement for Nominal Scales.”** DOI
   [10.1177/001316446002000104](https://doi.org/10.1177/001316446002000104);
   user-supplied article. Pages 37–39 define chance-corrected nominal two-rater agreement.
@@ -291,24 +294,32 @@ two-sided, potentially confounded redundancy proxy.
   collection. These sources support the fixed ordinal metric, while alpha remains the primary
   reliability coefficient. **verified; human-confirmed**.
 - **Gilardi, Alizadeh & Kubli (2023), LLM text annotation.** DOI
-  [10.1073/pnas.2305016120](https://doi.org/10.1073/pnas.2305016120). Human-labelled
-  evaluation supports testing LLM annotators but not treating inter-LLM agreement as validity.
-  **verified-open**.
+  [10.1073/pnas.2305016120](https://doi.org/10.1073/pnas.2305016120);
+  user-supplied article. Its four-dataset evaluation supports testing LLM annotators against
+  human-labelled data, but not treating inter-LLM agreement as validity or generalizing its
+  task-specific results to this project. **verified; human-confirmed**.
 - **Egami, Hinck, Stewart & Wei (2023), “Using Imperfect Surrogates for Downstream
   Inference.”** [arXiv:2306.04746](https://arxiv.org/abs/2306.04746);
-  [NeurIPS paper](https://proceedings.neurips.cc/paper_files/paper/2023/hash/d862f7f5445255090de13b825b880d59-Abstract-Conference.html).
-  Naive predicted-label substitution can bias downstream estimators. The paper does not
-  validate the plan’s two-way-clustered extension; the separate DSL derivation gate remains
-  mandatory. **verified-open**.
+  user-supplied NeurIPS paper. Its abstract reports substantial downstream bias and invalid
+  intervals from direct surrogate-label use even at 80–90% accuracy. It does not validate the
+  plan’s two-way-clustered extension; the separate DSL derivation gate remains mandatory.
+  **verified; human-confirmed**.
 - **Horvitz & Thompson (1952), unequal-probability sampling.** DOI
-  [10.2307/2280784](https://doi.org/10.2307/2280784). The inverse-inclusion-probability
-  estimator anchors weighted gold confusion cells. **verified-open**.
+  [10.2307/2280784](https://doi.org/10.2307/2280784); user-supplied article.
+  Equations (6)–(7), p. 669, derive the inverse-inclusion-probability estimator for a
+  population total. This anchors weighted gold confusion-cell totals, not every downstream
+  ratio estimator or its variance. **verified; human-confirmed**.
 - **Mashreghi, Haziza & Léger (2016), finite-population bootstrap survey.** DOI
-  [10.1214/16-SS113](https://doi.org/10.1214/16-SS113). Stratified resampling and
-  percentile-interval guidance supports the frozen gold bootstrap. **verified-open**.
+  [10.1214/16-SS113](https://doi.org/10.1214/16-SS113); user-supplied article.
+  The survey establishes that finite-population sampling requires design-aware bootstrap
+  choices and cautions against treating percentile intervals as interchangeable across
+  methods. It does not validate the frozen within-stratum, with-replacement percentile
+  bootstrap for weighted nonlinear metrics. **verified; human-confirmed as context only**.
 - **Brodersen et al. (2010), balanced accuracy.** DOI
-  [10.1109/ICPR.2010.764](https://doi.org/10.1109/ICPR.2010.764). The class-balanced
-  discrimination measure anchors the binary validity metric. **verified-open**.
+  [10.1109/ICPR.2010.764](https://doi.org/10.1109/ICPR.2010.764); user-supplied article.
+  Section III, p. 3122, defines balanced accuracy as the average class-specific accuracy.
+  It anchors the binary validity metric, not survey weighting or the project’s interval.
+  **verified; human-confirmed**.
 
 ## Statistical sources that carry the frozen analysis
 

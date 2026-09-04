@@ -407,7 +407,7 @@ Question Answering,” *EMNLP 2018*, pp. 2369–2380.
 - **Assessment:** **SUPPORTED** as source taxonomy context. Mapping it to the project’s
 four-level `hop_structure` remains an operational simplification.
 - **Human verdict:** [x] quotations confirmed [x] locators confirmed [x] retain source
-  [ ] revise mapping
+[ ] revise mapping
 
 
 
@@ -493,7 +493,11 @@ precedence.
 - **Human verdict:** [x] quotations confirmed [x] locators confirmed [x] retain with scope
 caveat
 
+
+
 ## Dimension E — morphosyntactic complexity
+
+
 
 ### de Marneffe, Manning, Nivre & Zeman (2021) — human-confirmed
 
@@ -516,7 +520,9 @@ structure, and Stanza-based implementation.
 UD does not reproduce phrase-internal constituency. It cannot by itself validate
 constituency-equivalent L2SCA measurements.
 - **Human verdict:** [x] quotations confirmed [x] locators confirmed [x] retain with scope
-  caveat
+caveat
+
+
 
 ### Lu (2010) — human-confirmed
 
@@ -542,7 +548,7 @@ and CN/C.
 Lu’s definition, and omit some Lu classes. They are analogous project operationalizations,
 not a faithful L2SCA reimplementation.
 - **Human verdict:** [x] quotations confirmed [x] locators confirmed [x] retain as a
-  non-equivalent operationalization
+non-equivalent operationalization
 
 
 
@@ -552,7 +558,7 @@ not a faithful L2SCA reimplementation.
 Fine Grained Indices of Syntactic Complexity and Usage-Based Indices of Syntactic
 Sophistication*, PhD dissertation, Georgia State University.
 - **Links:** [DOI and full text](https://doi.org/10.57709/8501051);
-  [user-supplied local PDF](sources/Kyle%20-%20Measuring%20Syntactic%20Development%20in%20L2%20Writing.pdf).
+[user-supplied local PDF](sources/Kyle%20-%20Measuring%20Syntactic%20Development%20in%20L2%20Writing.pdf).
 - **Research Plan use:** §12 Dimension E, lines 2148–2158: TAASSC and dependency-based
 complexity tooling.
 - **Quotation:**
@@ -564,7 +570,7 @@ complexity tooling.
 - **Assessment:** **PARTIAL.** It supports dependency features generally, not this project’s
 exact UD relation sets. Its inclusion of non-finite clauses also differs from Lu.
 - **Human verdict:** [x] quotations confirmed [x] locators confirmed [x] retain with scope
-  caveat
+caveat
 
 
 
@@ -597,7 +603,7 @@ project’s exact UD features or short-text setting.
 - **Full source:** Slav Petrov, Dipanjan Das, and Ryan McDonald, “A Universal Part-of-Speech
 Tagset,” *LREC 2012*, pp. 2089–2096.
 - **Links:** [open text](https://aclanthology.org/L12-1115/);
-  [user-supplied local PDF](sources/Petrov%20-%20A%20Universal%20Part-of-Speech%20Tagset.pdf).
+[user-supplied local PDF](sources/Petrov%20-%20A%20Universal%20Part-of-Speech%20Tagset.pdf).
 - **Research Plan use:** §12 Dimension E, lines 2148–2152: universal POS categories.
 - **Quotation:**
   > “We did not rely on intrinsic definitions of the above categories. Instead, each category
@@ -607,7 +613,7 @@ Tagset,” *LREC 2012*, pp. 2089–2096.
 - **Assessment:** **PARTIAL.** Its twelve-tag inventory predates the current UD/Stanza UPOS
 inventory and does not validate clause or complex-nominal rules.
 - **Human verdict:** [x] quotations confirmed [x] locators confirmed [x] retain with scope
-  caveat
+caveat
 
 
 
@@ -658,7 +664,7 @@ Dependency Length Minimization in 37 Languages,” *PNAS* 112(33):10336–10341.
 - **Assessment:** **PARTIAL.** The project’s mean over selected non-root, non-punctuation arcs
 is a project-specific aggregation.
 - **Human verdict:** [x] quotations confirmed [x] locators confirmed [x] retain with scope
-  caveat
+caveat
 
 
 
@@ -680,9 +686,13 @@ is a project-specific aggregation.
 constituency nodes during left-to-right generation. Maximum UD root-to-word arc count is a
 different construct.
 - **Human verdict:** [x] quotations confirmed [x] locators confirmed [x] retain as
-  non-equivalent theoretical context
+non-equivalent theoretical context
+
+
 
 ## Dimension F — exploratory lexical and information-theoretic sources
+
+
 
 ### Brysbaert & New (2009) — human-confirmed
 
@@ -701,7 +711,7 @@ Frequency Measure for American English,” *Behavior Research Methods* 41(4):977
 - **Assessment:** **PARTIAL.** It does not define the project’s token aggregation or validate
 the measure for short questions.
 - **Human verdict:** [x] quotations confirmed [x] locators confirmed [x] retain with scope
-  caveat
+caveat
 
 
 
@@ -719,7 +729,7 @@ the measure for short questions.
 - **Why used:** Defines incremental word surprisal.
 - **Assessment:** **SUPPORTED** for the general construct, not for any particular modern model.
 - **Human verdict:** [x] quotations confirmed [x] locators confirmed [x] retain with scope
-  caveat
+caveat
 
 
 
@@ -737,7 +747,7 @@ the measure for short questions.
 - **Why used:** Defines expectation-based surprisal.
 - **Assessment:** **SUPPORTED** for the general construct.
 - **Human verdict:** [x] quotations confirmed [x] locators confirmed [x] retain for the
-  general construct
+general construct
 
 
 
@@ -792,6 +802,8 @@ approximately 15-token questions and does not show that the formula is generally
 - **Human verdict:** [x] quotations confirmed [x] locators confirmed [x] retain as validation
 context
 
+
+
 ### Kincaid et al. (1975) — human-confirmed
 
 - **Full source:** J. Peter Kincaid, Robert P. Fishburne Jr., Richard L. Rogers, and Brad S.
@@ -809,7 +821,7 @@ formulas for roughly 15-token questions.
 - **Assessment:** **NOT SUPPORTED for ‘unreliable’.** It supports “not validated for short
 questions,” not unreliability at approximately 15 tokens.
 - **Human verdict:** [x] quotations confirmed [x] locators confirmed [x] retain as a
-  short-text validation caution
+short-text validation caution
 
 
 
@@ -827,9 +839,13 @@ pp. 10669–10686.
 - **Assessment:** **PARTIAL.** “Exploratory only” is the project’s caution, not the source’s
 conclusion.
 - **Human verdict:** [x] quotations confirmed [x] locators confirmed [x] retain as
-  exploratory context
+exploratory context
+
+
 
 ## Dimension G — task and intent framing
+
+
 
 ### Ingwersen & Järvelin (2005) — human-confirmed
 
@@ -901,6 +917,8 @@ expressible rather than as precise best-match queries.
 `recall_orientation` label; Oard & Webber is the direct high-recall/high-precision anchor.
 - **Human verdict:** [x] quotations confirmed [x] locators confirmed [x] retain as context
 
+
+
 ### Oard & Webber (2013) — human-confirmed
 
 - **Full source:** Douglas W. Oard and William Webber, “Information Retrieval for
@@ -915,7 +933,7 @@ E-Discovery,” *Foundations and Trends in Information Retrieval* 7(2–3):99–
 - **Why used:** Directly distinguishes high-recall review from high-precision retrieval.
 - **Assessment:** **SUPPORTED.**
 - **Human verdict:** [x] quotations confirmed [x] locators confirmed [x] retain as the
-  direct recall-orientation anchor
+direct recall-orientation anchor
 
 
 
@@ -932,7 +950,7 @@ E-Discovery,” *Foundations and Trends in Information Retrieval* 7(2–3):99–
 - **Why used:** Supports classifying search intent.
 - **Assessment:** **PARTIAL.** The project’s binary recall-orientation mapping is new.
 - **Human verdict:** [x] quotations confirmed [x] locators confirmed [x] retain with the
-  binary-mapping caveat
+binary-mapping caveat
 
 
 
@@ -950,7 +968,7 @@ E-Discovery,” *Foundations and Trends in Information Retrieval* 7(2–3):99–
 - **Why used:** Supports known-item and open-ended intent distinctions.
 - **Assessment:** **PARTIAL.** It does not establish the exact project binary label.
 - **Human verdict:** [x] quotations confirmed [x] locators confirmed [x] retain with the
-  binary-mapping caveat
+binary-mapping caveat
 
 
 
@@ -969,7 +987,7 @@ E-Discovery,” *Foundations and Trends in Information Retrieval* 7(2–3):99–
 - **Why used:** Supports question-content taxonomy context.
 - **Assessment:** **PARTIAL.** It should not add labels to the frozen codebook.
 - **Human verdict:** [x] quotations confirmed [x] locators confirmed [x] retain as
-  taxonomy context only
+taxonomy context only
 
 
 
@@ -1082,119 +1100,156 @@ scale. The project’s quadratic weight choice remains its own pre-specified dec
 
 
 
-### Artstein & Poesio (2008)
+### Artstein & Poesio (2008) — human-confirmed
 
 - **Full source:** Ron Artstein and Massimo Poesio, “Inter-Coder Agreement for Computational
 Linguistics,” *Computational Linguistics* 34(4):555–596.
 - **Links:** [DOI](https://doi.org/10.1162/coli.07-034-R2);
-[open text](https://aclanthology.org/J08-4004/).
-- **Research Plan use:** §13.2: agreement is reliability, not validity; coefficients must match
-measurement scale.
-- **Quotation:**
-  > “Reliability is the extent to which the data collection procedure yields the same results
-  > on repeated trials. Validity is the extent to which the data collection procedure measures
-  > the intended concept.”
-- **Locator:** §§2.1–2.2, pp. 557–558.
-- **Assessment:** **SUPPORTED** for separating reproducibility from construct validity. It does
-not validate this project’s coding schema.
-- **Human verdict:** [ ] accept [ ] reject
+[open text](https://aclanthology.org/J08-4004/);
+[user-supplied local PDF](sources/Artstein%20-%20Inter-Coder%20Agreement%20for%20Computational%20Linguistics.pdf).
+- **Research Plan use:** §13.2: agreement-based reliability is necessary but insufficient for
+coding-schema validity.
+- **Quotations:**
+  > “The fundamental assumption behind the methodologies discussed in this article is that
+  > data are reliable if coders can be shown to agree on the categories assigned to units to
+  > an extent determined by the purposes of the study.”
+  > “Reliability is thus a prerequisite for demonstrating the validity of the coding
+  > scheme …”
+  > “However, it is important to keep in mind that achieving good agreement cannot ensure
+  > validity: Two observers of the same event may well share the same prejudice while still
+  > being objectively wrong.”
+- **Locator:** §2.1, “Agreement, Reliability, and Validity,” p. 557.
+- **Assessment:** **SUPPORTED** for separating agreement-based reliability from coding-schema
+validity. It does not establish this project’s coding-schema validity or its threshold.
+- **Human verdict:** [x] quotations confirmed [x] locators confirmed [x] retain with validity
+caveat
 
 
 
-### Zapf et al. (2016)
+### Zapf et al. (2016) — human-confirmed
 
 - **Full source:** Antonia Zapf et al., “Measuring inter-rater reliability for nominal
 data—which coefficients and confidence intervals are appropriate?” *BMC Medical Research
 Methodology* 16:93.
 - **Links:** [DOI](https://doi.org/10.1186/s12874-016-0200-9);
-[open text](https://pmc.ncbi.nlm.nih.gov/articles/PMC4974794/).
+[open text](https://pmc.ncbi.nlm.nih.gov/articles/PMC4974794/);
+[user-supplied local PDF](sources/Zapf%20-%20Measuring%20inter-rater%20reliability%20for%20nominal%20data%20%E2%80%93%20which%20coefficients%20and%20confidence%20intervals%20are%20appropriate%3F.pdf).
 - **Research Plan use:** §13.2: design- and scale-sensitive coefficient and interval choice.
-- **Quotation — abstract:**
-  > “The choice of the appropriate coefficient and of the appropriate confidence interval
-  > depends on the study design.”
-- **Locator:** Abstract, Conclusions.
-- **Assessment:** **PARTIAL.** It does not validate this project’s exact bootstrap or missing
-code-pair treatment.
-- **Human verdict:** [ ] accept [ ] reject [ ] needs more evidence
+- **Quotations:**
+  > “In the case of nominal data and no missing values, Fleiss’ K and Krippendorff’s alpha can
+  > be recommended equally for the assessment of inter-rater reliability.”
+  > “As the asymptotic confidence interval for Fleiss’ K has a very low coverage probability,
+  > only standard bootstrap confidence intervals as used in our study can be recommended.”
+  > “If the measurement scale is not nominal and/or missing values (completely at random) are
+  > present, only Krippendorff’s alpha is appropriate.”
+  > “The correct choice of measurement scale of categorical variables is crucial for an
+  > unbiased assessment of reliability.”
+- **Locator:** Conclusion, pp. 8–9.
+- **Assessment:** **PARTIAL.** The simulation results support scale- and missingness-sensitive
+coefficient selection and the study’s standard-bootstrap intervals. They do not validate this
+project’s exact bootstrap procedure or missing-code-pair treatment.
+- **Human verdict:** [x] quotations confirmed [x] locators confirmed [x] retain with
+simulation-scope caveat
 
 
 
-### Gilardi, Alizadeh & Kubli (2023)
+### Gilardi, Alizadeh & Kubli (2023) — human-confirmed
 
 - **Full source:** Fabrizio Gilardi, Meysam Alizadeh, and Maël Kubli, “ChatGPT Outperforms
 Crowd-Workers for Text-Annotation Tasks,” *PNAS* 120(30):e2305016120.
-- **Link:** [DOI](https://doi.org/10.1073/pnas.2305016120).
+- **Links:** [DOI](https://doi.org/10.1073/pnas.2305016120);
+  [user-supplied local PDF](sources/Gilardi%20-%20ChatGPT%20outperforms%20crowd%20workers%20for%20text-annotation%20tasks.pdf).
 - **Research Plan use:** §13.2: evaluate LLM annotations against human-labelled data.
 - **Quotation — abstract:**
-  > “We find that ChatGPT outperforms crowd-workers for four out of five annotation tasks in
-  > terms of accuracy, while the intercoder agreement of ChatGPT exceeds that of both
-  > crowd-workers and trained annotators for all tasks.”
+  > “Across the four datasets, the zero-shot accuracy of ChatGPT exceeds that of crowd workers
+  > by about 25 percentage points on average, while ChatGPT’s intercoder agreement exceeds that
+  > of both crowd workers and trained annotators for all tasks.”
+- **Locator:** Abstract, p. 1.
 - **Assessment:** **PARTIAL.** It supports task-specific human comparison, not validity from
 inter-LLM agreement or generalization to this project.
-- **Human verdict:** [ ] accept [ ] reject
+- **Human verdict:** [x] quotations confirmed [x] locators confirmed [x] retain with
+  task-specificity caveat
 
 
 
-### Egami, Hinck, Stewart & Wei (2023)
+### Egami, Hinck, Stewart & Wei (2023) — human-confirmed
 
 - **Full source:** Naoki Egami, Musashi Hinck, Brandon M. Stewart, and Hanying Wei, “Using
 Imperfect Surrogates for Downstream Inference.”
 - **Links:** [arXiv:2306.04746](https://arxiv.org/abs/2306.04746);
 [NeurIPS paper](https://proceedings.neurips.cc/paper_files/paper/2023/hash/d862f7f5445255090de13b825b880d59-Abstract-Conference.html).
+- **Local copy:** [user-supplied PDF](sources/Egami%20-%20Using%20Imperfect%20Surrogates%20for%20Downstream%20Inference.pdf).
 - **Research Plan use:** §13.4: predicted-label error can bias downstream inference.
 - **Quotation — abstract:**
-  > “Unfortunately, using these predictions without accounting for prediction error can lead
-  > to biased estimates and invalid confidence intervals.”
+  > “We show that direct use of surrogate labels in downstream statistical analyses leads to
+  > substantial bias and invalid confidence intervals, even with high surrogate accuracy of
+  > 80–90%.”
+- **Locator:** Abstract, p. 1.
 - **Assessment:** **PARTIAL.** It supports correction for imperfect labels but not the plan’s
 two-way rubric/arm clustered extension.
-- **Human verdict:** [ ] accept general claim [ ] reject [ ] require extension derivation
+- **Human verdict:** [x] quotations confirmed [x] locators confirmed [x] retain general claim;
+  the extension still requires its separate derivation gate
 
 
 
-### Horvitz & Thompson (1952)
+### Horvitz & Thompson (1952) — human-confirmed
 
 - **Full source:** D. G. Horvitz and D. J. Thompson, “A Generalization of Sampling Without
 Replacement From a Finite Universe,” *JASA* 47(260):663–685.
-- **Link:** [DOI](https://doi.org/10.2307/2280784).
+- **Links:** [DOI](https://doi.org/10.2307/2280784);
+  [user-supplied local PDF](sources/Horvitz%201952%20-%20A%20Generalization%20of%20Sampling%20Without%20Replacement%20From%20a%20Finite%20Universe.pdf).
 - **Research Plan use:** §13.2a: inverse-inclusion weighting of gold confusion cells.
-- **Quotation:**
-  > “The method of estimation suggested consists of weighting the value of the character for
-  > each unit in the sample by the reciprocal of the probability that the unit is included in
-  > the sample.”
-- **Locator:** Introduction, p. 664.
+- **Quotation and formula:**
+  > “In order for this equality to hold whatever be the values of the unknown X’s, we must
+  > have [P(Uᵢ)βᵢ = 1] for all i. Therefore, [T̂ = Σ Xᵢ/P(Uᵢ)] is the only unbiased linear
+  > estimator possible in the subclass under consideration and hence is ‘best’ for that
+  > subclass.”
+- **Locator:** “Estimation of the Population Total,” p. 669, equations (6)–(7). Mathematical
+  notation is normalized here because the PDF text extraction corrupts the displayed symbols.
 - **Assessment:** **SUPPORTED** for the Horvitz–Thompson total; it does not establish all
 downstream ratio estimators or their variance.
-- **Human verdict:** [ ] accept [ ] reject
+- **Human verdict:** [x] source and locator confirmed [x] retain with downstream-ratio caveat
 
 
 
-### Mashreghi, Haziza & Léger (2016)
+### Mashreghi, Haziza & Léger (2016) — human-confirmed
 
 - **Full source:** Zeinab Mashreghi, David Haziza, and Christian Léger, “A Survey of Bootstrap
 Methods in Finite Population Sampling,” *Statistics Surveys* 10:1–52.
-- **Link:** [DOI](https://doi.org/10.1214/16-SS113).
+- **Links:** [DOI](https://doi.org/10.1214/16-SS113);
+  [user-supplied local PDF](sources/Mashreghi%202016%20-%20A%20survey%20of%20bootstrap%20methods%20in%20finite%20population%20sampling.pdf).
 - **Research Plan use:** §13.2a: resampling independently within gold strata.
-- **Quotation:**
-  > “In stratified simple random sampling without replacement, the bootstrap methods described
-  > in Section 4.1.1 can be applied independently in each stratum.”
-- **Locator:** §4.1.2, p. 21.
-- **Assessment:** **PARTIAL.** It supports stratum-wise resampling, not the unique choice of
-this project’s exact algorithm, percentile interval, or nonlinear metric implementation.
-- **Human verdict:** [ ] accept [ ] reject [ ] revise method
+- **Quotations:**
+  > “We cover variance estimation and the construction of confidence intervals for stratified
+  > simple random sampling as well as some unequal probability sampling designs.”
+  > “Since survey data are not necessarily i.i.d., many bootstrap resampling methods have been
+  > proposed in the context of survey sampling over the past thirty years.”
+  > “These methods are obtained after making some modifications to the classical i.i.d.
+  > bootstrap in order to adapt it for survey data.”
+  > “So care must be exercised when applying the percentile bootstrap method.”
+- **Locator:** Abstract, p. 1; Introduction, p. 2; §4.1.2, p. 20.
+- **Assessment:** **CONTEXT ONLY.** The survey shows that finite-population designs require
+  design-aware bootstrap choices and cautions that percentile intervals are not interchangeable
+  across methods. It does not support the project’s exact within-stratum, with-replacement
+  percentile bootstrap for Horvitz–Thompson-weighted nonlinear metrics.
+- **Human verdict:** [x] quotations confirmed [x] locators confirmed [x] retain only as a
+  limitation and design-caution source
 
 
 
-### Brodersen et al. (2010)
+### Brodersen et al. (2010) — human-confirmed
 
 - **Full source:** Kay Henning Brodersen et al., “The Balanced Accuracy and Its Posterior
 Distribution,” *20th ICPR*, pp. 3121–3124.
-- **Link:** [DOI](https://doi.org/10.1109/ICPR.2010.764).
+- **Links:** [DOI](https://doi.org/10.1109/ICPR.2010.764);
+  [user-supplied local PDF](sources/Brodersen%202010%20-%20The%20Balanced%20Accuracy%20and%20Its%20Posterior%20Distribution.pdf).
 - **Research Plan use:** §13.2a: balanced accuracy for binary annotation validity.
 - **Quotation:**
   > “The balanced accuracy is defined as the average accuracy obtained on either class.”
 - **Locator:** §III, p. 3122.
 - **Assessment:** **SUPPORTED** for balanced accuracy, not for survey weighting or intervals.
-- **Human verdict:** [ ] accept [ ] reject
+- **Human verdict:** [x] quotation confirmed [x] locator confirmed [x] retain with
+  weighting-and-interval caveat
 
 
 
@@ -1247,12 +1302,14 @@ sample-size-sensitive shrinkage.
 determine the project’s exact distributional or computational choices.
 - **Human verdict:** [x] quotations confirmed [x] locators confirmed [x] retain source
 
+
+
 ### McCullagh (1980) — human-confirmed
 
 - **Full source:** Peter McCullagh, “Regression Models for Ordinal Data,” *Journal of the Royal
-  Statistical Society, Series B* 42(2):109–142.
+Statistical Society, Series B* 42(2):109–142.
 - **Links:** [DOI](https://doi.org/10.1111/j.2517-6161.1980.tb01109.x);
-  [user-supplied local PDF](sources/McCullagh%20-%20Regression%20Models%20for%20Ordinal%20Data%20%20.pdf).
+[user-supplied local PDF](sources/McCullagh%20-%20Regression%20Models%20for%20Ordinal%20Data%20%20.pdf).
 - **Research Plan use:** §8: proportional odds for the non-critical-error grade component.
 - **Quotations:**
   > “A general class of regression models for ordinal data is developed and discussed.”
@@ -1262,16 +1319,18 @@ determine the project’s exact distributional or computational choices.
   > likely to be most useful in practice because of the simplicity of their interpretation.”
 - **Locator:** Abstract, p. 109; discussion, p. 110.
 - **Assessment:** **SUPPORTED** for ordinal modeling and proportional odds. It does not prove
-  that the proportional-odds assumption holds for the project’s grades.
+that the proportional-odds assumption holds for the project’s grades.
 - **Human verdict:** [x] quotations confirmed [x] locators confirmed [x] retain source
+
+
 
 ### Agresti (2010) — human-confirmed
 
 - **Full source:** Alan Agresti, *Analysis of Ordinal Categorical Data*, 2nd edition, Wiley.
 - **Links:** [DOI](https://doi.org/10.1002/9780470594001);
-  [user-supplied local PDF](sources/Alan%20Agresti%20-%20Analysis%20of%20Ordinal%20Categorical%20Data,%20Second%20Edition.pdf).
+[user-supplied local PDF](sources/Alan%20Agresti%20-%20Analysis%20of%20Ordinal%20Categorical%20Data,%20Second%20Edition.pdf).
 - **Research Plan use:** §8: cumulative-logit/proportional-odds model specification and
-  fitting.
+fitting.
 - **Quotations:**
   > “Doing this treats the ordinal scale as an interval scale. There is no unique way to select
   > scores…”
@@ -1280,8 +1339,8 @@ determine the project’s exact distributional or computational choices.
   > “The proportional odds form … constrains the c − 1 response curves to have the same shape.”
 - **Locator:** pp. 10, 44, 47–48, and 58.
 - **Assessment:** **SUPPORTED** for cumulative-logit/proportional-odds implementation and
-  interpretation. The same-shape/proportional-odds restriction remains a fit-time assumption
-  to test, not an established fact about these grades.
+interpretation. The same-shape/proportional-odds restriction remains a fit-time assumption
+to test, not an established fact about these grades.
 - **Human verdict:** [x] quotations confirmed [x] locators confirmed [x] retain source
 
 
@@ -1300,15 +1359,17 @@ Generalized Linear Models,” *Biometrika* 73(1):13–22.
 sample corrections, or its wild bootstrap.
 - **Human verdict:** [ ] accept [ ] reject
 
+
+
 ### Cameron & Trivedi (2005) — human-confirmed
 
 - **Full source:** A. Colin Cameron and Pravin K. Trivedi, *Microeconometrics: Methods and
-  Applications*, Cambridge University Press.
+Applications*, Cambridge University Press.
 - **Links:** [DOI](https://doi.org/10.1017/CBO9780511811241);
-  [user-supplied local PDF](sources/Microeconometrics%20-%20Methods%20and%20Applications.pdf).
-  The second supplied `Colin Cameron - Microeconometrics` PDF is byte-identical.
+[user-supplied local PDF](sources/Microeconometrics%20-%20Methods%20and%20Applications.pdf).
+The second supplied `Colin Cameron - Microeconometrics` PDF is byte-identical.
 - **Research Plan use:** general context for nonlinear models, bootstrap methods, robust
-  inference, and clustered samples.
+inference, and clustered samples.
 - **Quotations:**
   > “Distinguishing features include emphasis on nonlinear models and robust inference, as well
   > as chapter-length treatments of … bootstrap methods … stratified and clustered samples…”
@@ -1317,9 +1378,9 @@ sample corrections, or its wild bootstrap.
   > the need to control for clustering.”
 - **Locator:** Book overview, p. xii; Chapter 24, pp. 813–814.
 - **Assessment:** **PARTIAL.** It supports general clustered-sample and robust-inference
-  context, not the project’s exact multiway covariance or restricted score-bootstrap.
+context, not the project’s exact multiway covariance or restricted score-bootstrap.
 - **Human verdict:** [x] quotations confirmed [x] locators confirmed [x] retain as limited
-  background
+background
 
 
 
@@ -1592,26 +1653,30 @@ provides the weighted-kappa basis for the ordinal feature.
 - **Impact:** documentation only; no workflow, artifact, or completed feature depends on this
 historical comparator.
 
+
+
 ## Carroll et al. (2006)
 
 - **Source:** Raymond J. Carroll et al., *Measurement Error in Nonlinear Models*, 2nd edition.
 - **Former Research Plan use:** general measurement-error implementation reference.
 - **Decision:** **REMOVED at user request.** The source was inaccessible to the user and no
-  primary passage was available for human verification.
+primary passage was available for human verification.
 - **Impact:** no completed Segment 1–3 work depends on this citation. The later DSL-specific
-  methodology remains separately governed by its own source, derivation gate, and validation
-  requirements.
+methodology remains separately governed by its own source, derivation gate, and validation
+requirements.
+
+
 
 ## Davidson & MacKinnon (2004) and Hardin & Hilbe (2013)
 
 - **Sources:** Russell Davidson and James G. MacKinnon, *Econometric Theory and Methods*;
-  James W. Hardin and Joseph M. Hilbe, *Generalized Estimating Equations*, 2nd edition.
+James W. Hardin and Joseph M. Hilbe, *Generalized Estimating Equations*, 2nd edition.
 - **Former Research Plan use:** general bootstrap and GEE implementation references.
 - **Decision:** **REMOVED at user request.** No primary texts were available for human
-  verification, and neither is required for the completed Segments 1–3 or as a source contract
-  for later custom implementation.
+verification, and neither is required for the completed Segments 1–3 or as a source contract
+for later custom implementation.
 - **Impact:** documentation only. Future bootstrap/GEE work remains constrained by the
-  separately verified sources and explicit oracle/derivation gates.
+separately verified sources and explicit oracle/derivation gates.
 
 
 
@@ -1627,3 +1692,4 @@ regenerate Segment 3 features. Segment 1 and Segment 2 science remain unchanged.
 features remain.
 - **Research Plan or codebook changes:** the analysis lock may require an automated `join` and
 `features` refresh. This is reproducibility bookkeeping, not repeating experiments.
+
