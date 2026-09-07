@@ -51,6 +51,44 @@ def test_features_parser_accepts_explicit_resource_setup(tmp_path: Path) -> None
     assert arguments.download_resources
 
 
+def test_annotate_run_parser_accepts_fail_closed_migration_options(
+    tmp_path: Path,
+) -> None:
+    source = tmp_path / "historical"
+
+    arguments = build_parser().parse_args(
+        [
+            "annotate-run",
+            "--migrate-from-root",
+            str(source),
+            "--resume-only",
+        ]
+    )
+
+    assert arguments.migrate_from_root == source
+    assert arguments.resume_only is True
+
+
+def test_annotation_migration_requires_resume_only(tmp_path: Path) -> None:
+    error_output = StringIO()
+
+    exit_code = main(
+        [
+            "--analysis-root",
+            str(tmp_path / "analysis"),
+            "--specification",
+            str(_specification(tmp_path)),
+            "annotate-run",
+            "--migrate-from-root",
+            str(tmp_path / "historical"),
+        ],
+        stderr=error_output,
+    )
+
+    assert exit_code == ExitCode.MALFORMED_INPUT
+    assert "requires --resume-only" in error_output.getvalue()
+
+
 def test_status_is_read_only_for_uninitialized_root(tmp_path: Path) -> None:
     root = tmp_path / "missing"
     output = StringIO()

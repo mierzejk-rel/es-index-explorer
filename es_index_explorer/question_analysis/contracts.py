@@ -2,6 +2,7 @@
 
 from datetime import UTC, datetime
 from enum import IntEnum, StrEnum
+from types import MappingProxyType
 from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
@@ -13,7 +14,77 @@ MASTER_SEED = 20
 ANNOTATION_BATCH_SIZE = 24
 GOLD_SAMPLE_PER_STRATUM = 12
 ANNOTATOR_MODELS = ("Claude Opus 5 (high thinking)", "GPT-5.6 Sol")
-OUTCOME_FIELD_DENYLIST = frozenset(
+QDMR_OPERATOR_INVENTORY = (
+    "SELECT",
+    "FILTER",
+    "PROJECT",
+    "AGGREGATE",
+    "GROUP",
+    "SUPERLATIVE",
+    "COMPARATIVE",
+    "UNION",
+    "INTERSECTION",
+    "DISCARD",
+    "SORT",
+    "BOOLEAN",
+    "ARITHMETIC",
+)
+QDMR_OPERATORS = frozenset(QDMR_OPERATOR_INVENTORY)
+QDMR_APPLICABILITY_LEVELS = (
+    "applicable",
+    "applicable_after_normalisation",
+    "not_applicable",
+)
+COGNITIVE_PROCESS_LEVELS = (
+    "remember",
+    "understand",
+    "apply",
+    "analyze",
+    "evaluate",
+    "create",
+)
+ANNOTATION_CONSTRUCT_ANOMALY_COLUMNS = (
+    "item_id",
+    "item_type",
+    "model_id",
+    "batch_id",
+    "source_text_sha256",
+    "raw_response_sha256",
+    "feature",
+    "anomaly_code",
+    "qdmr_step_count",
+    "qdmr_operator_count",
+    "requires_validation",
+)
+OUTCOME_FIELD_CONTRACT_VERSION = 1
+TRACE_PFU_TABLE_COLUMNS = (
+    "rubric_id",
+    "rubric_order",
+    "variant_id",
+    "eval_dataset",
+    "rubric_file_path",
+    "variant_index",
+    "arm_id",
+    "stage",
+    "run_id",
+    "trace_id",
+    "P",
+    "F",
+    "U",
+    "N_r",
+    "rubric_v2",
+    "logged_rubric_v2",
+    "rubric_v2_match",
+    "logged_ordinal_grade",
+    "recomputed_ordinal_grade",
+    "ordinal_grade_match",
+    "error_override",
+    "error_scorer_judgement_count",
+    "expectations_to_next_grade",
+    "criterion_count_match",
+    "eligible",
+)
+EXPLICIT_OUTCOME_FIELD_NAMES = frozenset(
     {
         "p",
         "f",
@@ -26,6 +97,42 @@ OUTCOME_FIELD_DENYLIST = frozenset(
         "ordinal_grade",
         "tier",
     }
+)
+FROZEN_RECOMMENDATION_FIELD_NAMES = frozenset(
+    {"tier", "uncertain", "v_r", "monte_carlo_indeterminate"}
+)
+TRACE_SHARED_STRUCTURAL_FIELD_NAMES = frozenset(
+    {
+        "rubric_id",
+        "rubric_order",
+        "variant_id",
+        "eval_dataset",
+        "rubric_file_path",
+        "variant_index",
+    }
+)
+OUTCOME_ARTIFACT_SCHEMAS = MappingProxyType(
+    {"trace_pfu_table.parquet": TRACE_PFU_TABLE_COLUMNS}
+)
+_REGISTERED_OUTCOME_ARTIFACT_FIELD_NAMES = frozenset(
+    field_name.casefold()
+    for columns in OUTCOME_ARTIFACT_SCHEMAS.values()
+    for field_name in columns
+)
+ANNOTATION_RESPONSE_FIELD_DENYLIST = frozenset(
+    {
+        *_REGISTERED_OUTCOME_ARTIFACT_FIELD_NAMES,
+        *EXPLICIT_OUTCOME_FIELD_NAMES,
+        *FROZEN_RECOMMENDATION_FIELD_NAMES,
+    }
+)
+PRE_OUTCOME_INPUT_FIELD_DENYLIST = frozenset(
+    ANNOTATION_RESPONSE_FIELD_DENYLIST - TRACE_SHARED_STRUCTURAL_FIELD_NAMES
+)
+# Kept as the public short name for callers that validate pre-outcome source tables.
+OUTCOME_FIELD_DENYLIST = PRE_OUTCOME_INPUT_FIELD_DENYLIST
+PROTECTED_RECOMMENDATION_ARTIFACT_NAMES = frozenset(
+    {"recommendation_table_rubric.parquet", "recommendation_table_variant.parquet"}
 )
 
 
@@ -86,6 +193,12 @@ class FeatureValidationStatus(StrEnum):
     VALIDATED = "VALIDATED"
     VALIDATED_WITH_LIMITATIONS = "VALIDATED_WITH_LIMITATIONS"
     NOT_VALIDATED = "NOT_VALIDATED"
+
+
+class AnnotationConstructAnomaly(StrEnum):
+    """Outcome-blind construct anomalies requiring later validity review."""
+
+    QDMR_OPERATOR_COUNT_EXCEEDS_STEP_COUNT = "QDMR_OPERATOR_COUNT_EXCEEDS_STEP_COUNT"
 
 
 class AnalysisFlag(StrEnum):

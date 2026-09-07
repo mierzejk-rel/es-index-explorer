@@ -1,0 +1,525 @@
+{
+  "analysis_id": "simplemode-v1",
+  "analysis_lock_tag": "analysis-lock/simple-mode-question-suitability",
+  "inputs": {
+    "grade_oracle/fixture": {
+      "path": "/Users/krzysztof.mierzejewski/PycharmProjects/es-index-explorer/es_index_explorer/question_analysis/resources/ordinal-grade-oracle-v1.json",
+      "sha256": "66c76224ed9ac7ba5f9fd6e9ba45ec285cf28fd491aaa4058e48015f9964883a",
+      "size_bytes": 462381
+    },
+    "grade_oracle/provenance": {
+      "path": "/Users/krzysztof.mierzejewski/PycharmProjects/es-index-explorer/es_index_explorer/question_analysis/resources/ordinal-grade-oracle-v1.provenance.json",
+      "sha256": "5a0449d42d5be68a05092eeb7811ecd7e74f444e64f8f99fce7059609b60eef2",
+      "size_bytes": 860
+    },
+    "rubrics/air_assist/EMC2/uat/set_1/03_qna_key_document_evidence_identification_deficiency_support.rubric.toml": {
+      "path": "/Users/krzysztof.mierzejewski/PycharmProjects/r1-evals-new/src/r1_evals/rubrics/rubric_data/air_assist/EMC2/uat/set_1/03_qna_key_document_evidence_identification_deficiency_support.rubric.toml",
+      "sha256": "3cf31148faa4fd4ad95dca91c9f9a68e50644aca2135bf06f8a9be29a6f81389",
+      "size_bytes": 4155
+    },
+    "rubrics/air_assist/EMC2/uat/set_1/05_qna_communications_analysis_belford_plan_communications.rubric.toml": {
+      "path": "/Users/krzysztof.mierzejewski/PycharmProjects/r1-evals-new/src/r1_evals/rubrics/rubric_data/air_assist/EMC2/uat/set_1/05_qna_communications_analysis_belford_plan_communications.rubric.toml",
+      "sha256": "06f431096801cfe6b4d7f52e5ecda1f594ab718f267cede1d95ce00988a0e684",
+      "size_bytes": 2372
+    },
+    "rubrics/air_assist/EMC2/uat/set_1/06_qna_communications_analysis_belford_wallace.rubric.toml": {
+      "path": "/Users/krzysztof.mierzejewski/PycharmProjects/r1-evals-new/src/r1_evals/rubrics/rubric_data/air_assist/EMC2/uat/set_1/06_qna_communications_analysis_belford_wallace.rubric.toml",
+      "sha256": "2d24ce7d090c28f17e7371488200e15d208dc94794d9d1fce75ae8a35f13b9dc",
+      "size_bytes": 1922
+    },
+    "rubrics/air_assist/EMC2/uat/set_1/07_qna_communications_analysis_belford_phantom_phreak.rubric.toml": {
+      "path": "/Users/krzysztof.mierzejewski/PycharmProjects/r1-evals-new/src/r1_evals/rubrics/rubric_data/air_assist/EMC2/uat/set_1/07_qna_communications_analysis_belford_phantom_phreak.rubric.toml",
+      "sha256": "a1eabace0c1043f4d99f56656325405d58dcd670fc6c6b891dce15182e2b3893",
+      "size_bytes": 2745
+    },
+    "rubrics/air_assist/EMC2/uat/set_1/09_qna_communications_analysis_ellingson_law_enforcement.rubric.toml": {
+      "path": "/Users/krzysztof.mierzejewski/PycharmProjects/r1-evals-new/src/r1_evals/rubrics/rubric_data/air_assist/EMC2/uat/set_1/09_qna_communications_analysis_ellingson_law_enforcement.rubric.toml",
+      "sha256": "4898262070a165e6bd15d0ee6f9e157ddb32735f00ddd77b264916298cddd89b",
+      "size_bytes": 1456
+    },
+    "rubrics/air_assist/EMC2/uat/set_1/10_qna_communications_analysis_phantom_phreak_identity.rubric.toml": {
+      "path": "/Users/krzysztof.mierzejewski/PycharmProjects/r1-evals-new/src/r1_evals/rubrics/rubric_data/air_assist/EMC2/uat/set_1/10_qna_communications_analysis_phantom_phreak_identity.rubric.toml",
+      "sha256": "a04ebde9341729a6bd92cecc79172885d987b9d59e1ec7c8328c3c8555da034f",
+      "size_bytes": 3144
+    },
+    "rubrics/air_assist/EMC2/uat/set_1/13_qna_timeline_analysis_remediation_steps.rubric.toml": {
+      "path": "/Users/krzysztof.mierzejewski/PycharmProjects/r1-evals-new/src/r1_evals/rubrics/rubric_data/air_assist/EMC2/uat/set_1/13_qna_timeline_analysis_remediation_steps.rubric.toml",
+      "sha256": "fe4739084f5ca51e125f50da3c3280866afac02b0a4c5350e424664e322d84cd",
+      "size_bytes": 2914
+    },
+    "rubrics/air_assist/EMC2/uat/set_1/14_qna_incident_analysis_post_discovery_actions.rubric.toml": {
+      "path": "/Users/krzysztof.mierzejewski/PycharmProjects/r1-evals-new/src/r1_evals/rubrics/rubric_data/air_assist/EMC2/uat/set_1/14_qna_incident_analysis_post_discovery_actions.rubric.toml",
+      "sha256": "161249758c276a67052b3a1275d9b40bf650f0277daf84d538d127c03c6b7b1f",
+      "size_bytes": 2244
+    },
+    "rubrics/air_assist/EMC2/uat/set_1/15_qna_incident_analysis_cybersecurity_improvements_taken.rubric.toml": {
+      "path": "/Users/krzysztof.mierzejewski/PycharmProjects/r1-evals-new/src/r1_evals/rubrics/rubric_data/air_assist/EMC2/uat/set_1/15_qna_incident_analysis_cybersecurity_improvements_taken.rubric.toml",
+      "sha256": "37636a76bc3ea47cf50c988f18a7236de16052629b08f4125f2351c8c22c1e8a",
+      "size_bytes": 1552
+    },
+    "rubrics/air_assist/EMC2/uat/set_1/16_qna_incident_analysis_cybersecurity_improvements_planned.rubric.toml": {
+      "path": "/Users/krzysztof.mierzejewski/PycharmProjects/r1-evals-new/src/r1_evals/rubrics/rubric_data/air_assist/EMC2/uat/set_1/16_qna_incident_analysis_cybersecurity_improvements_planned.rubric.toml",
+      "sha256": "e9070efe1bf3b5d43fa54f579655d9e0943773b5ef8918c4c8ce463fb922cd79",
+      "size_bytes": 1753
+    },
+    "rubrics/air_assist/EMC2/uat/set_1/17_qna_entity_relationship_it_personnel.rubric.toml": {
+      "path": "/Users/krzysztof.mierzejewski/PycharmProjects/r1-evals-new/src/r1_evals/rubrics/rubric_data/air_assist/EMC2/uat/set_1/17_qna_entity_relationship_it_personnel.rubric.toml",
+      "sha256": "748ccc7f26bbd2a21803e3e7139abda883cf70d311138415ba4c9253e54c438c",
+      "size_bytes": 1951
+    },
+    "rubrics/air_assist/EMC2/uat/set_1/18_qna_entity_relationship_young_hackers_identities.rubric.toml": {
+      "path": "/Users/krzysztof.mierzejewski/PycharmProjects/r1-evals-new/src/r1_evals/rubrics/rubric_data/air_assist/EMC2/uat/set_1/18_qna_entity_relationship_young_hackers_identities.rubric.toml",
+      "sha256": "59870316ac1769f38c8603e07cc8f7456c521be4ec09fba8d85a6500eb54a326",
+      "size_bytes": 3055
+    },
+    "rubrics/air_assist/EMC2/uat/set_1/19_qna_signal_detection_phantom_phreak_same_person.rubric.toml": {
+      "path": "/Users/krzysztof.mierzejewski/PycharmProjects/r1-evals-new/src/r1_evals/rubrics/rubric_data/air_assist/EMC2/uat/set_1/19_qna_signal_detection_phantom_phreak_same_person.rubric.toml",
+      "sha256": "6f8bb820b8e453067d7f39ca548262675265a3515f947f3eb4bfb443e23ce9db",
+      "size_bytes": 4237
+    },
+    "rubrics/air_assist/EMC2/uat/set_1/20_qna_signal_detection_pre_attack_evidence.rubric.toml": {
+      "path": "/Users/krzysztof.mierzejewski/PycharmProjects/r1-evals-new/src/r1_evals/rubrics/rubric_data/air_assist/EMC2/uat/set_1/20_qna_signal_detection_pre_attack_evidence.rubric.toml",
+      "sha256": "d3b9a2c142fb80ae16a9fdcba7faafc3e2d56f5c172f27928d09e6d69df5d8e4",
+      "size_bytes": 1935
+    },
+    "rubrics/air_assist/EMC2/uat/set_1/21_qna_anomaly_detection_unusual_email_patterns.rubric.toml": {
+      "path": "/Users/krzysztof.mierzejewski/PycharmProjects/r1-evals-new/src/r1_evals/rubrics/rubric_data/air_assist/EMC2/uat/set_1/21_qna_anomaly_detection_unusual_email_patterns.rubric.toml",
+      "sha256": "b6a3a82850f27708b1bc8179919d40e5f38ae617bf01152c6403172e98ee9c3b",
+      "size_bytes": 3461
+    },
+    "rubrics/air_assist/EMC2/uat/set_1/22_qna_summarization_belford_wallace_communications.rubric.toml": {
+      "path": "/Users/krzysztof.mierzejewski/PycharmProjects/r1-evals-new/src/r1_evals/rubrics/rubric_data/air_assist/EMC2/uat/set_1/22_qna_summarization_belford_wallace_communications.rubric.toml",
+      "sha256": "c8149348ad596c288758fa00354e8ce4cfa547d7e979ac4072e300419dc479c9",
+      "size_bytes": 3381
+    },
+    "rubrics/air_assist/EMC2/uat/set_1/23_qna_summarization_teenage_hackers_involvement.rubric.toml": {
+      "path": "/Users/krzysztof.mierzejewski/PycharmProjects/r1-evals-new/src/r1_evals/rubrics/rubric_data/air_assist/EMC2/uat/set_1/23_qna_summarization_teenage_hackers_involvement.rubric.toml",
+      "sha256": "dc0828a4f64cb4a0ccd9eaa7f3b64f63b802fb922e3567f03ea52edbca7e99cd",
+      "size_bytes": 3378
+    },
+    "rubrics/air_assist/EMC2/uat/set_1/26_entity_and_relationship_analysis_who_are_the_key_actors_involved_in_the_hacking_inc.rubric.toml": {
+      "path": "/Users/krzysztof.mierzejewski/PycharmProjects/r1-evals-new/src/r1_evals/rubrics/rubric_data/air_assist/EMC2/uat/set_1/26_entity_and_relationship_analysis_who_are_the_key_actors_involved_in_the_hacking_inc.rubric.toml",
+      "sha256": "eadc03eb909966bba900de8af6a659a51ae99b435694a6f2a68757f51e8da987",
+      "size_bytes": 3181
+    },
+    "rubrics/air_assist/EMC2/uat/set_1/26_qna_damages_assessment_belford_hack.rubric.toml": {
+      "path": "/Users/krzysztof.mierzejewski/PycharmProjects/r1-evals-new/src/r1_evals/rubrics/rubric_data/air_assist/EMC2/uat/set_1/26_qna_damages_assessment_belford_hack.rubric.toml",
+      "sha256": "a57938bf81f9d4b1f03b9bf08a9f8d482ccfe85a9228a7d7023d6d333447c89b",
+      "size_bytes": 3056
+    },
+    "rubrics/air_assist/EMC2/uat/set_1/32_entity_and_relationship_analysis_what_emails_did_eugene_belford_use.rubric.toml": {
+      "path": "/Users/krzysztof.mierzejewski/PycharmProjects/r1-evals-new/src/r1_evals/rubrics/rubric_data/air_assist/EMC2/uat/set_1/32_entity_and_relationship_analysis_what_emails_did_eugene_belford_use.rubric.toml",
+      "sha256": "9b8d0c57e62324b8f1f0f93b1bfe8788336897152e235584f3b42c26211411ff",
+      "size_bytes": 2371
+    },
+    "rubrics/air_assist/EMC2/uat/set_1/6_key_document__evidence_identification_find_me_emails_discussing_destroying_evidence.rubric.toml": {
+      "path": "/Users/krzysztof.mierzejewski/PycharmProjects/r1-evals-new/src/r1_evals/rubrics/rubric_data/air_assist/EMC2/uat/set_1/6_key_document__evidence_identification_find_me_emails_discussing_destroying_evidence.rubric.toml",
+      "sha256": "f53c51df0d5eaf0c28f92271b19ba5247576f3b3097738ed48521694e77f2e8a",
+      "size_bytes": 1581
+    },
+    "rubrics/air_assist/EMC2/uat/set_2/001_key_document_evidence_identification_pre_hack_protections.rubric.toml": {
+      "path": "/Users/krzysztof.mierzejewski/PycharmProjects/r1-evals-new/src/r1_evals/rubrics/rubric_data/air_assist/EMC2/uat/set_2/001_key_document_evidence_identification_pre_hack_protections.rubric.toml",
+      "sha256": "0009e1e474f18e9c424a64874c17d91baec37916ba000b8fafa9d9ff4e938ecc",
+      "size_bytes": 1478
+    },
+    "rubrics/air_assist/EMC2/uat/set_2/002_key_evidence_id_evidence_ellingson.rubric.toml": {
+      "path": "/Users/krzysztof.mierzejewski/PycharmProjects/r1-evals-new/src/r1_evals/rubrics/rubric_data/air_assist/EMC2/uat/set_2/002_key_evidence_id_evidence_ellingson.rubric.toml",
+      "sha256": "1ef4a7e63902aac18435df7fddecf3b188b5860547dc413e5366d03c0a42f318",
+      "size_bytes": 3245
+    },
+    "rubrics/air_assist/EMC2/uat/set_2/003_key_document_evidence_identification_pre_hack_awareness.rubric.toml": {
+      "path": "/Users/krzysztof.mierzejewski/PycharmProjects/r1-evals-new/src/r1_evals/rubrics/rubric_data/air_assist/EMC2/uat/set_2/003_key_document_evidence_identification_pre_hack_awareness.rubric.toml",
+      "sha256": "77f152e911aac270ca89a860cb045dd307f3b088edc5b1a14b4bcd37521ae250",
+      "size_bytes": 1922
+    },
+    "rubrics/air_assist/EMC2/uat/set_2/004_key_evidence_id_spreadsheets_damages.rubric.toml": {
+      "path": "/Users/krzysztof.mierzejewski/PycharmProjects/r1-evals-new/src/r1_evals/rubrics/rubric_data/air_assist/EMC2/uat/set_2/004_key_evidence_id_spreadsheets_damages.rubric.toml",
+      "sha256": "4cba6030d7c7673f8de98c4d13c9ac6fabfe9bc22ac7502540801456000465ba",
+      "size_bytes": 1292
+    },
+    "rubrics/air_assist/EMC2/uat/set_2/005_key_document_evidence_identification_deficiency_refutation.rubric.toml": {
+      "path": "/Users/krzysztof.mierzejewski/PycharmProjects/r1-evals-new/src/r1_evals/rubrics/rubric_data/air_assist/EMC2/uat/set_2/005_key_document_evidence_identification_deficiency_refutation.rubric.toml",
+      "sha256": "be7e29550e93648533304815fe80d7735c6edc9ff5de804f5b3a76b5a55f59d7",
+      "size_bytes": 2835
+    },
+    "rubrics/air_assist/EMC2/uat/set_2/006_key_evidence_id_august_1995_docs.rubric.toml": {
+      "path": "/Users/krzysztof.mierzejewski/PycharmProjects/r1-evals-new/src/r1_evals/rubrics/rubric_data/air_assist/EMC2/uat/set_2/006_key_evidence_id_august_1995_docs.rubric.toml",
+      "sha256": "b6ae78c81ca9f0d3c8c206181c08eb999dd921b61d1c9c214f45f47a83b4387e",
+      "size_bytes": 1243
+    },
+    "rubrics/air_assist/EMC2/uat/set_2/007_key_evidence_id_sept_1995_docs.rubric.toml": {
+      "path": "/Users/krzysztof.mierzejewski/PycharmProjects/r1-evals-new/src/r1_evals/rubrics/rubric_data/air_assist/EMC2/uat/set_2/007_key_evidence_id_sept_1995_docs.rubric.toml",
+      "sha256": "0f3445c91a2d82e7d3fa208006e7b7bcc6ac4120d72bc2e71b49c2894089137f",
+      "size_bytes": 640
+    },
+    "rubrics/air_assist/EMC2/uat/set_2/008_key_evidence_id_harmful_documents.rubric.toml": {
+      "path": "/Users/krzysztof.mierzejewski/PycharmProjects/r1-evals-new/src/r1_evals/rubrics/rubric_data/air_assist/EMC2/uat/set_2/008_key_evidence_id_harmful_documents.rubric.toml",
+      "sha256": "8e1e1fd39a64e82ed1c1b3cc40201f2bfea3c2b16140021ceea047600192e52c",
+      "size_bytes": 3044
+    },
+    "rubrics/air_assist/EMC2/uat/set_2/010_communications_analysis_belford_teenage_hackers.rubric.toml": {
+      "path": "/Users/krzysztof.mierzejewski/PycharmProjects/r1-evals-new/src/r1_evals/rubrics/rubric_data/air_assist/EMC2/uat/set_2/010_communications_analysis_belford_teenage_hackers.rubric.toml",
+      "sha256": "ecf916b3bb4907cdc496ff1258d8d694f50980d31da74176cb8bd53d63abc216",
+      "size_bytes": 4289
+    },
+    "rubrics/air_assist/EMC2/uat/set_2/011_communication_analysis_hal_benson.rubric.toml": {
+      "path": "/Users/krzysztof.mierzejewski/PycharmProjects/r1-evals-new/src/r1_evals/rubrics/rubric_data/air_assist/EMC2/uat/set_2/011_communication_analysis_hal_benson.rubric.toml",
+      "sha256": "929b827e66891f3589907b4ecbab9b68eb9d646362c7fe8629383ae72a99babf",
+      "size_bytes": 2719
+    },
+    "rubrics/air_assist/EMC2/uat/set_2/012_communication_analysis_wallace_comms.rubric.toml": {
+      "path": "/Users/krzysztof.mierzejewski/PycharmProjects/r1-evals-new/src/r1_evals/rubrics/rubric_data/air_assist/EMC2/uat/set_2/012_communication_analysis_wallace_comms.rubric.toml",
+      "sha256": "8240488c365128dc90f8d35afbfc3d8fc599eddb65967cd4934942cd7cbc2d2e",
+      "size_bytes": 1386
+    },
+    "rubrics/air_assist/EMC2/uat/set_2/013_entity_relationship_analysis_sarah_chen.rubric.toml": {
+      "path": "/Users/krzysztof.mierzejewski/PycharmProjects/r1-evals-new/src/r1_evals/rubrics/rubric_data/air_assist/EMC2/uat/set_2/013_entity_relationship_analysis_sarah_chen.rubric.toml",
+      "sha256": "638d904fa76b3ef4a93a6bf5579e25c70e864b44489e2f9cc7f9f32324c80f4d",
+      "size_bytes": 1002
+    },
+    "rubrics/air_assist/EMC2/uat/set_2/014_entity_relationship_analysis_who_sarah_chen.rubric.toml": {
+      "path": "/Users/krzysztof.mierzejewski/PycharmProjects/r1-evals-new/src/r1_evals/rubrics/rubric_data/air_assist/EMC2/uat/set_2/014_entity_relationship_analysis_who_sarah_chen.rubric.toml",
+      "sha256": "1f62434b791be02fc5d8da764df9a459fcab682926275e27c964a3752f981271",
+      "size_bytes": 4056
+    },
+    "rubrics/air_assist/EMC2/uat/set_2/015_entity_relationship_analysis_chen_nefarious_involvement.rubric.toml": {
+      "path": "/Users/krzysztof.mierzejewski/PycharmProjects/r1-evals-new/src/r1_evals/rubrics/rubric_data/air_assist/EMC2/uat/set_2/015_entity_relationship_analysis_chen_nefarious_involvement.rubric.toml",
+      "sha256": "d4d905972e0e9ed0c396c30918c93b2e74ac14b53934133b5bbe2e574c6e1e0d",
+      "size_bytes": 1937
+    },
+    "rubrics/air_assist/EMC2/uat/set_2/016_entity_relationship_analysis_belford_zer0cool.rubric.toml": {
+      "path": "/Users/krzysztof.mierzejewski/PycharmProjects/r1-evals-new/src/r1_evals/rubrics/rubric_data/air_assist/EMC2/uat/set_2/016_entity_relationship_analysis_belford_zer0cool.rubric.toml",
+      "sha256": "8133c4c35c522b715e0c272623c57b0071272c13c2a268b65ca03e5bd431fb89",
+      "size_bytes": 1782
+    },
+    "rubrics/air_assist/EMC2/uat/set_2/017_entity_relationship_analysis_chen_emails.rubric.toml": {
+      "path": "/Users/krzysztof.mierzejewski/PycharmProjects/r1-evals-new/src/r1_evals/rubrics/rubric_data/air_assist/EMC2/uat/set_2/017_entity_relationship_analysis_chen_emails.rubric.toml",
+      "sha256": "c436966e0268982ff8bb6601c7b9e4757dff4738c3fd42301f739115964bda13",
+      "size_bytes": 2847
+    },
+    "rubrics/air_assist/EMC2/uat/set_2/018_incident_event_analysis_chen_involvement.rubric.toml": {
+      "path": "/Users/krzysztof.mierzejewski/PycharmProjects/r1-evals-new/src/r1_evals/rubrics/rubric_data/air_assist/EMC2/uat/set_2/018_incident_event_analysis_chen_involvement.rubric.toml",
+      "sha256": "397d4ca0dec2634c43e3ac47d63461343e4686c5786c8f8b23b6f5d3ccc0fd93",
+      "size_bytes": 4260
+    },
+    "rubrics/air_assist/EMC2/uat/set_2/019_incident_event_analysis_wallace_diverging.rubric.toml": {
+      "path": "/Users/krzysztof.mierzejewski/PycharmProjects/r1-evals-new/src/r1_evals/rubrics/rubric_data/air_assist/EMC2/uat/set_2/019_incident_event_analysis_wallace_diverging.rubric.toml",
+      "sha256": "c84db6039489eaad958f37d7c774c9c3b2b6b9e8eba83105eff6f62487242735",
+      "size_bytes": 1083
+    },
+    "rubrics/air_assist/EMC2/uat/set_2/020_incident_event_analysis_belford_exit_plan.rubric.toml": {
+      "path": "/Users/krzysztof.mierzejewski/PycharmProjects/r1-evals-new/src/r1_evals/rubrics/rubric_data/air_assist/EMC2/uat/set_2/020_incident_event_analysis_belford_exit_plan.rubric.toml",
+      "sha256": "e5778cb305bad8228e2dbbd1f80a8f75ee027d09ee642496c6aee99410975285",
+      "size_bytes": 3040
+    },
+    "rubrics/air_assist/EMC2/uat/set_2/021_incident_event_analysis_cyberattack_timing.rubric.toml": {
+      "path": "/Users/krzysztof.mierzejewski/PycharmProjects/r1-evals-new/src/r1_evals/rubrics/rubric_data/air_assist/EMC2/uat/set_2/021_incident_event_analysis_cyberattack_timing.rubric.toml",
+      "sha256": "93a9ee5545ddd0b83f1738026824e729de4e42f857c6ffde7f043bf240abedc7",
+      "size_bytes": 1993
+    },
+    "rubrics/air_assist/mallinckrodt/rubrics_for_ga/1-01.rubric.toml": {
+      "path": "/Users/krzysztof.mierzejewski/PycharmProjects/r1-evals-new/src/r1_evals/rubrics/rubric_data/air_assist/mallinckrodt/rubrics_for_ga/1-01.rubric.toml",
+      "sha256": "f56e0a2b5762cdd0396851fddab44f3651215e1a930c557234fa0b248c22527c",
+      "size_bytes": 836
+    },
+    "rubrics/air_assist/mallinckrodt/rubrics_for_ga/1-02.rubric.toml": {
+      "path": "/Users/krzysztof.mierzejewski/PycharmProjects/r1-evals-new/src/r1_evals/rubrics/rubric_data/air_assist/mallinckrodt/rubrics_for_ga/1-02.rubric.toml",
+      "sha256": "23441ea104d607d846668afb5746530a211f7c945c86e9b9684f1f2f26751076",
+      "size_bytes": 3393
+    },
+    "rubrics/air_assist/mallinckrodt/rubrics_for_ga/1-03.rubric.toml": {
+      "path": "/Users/krzysztof.mierzejewski/PycharmProjects/r1-evals-new/src/r1_evals/rubrics/rubric_data/air_assist/mallinckrodt/rubrics_for_ga/1-03.rubric.toml",
+      "sha256": "17ad06f2b88e4e2f85aa185170a53b9eb0fb758f14bf80ccbfa66e72fa8f00ba",
+      "size_bytes": 2884
+    },
+    "rubrics/air_assist/mallinckrodt/rubrics_for_ga/1-04.rubric.toml": {
+      "path": "/Users/krzysztof.mierzejewski/PycharmProjects/r1-evals-new/src/r1_evals/rubrics/rubric_data/air_assist/mallinckrodt/rubrics_for_ga/1-04.rubric.toml",
+      "sha256": "eddeeb638d2bfa186b8bd11b6e45904d112a35db34cdd2c4798c1d3e9b26e692",
+      "size_bytes": 2184
+    },
+    "rubrics/air_assist/mallinckrodt/rubrics_for_ga/1-05.rubric.toml": {
+      "path": "/Users/krzysztof.mierzejewski/PycharmProjects/r1-evals-new/src/r1_evals/rubrics/rubric_data/air_assist/mallinckrodt/rubrics_for_ga/1-05.rubric.toml",
+      "sha256": "340351520f846076a73e6263081884f67cc29ab917053cfe627cdca0d0e62fd6",
+      "size_bytes": 1021
+    },
+    "rubrics/air_assist/mallinckrodt/rubrics_for_ga/1-06.rubric.toml": {
+      "path": "/Users/krzysztof.mierzejewski/PycharmProjects/r1-evals-new/src/r1_evals/rubrics/rubric_data/air_assist/mallinckrodt/rubrics_for_ga/1-06.rubric.toml",
+      "sha256": "6550ec860af3f1ab6c94e1e34a314e1e9c67e14853d9ccdb4ee230647d5fe272",
+      "size_bytes": 922
+    },
+    "rubrics/air_assist/mallinckrodt/rubrics_for_ga/2-01.rubric.toml": {
+      "path": "/Users/krzysztof.mierzejewski/PycharmProjects/r1-evals-new/src/r1_evals/rubrics/rubric_data/air_assist/mallinckrodt/rubrics_for_ga/2-01.rubric.toml",
+      "sha256": "7d28922e8e2ca103785d2c80cde4d7dd4b3daf826920d384c9a07f33a1747f0a",
+      "size_bytes": 1023
+    },
+    "rubrics/air_assist/mallinckrodt/rubrics_for_ga/2-02.rubric.toml": {
+      "path": "/Users/krzysztof.mierzejewski/PycharmProjects/r1-evals-new/src/r1_evals/rubrics/rubric_data/air_assist/mallinckrodt/rubrics_for_ga/2-02.rubric.toml",
+      "sha256": "3f6bdc5dd646102e4f641113c6c19640c0fbd907340b82738e33b5c1c34276da",
+      "size_bytes": 1232
+    },
+    "rubrics/air_assist/mallinckrodt/rubrics_for_ga/2-03.rubric.toml": {
+      "path": "/Users/krzysztof.mierzejewski/PycharmProjects/r1-evals-new/src/r1_evals/rubrics/rubric_data/air_assist/mallinckrodt/rubrics_for_ga/2-03.rubric.toml",
+      "sha256": "29798dc26a0c56fbfb03c63543ce092e697d95a536b6ec5e32e8adf6152afb62",
+      "size_bytes": 896
+    },
+    "rubrics/air_assist/mallinckrodt/rubrics_for_ga/2-04.rubric.toml": {
+      "path": "/Users/krzysztof.mierzejewski/PycharmProjects/r1-evals-new/src/r1_evals/rubrics/rubric_data/air_assist/mallinckrodt/rubrics_for_ga/2-04.rubric.toml",
+      "sha256": "76c52d645cb1e214eba8f0b7b7f71da47038206d83ddccb62092beb9dd58c995",
+      "size_bytes": 2196
+    },
+    "rubrics/air_assist/mallinckrodt/rubrics_for_ga/2-05.rubric.toml": {
+      "path": "/Users/krzysztof.mierzejewski/PycharmProjects/r1-evals-new/src/r1_evals/rubrics/rubric_data/air_assist/mallinckrodt/rubrics_for_ga/2-05.rubric.toml",
+      "sha256": "74b48994c066c0245641fbdca243c1386f01a9e19b4857ff32570c92b70c392c",
+      "size_bytes": 1352
+    },
+    "rubrics/air_assist/mallinckrodt/rubrics_for_ga/3-01.rubric.toml": {
+      "path": "/Users/krzysztof.mierzejewski/PycharmProjects/r1-evals-new/src/r1_evals/rubrics/rubric_data/air_assist/mallinckrodt/rubrics_for_ga/3-01.rubric.toml",
+      "sha256": "b698de11128ba7e6e23b753a5a54af534c046e411ac85183ec31b1d7d7d15ff5",
+      "size_bytes": 1157
+    },
+    "rubrics/air_assist/mallinckrodt/rubrics_for_ga/3-02.rubric.toml": {
+      "path": "/Users/krzysztof.mierzejewski/PycharmProjects/r1-evals-new/src/r1_evals/rubrics/rubric_data/air_assist/mallinckrodt/rubrics_for_ga/3-02.rubric.toml",
+      "sha256": "1922e8b23bc0da1205e4911a55d5fa1368c9f007457d1db5ed35fa730651c301",
+      "size_bytes": 1678
+    },
+    "rubrics/air_assist/mallinckrodt/rubrics_for_ga/3-03.rubric.toml": {
+      "path": "/Users/krzysztof.mierzejewski/PycharmProjects/r1-evals-new/src/r1_evals/rubrics/rubric_data/air_assist/mallinckrodt/rubrics_for_ga/3-03.rubric.toml",
+      "sha256": "7db0f877e575fe11b90a0d868e8dfc2cc0b483bb43104646ca9028efbdda3e0c",
+      "size_bytes": 848
+    },
+    "rubrics/air_assist/mallinckrodt/rubrics_for_ga/3-04.rubric.toml": {
+      "path": "/Users/krzysztof.mierzejewski/PycharmProjects/r1-evals-new/src/r1_evals/rubrics/rubric_data/air_assist/mallinckrodt/rubrics_for_ga/3-04.rubric.toml",
+      "sha256": "99be51028bafe25f295421a8c66ade6536c1057e60b4953ef8dbf256cb465e09",
+      "size_bytes": 4287
+    },
+    "rubrics/air_assist/mallinckrodt/rubrics_for_ga/3-05.rubric.toml": {
+      "path": "/Users/krzysztof.mierzejewski/PycharmProjects/r1-evals-new/src/r1_evals/rubrics/rubric_data/air_assist/mallinckrodt/rubrics_for_ga/3-05.rubric.toml",
+      "sha256": "8b4574653d4259513b5fdac884a4aa01789c37a06bc5b825aac3f56d1a551302",
+      "size_bytes": 1329
+    },
+    "rubrics/air_assist/mallinckrodt/rubrics_for_ga/3-06.rubric.toml": {
+      "path": "/Users/krzysztof.mierzejewski/PycharmProjects/r1-evals-new/src/r1_evals/rubrics/rubric_data/air_assist/mallinckrodt/rubrics_for_ga/3-06.rubric.toml",
+      "sha256": "a8473aac18da580bbb3203930e82ceec985bc24529e14bf27e3aadf679660d13",
+      "size_bytes": 3778
+    },
+    "rubrics/air_assist/mallinckrodt/rubrics_for_ga/4-01.rubric.toml": {
+      "path": "/Users/krzysztof.mierzejewski/PycharmProjects/r1-evals-new/src/r1_evals/rubrics/rubric_data/air_assist/mallinckrodt/rubrics_for_ga/4-01.rubric.toml",
+      "sha256": "5014f640a94bd86ea6d0bd43ae73adc62a1c1b6393178f124cd4159f4433069a",
+      "size_bytes": 3304
+    },
+    "rubrics/air_assist/mallinckrodt/rubrics_for_ga/4-02.rubric.toml": {
+      "path": "/Users/krzysztof.mierzejewski/PycharmProjects/r1-evals-new/src/r1_evals/rubrics/rubric_data/air_assist/mallinckrodt/rubrics_for_ga/4-02.rubric.toml",
+      "sha256": "d7dec8bd12932223e55e06d7f1a8e090e5576f08baa5fe53a4f53471b751a674",
+      "size_bytes": 1073
+    },
+    "rubrics/air_assist/mallinckrodt/rubrics_for_ga/4-03.rubric.toml": {
+      "path": "/Users/krzysztof.mierzejewski/PycharmProjects/r1-evals-new/src/r1_evals/rubrics/rubric_data/air_assist/mallinckrodt/rubrics_for_ga/4-03.rubric.toml",
+      "sha256": "8c7a26152c5a9cf9af4ade95452aae0aecde1a72599bbf9e61aab0c68c15775c",
+      "size_bytes": 2576
+    },
+    "rubrics/air_assist/mallinckrodt/rubrics_for_ga/4-04.rubric.toml": {
+      "path": "/Users/krzysztof.mierzejewski/PycharmProjects/r1-evals-new/src/r1_evals/rubrics/rubric_data/air_assist/mallinckrodt/rubrics_for_ga/4-04.rubric.toml",
+      "sha256": "94ad7271e9e6499856ee67b9d933b75942129f1e768b0b4067b3f06fad07978e",
+      "size_bytes": 1284
+    },
+    "rubrics/air_assist/mallinckrodt/rubrics_for_ga/4-05.rubric.toml": {
+      "path": "/Users/krzysztof.mierzejewski/PycharmProjects/r1-evals-new/src/r1_evals/rubrics/rubric_data/air_assist/mallinckrodt/rubrics_for_ga/4-05.rubric.toml",
+      "sha256": "6c5b3defb3e11743223073c369152e70e8101d98e7e24b24a94cdc8408e6628b",
+      "size_bytes": 2779
+    },
+    "rubrics/task.toml": {
+      "path": "/Users/krzysztof.mierzejewski/PycharmProjects/r1-evals-new/rubrics/tasks/air_assist.toml",
+      "sha256": "e7f6087304471a606e1934e1e2f111b438cc9648699d7a30a902bfcd830ce597",
+      "size_bytes": 3239
+    },
+    "snapshot/experiments.parquet": {
+      "path": "/Users/krzysztof.mierzejewski/PycharmProjects/es-index-explorer/artifacts/mlflow/simplemode-stage-v3/experiments.parquet",
+      "sha256": "448f8bed939c252288eddaee05c45c5eb164325a99e95d00b2db8327501b42ff",
+      "size_bytes": 4587
+    },
+    "snapshot/manifest.json": {
+      "path": "/Users/krzysztof.mierzejewski/PycharmProjects/es-index-explorer/artifacts/mlflow/simplemode-stage-v3/manifest.json",
+      "sha256": "a3dc69c82ee1af6624216fef1097e27d76e8fbe61532db6c76f4ba35c21acc5d",
+      "size_bytes": 7859
+    },
+    "snapshot/run_metrics.parquet": {
+      "path": "/Users/krzysztof.mierzejewski/PycharmProjects/es-index-explorer/artifacts/mlflow/simplemode-stage-v3/run_metrics.parquet",
+      "sha256": "d7a4f30e7825b01f52a13e1703440639d2505620662aaf2648ac0035c57e71d0",
+      "size_bytes": 57253
+    },
+    "snapshot/run_rubrics.parquet": {
+      "path": "/Users/krzysztof.mierzejewski/PycharmProjects/es-index-explorer/artifacts/mlflow/simplemode-stage-v3/run_rubrics.parquet",
+      "sha256": "bdc72584ffabcaa2917b206868a245c5effc7df49263ab9b66efd03229814c4c",
+      "size_bytes": 34183
+    },
+    "snapshot/runs.parquet": {
+      "path": "/Users/krzysztof.mierzejewski/PycharmProjects/es-index-explorer/artifacts/mlflow/simplemode-stage-v3/runs.parquet",
+      "sha256": "7cad47c5be8a21f1a4079aa2251c970b3bb8d4d12d95212d609cde293e778011",
+      "size_bytes": 19261
+    },
+    "snapshot/span_timings.parquet": {
+      "path": "/Users/krzysztof.mierzejewski/PycharmProjects/es-index-explorer/artifacts/mlflow/simplemode-stage-v3/span_timings.parquet",
+      "sha256": "2218c342c7abf51ee0b9eb5cf55285e46684e2331ae8b3fcd49edd02b0dac0c3",
+      "size_bytes": 1711154
+    },
+    "snapshot/trace_criteria.parquet": {
+      "path": "/Users/krzysztof.mierzejewski/PycharmProjects/es-index-explorer/artifacts/mlflow/simplemode-stage-v3/trace_criteria.parquet",
+      "sha256": "a24eb9ef69f436c1c589621562486f2e0e250c37fa70136b83415840c51a69f0",
+      "size_bytes": 302469
+    },
+    "snapshot/trace_failures.parquet": {
+      "path": "/Users/krzysztof.mierzejewski/PycharmProjects/es-index-explorer/artifacts/mlflow/simplemode-stage-v3/trace_failures.parquet",
+      "sha256": "dfef216a35d46474583dd110d2fed80f400a51285d16e770a37a9dd2ac0f33a9",
+      "size_bytes": 4272
+    },
+    "snapshot/trace_invocations.parquet": {
+      "path": "/Users/krzysztof.mierzejewski/PycharmProjects/es-index-explorer/artifacts/mlflow/simplemode-stage-v3/trace_invocations.parquet",
+      "sha256": "d318d0b93b17fcd9814009bbece22f1bdabe3d77161e56bd102bf89ba9ea66ca",
+      "size_bytes": 282971
+    },
+    "snapshot/trace_quality.parquet": {
+      "path": "/Users/krzysztof.mierzejewski/PycharmProjects/es-index-explorer/artifacts/mlflow/simplemode-stage-v3/trace_quality.parquet",
+      "sha256": "b040927c3f266de2ba2fa66a175d2ca71633d1e1cb2edf036b9758984f894a65",
+      "size_bytes": 637610
+    },
+    "snapshot/trace_retrieval.parquet": {
+      "path": "/Users/krzysztof.mierzejewski/PycharmProjects/es-index-explorer/artifacts/mlflow/simplemode-stage-v3/trace_retrieval.parquet",
+      "sha256": "4ae9cdf44ee6713ff082be185d173a6da1281268a50ec5cbf311a4d58566dc56",
+      "size_bytes": 2585390
+    }
+  },
+  "master_seed": 20,
+  "resources": {
+    "ordinal_grade_oracle": {
+      "path": "/Users/krzysztof.mierzejewski/PycharmProjects/es-index-explorer/es_index_explorer/question_analysis/resources/ordinal-grade-oracle-v1.json",
+      "sha256": "66c76224ed9ac7ba5f9fd6e9ba45ec285cf28fd491aaa4058e48015f9964883a",
+      "size_bytes": 462381
+    },
+    "ordinal_grade_oracle_provenance": {
+      "path": "/Users/krzysztof.mierzejewski/PycharmProjects/es-index-explorer/es_index_explorer/question_analysis/resources/ordinal-grade-oracle-v1.provenance.json",
+      "sha256": "5a0449d42d5be68a05092eeb7811ecd7e74f444e64f8f99fce7059609b60eef2",
+      "size_bytes": 860
+    },
+    "r_oracle_dockerfile": {
+      "path": "/Users/krzysztof.mierzejewski/PycharmProjects/es-index-explorer/tests/oracles/fwildclusterboot/Dockerfile",
+      "sha256": "3ce9a6d3fea6454f5b11b660dbb541d3b2b3668077c84129068114a59dd7b388",
+      "size_bytes": 113
+    },
+    "segment2_arms_source": {
+      "path": "/Users/krzysztof.mierzejewski/PycharmProjects/es-index-explorer/es_index_explorer/question_analysis/arms.py",
+      "sha256": "865dbf5a16b7d97a46deb6e24d63667ee265e09dcd17d06fa5ba0d55d81abaaa",
+      "size_bytes": 4111
+    },
+    "segment2_catalogue_source": {
+      "path": "/Users/krzysztof.mierzejewski/PycharmProjects/es-index-explorer/es_index_explorer/question_analysis/catalogue.py",
+      "sha256": "8f7b1972c090f35f9b3a935960343344a19ea546e12c5fe06590a0742fbac974",
+      "size_bytes": 10384
+    },
+    "segment2_grade_oracle_source": {
+      "path": "/Users/krzysztof.mierzejewski/PycharmProjects/es-index-explorer/es_index_explorer/question_analysis/grade_oracle.py",
+      "sha256": "5b75a7960ca0b6afef8385d8843dca1efa8c1c2e31ae524055fbbd54a883e7b0",
+      "size_bytes": 5247
+    },
+    "segment2_join_source": {
+      "path": "/Users/krzysztof.mierzejewski/PycharmProjects/es-index-explorer/es_index_explorer/question_analysis/join.py",
+      "sha256": "0cb9db754690b2bf9eaeda1bc9326c0210aa595682c25944c5d2f108da1d1533",
+      "size_bytes": 49068
+    },
+    "segment3_codebook": {
+      "path": "/Users/krzysztof.mierzejewski/PycharmProjects/es-index-explorer/reports/14-question-linguistic-codebook.md",
+      "sha256": "cf8bcc6ac4f16dc3374c2cda4352f94c043410ee9741b38ee71c565e3bc13301",
+      "size_bytes": 15484
+    },
+    "segment3_contracts_source": {
+      "path": "/Users/krzysztof.mierzejewski/PycharmProjects/es-index-explorer/es_index_explorer/question_analysis/contracts.py",
+      "sha256": "6b363a36276fd8eacd8ef3d3710cd3e9ceeacad0103ce4001a027913a377973a",
+      "size_bytes": 10603
+    },
+    "segment3_features_source": {
+      "path": "/Users/krzysztof.mierzejewski/PycharmProjects/es-index-explorer/es_index_explorer/question_analysis/features.py",
+      "sha256": "5646d112bb2c2a6c926f8f0100958d1f484f0b777830a3689e21d3766c2455ae",
+      "size_bytes": 24704
+    },
+    "segment3_linguistics_source": {
+      "path": "/Users/krzysztof.mierzejewski/PycharmProjects/es-index-explorer/es_index_explorer/question_analysis/linguistics.py",
+      "sha256": "37f68963be40fab7d2c2c858ab28c2c2c092213ffbe07d96783042ba727f9fff",
+      "size_bytes": 13389
+    },
+    "segment3_nlp_resources_source": {
+      "path": "/Users/krzysztof.mierzejewski/PycharmProjects/es-index-explorer/es_index_explorer/question_analysis/nlp_resources.py",
+      "sha256": "d9c6c96f2ac308cfd466942196a2e0e74c0be4a3306b9f0b8a1b8fbd66864e06",
+      "size_bytes": 12011
+    },
+    "segment3_quotation_audit": {
+      "path": "/Users/krzysztof.mierzejewski/PycharmProjects/es-index-explorer/reports/13a-source-quotation-audit.md",
+      "sha256": "c283c1180f7780b6ae8b6c46796c5c55f49792ba0f497d6a32a883763f2de55f",
+      "size_bytes": 96233
+    },
+    "segment3_source_dossier": {
+      "path": "/Users/krzysztof.mierzejewski/PycharmProjects/es-index-explorer/reports/13a-source-dossier.md",
+      "sha256": "2adffe68d38d49fc972c12067580ae455ea9ce13785ef7ba8abf016e81cd0579",
+      "size_bytes": 30797
+    },
+    "segment3_spacy_manifest": {
+      "path": "/Users/krzysztof.mierzejewski/PycharmProjects/es-index-explorer/es_index_explorer/question_analysis/resources/spacy-en-resource-manifest.json",
+      "sha256": "f13731eb1605cacb484e24d82333da7f79a452a854eb3097f7db9db9463ef8b5",
+      "size_bytes": 542
+    },
+    "segment3_storage_source": {
+      "path": "/Users/krzysztof.mierzejewski/PycharmProjects/es-index-explorer/es_index_explorer/question_analysis/storage.py",
+      "sha256": "01122f9dda97d4eecc7586c835b9747e31ce66681d7efe549dafbdd41a1b3d92",
+      "size_bytes": 6970
+    },
+    "segment4_annotations_source": {
+      "path": "/Users/krzysztof.mierzejewski/PycharmProjects/es-index-explorer/es_index_explorer/question_analysis/annotations.py",
+      "sha256": "36ef38790628ba10f0c7e072c8f21aba8d5f0881923ad9178f068117fe9be8ec",
+      "size_bytes": 67942
+    },
+    "segment4_cli_source": {
+      "path": "/Users/krzysztof.mierzejewski/PycharmProjects/es-index-explorer/es_index_explorer/question_analysis/cli.py",
+      "sha256": "4909e2c6ebdfe0dabde7bdb21045beda1b2e981d2e35313301b3b24bd23d886b",
+      "size_bytes": 10137
+    },
+    "segment4_workflow_source": {
+      "path": "/Users/krzysztof.mierzejewski/PycharmProjects/es-index-explorer/es_index_explorer/question_analysis/workflow.py",
+      "sha256": "8c648b8166f6c7d3a46216cf4c89d7cca294d642b29fc7597ac80ded8c231412",
+      "size_bytes": 6046
+    },
+    "stanza_en_resource_manifest": {
+      "path": "/Users/krzysztof.mierzejewski/PycharmProjects/es-index-explorer/es_index_explorer/question_analysis/resources/stanza-en-resource-manifest.json",
+      "sha256": "c502b7f5a98ea6c94c0192c0ee1f2f18df873e74186241bb499e9ab8c192e8b6",
+      "size_bytes": 1241
+    }
+  },
+  "schema_version": 1,
+  "specification": {
+    "path": "/Users/krzysztof.mierzejewski/PycharmProjects/es-index-explorer/reports/13-simple-mode-analysis-research-plan.md",
+    "sha256": "f5f6643f41cee15d8bd544ed346b760ac46a54bf60eafa0e7efaf9eba4461247",
+    "size_bytes": 286123
+  },
+  "stream_seeds": {
+    "annotation_shuffle": 1545213380394893023,
+    "diagnostic_resampling": 11705599034764626503,
+    "glm_bootstrap": 5921207744115555729,
+    "gold_sampling": 13609121314617641732,
+    "laplace_draws": 17455818688350029280,
+    "layer1_bootstrap": 14761339198039170915,
+    "r_oracle": 801891564970050136
+  },
+  "tool_versions": {
+    "cursor-sdk": "1.0.28",
+    "en-core-web-sm": "3.8.0",
+    "es-index-explorer": "0.1.0",
+    "matplotlib": "3.11.1",
+    "numpy": "2.4.6",
+    "pandas": "3.0.3",
+    "pyarrow": "25.0.0",
+    "pydantic": "2.13.4",
+    "python": "3.12.11",
+    "scipy": "1.17.1",
+    "seaborn": "0.13.2",
+    "spacy": "3.8.14",
+    "stanza": "1.14.0",
+    "statsmodels": "0.14.6"
+  }
+}

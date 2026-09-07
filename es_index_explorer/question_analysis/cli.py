@@ -99,6 +99,18 @@ def build_parser() -> argparse.ArgumentParser:
                 action="store_true",
                 help="Download and verify missing pinned Stanza models before extraction.",
             )
+        elif command is WorkflowCommand.ANNOTATE_RUN:
+            command_parser.add_argument(
+                "--migrate-from-root",
+                type=Path,
+                default=None,
+                help="Historical analysis root containing verified annotation source records.",
+            )
+            command_parser.add_argument(
+                "--resume-only",
+                action="store_true",
+                help="Reconstruct verified responses without model listing or model calls.",
+            )
         elif command is WorkflowCommand.STATUS:
             command_parser.add_argument("--json", action="store_true", dest="as_json")
     return parser
@@ -171,7 +183,15 @@ def _production_handler(
     if command is WorkflowCommand.ANNOTATE_RUN:
         from es_index_explorer.question_analysis.annotations import run_annotate_run
 
-        return run_annotate_run
+        if args.migrate_from_root is not None and not args.resume_only:
+            raise MalformedInputError(
+                "--migrate-from-root requires --resume-only to prevent model calls"
+            )
+        return lambda workspace: run_annotate_run(
+            workspace,
+            migration_source_root=args.migrate_from_root,
+            resume_only=args.resume_only,
+        )
     if command is WorkflowCommand.ANNOTATE_INGEST:
         from es_index_explorer.question_analysis.annotations import run_annotate_ingest
 

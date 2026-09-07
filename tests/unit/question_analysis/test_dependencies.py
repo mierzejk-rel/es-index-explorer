@@ -2,6 +2,7 @@
 
 import hashlib
 import json
+import re
 import tomllib
 from importlib.metadata import version
 from pathlib import Path
@@ -11,9 +12,18 @@ import pytest
 from es_index_explorer.question_analysis import nlp_resources as nlp_resources_module
 from es_index_explorer.question_analysis.contracts import (
     ANNOTATION_BATCH_SIZE,
+    ANNOTATION_RESPONSE_FIELD_DENYLIST,
     ANNOTATOR_MODELS,
+    COGNITIVE_PROCESS_LEVELS,
+    EXPLICIT_OUTCOME_FIELD_NAMES,
+    FROZEN_RECOMMENDATION_FIELD_NAMES,
     GOLD_SAMPLE_PER_STRATUM,
+    OUTCOME_FIELD_CONTRACT_VERSION,
     OUTCOME_FIELD_DENYLIST,
+    QDMR_OPERATOR_INVENTORY,
+    QDMR_OPERATORS,
+    TRACE_PFU_TABLE_COLUMNS,
+    TRACE_SHARED_STRUCTURAL_FIELD_NAMES,
 )
 from es_index_explorer.question_analysis.errors import MalformedInputError
 from es_index_explorer.question_analysis.nlp_resources import (
@@ -124,9 +134,7 @@ def test_stanza_runtime_rejects_changed_selected_model(tmp_path: Path) -> None:
     (tmp_path / "resources.json").write_bytes(resources)
     model_bytes = b"model"
     selected_models = {
-        processor: pin.model_copy(
-            update={"md5": hashlib.md5(model_bytes).hexdigest()}
-        )
+        processor: pin.model_copy(update={"md5": hashlib.md5(model_bytes).hexdigest()})
         for processor, pin in load_stanza_manifest().selected_models.items()
     }
     manifest = load_stanza_manifest().model_copy(
@@ -150,9 +158,7 @@ def test_stanza_runtime_rejects_changed_selected_model(tmp_path: Path) -> None:
 
 
 def test_stanza_distribution_version_mismatch_is_rejected(tmp_path: Path) -> None:
-    manifest = load_stanza_manifest().model_copy(
-        update={"stanza_version": "0.0.0"}
-    )
+    manifest = load_stanza_manifest().model_copy(update={"stanza_version": "0.0.0"})
 
     with pytest.raises(MalformedInputError, match="stanza version"):
         verify_stanza_resources(tmp_path, manifest)
@@ -172,9 +178,7 @@ def test_stanza_download_uses_selected_processor_packages(
         return ()
 
     monkeypatch.setattr(nlp_resources_module.stanza, "download", fake_download)
-    monkeypatch.setattr(
-        nlp_resources_module, "verify_stanza_resources", fake_verify
-    )
+    monkeypatch.setattr(nlp_resources_module, "verify_stanza_resources", fake_verify)
 
     download_stanza_resources(tmp_path)
 
@@ -242,9 +246,7 @@ def test_installed_spacy_model_tree_matches_manifest() -> None:
     manifest = load_spacy_manifest()
 
     assert len(files) == manifest.model_file_count
-    assert _spacy_model_tree_sha256(files, package_root) == (
-        manifest.model_tree_sha256
-    )
+    assert _spacy_model_tree_sha256(files, package_root) == (manifest.model_tree_sha256)
 
 
 def test_spacy_model_tree_rejects_missing_extra_and_changed_files(
@@ -267,9 +269,7 @@ def test_spacy_model_tree_rejects_missing_extra_and_changed_files(
     manifest = load_spacy_manifest().model_copy(
         update={
             "model_file_count": len(files),
-            "model_tree_sha256": _spacy_model_tree_sha256(
-                files, tmp_path / "model"
-            ),
+            "model_tree_sha256": _spacy_model_tree_sha256(files, tmp_path / "model"),
         }
     )
 
@@ -292,18 +292,14 @@ def test_spacy_model_tree_rejects_missing_extra_and_changed_files(
 
 
 def test_spacy_model_version_mismatch_is_rejected() -> None:
-    manifest = load_spacy_manifest().model_copy(
-        update={"model_version": "0.0.0"}
-    )
+    manifest = load_spacy_manifest().model_copy(update={"model_version": "0.0.0"})
 
     with pytest.raises(MalformedInputError, match="model version"):
         verify_spacy_resources(manifest=manifest)
 
 
 def test_spacy_distribution_version_mismatch_is_rejected() -> None:
-    manifest = load_spacy_manifest().model_copy(
-        update={"spacy_version": "0.0.0"}
-    )
+    manifest = load_spacy_manifest().model_copy(update={"spacy_version": "0.0.0"})
 
     with pytest.raises(MalformedInputError, match="spacy version"):
         verify_spacy_resources(manifest=manifest)
@@ -322,11 +318,12 @@ def test_r_oracle_base_image_is_digest_pinned() -> None:
 def test_annotation_constants_match_locked_specification() -> None:
     assert ANNOTATION_BATCH_SIZE == 24
     assert GOLD_SAMPLE_PER_STRATUM == 12
+    assert OUTCOME_FIELD_CONTRACT_VERSION == 1
     assert ANNOTATOR_MODELS == (
         "Claude Opus 5 (high thinking)",
         "GPT-5.6 Sol",
     )
-    assert OUTCOME_FIELD_DENYLIST == {
+    assert EXPLICIT_OUTCOME_FIELD_NAMES == {
         "p",
         "f",
         "u",
@@ -338,6 +335,125 @@ def test_annotation_constants_match_locked_specification() -> None:
         "ordinal_grade",
         "tier",
     }
+    assert FROZEN_RECOMMENDATION_FIELD_NAMES == {
+        "tier",
+        "uncertain",
+        "v_r",
+        "monte_carlo_indeterminate",
+    }
+    assert TRACE_PFU_TABLE_COLUMNS == (
+        "rubric_id",
+        "rubric_order",
+        "variant_id",
+        "eval_dataset",
+        "rubric_file_path",
+        "variant_index",
+        "arm_id",
+        "stage",
+        "run_id",
+        "trace_id",
+        "P",
+        "F",
+        "U",
+        "N_r",
+        "rubric_v2",
+        "logged_rubric_v2",
+        "rubric_v2_match",
+        "logged_ordinal_grade",
+        "recomputed_ordinal_grade",
+        "ordinal_grade_match",
+        "error_override",
+        "error_scorer_judgement_count",
+        "expectations_to_next_grade",
+        "criterion_count_match",
+        "eligible",
+    )
+    assert ANNOTATION_RESPONSE_FIELD_DENYLIST == {
+        *(name.casefold() for name in TRACE_PFU_TABLE_COLUMNS),
+        *EXPLICIT_OUTCOME_FIELD_NAMES,
+        *FROZEN_RECOMMENDATION_FIELD_NAMES,
+    }
+    assert OUTCOME_FIELD_DENYLIST == (
+        ANNOTATION_RESPONSE_FIELD_DENYLIST - TRACE_SHARED_STRUCTURAL_FIELD_NAMES
+    )
+
+
+def test_qdmr_codebook_inventory_matches_runtime_contract() -> None:
+    codebook = (
+        PROJECT_ROOT / "reports" / "14-question-linguistic-codebook.md"
+    ).read_text(encoding="utf-8")
+    qdmr_section = codebook.split("### 6.2 Retrieval decomposition", maxsplit=1)[
+        1
+    ].split("### 6.3 Reference form", maxsplit=1)[0]
+    documented_operators = tuple(re.findall(r"`([A-Z]+)`", qdmr_section))
+
+    assert documented_operators == QDMR_OPERATOR_INVENTORY
+    assert QDMR_OPERATORS == frozenset(QDMR_OPERATOR_INVENTORY)
+    assert len(QDMR_OPERATORS) == 13
+    assert "project’s frozen normalization vocabulary" in qdmr_section
+    assert "`qdmr_step_count >= len(qdmr_operator_set)`" in qdmr_section
+
+
+def test_p2_documentation_freezes_scope_and_metric_ownership() -> None:
+    codebook = (
+        PROJECT_ROOT / "reports" / "14-question-linguistic-codebook.md"
+    ).read_text(encoding="utf-8")
+    plan = (
+        PROJECT_ROOT / "reports" / "13-simple-mode-analysis-research-plan.md"
+    ).read_text(encoding="utf-8")
+    operations = (
+        PROJECT_ROOT / "reports" / "15-segment-4-annotation-operations.md"
+    ).read_text(encoding="utf-8")
+
+    assert "`entity_density` is withdrawn" in codebook
+    assert "`entity_density` is withdrawn" in plan
+    assert "`exhaustivity_requirement` is nominal" in codebook
+    assert (
+        "`annotate-ingest` reports only preliminary pairwise "
+        "exact/scale-aware diagnostics" in plan
+    )
+    assert "Alpha and its interval are computed" in plan
+    assert "restates the authoritative project normalization vocabulary" in operations
+    assert "does not assert that Wolfson et al." in operations
+
+
+def test_p3_annotation_contract_has_no_dead_label_registries() -> None:
+    annotations = (
+        PROJECT_ROOT / "es_index_explorer" / "question_analysis" / "annotations.py"
+    ).read_text(encoding="utf-8")
+    operations = (
+        PROJECT_ROOT / "reports" / "15-segment-4-annotation-operations.md"
+    ).read_text(encoding="utf-8")
+
+    assert "QUESTION_LABELS =" not in annotations
+    assert "EXPECTATION_LABELS =" not in annotations
+    assert COGNITIVE_PROCESS_LEVELS == (
+        "remember",
+        "understand",
+        "apply",
+        "analyze",
+        "evaluate",
+        "create",
+    )
+    assert (
+        "unused inventory levels are corpus coverage, not invalid labels" in operations
+    )
+
+
+def test_stage4_quality_gate_is_scoped_and_fail_closed() -> None:
+    readme = (PROJECT_ROOT / "README-question-suitability.md").read_text(
+        encoding="utf-8"
+    )
+    quality_section = readme.split("## Stage 4 quality gate", maxsplit=1)[1].split(
+        "## Frozen randomness", maxsplit=1
+    )[0]
+
+    assert "pytest tests/" in quality_section
+    assert "--cov=es_index_explorer.question_analysis" in quality_section
+    assert "--cov-branch" in quality_section
+    assert "--cov-fail-under=88" in quality_section
+    assert "collected-test count" in quality_section
+    assert "unit-only run" in quality_section
 
 
 def test_question_analysis_has_no_r1_evals_import() -> None:

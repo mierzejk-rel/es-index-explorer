@@ -1,0 +1,151 @@
+{
+  "batch_id": "batch-018",
+  "item_ids_sha256": "e9ff1e381dd0800714301ae23f31fbc1edb1123af0d8f68a64a43e4906454415",
+  "items": [
+    {
+      "item_id": "expectation_9b8df284288a6dae08319eb282a495531705a177b94e66a1c59e2d07573cd4ce",
+      "item_type": "expectation",
+      "source_text": "Emails involving Dr. El-Mohandes regarding his assignment to Ginger Hoffman as his permanent rep for Exalgo",
+      "text_sha256": "3607d3d6ba80e70789892781203caa1e8e8c0c5ffd845fce2ce7687ec4acd94d"
+    },
+    {
+      "item_id": "expectation_d01cb7591cc228d4e7f5815d9d7ba5f0deb516e90fc67261f8e547533481b985",
+      "item_type": "expectation",
+      "source_text": "Cites Belford request for increased cybersecurity budget.",
+      "text_sha256": "1c1bb2add78bde8f92d7ec05650025beb6d82e1e012827211b7bf1b0cc6dbf51"
+    },
+    {
+      "item_id": "variant_982ca8a1caf2c746a663061df43ee2f38cd81146e2f8d491b216cb8bcab4a3cf",
+      "item_type": "question",
+      "source_text": "Who is sarah.chen@secure-ellingson.com?",
+      "text_sha256": "8137e2f49be3f1b08b543b1dd12702833808520b2a7a307fc5d7928ebbba8d0f"
+    },
+    {
+      "item_id": "expectation_d44b687a27ecff2597b69b05aa16cf25dd7d872e70c99f814e7df02094b43a9a",
+      "item_type": "expectation",
+      "source_text": "Matt Smith, Specialty Pharma Sales at Covidien (J.Matthew.Smith@covidien.com) emailed with Dr. El-Mohandes (AElmohandes@myspinedoctors.com) on February 8, 2011, regarding the maximum number of pills and patient management",
+      "text_sha256": "6658a2c6e4bcf8c7243bf81ca4917004500991a6c98dc3c4aaa21a50a21776ae"
+    },
+    {
+      "item_id": "expectation_75d8425130e590a620683ff1b324be4548a5029d8ccbc82fd0c9568ed2e37369",
+      "item_type": "expectation",
+      "source_text": "Proposed faculty for Curatio grant awarded to Covidien - \"Clinical Conversations\" activity - March 2012",
+      "text_sha256": "220d64fb3929018806fd4c5d451480ba1735e9849328b1f6a7299fa884460b0b"
+    },
+    {
+      "item_id": "expectation_59779aa58c29e8a3d0d801ac2eb0053d9c96efb3f27897cc6c574ab946c0f4ad",
+      "item_type": "expectation",
+      "source_text": "Cites request to FBI for assistance on 10/19 7:55pm.",
+      "text_sha256": "392827cde73b0668b2e8142ba28459bca454a398bc13fa8ef643ecd8eeaf9c1f"
+    },
+    {
+      "item_id": "expectation_20d8767070877ca65735fd42a85730051a394ee605aaa777c767ebf92c8bf017",
+      "item_type": "expectation",
+      "source_text": "Quarterly Playbook, FY13Q3, Territory 50501 - Rochester",
+      "text_sha256": "999d461efb2a3d5bc5ae81e0274d609d6a34be9f614715963d86d9af145ae183"
+    },
+    {
+      "item_id": "expectation_2ac6aeb4ea43de35176324a3884d6ba22384b10c724afcc6da6250243962d6a1",
+      "item_type": "expectation",
+      "source_text": "Cites Kate Libby/Acid Burn developing and completing signal hijack plan.",
+      "text_sha256": "de121466dbb1f5ca7e9a568f72b0893ce7d690431caf260bffe320c376919954"
+    },
+    {
+      "item_id": "expectation_095d02a3dc29df80c21d7f0740fff3a8d7751b569e6adfcfc39c0668288c36f7",
+      "item_type": "expectation",
+      "source_text": "Quarterly Playbook, FY13Q3, Territory 70405 - Seattle",
+      "text_sha256": "cb77787b137098bf0ec8fe27b7c3e5d32e7a60776a84a4e5a3ad25292f7b0376"
+    },
+    {
+      "item_id": "variant_5df8d8950e475ce59416f77fd489ba8b266f185ebc91326c842e47bb4524e338",
+      "item_type": "question",
+      "source_text": "Who at Ellingson emailed with federal law enforcement about Belford's cyberattack?",
+      "text_sha256": "90e9c41534bb68deaf3b26169ac63d5d13dc74d81c9d54c0fe1de1abf72293a3"
+    },
+    {
+      "item_id": "variant_75f68bfd6dcd2d366b865fd314be66ea0167f789cd44087d120e9a8a9ab3c4fb",
+      "item_type": "question",
+      "source_text": "Did Ellingson have evidence that eugene.Belford@ellingson.com aka eugene.belford@offshore-secure.net was planning the Da Vinci attack before October 19, 1995?",
+      "text_sha256": "b1a09e1fae44448a1ade058f08988d7c194b8dd013ef7af52a3bd38dd6871910"
+    },
+    {
+      "item_id": "expectation_fb61ca536de741bf1d408cd04517fd5fbe8baf112a7050a8cd95c0f36d23050a",
+      "item_type": "expectation",
+      "source_text": "Identifies Zer0Cool / Crash Override as Dade Murphy.",
+      "text_sha256": "5d0cdc95ce99d750743294b0191974e3b60506f60f5995efcfcca5781e8f97d9"
+    },
+    {
+      "item_id": "variant_cef8dcbdb7896976d8978dcadf1b77abb186f0a865d0e4f7983431827ece93c4",
+      "item_type": "question",
+      "source_text": "Summarize the communications between Eugene Belford and Margo Wallace.",
+      "text_sha256": "e1bb5425dab141e7db89f8c13fff33e9cd88da4e6db74274c716f0a62e99f830"
+    },
+    {
+      "item_id": "variant_1a2b36064492a9760566cc06809ab1166fec828bbf3721c6c0da5c2024ce5940",
+      "item_type": "question",
+      "source_text": "What steps did Ellingson take to improve its cybersecurity after October 19, 1995?",
+      "text_sha256": "a3ddfcf53590f9358bfc004fd1af3525f9c42f1b41c26e65639ef1f8d6840daa"
+    },
+    {
+      "item_id": "expectation_237a585396d6c40e701c147127aa3210b322cfb411c6a950d3e38cccb449e17d",
+      "item_type": "expectation",
+      "source_text": "Identifies Phantom Phreak (phantom.phreak@undergroundhax0r.net) as as having communicated with Belford about the plan.",
+      "text_sha256": "b384ca0ad6ba4d25039f5cf187934bdbb252096efde60b5e9d7ff41392d4f576"
+    },
+    {
+      "item_id": "variant_b9498d43e9713afc863079cd29b4daebdd51b8151d912f615822385b9c11bbb1",
+      "item_type": "question",
+      "source_text": "What were Mallinckrodt/Covidien's guidelines for frequency of meals for health care providers and what were communications after they were issued or clarified?",
+      "text_sha256": "5366f012e8a5a890239f33e7ffd63bfc365ad47221cefe8ebf42350d19b9d442"
+    },
+    {
+      "item_id": "expectation_f84714ac768eb17d0df33f0358f1fc5c2e4ef98f6cf9ee9b1edd76da66f360c0",
+      "item_type": "expectation",
+      "source_text": "Identifies unusual email patterns between Margo Wallace and Eugene Belford as primary anomaly.",
+      "text_sha256": "68214b695e31cb584125a8d10dd72f46a5983f32c99b069244c10abcceecd81d"
+    },
+    {
+      "item_id": "expectation_57ec25bef68e4b1d87cc910f2534c1315059dc4bcf21ad1a8ff42c5e69c0a370",
+      "item_type": "expectation",
+      "source_text": "Cites request to FBI for assistance on 10/19 7:55pm.",
+      "text_sha256": "392827cde73b0668b2e8142ba28459bca454a398bc13fa8ef643ecd8eeaf9c1f"
+    },
+    {
+      "item_id": "expectation_bb09d78f184425f61c2918b69b2630385441e9f1b18f23eb0b77848f4c35f84c",
+      "item_type": "expectation",
+      "source_text": "Cites Q3 financial review showing increased cybersecurity investments pre-Belford hack.",
+      "text_sha256": "a1e9f7dd065ba96bf805e5bc45c17f58aa9f091242a65d7d7cc860e591985588"
+    },
+    {
+      "item_id": "expectation_4324026b2c4f6da0da40499bf49c0bb8c0d0eb1b8a2a26f37ca46ff5c6a990ab",
+      "item_type": "expectation",
+      "source_text": "Cites email titled 'Trouble' mentioning interference from hackers and damage control.",
+      "text_sha256": "2487ba0b4a02f410621473b87e80223a9b920c731bc7f896c1d7a2687cde907b"
+    },
+    {
+      "item_id": "variant_4cd34fb5ffbb1acbb64f8e1a888185665676a16b4bb785069ee0ebc20e83770c",
+      "item_type": "question",
+      "source_text": "Prior to the Belford hack, what evidence shows that Ellingson was aware its cybersecurity protections were deficient?",
+      "text_sha256": "7e9c69d98d0307ea83e600983bd51a307d3aad4d18c704c462ca755b784815d0"
+    },
+    {
+      "item_id": "variant_19387e9afcc35106af09f6127ba1cd715ca9b10e3a3824a32a352de0f1768e5c",
+      "item_type": "question",
+      "source_text": "Did eugene.Belford@ellingson.com aka eugene.belford@offshore-secure.net communicate with phantomphreak@ghostline.com?",
+      "text_sha256": "982b21ab4d1ee920de5891eb5e51a0c234dd1c17873bed3b7a39119ab0d333ba"
+    },
+    {
+      "item_id": "variant_794ed6d2b0c1f2766b361b0e0f9fc081aa45cdba44cfd028373002228f1d599b",
+      "item_type": "question",
+      "source_text": "What damages or losses is Ellingson claiming as a result of the Da Vinci virus?",
+      "text_sha256": "5581946d521de5ad47c17de783c66b27952c1c4b6ff9f8ec0f0cfbce5bbb7097"
+    },
+    {
+      "item_id": "expectation_c39528114c187960b647e54fc709bcb5f2e5881de706d4b7f9bd115d97ce8739",
+      "item_type": "expectation",
+      "source_text": "Cites documents where Chen characterizes the virus as sophisticated, 'unlike anything I've seen before', indicating virus could defeat sufficiently protected systems.",
+      "text_sha256": "ef86f1964c9ab8ed25a6c359a47ed6d607a3b671219618572c6e2cbee8278e1f"
+    }
+  ],
+  "schema_version": 1
+}

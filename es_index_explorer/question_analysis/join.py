@@ -31,6 +31,7 @@ from es_index_explorer.question_analysis.catalogue import (
     stable_id,
 )
 from es_index_explorer.question_analysis.contracts import (
+    TRACE_PFU_TABLE_COLUMNS,
     ArtifactMetadata,
     WorkflowCommand,
 )
@@ -58,7 +59,9 @@ DEFAULT_RUBRIC_ROOT = (
     / "rubrics"
     / "rubric_data"
 )
-DEFAULT_TASK_PATH = PROJECT_ROOT.parent / "r1-evals-new" / "rubrics" / "tasks" / "air_assist.toml"
+DEFAULT_TASK_PATH = (
+    PROJECT_ROOT.parent / "r1-evals-new" / "rubrics" / "tasks" / "air_assist.toml"
+)
 
 EXPECTED_INVENTORY = {
     "emc2_set1": {
@@ -270,7 +273,9 @@ def _resolved_config(config: JoinConfig) -> JoinConfig:
 
 
 def _register_inputs(workspace: AnalysisWorkspace, config: JoinConfig) -> None:
-    workspace.register_input("snapshot/manifest.json", config.snapshot_dir / "manifest.json")
+    workspace.register_input(
+        "snapshot/manifest.json", config.snapshot_dir / "manifest.json"
+    )
     for filename in _SNAPSHOT_PARQUET_FILES:
         workspace.register_input(f"snapshot/{filename}", config.snapshot_dir / filename)
     catalogue = build_catalogue(config.rubric_root, config.task_path)
@@ -293,7 +298,9 @@ def _verify_snapshot(snapshot_dir: Path) -> dict[str, object]:
     except (OSError, json.JSONDecodeError) as error:
         raise MalformedInputError(f"Invalid snapshot manifest: {error}") from error
     if not isinstance(manifest, dict) or manifest.get("schema_version") != 3:
-        raise MalformedInputError("Simple Mode analysis requires snapshot schema version 3")
+        raise MalformedInputError(
+            "Simple Mode analysis requires snapshot schema version 3"
+        )
     file_rows = manifest.get("files")
     if not isinstance(file_rows, list):
         raise MalformedInputError("Snapshot manifest has no file inventory")
@@ -303,7 +310,9 @@ def _verify_snapshot(snapshot_dir: Path) -> dict[str, object]:
         if isinstance(row, dict) and "name" in row
     }
     if set(rows_by_name) != set(_SNAPSHOT_PARQUET_FILES):
-        raise MalformedInputError("Snapshot manifest does not contain the ten frozen tables")
+        raise MalformedInputError(
+            "Snapshot manifest does not contain the ten frozen tables"
+        )
     for filename in _SNAPSHOT_PARQUET_FILES:
         path = snapshot_dir / filename
         row = rows_by_name[filename]
@@ -452,10 +461,9 @@ def _build_trace_identity(
     )
     trace["identity_joined"] = trace["_merge"].eq("both")
     trace.drop(columns="_merge", inplace=True)
-    trace["question_match"] = (
-        trace["question_invocation"].eq(trace["question_roster"])
-        & trace["question_invocation"].eq(trace["question_catalogue"])
-    )
+    trace["question_match"] = trace["question_invocation"].eq(
+        trace["question_roster"]
+    ) & trace["question_invocation"].eq(trace["question_catalogue"])
     trace["roster_variant_count_match"] = trace["input_variant_count"].eq(
         trace["variant_count"]
     )
@@ -614,9 +622,7 @@ def _build_criterion_table(
     )
     whitespace_normalized = joined[
         joined["expectation_name_observed"] != joined["observed_expectation_name"]
-    ].drop_duplicates(
-        ["rubric_id", "expectation_index", "expectation_name_observed"]
-    )
+    ].drop_duplicates(["rubric_id", "expectation_index", "expectation_name_observed"])
     for row in whitespace_normalized.to_dict(orient="records"):
         _add_discrepancy(
             discrepancies,
@@ -841,10 +847,9 @@ def _build_trace_pfu_table(
     result["error_scorer_judgement_count"] = (
         result["error_scorer_judgement_count"].fillna(0).astype(int)
     )
-    result["error_override"] = (
-        result["detected_error_override"].fillna(False)
-        | result["error_scorer_override"].fillna(False)
-    )
+    result["error_override"] = result["detected_error_override"].fillna(False) | result[
+        "error_scorer_override"
+    ].fillna(False)
     result["recomputed_ordinal_grade"] = [
         grade_oracle.lookup(int(p), int(f), int(u), bool(error_override))
         for p, f, u, error_override in zip(
@@ -904,36 +909,13 @@ def _build_trace_pfu_table(
             ),
         )
 
-    columns = [
-        "rubric_id",
-        "rubric_order",
-        "variant_id",
-        "eval_dataset",
-        "rubric_file_path",
-        "variant_index",
-        "arm_id",
-        "stage",
-        "run_id",
-        "trace_id",
-        "P",
-        "F",
-        "U",
-        "N_r",
-        "rubric_v2",
-        "logged_rubric_v2",
-        "rubric_v2_match",
-        "logged_ordinal_grade",
-        "recomputed_ordinal_grade",
-        "ordinal_grade_match",
-        "error_override",
-        "error_scorer_judgement_count",
-        "expectations_to_next_grade",
-        "criterion_count_match",
-        "eligible",
-    ]
-    return result[columns].sort_values(
-        ["rubric_order", "variant_index", "arm_id", "trace_id"], kind="stable"
-    ).reset_index(drop=True)
+    return (
+        result[list(TRACE_PFU_TABLE_COLUMNS)]
+        .sort_values(
+            ["rubric_order", "variant_index", "arm_id", "trace_id"], kind="stable"
+        )
+        .reset_index(drop=True)
+    )
 
 
 def _f3_design_rank(criterion_table: pd.DataFrame) -> dict[str, object]:
@@ -955,9 +937,7 @@ def _f3_design_rank(criterion_table: pd.DataFrame) -> dict[str, object]:
     rank = int(np.linalg.matrix_rank(matrix))
     full_rank = rank == matrix.shape[1]
     interaction_column_index = column_names.index("expectation_count_x_g")
-    matrix_without_interaction = np.delete(
-        matrix, interaction_column_index, axis=1
-    )
+    matrix_without_interaction = np.delete(matrix, interaction_column_index, axis=1)
     rank_without_interaction = int(np.linalg.matrix_rank(matrix_without_interaction))
     interaction_identified = rank > rank_without_interaction
 
@@ -1068,9 +1048,11 @@ def _structural_verification(
     if materiality["passed"] is not True:
         blocking_failures.append("materiality_invariant")
 
-    run_variant_counts = trace_identity[trace_identity["eligible"]].groupby(
-        ["run_id", "eval_dataset"]
-    ).size()
+    run_variant_counts = (
+        trace_identity[trace_identity["eligible"]]
+        .groupby(["run_id", "eval_dataset"])
+        .size()
+    )
     expected_variants = {
         dataset: values["variants"] for dataset, values in EXPECTED_INVENTORY.items()
     }
@@ -1160,17 +1142,11 @@ def _structural_verification(
             "single_expectation_rubric_count": int(
                 (catalogue.rubrics["expectation_count"] == 1).sum()
             ),
-            "single_expectation_trace_count": int(
-                (trace_pfu_table["N_r"] == 1).sum()
-            ),
+            "single_expectation_trace_count": int((trace_pfu_table["N_r"] == 1).sum()),
             "missing_error_judgement_trace_count": error_judgement_missing_count,
-            "error_override_trace_count": int(
-                trace_pfu_table["error_override"].sum()
-            ),
+            "error_override_trace_count": int(trace_pfu_table["error_override"].sum()),
             "zero_component_smoothing_required_trace_count": int(
-                (
-                    (trace_pfu_table[["P", "F", "U"]] == 0).any(axis=1)
-                ).sum()
+                ((trace_pfu_table[["P", "F", "U"]] == 0).any(axis=1)).sum()
             ),
         },
         "deferred_degenerate_cases": [
@@ -1203,9 +1179,7 @@ def _arm_balance_failure_count(trace_pfu_table: pd.DataFrame) -> int:
 
 def _materiality_verification(catalogue: Catalogue) -> dict[str, int | bool]:
     expectation_count = len(catalogue.expectations)
-    material_expectation_count = int(
-        catalogue.expectations["material"].eq(True).sum()
-    )
+    material_expectation_count = int(catalogue.expectations["material"].eq(True).sum())
     non_material_expectation_count = expectation_count - material_expectation_count
     rubric_mismatch_count = int(
         catalogue.rubrics["material_expectation_count"]
@@ -1230,9 +1204,7 @@ def _render_report(
     integrity = cast(dict[str, int | float], verification["integrity"])
     variant_range = cast(dict[str, int | bool], verification["variant_range"])
     census = cast(dict[str, int], verification["degenerate_case_census"])
-    per_segment = cast(
-        dict[str, dict[str, object]], verification["per_segment"]
-    )
+    per_segment = cast(dict[str, dict[str, object]], verification["per_segment"])
     lines = [
         "# Partial report 01 — Data contract",
         "",
@@ -1293,9 +1265,7 @@ def _render_report(
             "",
         ]
     )
-    lines.extend(
-        f"- `{name}`: {value}." for name, value in census.items()
-    )
+    lines.extend(f"- `{name}`: {value}." for name, value in census.items())
     lines.extend(
         [
             "",
@@ -1308,9 +1278,9 @@ def _render_report(
 
 def _sorted_catalogue(catalogue: Catalogue) -> Catalogue:
     return Catalogue(
-        rubrics=catalogue.rubrics.sort_values("rubric_order", kind="stable").reset_index(
-            drop=True
-        ),
+        rubrics=catalogue.rubrics.sort_values(
+            "rubric_order", kind="stable"
+        ).reset_index(drop=True),
         variants=catalogue.variants.sort_values(
             ["rubric_order", "variant_index"], kind="stable"
         ).reset_index(drop=True),

@@ -1,0 +1,151 @@
+{
+  "batch_id": "batch-020",
+  "item_ids_sha256": "699fd01b75f1b4a912f89ae059238fbf7fb8368faf8d552249dd437c6fb1fbfe",
+  "items": [
+    {
+      "item_id": "expectation_7aedb988b5ceda748dc7b6ec694175fed62d49c9438521e95eb089cb66357087",
+      "item_type": "expectation",
+      "source_text": "Quarterly Playbook, FY13Q3, Territory 50204 – Brooklyn North",
+      "text_sha256": "b044179100ea00405631bbada46f04a9d43ff1c7ec82bc4dad84226543750b62"
+    },
+    {
+      "item_id": "expectation_8335d85d7278637e4a7387bbdc742e3d1bf91bc38f48f8fe61384bdeee173c3e",
+      "item_type": "expectation",
+      "source_text": "Cites Belford's email about destroying a phone",
+      "text_sha256": "108ab49c4194184b6f4be6aafacd3423133013b773e55625337cd839f88a2c29"
+    },
+    {
+      "item_id": "variant_0ba622b46dcd506abee9e657667a91035f8c4ff9c72b4d541d73ff2cd94b987e",
+      "item_type": "question",
+      "source_text": "Show me documents from August 1995",
+      "text_sha256": "7fdc5e7daaddc691a2b1619891d0aa552c7a50c5686ceab541b6ecf1dab012f2"
+    },
+    {
+      "item_id": "expectation_240f138844c85994df3e7009079954be8a8f556ca60a0180bcb862c02f7df2c2",
+      "item_type": "expectation",
+      "source_text": "Cites email from Wallace to Belford expressing consternation about things 'spiraling out of control' amidst FBI involvement and requesting a face-to-face meeting.",
+      "text_sha256": "8f733a1033c2568b91d38395e36516162dcaaa5c0e45dffc6a1c7a77332c2fdc"
+    },
+    {
+      "item_id": "expectation_7fe81899bdd69f313e60f3f0b82b896e6df6f9babd86596bd3188bf167732aea",
+      "item_type": "expectation",
+      "source_text": "Identifies Margo Wallace.",
+      "text_sha256": "bfde4fa60b1145fa5bc9eddca35a992a21a52b6dfd1bd377674bc08a9db33e3e"
+    },
+    {
+      "item_id": "expectation_5708896708866c0c5674b11fb025aafbadb073e1dc773b51f12c147ab20f017e",
+      "item_type": "expectation",
+      "source_text": "Ellingson Acting CTO, Sarah Chen (sarah.chen@ellingson-it.com)",
+      "text_sha256": "79bbab14f21a1049806645265fbdee796059048f49e92dda5390824d2c313b7b"
+    },
+    {
+      "item_id": "expectation_45b87c476b8329853bb1a9e1ab8a89474d82983aba0eefe12ba64be43bc5b3fc",
+      "item_type": "expectation",
+      "source_text": "Dr. Chen coordinated the identification of and response to the cyberattack against Ellingson Mineral Company.",
+      "text_sha256": "8f7a0baf6cbdf5e08bab058f92f6be0208cd0ff104f007dec88b6d0ea3e90940"
+    },
+    {
+      "item_id": "expectation_3191cd5de2edb09d909c914d41c2a1cd68fae3906e5f96e8275fc9c42e6d9000",
+      "item_type": "expectation",
+      "source_text": "Analyzed the virus (Da Vinci Virus) and reported on her findings to CEO Hal Benson and other Ellingson executives.",
+      "text_sha256": "b91155b621c874007b04578ae0cb60c2d5c5cff651b2c9fbb222ee4b9a37bf55"
+    },
+    {
+      "item_id": "expectation_27b7580abc40f7cb4cb9c2fb92855160e46ef463c55123a36f91a5a4aa226b30",
+      "item_type": "expectation",
+      "source_text": "Cites document noting Belford accessed restricted areas in days leading up to attack.",
+      "text_sha256": "5dfe4673335756a3d3c8ef6cb7079741ec87a73008d86282f00c678eddeb2850"
+    },
+    {
+      "item_id": "variant_41289c9365fb9e0cb771e996bfc1ede86054878b4756746fb62b9195380f8e72",
+      "item_type": "question",
+      "source_text": "Tell me about Sarah Chen.",
+      "text_sha256": "923131e4f94eed1b6c34f02bf61aefd81a2b5b2867acdf82b85999a5bafddd3f"
+    },
+    {
+      "item_id": "expectation_413b18938a88f3a5081dcbc1ff64a702eee1856041477a174f83f481f091d819",
+      "item_type": "expectation",
+      "source_text": "Quarterly Playbook, FY13Q2, Territory 50202 - Manhattan",
+      "text_sha256": "373646416177ded4369897e2279e39405fab2360c5ea2ed6524c014cca3e02e0"
+    },
+    {
+      "item_id": "variant_51112ebac7c71b2fda27465d41b6bf38cd94ade66524718b294be267298fbbbd",
+      "item_type": "question",
+      "source_text": "Are there any emails to or from Dr. Argoff?",
+      "text_sha256": "489352ba7caaaf78864e178a7359a8773cab7f6fea55f2a385c9980594bff8fb"
+    },
+    {
+      "item_id": "variant_14dd7ea450836fb5bbd013cb083d781174c87cd58c59e54a2485f76bafc89675",
+      "item_type": "question",
+      "source_text": "Is Phantom Phreak of the teenage hackers the same person as the Phantom Phreak Belford was in contact with?",
+      "text_sha256": "f29e4560001f7ae501d9018a57bfd4febef297b9313e9b791f9b652d742717b9"
+    },
+    {
+      "item_id": "variant_6f8db4dcaba34c9c36f6de40aa80c7fe41be1901a7b21f1569b5deee8406bd5f",
+      "item_type": "question",
+      "source_text": "Were PhantomPhreak (teenage hacker) and PhantomPhreak (Belford corroborator) the same person?",
+      "text_sha256": "5aaa8029df815795d26d8d1ca07cf993635059e62e9f84b40287068fd01d4a08"
+    },
+    {
+      "item_id": "expectation_1db1c0c7ddd6fc4555369cfbe9eabf46a6f828d4b6449db3a925ea77193bcaa1",
+      "item_type": "expectation",
+      "source_text": "As of August 2010, Dr. Argoff was an approved speaker for Exalgo",
+      "text_sha256": "d655245975984369bc912baf962afe744f8dcf70e46a20711e6622aa7fbf3f31"
+    },
+    {
+      "item_id": "expectation_199a9d2b03c81a9eb19480891e58eedac92e3653719bbe5a3d522cd93529dbe8",
+      "item_type": "expectation",
+      "source_text": "states no direct evidence exists to support the proposition",
+      "text_sha256": "c9d7cbb3f8f58ad6cae265369c333e4966358dcc5f296fb6b63d6599f954bb9e"
+    },
+    {
+      "item_id": "expectation_1e244e5d9aba3afcf547b85ba3010f2df419c1a474fa4abb44996245375cf61c",
+      "item_type": "expectation",
+      "source_text": "Involved in EXALGO Speaker Program with Dr. Robert Duarte MD",
+      "text_sha256": "ff104e111135f1d74ad037a0cb2b26775c1d1e8d659a7b257ece0f778575af2f"
+    },
+    {
+      "item_id": "variant_b4d0642159d31b1b7924dd6ba8631ff949a0223f08a5fd14ad73553e0732b048",
+      "item_type": "question",
+      "source_text": "What Ellingson personnel communicated with federal law enforcement about the Da Vinci hack?",
+      "text_sha256": "0981dd5910ce2abb6d1fba13f0c405b43b27fb83efeeb0060ccf4222fd2116a8"
+    },
+    {
+      "item_id": "expectation_56ee5e8f7e6162fc423024fd2fb9417bfb184f481fc8c10ad570444a6406c329",
+      "item_type": "expectation",
+      "source_text": "Confirms that a hacker using the alias Phantom Phreak is part of the teenage hacker group with the email address phantomphreak@ghostline.com.",
+      "text_sha256": "0cb94921cc45c2f7f9b18e97cff8b4b0af09563e2a8227148ae9f2cebe9e2700"
+    },
+    {
+      "item_id": "expectation_d50700072e111cfe846d0275f5bb76da43f48cc13c216619d31b695a3c4ba3e2",
+      "item_type": "expectation",
+      "source_text": "One sales specialist's notes about some target prescribers' preferences including Starbucks orders",
+      "text_sha256": "a5e23720f087c281744016149263ed6c6570155ef61388e09a71af736c690a18"
+    },
+    {
+      "item_id": "expectation_02e26e3b7e227aa5fdb80bccd2c6bbc0788a17265b9d9c333828e3b543a22124",
+      "item_type": "expectation",
+      "source_text": "Several employee expense reports show Starbucks reimbursements",
+      "text_sha256": "cfe9ec52c52a9abcae2ef8aadb1917e4d2b724f514d02c93a1da7caffd381014"
+    },
+    {
+      "item_id": "variant_5fcd70e16f8e3128a97aa9cac3d7d0368b0bd4147fb5f8242a5f15050f94d9a8",
+      "item_type": "question",
+      "source_text": "What evidence did Ellingson have that Belford was planning the Da Vinci attack before October 19, 1995?",
+      "text_sha256": "95eb96a869ecc9f182c6ef265b436c7f53cfb0801d4f25ab3846a3bc7ea85c97"
+    },
+    {
+      "item_id": "variant_4cbc51d01117bf3e753e61dcc5d2607bf67dfe0fa3504a7244b713679dfc837b",
+      "item_type": "question",
+      "source_text": "What email address did Charles Argoff use?",
+      "text_sha256": "443cc499119b02e7d35e101a0312182446ef6a6629914c103e14a79e6ea1104a"
+    },
+    {
+      "item_id": "variant_13580401ffd692f295efa50ac7742b909734a26e982fbabf47f729c020dbd32a",
+      "item_type": "question",
+      "source_text": "List evidence showing Ellingson knew its cybersecurity protections were in need of improvement before Eugene Belford's hack.",
+      "text_sha256": "1da62334866f94c88892384e979ba469ddaef7ef954af26486ddb57bd3ca606e"
+    }
+  ],
+  "schema_version": 1
+}

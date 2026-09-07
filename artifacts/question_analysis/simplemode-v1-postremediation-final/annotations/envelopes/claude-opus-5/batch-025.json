@@ -1,0 +1,24 @@
+{
+  "metadata": {
+    "agent_id": "agent-bdb8ea31-faac-4f79-a18d-20dd450a3502",
+    "attempts": 1,
+    "batch_hash": "7bcb2656f26b08789fd9cc27b320e121d63b77640f0de6ec0de25accb92015d5",
+    "batch_id": "batch-025",
+    "created_at": "2026-09-07T14:55:22.910Z",
+    "duration_ms": 8092,
+    "model_id": "claude-opus-5",
+    "response_sha256": "7af1d6800e0ee764255c2edc9ec29da9f896e1746f3d9af4ebdc3a8da8bf68cf",
+    "run_id": "run-73302910-102c-498a-9c0c-159e89a833d9",
+    "schema_version": 1,
+    "status": "finished",
+    "usage": {
+      "cache_read_tokens": 2254,
+      "cache_write_tokens": 2937,
+      "input_tokens": 5193,
+      "output_tokens": 414,
+      "reasoning_tokens": null,
+      "total_tokens": 10798
+    }
+  },
+  "response": "{\"item_id\": \"item-001\", \"demand_type\": \"verbatim_citation\", \"specificity\": \"specific\", \"answer_locality\": \"single_passage\", \"answer_locality_missingness\": null}"
+}

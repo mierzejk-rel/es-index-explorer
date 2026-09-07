@@ -2,6 +2,7 @@
 
 from hashlib import sha256
 from pathlib import Path
+from typing import cast
 
 import pandas as pd
 import pytest
@@ -13,6 +14,9 @@ from es_index_explorer.question_analysis.contracts import (
 )
 from es_index_explorer.question_analysis.errors import GateFailureError
 from es_index_explorer.question_analysis.features import (
+    SpacyNerLike,
+    StanzaParserLike,
+    _verify_features,
     build_features,
     build_text_items,
 )
@@ -152,8 +156,7 @@ def test_text_population_preserves_canonical_whitespace_and_hash() -> None:
         " Expectation with source whitespace. ",
     ]
     assert result["text_sha256"].tolist() == [
-        sha256(text.encode("utf-8")).hexdigest()
-        for text in result["source_text"]
+        sha256(text.encode("utf-8")).hexdigest() for text in result["source_text"]
     ]
 
 
@@ -187,6 +190,7 @@ def test_feature_build_is_deterministic_and_records_applicability() -> None:
     assert first.verification["invalid_complex_nominal_ratio_count"] == 0
     assert first.verification["applicability_failures"] == {}
     assert first.verification["parser_manifest_mismatch_count"] == 0
+    assert first.verification["outcome_columns_loaded"] == []
     assert first.features["temporal_expression_present"].tolist() == [True, False]
     assert first.features.iloc[0]["clause_type"] == "directive_imperative"
     assert pd.isna(first.features.iloc[1]["clause_type"])
@@ -198,6 +202,17 @@ def test_feature_build_is_deterministic_and_records_applicability() -> None:
         '"clause_type":"not_applicable_to_expectation"'
         in first.features.iloc[1]["missingness_reasons"]
     )
+    contaminated = first.features.assign(grade="A")
+    contaminated_verification = _verify_features(
+        contaminated,
+        first.stanza_tokens,
+        str(first.verification["parser_manifest_sha256"]),
+    )
+    assert contaminated_verification["outcome_columns_loaded"] == ["grade"]
+    assert "outcome_columns_loaded" in cast(
+        list[str], contaminated_verification["blocking_failures"]
+    )
+    assert contaminated_verification["passed"] is False
 
 
 def test_outcome_column_in_catalogue_is_rejected() -> None:
@@ -222,8 +237,8 @@ def test_outcome_column_in_catalogue_is_rejected() -> None:
     ),
 )
 def test_component_failure_is_a_bounded_gate_failure(
-    stanza_parser: object,
-    spacy_ner: object,
+    stanza_parser: StanzaParserLike,
+    spacy_ner: SpacyNerLike,
     expected_stage: str,
 ) -> None:
     rubrics, variants, expectations = _catalogues()
@@ -233,8 +248,8 @@ def test_component_failure_is_a_bounded_gate_failure(
             rubrics=rubrics,
             variants=variants,
             expectations=expectations,
-            stanza_parser=stanza_parser,  # type: ignore[arg-type]
-            spacy_ner=spacy_ner,  # type: ignore[arg-type]
+            stanza_parser=stanza_parser,
+            spacy_ner=spacy_ner,
             parser_resource_manifest={"schema_version": 1},
         )
 

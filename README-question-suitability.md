@@ -5,7 +5,7 @@ The pipeline implements the analysis contract in
 existing MLflow snapshot CLI and writes only under:
 
 ```text
-artifacts/question_analysis/simplemode-v1-postreview-p3/
+artifacts/question_analysis/simplemode-v1-postremediation-final/
 ├── manifest.json
 ├── state.json
 ├── tables/
@@ -18,11 +18,11 @@ artifacts/question_analysis/simplemode-v1-postreview-p3/
 ```
 
 The `artifacts/question_analysis/simplemode-v1/` directory is the immutable pre-review
-Segment 3 run. `artifacts/question_analysis/simplemode-v1-postreview/` is the immutable
-P1-remediated run, and `artifacts/question_analysis/simplemode-v1-postreview-p2/` is the
-P2-remediated run. All three are retained for comparison and are not resumed or rewritten.
-The P3-remediated root shown above is the default for regenerated Segment 3 artifacts and all
-later commands.
+Segment 3 run. `simplemode-v1-postreview`, `simplemode-v1-postreview-p2`, and
+`simplemode-v1-postreview-p3` are immutable post-review checkpoints retained for comparison;
+they are not resumed or rewritten. No artificial `simplemode-v1-postreview-p4` checkpoint
+exists. The post-remediation root shown above is the canonical default for the refreshed
+Stage 4 artifacts and the Segment 5 handoff.
 
 ## Environment
 
@@ -117,6 +117,33 @@ temporary files, `fsync`, and atomic replacement. `manifest.json` records the
 analysis-lock tag, tool versions, resource hashes, and named seeds. A running or
 failed command can resume; re-running a completed command is an idempotent
 no-op.
+
+## Stage 4 quality gate
+
+The reported Stage 4 test count and branch coverage come from the complete test
+tree, including the join and deterministic-feature integration tests. The
+frozen snapshot, sibling `r1-evals` checkout, and pinned Stanza resources must
+be available so no integration test is skipped.
+
+Run the canonical gate from the repository root:
+
+```bash
+UV_NO_ENV_FILE=1 uv run --no-env-file pytest tests/ \
+  --cov=es_index_explorer.question_analysis \
+  --cov-branch \
+  --cov-report=term-missing:skip-covered \
+  --cov-fail-under=88
+UV_NO_ENV_FILE=1 uv run --no-env-file ruff check \
+  es_index_explorer/question_analysis tests/unit/question_analysis
+UV_NO_ENV_FILE=1 uv run --no-env-file ruff format --check \
+  es_index_explorer/question_analysis tests/unit/question_analysis
+UV_NO_ENV_FILE=1 uv run --no-env-file ty check \
+  es_index_explorer/question_analysis tests/unit/question_analysis
+```
+
+Record the actual pass, skip, and coverage figures from each execution. A
+collected-test count, unit-only run, or whole-package coverage percentage is not
+interchangeable with this gate.
 
 ## Frozen randomness
 

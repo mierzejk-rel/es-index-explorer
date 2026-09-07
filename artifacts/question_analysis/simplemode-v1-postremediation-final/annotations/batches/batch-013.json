@@ -1,0 +1,151 @@
+{
+  "batch_id": "batch-013",
+  "item_ids_sha256": "8534dad485d792c7e66c54724cd234653bfddc9e821a87989533729f4ee18f4f",
+  "items": [
+    {
+      "item_id": "variant_ecb47c7ccb9bc92c45026d4e9929a5a8eea073c5cd8a05715cec0ad331a7ee07",
+      "item_type": "question",
+      "source_text": "Show the emails to/from cargoff@nycap.rr.com.",
+      "text_sha256": "1c9ede16033e0553e7d4ec215a67de40589e8b5e727a1968a24801328912e359"
+    },
+    {
+      "item_id": "variant_9b9f891585da794ec121fae9ca580073fe7439d8123e104f076aee117a2a2e0c",
+      "item_type": "question",
+      "source_text": "What evidence supports the assertion that Ellingson did not have insufficient cybersecurity protections?",
+      "text_sha256": "78873c687862dd417373d4dc4938d316d5b8681b185a50db69eb2f2848ebee92"
+    },
+    {
+      "item_id": "expectation_a27918bc042588383c02cfe5ce85436878c47158aa4096a41344eaa993c4b460",
+      "item_type": "expectation",
+      "source_text": "Cites 10/10/95 Belford email to Wallace at her Ellingson address about 'sipping mai tais on a beach while Ellingson burns', which email monitoring may have flagged.",
+      "text_sha256": "a0dfcba1666d63dae9222d463430c1e70b951d37164d4332d56906dba0bc6305"
+    },
+    {
+      "item_id": "variant_52b34742b17e9c06ccedd7e16a5cf5e899b096d975d3d480c15b55a9e2bda042",
+      "item_type": "question",
+      "source_text": "Who are the key players involved in the da Vinci hack?",
+      "text_sha256": "ded1cc0b0152da9a8ce25410532fc7af71080000f14be9dae087b6e295bfb8a2"
+    },
+    {
+      "item_id": "expectation_5dd72adfdf3706f3adfa93d13b9a695cb263622f477696f33dc16806d45b2bb6",
+      "item_type": "expectation",
+      "source_text": "Confirms that Belford communicated with a hacker named Phantom Phreak with the email address phantom.phreak@undergroundhax0r.net.",
+      "text_sha256": "3f53725e14bd8ca54a4d8d20a1e361c28488c069b71825afcfa487ceabf0b142"
+    },
+    {
+      "item_id": "expectation_4641d45a0bdc224cb5b9704b205f9363a2a5bb1edb50e4af1b1bc4ed0a77ca42",
+      "item_type": "expectation",
+      "source_text": "Cites email from Wallace to Belford expressing hesitation: Things are spiraling . . . This isn't what I signed up for.",
+      "text_sha256": "7a1e3fce77a56ae6ef2e7a216834c8ee633a7a2bd0d1149dfceef12d9531f976"
+    },
+    {
+      "item_id": "expectation_3b4c3d4e6ec2163ecc38fcb74b6b43bedc28ddc25af68e2fc46ac513cd2b5ba3",
+      "item_type": "expectation",
+      "source_text": "Quarterly Playbook, FY13Q3, Territory 50209 – Suffolk County",
+      "text_sha256": "28d432f93a09afa953c2c5584816369c1f42d9385a5847a1486d660d1b3b2caa"
+    },
+    {
+      "item_id": "variant_70316ef52fea9779bd2a2e52e66e12faf0d4b62be1cf8af2e92fbcae212219f7",
+      "item_type": "question",
+      "source_text": "Who did eugene.Belford@ellingson.com aka eugene.belford@offshore-secure.net communicate with about his plan to hack Ellingson?",
+      "text_sha256": "2ecb5362b620803ec4604a26080c2e7456bf55deb55cba1aedfd0550e713f642"
+    },
+    {
+      "item_id": "expectation_55fc0c12532982bb33f8e22e9ac5da18cf087f9c1618fdf9eda33afa6a1cee81",
+      "item_type": "expectation",
+      "source_text": "Responds that there is no evidence in the documents that Dr. Ali El-Mohandes was involved in promoting Pennsaid.",
+      "text_sha256": "c69d2762b24abc7dd54e8bef40f8325622ceff9acd1f1ca191391cadd735bc69"
+    },
+    {
+      "item_id": "variant_f4b00c0adc7e645390aa4e15f801c25bc0969ce7707f268da6586c08a4ea1fda",
+      "item_type": "question",
+      "source_text": "What is Megan Lowrey's role and involvement with Covidien/Mallinckrodt?",
+      "text_sha256": "d58d6b52090147d006552d8887ff98608c46b7d1dc2db3e58e0f8cc2fa3982e5"
+    },
+    {
+      "item_id": "variant_dc3ef634cf064fd60c01f976d50bb03a218522ca299e1c1489321b40e9fb4a6d",
+      "item_type": "question",
+      "source_text": "What speaker programs was Ms. Lowrey involved in planning, whether they ultimately occurred or not?",
+      "text_sha256": "bb8665d4a187599a19482cc2bf64619260f216f1f14c01b2de7e00ac605b6686"
+    },
+    {
+      "item_id": "expectation_0329e99045258ffbd6b7c196eba36ea73bbb266a4464237666bc580ce0bf1bb3",
+      "item_type": "expectation",
+      "source_text": "Proposed Ellingson bring in the group of young hackers to consult on cybersecurity in the wake of the Da Vinci cyberattack",
+      "text_sha256": "0b30cc7e124756980e4f10d09f052bab62c4b2f50f03f08c80d9072022734159"
+    },
+    {
+      "item_id": "expectation_d89d4fcc8047ac012575fc887fee198a84e9c213f4c91cb6ce09aa0824bf51d3",
+      "item_type": "expectation",
+      "source_text": "Involved in planning and post-cancellation of January 2012 EXALGO lunch speaker program with Dr. El-Mohandes",
+      "text_sha256": "18e4de39edb00ebe0f48e31e24aca887c2c566c5b090cbf7bc7146d57ad7cc5e"
+    },
+    {
+      "item_id": "expectation_5fa5f274f24c36991df90fd8f466c82eb83d36a06b04a089832cc432922c3004",
+      "item_type": "expectation",
+      "source_text": "Quarterly Playbook, FY13Q3, Territory 50208 – Nassau County",
+      "text_sha256": "5eeb53987aaadf90db49df698c47eb951baf4020849de6273984ee1bfed45db0"
+    },
+    {
+      "item_id": "variant_4649316f96e5754d7a0a0013b9435d787e4767f8194b7a5e3606ddf84eecf390",
+      "item_type": "question",
+      "source_text": "List the emails to/from Charles Argoff.",
+      "text_sha256": "16e5beb13fc11d7528f4856722cb3748558af772a70a7b63b736b4c22bf02d1e"
+    },
+    {
+      "item_id": "variant_87716a2c50da1989e7e97d73d3b1e3c64f3f22a476ce9fbe89c5068b7dd99d2a",
+      "item_type": "question",
+      "source_text": "Did Belford email Dade Murphy?",
+      "text_sha256": "6db514dea8851646a2597da3bd7710a50a8c6404fd8b196e719a20991846229c"
+    },
+    {
+      "item_id": "expectation_3b031ba00b1fa0191e2c531d2b367994aafc83ba38c9239d1f98287cd976565d",
+      "item_type": "expectation",
+      "source_text": "Cites Belford's suspicious activities in two weeks prior including unauthorized network access, failed login attempts, large data transfers, firewall changes, logging modifications.",
+      "text_sha256": "39ecb84d3520ec2a6a02a8f7eac74404d6c7d2dbb3fae967f6794bab7855fa5f"
+    },
+    {
+      "item_id": "variant_2f15c730cb29f493ee7af58dcbd9cf73e3afabd9f4b70b08c60a867d822e92a6",
+      "item_type": "question",
+      "source_text": "Did Belford email with anyone in the group of young hackers?",
+      "text_sha256": "5988dcb0a7f2471790f16801b24b08ebce3043cd676d0c83a09544fc30a5fe15"
+    },
+    {
+      "item_id": "variant_a2115d0d1ee11e629687d9003f38147079202a008025d6ee47b39d1e8c8fa9f8",
+      "item_type": "question",
+      "source_text": "Who was hal.benson@ellingson.com in contact with regarding the Da Vinci virus?",
+      "text_sha256": "a583bf32f56b5f8d5d99319c08225de7c4974a07c374b981066a93cb0d310611"
+    },
+    {
+      "item_id": "expectation_1cdf6da619f1141e9f89c23801964734f98f4ae7a7ccd4c28da92af7a166eb4a",
+      "item_type": "expectation",
+      "source_text": "Cites documents with detailed evidence of Belford's suspicious activities (unauthorized access, data transfers, equipment purchases).",
+      "text_sha256": "0e3d56bc364de88d281906c9512e68c262c22c6bc35df5f12221bc84d2d0dca4"
+    },
+    {
+      "item_id": "variant_611d581217eccf6a82d5fcebb53fb82b93cb81a38bf07e7901ebfa3a0210bfab",
+      "item_type": "question",
+      "source_text": "With whom was Eugene Belford in contact about hacking Ellingson?",
+      "text_sha256": "f2def823f2f79063a05558ac5d902490e78973dacf546902c00750be73ba63ad"
+    },
+    {
+      "item_id": "expectation_478c6776800b79d176e71377c6cd225eb5cc4c085238a4470cf6a8e59b578a55",
+      "item_type": "expectation",
+      "source_text": "Cites documents noting Belford's unauthorized access to restricted areas, large external data transfers, and unexplained equipment purchases.",
+      "text_sha256": "06956659490178e5eb3f4751adeb894addcd22d34513dd534771ef1c3e3a0e46"
+    },
+    {
+      "item_id": "expectation_7a44f0cbf12355043dabecda30bd51dd026cf5009b3698d2f1512d0f51f82557",
+      "item_type": "expectation",
+      "source_text": "Notes Belford's encrypted emails to unknown recipients and increased encrypted communication channels.",
+      "text_sha256": "f5dbf12310039b7e5a6788a89311a79d0140cb554d94fc674246dc7058f54249"
+    },
+    {
+      "item_id": "variant_f6a34d2e81ac864cd6b3e1b01dff55a37c1df685e4ec96e454003c96160cf108",
+      "item_type": "question",
+      "source_text": "Who are the Ellingson Mineral Company IT department employees involved in monitoring and containing the Belford hack?",
+      "text_sha256": "e847d89a5f898b164ff1d280fcaf11a9d99ba11546ec01d22cc8e02e86a74ee2"
+    }
+  ],
+  "schema_version": 1
+}

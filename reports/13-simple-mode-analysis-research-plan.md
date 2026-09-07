@@ -1994,9 +1994,10 @@ averaging unit, or project estimands.
 - **F10 Temporal anchoring.** Term `temporal_expression_present`. H10: temporal constraints
   lower performance. Within-rubric.
 
-Exploratory: `presupposition_load`, `demand_type`, `specificity`, `entity_density`,
-`expectation_type`, full QDMR operator profiles, LingFeat, lexical norms, surprisal, use-case
-interactions.
+Exploratory: `presupposition_load`, `demand_type`, `specificity`, `expectation_type`, full
+QDMR operator profiles, LingFeat, lexical norms, surprisal, use-case interactions.
+`entity_density` is withdrawn because no operational definition was frozen; the defined
+`named_entity_count` measure remains available.
 
 Collinearity is expected within F5 and F6 and between `expectation_count` and
 `expectation_document_count`. Report a correlation matrix and VIF, and present both marginal
@@ -2231,6 +2232,11 @@ mis-annotated or reveals a rubric-question mismatch; either is a finding.
 `qdmr_step_count`, `qdmr_operator_set`, `hop_structure` (atomic / bridge / comparison /
 intersection).
 
+The closed 13-label operator normalization vocabulary and its project-specific status are
+frozen in codebook §6.2. The same section defines the construct-QA lower bound
+`qdmr_step_count >= len(qdmr_operator_set)`: violations are retained as attributable
+annotation anomalies for validity review, never silently repaired.
+
 **QDMR applicability is declared per item**, since the corpus contains directives QDMR was
 not designed for. Three-way flag: applicable (interrogative) / applicable after normalisation
 (directive rewritten to its interrogative paraphrase, rewrite recorded) / not applicable, in
@@ -2261,7 +2267,8 @@ Figure 2, p. 7037 (human-verified prior art for complexity-sensitive routing)**;
 Variants deliberately swap full names, aliases and raw email addresses for the same referent.
 Under givenness theory an email address is maximally uniquely-identifying while an alias may
 not be corpus-familiar - testable *within* rubric. Features: `named_entity_count`,
-`entity_density`, `referring_form_type`, `temporal_expression_present`.
+`referring_form_type`, `temporal_expression_present`. The previously named but undefined
+`entity_density` is withdrawn; no ratio or replacement operationalization is introduced.
 
 Anchor: **Gundel, Hedberg & Zacharski (1993), "Cognitive Status and the Form of Referring
 Expressions in Discourse," [doi:10.2307/416535](https://doi.org/10.2307/416535),
@@ -2410,6 +2417,11 @@ together.
 - **Human self-consistency.** Single-coder gold, with a **blind re-code of a subset after a
   delay** giving a test-retest estimate. The absence of a second independent human coder is an
   explicit limitation: human-human reproducibility is not estimable in this design.
+
+`annotate-ingest` reports only preliminary pairwise exact/scale-aware diagnostics needed to
+describe disagreement and construct the later gold workflow. It does not compute or claim
+Krippendorff alpha. Alpha and its interval are computed as part of the mandatory
+`validate-features` dossier below; the preliminary agreement report is not a substitute.
 
 ### 13.2a The confirmatory feature-validation gate
 
@@ -3157,8 +3169,10 @@ schematised artefact or artefact family, not an implicit in-memory structure:
   their bounded messages omit source text and are persisted in workflow failure state before
   any Segment 3 artifact is written.
 - **`annotation_manifest.json`, emitted batches, immutable raw responses,
-  `annotations_normalized.parquet` and `annotation_agreement.parquet`** - exact Cursor model
-  IDs, batch/run IDs, hashes, schema-validation outcomes, normalized P4 labels and reliability.
+  `annotations_normalized.parquet`, `annotation_agreement.parquet` and
+  `annotation_construct_anomalies.parquet`** - exact Cursor model IDs, batch/run IDs, hashes,
+  schema-validation outcomes, normalized P4 labels, preliminary agreement, and attributable
+  nonblocking construct-QA anomalies reserved for the later validity dossier.
 - **`gold_sample.parquet`, `gold_labels.parquet`, `feature_validation.parquet` and
   `validated_features.parquet`** - inclusion probabilities, adjudication/re-code labels,
   validation dossiers/statuses and the feature set admitted past the gate.

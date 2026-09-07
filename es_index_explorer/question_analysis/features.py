@@ -10,7 +10,7 @@ from typing import Literal, Protocol, cast
 import pandas as pd
 
 from es_index_explorer.question_analysis.contracts import (
-    OUTCOME_FIELD_DENYLIST,
+    PRE_OUTCOME_INPUT_FIELD_DENYLIST,
     ArtifactMetadata,
     WorkflowCommand,
 )
@@ -187,17 +187,13 @@ def build_features(
         try:
             sentences = stanza_parser.parse(source_text)
         except Exception as error:
-            raise GateFailureError(
-                f"stanza_parser_failed item_id={item_id}"
-            ) from error
+            raise GateFailureError(f"stanza_parser_failed item_id={item_id}") from error
         if not sentences or not any(sentence.words for sentence in sentences):
             raise GateFailureError(f"stanza_empty_parse item_id={item_id}")
         try:
             entities = spacy_ner.parse(source_text)
         except Exception as error:
-            raise GateFailureError(
-                f"spacy_ner_failed item_id={item_id}"
-            ) from error
+            raise GateFailureError(f"spacy_ner_failed item_id={item_id}") from error
         try:
             linguistic = extract_linguistic_features(
                 cast(LiteralItemType, item_type),
@@ -254,18 +250,22 @@ def build_features(
             for entity in entities
         )
 
-    features = pd.DataFrame(feature_rows).sort_values(
-        "item_order", kind="stable"
-    ).reset_index(drop=True)
-    stanza_tokens = pd.DataFrame(token_rows, columns=TOKEN_COLUMNS).sort_values(
-        ["item_id", "sentence_index", "word_id"], kind="stable"
-    ).reset_index(drop=True)
-    spacy_entities = pd.DataFrame(entity_rows, columns=ENTITY_COLUMNS).sort_values(
-        ["item_id", "entity_index"], kind="stable"
-    ).reset_index(drop=True)
-    verification = _verify_features(
-        features, stanza_tokens, parser_manifest_sha256
+    features = (
+        pd.DataFrame(feature_rows)
+        .sort_values("item_order", kind="stable")
+        .reset_index(drop=True)
     )
+    stanza_tokens = (
+        pd.DataFrame(token_rows, columns=TOKEN_COLUMNS)
+        .sort_values(["item_id", "sentence_index", "word_id"], kind="stable")
+        .reset_index(drop=True)
+    )
+    spacy_entities = (
+        pd.DataFrame(entity_rows, columns=ENTITY_COLUMNS)
+        .sort_values(["item_id", "entity_index"], kind="stable")
+        .reset_index(drop=True)
+    )
+    verification = _verify_features(features, stanza_tokens, parser_manifest_sha256)
     return FeatureResult(
         features=features,
         stanza_tokens=stanza_tokens,
@@ -283,9 +283,7 @@ def build_text_items(
 ) -> pd.DataFrame:
     """Create the stable 577-item outcome-blind text population."""
     _reject_outcome_columns(rubrics, variants, expectations)
-    rubric_fields = rubrics[
-        ["rubric_id", "expectation_count", "variant_count"]
-    ].copy()
+    rubric_fields = rubrics[["rubric_id", "expectation_count", "variant_count"]].copy()
     if rubric_fields["rubric_id"].duplicated().any():
         raise GateFailureError("Rubric catalogue has duplicate rubric_id values")
 
@@ -361,14 +359,17 @@ def build_text_items(
     )
     result.insert(0, "item_order", range(len(result)))
     result["text_sha256"] = [
-        sha256(str(text).encode("utf-8")).hexdigest()
-        for text in result["source_text"]
+        sha256(str(text).encode("utf-8")).hexdigest() for text in result["source_text"]
     ]
     result["use_cases"] = result["use_cases"].map(_normalize_string_list)
     if result["item_id"].duplicated().any():
-        raise GateFailureError("Deterministic text population has duplicate item_id values")
+        raise GateFailureError(
+            "Deterministic text population has duplicate item_id values"
+        )
     if result["source_text"].map(lambda value: not str(value).strip()).any():
-        raise GateFailureError("Deterministic text population contains empty source text")
+        raise GateFailureError(
+            "Deterministic text population contains empty source text"
+        )
     return result
 
 
@@ -391,23 +392,19 @@ def _load_catalogues(workspace: AnalysisWorkspace) -> dict[str, pd.DataFrame]:
 
 
 def _reject_outcome_columns(*frames: pd.DataFrame) -> None:
-    forbidden = set(OUTCOME_FIELD_DENYLIST) | {
-        "criterion_observation_id",
-        "trace_id",
-        "run_id",
-        "eligible",
-        "logged_rubric_v2",
-        "recomputed_ordinal_grade",
-    }
-    present = sorted(
-        forbidden.intersection(
-            column.casefold() for frame in frames for column in frame.columns
-        )
-    )
+    present = _matching_outcome_columns(*frames)
     if present:
         raise GateFailureError(
             f"Outcome-blind feature inputs contain forbidden columns: {present}"
         )
+
+
+def _matching_outcome_columns(*frames: pd.DataFrame) -> list[str]:
+    return sorted(
+        PRE_OUTCOME_INPUT_FIELD_DENYLIST.intersection(
+            column.casefold() for frame in frames for column in frame.columns
+        )
+    )
 
 
 def _verify_features(
@@ -417,6 +414,9 @@ def _verify_features(
 ) -> dict[str, object]:
     item_counts = features["item_type"].value_counts().sort_index().to_dict()
     blocking_failures: list[str] = []
+    outcome_columns_loaded = _matching_outcome_columns(features)
+    if outcome_columns_loaded:
+        blocking_failures.append("outcome_columns_loaded")
     if item_counts != EXPECTED_ITEM_COUNTS:
         blocking_failures.append("item_population")
     if features["item_id"].duplicated().any():
@@ -435,9 +435,7 @@ def _verify_features(
     if any(mandatory_missing.values()):
         blocking_failures.append("mandatory_feature_missingness")
     question_clause_missing = int(
-        features.loc[features["item_type"].eq("question"), "clause_type"]
-        .isna()
-        .sum()
+        features.loc[features["item_type"].eq("question"), "clause_type"].isna().sum()
     )
     if question_clause_missing:
         blocking_failures.append("question_clause_type")
@@ -499,7 +497,7 @@ def _verify_features(
         "applicability_failures": applicability_failures,
         "parser_manifest_mismatch_count": manifest_mismatch_count,
         "parser_manifest_sha256": parser_manifest_sha256,
-        "outcome_columns_loaded": [],
+        "outcome_columns_loaded": outcome_columns_loaded,
         "numeric_distributions": {
             column: _numeric_distribution(features[column])
             for column in (
@@ -648,8 +646,7 @@ def _render_report(
         "",
     ]
     lines.extend(
-        f"- `{feature}`: {count} missing."
-        for feature, count in missingness.items()
+        f"- `{feature}`: {count} missing." for feature, count in missingness.items()
     )
     lines.extend(["", "## Deterministic distributions", ""])
     for feature, values in numeric.items():
@@ -666,9 +663,7 @@ def _render_report(
         ]
     )
     clause_counts = cast(dict[str, int], verification["clause_type_counts"])
-    lines.extend(
-        f"- `{label}`: {count}." for label, count in clause_counts.items()
-    )
+    lines.extend(f"- `{label}`: {count}." for label, count in clause_counts.items())
     lines.extend(
         [
             "",

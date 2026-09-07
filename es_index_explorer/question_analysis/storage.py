@@ -3,7 +3,7 @@
 import json
 import os
 import tempfile
-from collections.abc import Mapping
+from collections.abc import Iterable, Mapping
 from datetime import UTC, datetime
 from hashlib import sha256
 from io import BytesIO
@@ -13,6 +13,8 @@ from typing import TYPE_CHECKING
 from pydantic import BaseModel
 
 from es_index_explorer.question_analysis.contracts import (
+    OUTCOME_ARTIFACT_SCHEMAS,
+    PROTECTED_RECOMMENDATION_ARTIFACT_NAMES,
     SCHEMA_VERSION,
     ArtifactMetadata,
     FileFingerprint,
@@ -32,6 +34,25 @@ ARTIFACT_DIRECTORIES = (
     "partial_reports",
     "logs",
 )
+
+
+def _validate_protected_parquet_schema(
+    relative_path: str | Path, columns: Iterable[object]
+) -> None:
+    artifact_name = Path(relative_path).name
+    expected = OUTCOME_ARTIFACT_SCHEMAS.get(artifact_name)
+    if expected is None:
+        if artifact_name in PROTECTED_RECOMMENDATION_ARTIFACT_NAMES:
+            raise MalformedInputError(
+                f"Protected outcome artifact schema is not registered: {artifact_name}"
+            )
+        return
+    expected_columns = ("artifact_schema_version", *expected)
+    actual_columns = tuple(str(column) for column in columns)
+    if actual_columns != expected_columns:
+        raise MalformedInputError(
+            f"Protected outcome artifact schema mismatch: {artifact_name}"
+        )
 
 
 def sha256_file(path: Path) -> str:
@@ -166,6 +187,7 @@ class ArtifactStore:
         now: datetime | None = None,
     ) -> ArtifactMetadata:
         """Write a deterministic, index-free Parquet artifact."""
+        _validate_protected_parquet_schema(relative_path, frame.columns)
         buffer = BytesIO()
         frame.to_parquet(
             buffer,

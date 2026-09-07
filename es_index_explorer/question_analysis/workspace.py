@@ -39,7 +39,7 @@ DEFAULT_ANALYSIS_ROOT = (
     PROJECT_ROOT
     / "artifacts"
     / "question_analysis"
-    / f"{ANALYSIS_ID}-postreview-p3"
+    / f"{ANALYSIS_ID}-postremediation-final"
 )
 DEFAULT_SPECIFICATION = (
     PROJECT_ROOT / "reports" / "13-simple-mode-analysis-research-plan.md"
@@ -81,9 +81,7 @@ DEFAULT_RESOURCES = {
     / "es_index_explorer"
     / "question_analysis"
     / "join.py",
-    "segment3_source_dossier": PROJECT_ROOT
-    / "reports"
-    / "13a-source-dossier.md",
+    "segment3_source_dossier": PROJECT_ROOT / "reports" / "13a-source-dossier.md",
     "segment3_quotation_audit": PROJECT_ROOT
     / "reports"
     / "13a-source-quotation-audit.md",
@@ -115,6 +113,18 @@ DEFAULT_RESOURCES = {
     / "es_index_explorer"
     / "question_analysis"
     / "storage.py",
+    "segment4_annotations_source": PROJECT_ROOT
+    / "es_index_explorer"
+    / "question_analysis"
+    / "annotations.py",
+    "segment4_cli_source": PROJECT_ROOT
+    / "es_index_explorer"
+    / "question_analysis"
+    / "cli.py",
+    "segment4_workflow_source": PROJECT_ROOT
+    / "es_index_explorer"
+    / "question_analysis"
+    / "workflow.py",
 }
 
 StepAction = Callable[["AnalysisWorkspace"], Iterable[ArtifactMetadata] | None]

@@ -1,0 +1,151 @@
+{
+  "batch_id": "batch-007",
+  "item_ids_sha256": "954f2bdb982941a01a299ec85b472b6ed20d4884643860b2be399cb5a1ecb12e",
+  "items": [
+    {
+      "item_id": "variant_10e584f2995c8b42529e3bb24bf66f9627475c8ebbe3ce884c2c01437cfdcc10",
+      "item_type": "question",
+      "source_text": "Who was AElmohandes@myspinedoctors.com in contact with at Mallinckrodt/Covidien?",
+      "text_sha256": "176a56514d1d6643c0fd5d54a3d86ad8044760d8779a95f5303df2a1c44057b8"
+    },
+    {
+      "item_id": "expectation_69424b0eed1aafde2bd0584fdce6daa00260ff8204544356a563bbc61117c0b7",
+      "item_type": "expectation",
+      "source_text": "Confirms that Belford communicated with a hacker named Phantom Phreak (with the email address phantom.phreak@undergroundhax0r.net) to plan and execute the da Vinci hack.",
+      "text_sha256": "378ff0910139ba38e4f851c30335b48792a8ce71b6dfcf835036700531366410"
+    },
+    {
+      "item_id": "variant_edaf63de828f0e9600f994ed6d48566aff269e152f705e717a0a90db9f20ff75",
+      "item_type": "question",
+      "source_text": "Was Belford in contact with any of the teenage hackers?",
+      "text_sha256": "9919c508a13b220475c49deed3c0d0b7f4f19a5c527945549df7f6c906d2545b"
+    },
+    {
+      "item_id": "expectation_955f632d22908aabc40bd62e4972eeb915dbe03a8c7bad25d7ea944b78b739d9",
+      "item_type": "expectation",
+      "source_text": "Ellingson HR Team (hr@ellingson.com)",
+      "text_sha256": "7291efb4f6bfacb97d04119df5440e5360e3a016d764e45ee9617092e2baa94a"
+    },
+    {
+      "item_id": "expectation_f3572fedbabc12d7ff35fbf5a8ce4bab7d35ac9f2e593aa16fef418a1145852d",
+      "item_type": "expectation",
+      "source_text": "In contact with Zer0 Cool/Crash Override/Dade Murphy about collaborating to stop the Plague",
+      "text_sha256": "3dff693774221b392cb74a619b6e74844e674a3cdb55b79ba73d8b1cb68fb418"
+    },
+    {
+      "item_id": "variant_9d347e4ed07a84808aec4c4a233d141f90b39810cb23299397a0a88d547cd469",
+      "item_type": "question",
+      "source_text": "Who presented at the Exalgo October 2012 national broadcast event?",
+      "text_sha256": "e2bcdc373ef37de4c21d70833e9c435edfda37cebf7d52aa1318fdbd41e11494"
+    },
+    {
+      "item_id": "variant_03b074377af65af64b473685bc809dda00412a0630890034f4404b93fdbd85a1",
+      "item_type": "question",
+      "source_text": "Which documents refute the claim that Ellingson's cybersecurity protections were deficient?",
+      "text_sha256": "23e1a97891605436c543fe3872890c61b15710551df3696d0cab666009881ce7"
+    },
+    {
+      "item_id": "variant_fae25540cf0fea7784734dddf464ec89e20e5bb6c6b73219f41baf633b394705",
+      "item_type": "question",
+      "source_text": "Emails with Dr. Argoff?",
+      "text_sha256": "40077df263daebe74acbf4b345b037a2990da74ed038c2e6590d0d6775ae9487"
+    },
+    {
+      "item_id": "variant_f49a6d678e7ba73a4418441a9703b99900c25fb39fc9aa8463f248c5acc733f6",
+      "item_type": "question",
+      "source_text": "Tell me about the January 2012 EXALGO speaker program with Dr. El-Mohandes",
+      "text_sha256": "30edb0f2414a7d7e5c53d7114d16ecace0c85f6cdecca65325f32315314d6f26"
+    },
+    {
+      "item_id": "expectation_daac26d082b2b5237dd1e8ba06cf8dc3f68f1643d4a296ccdbc1455b42c50431",
+      "item_type": "expectation",
+      "source_text": "In 2010, Dr. Argoff was reported to be a paid consultant for Bristol-Myers Squibb.",
+      "text_sha256": "2ba831b794ee0877fde484c4f26f1ed4418ecf16617015a05e124c5a9476a4f5"
+    },
+    {
+      "item_id": "expectation_4ad41465efaac0a229e61dc6e5a38ada8cd0dc445315ad326d30a8032f523a68",
+      "item_type": "expectation",
+      "source_text": "Identifies Paul Jenkins as IT staff monitoring systems in data center.",
+      "text_sha256": "a5bec8c9e5a32843dd1a58b38c11f19a2599451ed263dffd8be72afcbfea8b83"
+    },
+    {
+      "item_id": "expectation_6018c13faa8ad85da4090894923582aaeb4620d01b234d47c0b038ce66d925e4",
+      "item_type": "expectation",
+      "source_text": "Identifies CTO Sarah Chen, one or more of the teenage hacker group (Dade Murphy/Zer0Cool/Crash Override, Kate Libby/Acid Burn, Phantom Phreak, Lord Nikon, Cereal Killer), or Phantom Phreak.",
+      "text_sha256": "a679ae4f95967d541bd46c6717cd7c575b3270b1c08786819a7b920edae85805"
+    },
+    {
+      "item_id": "expectation_59bc32d5ba6fc17cd7599eb31294345456de275c7cb9d53d5e343c90c3087512",
+      "item_type": "expectation",
+      "source_text": "Cites document noting Belford accessed restricted areas of network in days leading up to attack.",
+      "text_sha256": "1daf6c68b9c97890d5f193dd9c023677d6cd0f4db9a56c79b304249d2d67554a"
+    },
+    {
+      "item_id": "variant_321ead247c6b8b0c289386a37b5f980d810eff33b34ae27533154a04322a466c",
+      "item_type": "question",
+      "source_text": "Did Belford communicate with Wallace about the Ellingson hack?",
+      "text_sha256": "cf7c1d3905968df87fade6b51453be2602b03bfb0146cc7cb46febe02e8a10cd"
+    },
+    {
+      "item_id": "variant_662d9b4cae48849e1eccd0fe8f8df27b42ad43315bf66802b263572a4e9305d9",
+      "item_type": "question",
+      "source_text": "How was Sarah Chen involved in identifying and responding to the Da Vinci hack?",
+      "text_sha256": "48958308a9145499725de3951381290b2eb8a8d7619102d72ad398ad3093eb67"
+    },
+    {
+      "item_id": "expectation_5f55ddd2dac744d918eb727305470588f3acbc005f988bee05680a117d7a227a",
+      "item_type": "expectation",
+      "source_text": "In 2010, Dr. Argoff was reported to be a paid consultant for Solvay (Abbott).",
+      "text_sha256": "1de28b62b3cf99b396a11c6e01294ac998d8edcb3699d48dd471d24748cecfc4"
+    },
+    {
+      "item_id": "variant_906b84fcb5e01b2227fa433af52beec16994082d0fe88bd6ab36574179999b44",
+      "item_type": "question",
+      "source_text": "List the evidence showing that evidence was or may have been destroyed.",
+      "text_sha256": "a0b5e8e84ee10571627fe69078fab1a299c275023edaa2615d9a698016440da0"
+    },
+    {
+      "item_id": "variant_aaea44dca3423fbc2f5c9cbe53aa05a865880dda9b471002eca2443f24b22c59",
+      "item_type": "question",
+      "source_text": "Other than Covidien/Mallinckrodt, which pharmaceutical companies did Dr. Argoff have a financial relationship with?",
+      "text_sha256": "9a7799bb490ff7fe9c281aae6b20b6c8084f2352ca057ada9fcf539df7aaa434"
+    },
+    {
+      "item_id": "expectation_f8a445cd7eb3df39539a00652e4439e154e108b69d37cd209ea0b1f9b977239d",
+      "item_type": "expectation",
+      "source_text": "Cites Dade Murphy's initial discovery of weird program in Gibson hack.",
+      "text_sha256": "2d19ee4af1951b2a4703045db5342e2d72fd9dc416b6cead8036847f76761d31"
+    },
+    {
+      "item_id": "expectation_dabca68898de27578f3f4a934c84004db66f923dba07a1e3b50caaf01648d722",
+      "item_type": "expectation",
+      "source_text": "Dr. Ali El-Mohandes is also known as Elmo or Dr. Elmo",
+      "text_sha256": "7dc104cab15187709fb88334bba237a3030cb0f8868686d760a3a1256d3e730a"
+    },
+    {
+      "item_id": "variant_91919b54c5ac7d36182fd0c43059b2fb7a4985d62fe740ba40f2da55a6d74fd2",
+      "item_type": "question",
+      "source_text": "what is CTO Chen's email?",
+      "text_sha256": "f1910c40b8a24c4ca25a6c8a119bbc7e14f7ca0924578b32bd4a9816c9e2575d"
+    },
+    {
+      "item_id": "variant_20651e0d4652f2a853bc5fd2a0bb4999facfb76c2cb6a6a35bfc8c6cb6721df7",
+      "item_type": "question",
+      "source_text": "List the emails between Dr. Argoff and Covidien/Mallinckrodt executives.",
+      "text_sha256": "548746435e6bd04eeeb8eb42a722d491a60cf8df9b1c3f8759135e4a29a5aa69"
+    },
+    {
+      "item_id": "variant_97fe4a72e0c7c4d08242ffdd11165022cde565b81569913d951e91db5d70a4b1",
+      "item_type": "question",
+      "source_text": "Who is Dr. Sarah Chen?",
+      "text_sha256": "af5fff9b4743142e68d9fd2416e92730f23796dca598927399f6ae5348fa95c0"
+    },
+    {
+      "item_id": "variant_d7159e3c9a12269032eb16e3560757eeb488fe03a86f888a598b5d83eb80686d",
+      "item_type": "question",
+      "source_text": "Did Belford and Wallace exchange emails about the Ellingson cyberattack?",
+      "text_sha256": "84d2b386f849d12914b1097ae935533d04e485b0673dec43b23fde6316fa2025"
+    }
+  ],
+  "schema_version": 1
+}

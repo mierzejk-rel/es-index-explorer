@@ -1,0 +1,151 @@
+{
+  "batch_id": "batch-001",
+  "item_ids_sha256": "f496f0a1a62fe95a553be20d6ade512110f716250ee6895f2dd53c387ee8f16b",
+  "items": [
+    {
+      "item_id": "expectation_d41e1069242059cc9c32d516b4b2b65bfe069702339c8bdcb4da330c4e940aa3",
+      "item_type": "expectation",
+      "source_text": "Identifies the August, 18, 1995, email from Eugene Belford (eugent.belford@ellingson.com) to Phantom Phreak (phantom.phreak@undergroundhax0r.net) as the only document or email from August 1995",
+      "text_sha256": "761bdc19760683395ea22bacc834101119c58511e049a26aeafcf784b1afdcf1"
+    },
+    {
+      "item_id": "variant_c9064a9db646c63522ec378d1497c8da360dc3ada5cc1a1c4c96b6bf5d3b4bbd",
+      "item_type": "question",
+      "source_text": "List all the documents from 8/95",
+      "text_sha256": "336cbbaf337cf6624ee72048a90ac780cde23eacee23896b0ca3c4d605dbc4ff"
+    },
+    {
+      "item_id": "expectation_d9b1ea053a365d73db6dabe646835dddcccf1f09b6765928d05ebf0451539ba5",
+      "item_type": "expectation",
+      "source_text": "Involved in January 2012 EXALGO dinner speaker program, which was canceled",
+      "text_sha256": "9da869a543a074322a839394f665480507639dd7a122f6efdf196b60e902ab6c"
+    },
+    {
+      "item_id": "variant_d2f04d8a8d2e9a720cacc08f2b368a3c52e7026cf9c51190a4b8abc2a9942a6c",
+      "item_type": "question",
+      "source_text": "Find me Charles Argoff's email address",
+      "text_sha256": "16b83beecbfaade19dd0bd683bd55e2c32283405503452900a81d7c2c6273721"
+    },
+    {
+      "item_id": "variant_aa22fb2903e3bc2dedeb4ad18b2f7e57501b2900788ff8232ca6577770fd56ea",
+      "item_type": "question",
+      "source_text": "Show me evidence that Dr. Argoff promoted Pennsaid.",
+      "text_sha256": "6c469fb246c42090a1520b13a052dc5a8f7a62a5c498ad641b96cc9809299245"
+    },
+    {
+      "item_id": "expectation_f98c08b6f64c3b3981152cbfd94cdbdeda6d4ad8f167b8d0ffca51e414a10d66",
+      "item_type": "expectation",
+      "source_text": "Cites CFO proposal to increase cybersecurity budget 'in light of recent events'.",
+      "text_sha256": "cb6fa68f4315762d916b7e5a5c0f0c204aeb12a7bb308ec9ffc8bcb7b55ae147"
+    },
+    {
+      "item_id": "expectation_59c6806d8797238ee56e0a3126fa97e613d690d75efb0e216745c02ea9369814",
+      "item_type": "expectation",
+      "source_text": "Took action to prevent future hacks by implementing new security protocols",
+      "text_sha256": "d6ff3b259b0aba8853f5a43661df246ea2e4de33ffc2fef32446752c3625292d"
+    },
+    {
+      "item_id": "expectation_a91d518d4f1f5b43867e24abe5b897fe256dbbf3b6b663092dd1a1eb57b1149b",
+      "item_type": "expectation",
+      "source_text": "Quarterly Playbook, FY13Q2, Territory 60607 – McAllen Laredo",
+      "text_sha256": "5e2c44432722e33de49030421ca5dcfc01a24bf4517f940da1afb77ae90c6ef6"
+    },
+    {
+      "item_id": "expectation_ef27bd1d9f936f071fe0328cf672659664f00bfbd1f4d927a19171f99c5d4f4e",
+      "item_type": "expectation",
+      "source_text": "Cites email from Wallace to Belford about IT asking questions.",
+      "text_sha256": "1593cc1306de8563fba1adf269ed81e2b4eb7dcdc7de65dcf06c97dbac323a81"
+    },
+    {
+      "item_id": "expectation_f9fa77120bee8ea9c482e31a44d591e2b07d99a83734886789299cd030bd7f8f",
+      "item_type": "expectation",
+      "source_text": "Identifies email from Jennifer Krcmery (jkrcmery@CampbellAlliance.com) to various recipients, including Dr. Charles Argoff (cargoff@nycap.rr.com)",
+      "text_sha256": "b33ea040626cb28a1ae5b1c7ee3f5d116f164ad98d5b6299591612f4bdb2a75f"
+    },
+    {
+      "item_id": "expectation_16966129fb00e841599e0a9cef7e9da6855c2c686b851d112307858d1b47c830",
+      "item_type": "expectation",
+      "source_text": "In contact with FBI about the hack",
+      "text_sha256": "c0c035895bcc06f2105e72b7423e6d0c60de78d927fb4ff1f7348076d141fea5"
+    },
+    {
+      "item_id": "expectation_f135420b1cb36133c8f24de0677163a41b603583c0b0152d14d4d8ad857c1b05",
+      "item_type": "expectation",
+      "source_text": "Cites various efforts to contain virus and limit effects.",
+      "text_sha256": "1651cfc4b1e7d8bed645ca3fe6170cd3e65506e2407f7eedc48f2541c337ce9c"
+    },
+    {
+      "item_id": "variant_f6f637ffb64a757a8bee67eec989794a9d9d254b1a1427639fc732ef8c015363",
+      "item_type": "question",
+      "source_text": "What happened at the January 2012 event with Dr. Elmo?",
+      "text_sha256": "69e5cc4c68ca3b02392553e7fa0b3e6f4d735bd58a8250e389fe86819c5cfc31"
+    },
+    {
+      "item_id": "expectation_34db28ba555b18652c4dcada814c608407d1553d67b6e3efc44a800693c168e2",
+      "item_type": "expectation",
+      "source_text": "Ellingson Investor Relations Team (investor.relations@ellingson.com)",
+      "text_sha256": "0507c792957be3d001575ecf185f22714c7ccb43491d8204cd796ae46bb014a7"
+    },
+    {
+      "item_id": "expectation_e7f518b40a61e191db659b58d836dd157c69dbaa711ab74a44079a604d8059a8",
+      "item_type": "expectation",
+      "source_text": "Involved in other speaker programs for EXALGO and Pennsaid",
+      "text_sha256": "374763749d5ff5295ea856baac8c0a6b7fdfcb8a1e4d1c254fe55f17ecc2cbe3"
+    },
+    {
+      "item_id": "expectation_297204319c2a2033f390cfe321696b934f711938c274fd7579eda4195db9031d",
+      "item_type": "expectation",
+      "source_text": "Cites revocation of Belford's access credentials as of 10/20 2:30pm.",
+      "text_sha256": "67d0d0315fad8aa9d183052e77f8f4163c4e181dbc8e08a2c15d5bbd428650c9"
+    },
+    {
+      "item_id": "variant_a060063f32e8c91b2979ae5b1c3c412e8fdd5aafaa6901d9f53f18c545a8950c",
+      "item_type": "question",
+      "source_text": "List documents supporting the allegation that Ellingson's cybersecurity protections were insufficient to prevent a cyberattack.",
+      "text_sha256": "ea264ae0cabfe977fe4cb202ae401991f19222befdc1eebd7c01611c5be8998e"
+    },
+    {
+      "item_id": "expectation_705c0399c1f429fcf249ab315099bdc61d65b09fdf1a8d801ddd95f5cab8590d",
+      "item_type": "expectation",
+      "source_text": "Identifies Nikon.",
+      "text_sha256": "c1081776925e0b215596503ecbf44444fb75ba3e2f8c41dc135630b57875b1db"
+    },
+    {
+      "item_id": "variant_6507b19534912efab6271d12dd73ffedd9f28c353c5fd984694299c551d8ac91",
+      "item_type": "question",
+      "source_text": "List documents showing Covidien/Mallinckrodt buying Starbucks for drug prescribers.",
+      "text_sha256": "217ffd29fdd9a7c69e76923692fcdb92c66023becb644abccbdc8a4fc300e77a"
+    },
+    {
+      "item_id": "variant_616d9aa2c705e2b25e3441e937f3056c1ae78a61f3dbfa098c8149ef5e8b7733",
+      "item_type": "question",
+      "source_text": "Are there communications between Belford and Margo Wallace about the da vinci attack?",
+      "text_sha256": "0e6b5ab508e214a5939fdf1e4cfe299ee9014c12f4547d5890a3850a33af03db"
+    },
+    {
+      "item_id": "expectation_b6cf2f663a3930ef2854243ee0d2a90cab20cda8cac6583cf91b2df71003ee65",
+      "item_type": "expectation",
+      "source_text": "Cites Dade Murphy/Zer0 Cool/Crash Override communicating plan for hack, including delegated roles.",
+      "text_sha256": "c8470412f141a3bbe7c2c7c7ffe4a0cba6d23fec63ef4ef0994801361e58d0df"
+    },
+    {
+      "item_id": "expectation_c8a8835274abe5178620eb04a1d5b0034fab37a49f681d584f8719e5739760b9",
+      "item_type": "expectation",
+      "source_text": "Cites status update emails about progress and inside information.",
+      "text_sha256": "2910c910c77ab14ca6adc71332e76859cad4bb8fdefe41f4cd9839b5eeac0d07"
+    },
+    {
+      "item_id": "variant_9e360513aef97773625db87cdecaac7036583cf8ef829c9fd79aced97ae2e898",
+      "item_type": "question",
+      "source_text": "Show me emails and other documents from September 1995",
+      "text_sha256": "0b9bf19e0b6dab4854dd63a116a6b56e42c26642b4ecda94026698694a197900"
+    },
+    {
+      "item_id": "expectation_99dcbdeb2abfde9e3c9838b80e2d28ec270194ee89761c84876aaede17780737",
+      "item_type": "expectation",
+      "source_text": "Confirms that Belford communicated with a hacker named Phantom Phreak with the email address phantom.phreak@undergroundhax0r.net.",
+      "text_sha256": "3f53725e14bd8ca54a4d8d20a1e361c28488c069b71825afcfa487ceabf0b142"
+    }
+  ],
+  "schema_version": 1
+}

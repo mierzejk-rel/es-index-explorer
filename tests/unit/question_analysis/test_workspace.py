@@ -27,8 +27,8 @@ from es_index_explorer.question_analysis.workspace import (
 pytestmark = pytest.mark.unit
 
 
-def test_default_root_is_postreview_and_preserves_analysis_id() -> None:
-    assert DEFAULT_ANALYSIS_ROOT.name == "simplemode-v1-postreview-p3"
+def test_default_root_is_canonical_postremediation_root() -> None:
+    assert DEFAULT_ANALYSIS_ROOT.name == "simplemode-v1-postremediation-final"
 
 
 def _specification(tmp_path: Path) -> Path:
@@ -63,6 +63,9 @@ def test_manifest_round_trip_and_frozen_layout(tmp_path: Path) -> None:
         "segment3_source_dossier",
         "segment3_spacy_manifest",
         "segment3_storage_source",
+        "segment4_annotations_source",
+        "segment4_cli_source",
+        "segment4_workflow_source",
         "stanza_en_resource_manifest",
     }
     assert workspace.load_manifest() == manifest
@@ -79,9 +82,7 @@ def test_specification_drift_blocks_reinitialize_and_open(tmp_path: Path) -> Non
     AnalysisWorkspace.initialize(root, specification)
     specification.write_text("# Changed specification\n", encoding="utf-8")
 
-    with pytest.raises(
-        MalformedInputError, match="Specification fingerprint differs"
-    ):
+    with pytest.raises(MalformedInputError, match="Specification fingerprint differs"):
         AnalysisWorkspace.initialize(root, specification)
     with pytest.raises(MalformedInputError, match="Locked input changed"):
         AnalysisWorkspace.open_existing(root)
