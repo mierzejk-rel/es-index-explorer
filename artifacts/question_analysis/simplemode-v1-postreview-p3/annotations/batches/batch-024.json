@@ -1,0 +1,151 @@
+{
+  "batch_id": "batch-024",
+  "item_ids_sha256": "8d7dcdce50b1a561f25927a01446e30767a18692c5ab63daece5152c40a1574d",
+  "items": [
+    {
+      "item_id": "variant_93e11e50bf44637d816a1bbcd1f0e4475ed3f3734cfb12443c5d73cade821e28",
+      "item_type": "question",
+      "source_text": "Please give me a summary of the emails Belford and Wallace exchanged.",
+      "text_sha256": "3933c6cfa22f215387dc4c9d29f2eab75b0777848ede669cf11bacb5e66c845d"
+    },
+    {
+      "item_id": "variant_fe9b825219d2cccc0963bed3c60f80ef5ffbd6f922808caa80e99ddaa034dcdd",
+      "item_type": "question",
+      "source_text": "Who are the key actors involved in the hack of Ellingson?",
+      "text_sha256": "db6bd74dadf293619b46bdf08dcc026a8658fabaabe9e9158927926c7816bfd2"
+    },
+    {
+      "item_id": "expectation_0603c04736eb28d1ab6d38ebfccf085f52a38f6ea25f3c08c4d6e7d9d8e6f0ec",
+      "item_type": "expectation",
+      "source_text": "Cites communication about package delivery and timing.",
+      "text_sha256": "374b15f8414c89c18a5994df7db5f853e53cf4d4f4c84bec729c769e0d9d3034"
+    },
+    {
+      "item_id": "variant_38df602422187b0cac4c272e4c27374bb082c9e100243b7032b115f305226358",
+      "item_type": "question",
+      "source_text": "are there any playbooks in the documents? If so, please find them.",
+      "text_sha256": "c1861cd4e676c4cf91d1c8be844a11ed8560d7867acaf637b082f714b5927635"
+    },
+    {
+      "item_id": "variant_801c27b33e154df271ff962470a2b6e59e4a60c4dfbb1d58fd81f5601386cd69",
+      "item_type": "question",
+      "source_text": "Summarize Belford and Wallace's emails with each other.",
+      "text_sha256": "47c10c8dbe41543ea6644bb115a770827cb1c9131f05397b49103cb2e6571f5d"
+    },
+    {
+      "item_id": "expectation_f4559f8a69169522fb862e830e2248896d39ce5df1741b0901ece4a778feaf93",
+      "item_type": "expectation",
+      "source_text": "Identifies Cereal Killer.",
+      "text_sha256": "fd454a05cccdfe0857f1f22ece1b997a559e43fa58e5b57a01ffe840a26e33d5"
+    },
+    {
+      "item_id": "variant_c8af61166caaa97a1800fa05725b83cd3da87b35e8b2da1c3df76426e4f00967",
+      "item_type": "question",
+      "source_text": "Did Belford and Wallace plan the Ellingson cyberattack together?",
+      "text_sha256": "e5bb4ec6ebcba12d09293a94fbf5e55a9acdf8cf1bdc465819974c734b83655c"
+    },
+    {
+      "item_id": "expectation_5feedf53f9aa7dca149e3b279ae6c678426788d9726d9d5fe821f5ac2c7b3b28",
+      "item_type": "expectation",
+      "source_text": "Notes Belford's purchases of high-end computer equipment as suspicious indicator.",
+      "text_sha256": "92f22ae8b63cd53f2ee1dc319632ef244f321488caa3e7702f9a7507edac158f"
+    },
+    {
+      "item_id": "variant_0c97fa436a6de2dd6a8472fbaffb528380ef9622114162c1d6f7603224f3f684",
+      "item_type": "question",
+      "source_text": "What communications are there between Belford and Phantom Phreak about the da vinci hack?",
+      "text_sha256": "bf8854e6aa8c9d2991ccccca7a68a063fc7cd5471ea4cf6aa46a0dfbda862fe0"
+    },
+    {
+      "item_id": "expectation_9230902957f1dd5e215233329dc382693f77e9771c5305dc806a3781650c0beb",
+      "item_type": "expectation",
+      "source_text": "Identified Belford's suspicious activities and recommended bringing in law enforcement",
+      "text_sha256": "63d5b207363744f4832c1ce9b4ceea761be86ef4cf8594d5d6e75c9a401539a7"
+    },
+    {
+      "item_id": "expectation_46cc762158fe070a981b0d2251529327122e5ffdda41bc3a9fbaa04228c8c532",
+      "item_type": "expectation",
+      "source_text": "Dr. Sarah Chen uses the email address Sarah.Chen@ellingson-it.com.",
+      "text_sha256": "cf7b97614953524c3769e7cf60554396dcfd6b57e25be4d54822efb30d5d31aa"
+    },
+    {
+      "item_id": "expectation_ee57e4d9333f9db873623ea9fcb2ac0d625f38560db019ce324fccf80d4c58b7",
+      "item_type": "expectation",
+      "source_text": "Involved in November 2011 EXALGO Speaker Program",
+      "text_sha256": "b2869c01f6e2f72684e3b6004fce3c36c5724efb74dcb6eeab5e3361cd34529a"
+    },
+    {
+      "item_id": "expectation_ec8900d235824758d9d8e5577b4a0cd6350318e6c98ed611dc8c0184f4802c5d",
+      "item_type": "expectation",
+      "source_text": "In 2010, Dr. Argoff was reported to receive grant or research support from Forest, be on the speakers' bureau for Forest, and receive honoraria from Forest.",
+      "text_sha256": "9b0997fc4778ad7b2cedce169fb04e061e5ab8bafa4bec602294f793b5a5fa87"
+    },
+    {
+      "item_id": "variant_e96c22c0740341c69619549dae3154ae6f2f6971d4a11a591a9487f1b06e88e5",
+      "item_type": "question",
+      "source_text": "What plans or proposals did Ellingson make for improving its cybersecurity infrastructure post-Belford hack?",
+      "text_sha256": "9a4fa7fe9a8a6a968af24c5496e437d56eb792bd76820e3892365eb62fd7e089"
+    },
+    {
+      "item_id": "variant_0ddb19fc15d79223bfc3c4a996b696c2bab8dfc78a2dc6d4d07081d1ec5ef47f",
+      "item_type": "question",
+      "source_text": " At what point did Wallace diverge from Belford?",
+      "text_sha256": "257662bc6b5b960ba9989beba4d6e5964d9c2018746e8acf9432a302700b14f3"
+    },
+    {
+      "item_id": "expectation_849a0e4f5dc240f52288e4637becdb6ddf8c0a319bb6947bee29641564e35d30",
+      "item_type": "expectation",
+      "source_text": "Does not confidently assert the two Zero Cools are the same person without evidence, recognizing they have different email addresses.",
+      "text_sha256": "2c661bbd7f2e901937845cc5dc84be061a3838bf69231f0c2237fb5327b42ea8"
+    },
+    {
+      "item_id": "expectation_a2e5b8a94a180e69c62fb24313459be081d783648f3723890cb419e6bd7eaf4d",
+      "item_type": "expectation",
+      "source_text": "Cites Ellingson's claimed costs for attempting to recover lost or corrupted data ($500K).",
+      "text_sha256": "22e02f96e7c6c638db17d4d8fc41bd0a55bd00d9ee3ec740eb4d28bf8e3ae2bd"
+    },
+    {
+      "item_id": "expectation_44b45437f919428a00d7e476ad8fd883fe2364ffec3e6bb662cae6998d31b1d4",
+      "item_type": "expectation",
+      "source_text": "Charles Argoff, MD was one of three physician presenters at Covidien's 2012 Exalgo national broadcast event",
+      "text_sha256": "8eddf5a655759de304399cc7f08db9f3b7eac1ce95d646c578afda2c6b278512"
+    },
+    {
+      "item_id": "expectation_1e7006947f1acc7c561ca05d231e039a1e6495ad9391ea2c30c7c28fbc1cb996",
+      "item_type": "expectation",
+      "source_text": "Report on day's activities with a note that the rep brought a doctor Starbucks as usual",
+      "text_sha256": "5d8d2fa1acd744f1bbde0f0d488b1c93c0965b5532038287b9bf5de4fe0d3308"
+    },
+    {
+      "item_id": "expectation_2770deb64477a68824262b471e5b792b9acc5e9ce5885b0d6785f4a253d2cb5c",
+      "item_type": "expectation",
+      "source_text": "Speaker for Mallinckrodt/Covidien program: Important Considerations in Customizing Pain Management: Patient Selection and Dosing Strategies",
+      "text_sha256": "3e27ddc2455d3a04a1003541c0f4c1040a412857ed4d53c792c052e05e738d95"
+    },
+    {
+      "item_id": "variant_fd424c4fb4a7e84ddf34b5ae0c9f9d0cb13c53e85fd9970fd4eacfd858cc77aa",
+      "item_type": "question",
+      "source_text": "What evidence was available to Ellingson that Belford planned to execute a cyberattack before it occurred?",
+      "text_sha256": "8b6dff8fbeafa073758c724f570b4758fd23507ab9fe7d94ee159d57c41f0e91"
+    },
+    {
+      "item_id": "variant_d8f53cba4dda6fdff7c88fe6d489b265592024b982073772895727a34065fec2",
+      "item_type": "question",
+      "source_text": "After October 20, 1995, what changes did Ellingson consider to ensure it would not be subject to another cyberattack?",
+      "text_sha256": "40c5710e631946d1af945826ced04966a3d5bbd943ef235b37aa77ac6aa3ba9c"
+    },
+    {
+      "item_id": "variant_06cd1b80beea05f1e49951562510c27c4b700619093913874872a5685453ecdc",
+      "item_type": "question",
+      "source_text": "Find me emails discussing destroying evidence",
+      "text_sha256": "299225680acb4c5a6b5133013a6414b5173a36e1d8ed33e171a1356398453ec5"
+    },
+    {
+      "item_id": "expectation_6da6cc60ed7b418d9066b367efa2b6478cfadf54d25814a15aa2afa49e81eed1",
+      "item_type": "expectation",
+      "source_text": "Ellingson Logistics Manager (logistics.manager@ellingson.com)",
+      "text_sha256": "10fed1f0400f8f497903e101873bc15327dac4308af19de4eeb728989caf7cf6"
+    }
+  ],
+  "schema_version": 1
+}

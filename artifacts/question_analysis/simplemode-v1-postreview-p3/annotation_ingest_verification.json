@@ -1,0 +1,84 @@
+{
+  "agreement_rate": 0.7656421514818881,
+  "agreement_row_count": 3644,
+  "blocking_failures": [],
+  "expectation_annotation_count": 628,
+  "feature_agreement": {
+    "answer_locality": {
+      "exact_agreement_rate": 0.8757961783439491,
+      "item_count": 314,
+      "mean_similarity": 0.8757961783439491
+    },
+    "cognitive_process_level": {
+      "exact_agreement_rate": 0.6958174904942965,
+      "item_count": 263,
+      "mean_similarity": 0.9095057034220532
+    },
+    "demand_type": {
+      "exact_agreement_rate": 0.7802547770700637,
+      "item_count": 314,
+      "mean_similarity": 0.7802547770700637
+    },
+    "exhaustivity_requirement": {
+      "exact_agreement_rate": 0.7908745247148289,
+      "item_count": 263,
+      "mean_similarity": 0.8517110266159695
+    },
+    "hop_structure": {
+      "exact_agreement_rate": 0.5437262357414449,
+      "item_count": 263,
+      "mean_similarity": 0.5437262357414449
+    },
+    "negative_conclusiveness": {
+      "exact_agreement_rate": 0.8174904942965779,
+      "item_count": 263,
+      "mean_similarity": 0.8174904942965779
+    },
+    "presupposition_load": {
+      "exact_agreement_rate": 0.5513307984790875,
+      "item_count": 263,
+      "mean_similarity": 0.5513307984790875
+    },
+    "qdmr_applicability": {
+      "exact_agreement_rate": 0.9961977186311787,
+      "item_count": 263,
+      "mean_similarity": 0.9961977186311787
+    },
+    "qdmr_normalized_question": {
+      "exact_agreement_rate": 0.5138888888888888,
+      "item_count": 72,
+      "mean_similarity": 0.5138888888888888
+    },
+    "qdmr_operator_set": {
+      "exact_agreement_rate": 0.5437262357414449,
+      "item_count": 263,
+      "mean_similarity": 0.8270595690747782
+    },
+    "qdmr_step_count": {
+      "exact_agreement_rate": 0.5551330798479087,
+      "item_count": 263,
+      "mean_similarity": 0.7662864385297845
+    },
+    "recall_orientation": {
+      "exact_agreement_rate": 0.8821292775665399,
+      "item_count": 263,
+      "mean_similarity": 0.8821292775665399
+    },
+    "referring_form_type": {
+      "exact_agreement_rate": 0.973384030418251,
+      "item_count": 263,
+      "mean_similarity": 0.973384030418251
+    },
+    "specificity": {
+      "exact_agreement_rate": 0.9554140127388535,
+      "item_count": 314,
+      "mean_similarity": 0.9554140127388535
+    }
+  },
+  "normalized_row_count": 1154,
+  "outcome_columns_loaded": [],
+  "passed": true,
+  "question_annotation_count": 526,
+  "schema_version": 1,
+  "unique_item_count": 577
+}

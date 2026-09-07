@@ -98,6 +98,13 @@ whitespace.
 Later commands remain unavailable until their implementation segments register
 them. The shell never marks a placeholder command complete.
 
+## Segment 4 annotation
+
+Segment 4 uses the local Cursor Python SDK. It needs a one-time Cursor user API
+key setup; keep the key outside the repository in `CURSOR_API_KEY`. For the
+exact setup, model-access checkpoint, isolation boundary, and command sequence,
+see [`reports/15-segment-4-annotation-operations.md`](reports/15-segment-4-annotation-operations.md).
+
 Exit categories are stable:
 
 - `1`: malformed input or persisted state

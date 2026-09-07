@@ -221,4 +221,8 @@ __marimo__/
 /.agents/
 /skills-lock.json
 /*.jsonl
-artifacts/
+/artifacts/*
+!/artifacts/question_analysis/
+/artifacts/question_analysis/*
+!/artifacts/question_analysis/simplemode-v1-postreview-p3/
+!/artifacts/question_analysis/simplemode-v1-postreview-p3/**

@@ -1,0 +1,1530 @@
+{
+  "analysis_id": "simplemode-v1",
+  "artifacts": {
+    "annotation_ingest_verification.json": {
+      "created_at": "2026-09-07T15:03:04.428861Z",
+      "created_by": "annotate-ingest",
+      "path": "annotation_ingest_verification.json",
+      "sha256": "14328851cbe1009123971ff9b7d0e9207a000f9917fbe22b65fdf7505edc8ad1",
+      "size_bytes": 2489
+    },
+    "annotation_manifest.json": {
+      "created_at": "2026-09-07T15:01:09.043125Z",
+      "created_by": "annotate-run",
+      "path": "annotation_manifest.json",
+      "sha256": "b4605f0380bc353e97fb1c0b8774ab5e44ad4c5904c669e5b2b71c1eb0239e33",
+      "size_bytes": 41874
+    },
+    "annotation_preflight_manifest.json": {
+      "created_at": "2026-09-07T14:49:41.287964Z",
+      "created_by": "annotate-run",
+      "path": "annotation_preflight_manifest.json",
+      "sha256": "10500d28a4d8e16e81fa52719d3754a5dd3093577c62d9d01918f10fe0d7c08f",
+      "size_bytes": 3276
+    },
+    "annotations/attempts/claude-opus-5/batch-001.json": {
+      "created_at": "2026-09-07T14:49:41.297204Z",
+      "created_by": "annotate-run",
+      "path": "annotations/attempts/claude-opus-5/batch-001.json",
+      "sha256": "4333035375bb71662c601b0aaf15b91152d3c6be0742d0840ed407c91a66385e",
+      "size_bytes": 674
+    },
+    "annotations/attempts/claude-opus-5/batch-002.json": {
+      "created_at": "2026-09-07T14:49:41.297045Z",
+      "created_by": "annotate-run",
+      "path": "annotations/attempts/claude-opus-5/batch-002.json",
+      "sha256": "c0f1da77a3be416ee92e1005aa1ed5d5b48bd56e4d9440e6aee4773131911c81",
+      "size_bytes": 671
+    },
+    "annotations/attempts/claude-opus-5/batch-003.json": {
+      "created_at": "2026-09-07T14:49:41.298094Z",
+      "created_by": "annotate-run",
+      "path": "annotations/attempts/claude-opus-5/batch-003.json",
+      "sha256": "91d3433b004df13dc8680cd39cb08258cd1af4edc502c9b2c44d3f1035994d2e",
+      "size_bytes": 674
+    },
+    "annotations/attempts/claude-opus-5/batch-004.json": {
+      "created_at": "2026-09-07T14:49:41.297820Z",
+      "created_by": "annotate-run",
+      "path": "annotations/attempts/claude-opus-5/batch-004.json",
+      "sha256": "2e06b5c77799cd2524f58e817ecb40cd796f36396f7cf70d7e38193a4657e134",
+      "size_bytes": 674
+    },
+    "annotations/attempts/claude-opus-5/batch-005.json": {
+      "created_at": "2026-09-07T14:49:41.298965Z",
+      "created_by": "annotate-run",
+      "path": "annotations/attempts/claude-opus-5/batch-005.json",
+      "sha256": "d46ef2a3b96127ee6870c450ba8b8413e43276be933a1a2d17dcefba959223d0",
+      "size_bytes": 674
+    },
+    "annotations/attempts/claude-opus-5/batch-006.json": {
+      "created_at": "2026-09-07T14:49:41.299660Z",
+      "created_by": "annotate-run",
+      "path": "annotations/attempts/claude-opus-5/batch-006.json",
+      "sha256": "69a2072e23acd37aedfba1b2a2d085bdbba0e2c6226cb1696227e1c688b25bc4",
+      "size_bytes": 672
+    },
+    "annotations/attempts/claude-opus-5/batch-007.json": {
+      "created_at": "2026-09-07T14:49:41.300225Z",
+      "created_by": "annotate-run",
+      "path": "annotations/attempts/claude-opus-5/batch-007.json",
+      "sha256": "f2d122a92e7bed95c4bcdc378e7f2629e24f696747c70c498089619901a3bcdf",
+      "size_bytes": 671
+    },
+    "annotations/attempts/claude-opus-5/batch-008.json": {
+      "created_at": "2026-09-07T14:49:41.300072Z",
+      "created_by": "annotate-run",
+      "path": "annotations/attempts/claude-opus-5/batch-008.json",
+      "sha256": "403a72a33612bd694664e8487dbbd5f2ca03f5a98906ccc177ec59df399eaf36",
+      "size_bytes": 672
+    },
+    "annotations/attempts/claude-opus-5/batch-009.json": {
+      "created_at": "2026-09-07T14:49:41.301021Z",
+      "created_by": "annotate-run",
+      "path": "annotations/attempts/claude-opus-5/batch-009.json",
+      "sha256": "19e3091b55f695ec46477e868084ae4c981eb8d1ddb2eca73a0bec5a1818c2c5",
+      "size_bytes": 671
+    },
+    "annotations/attempts/claude-opus-5/batch-010.json": {
+      "created_at": "2026-09-07T14:49:41.301355Z",
+      "created_by": "annotate-run",
+      "path": "annotations/attempts/claude-opus-5/batch-010.json",
+      "sha256": "e512e22d2f45713a3e1499e3879cb74a59844c46293a4289969f72d284e3e671",
+      "size_bytes": 672
+    },
+    "annotations/attempts/claude-opus-5/batch-011.json": {
+      "created_at": "2026-09-07T14:51:33.161678Z",
+      "created_by": "annotate-run",
+      "path": "annotations/attempts/claude-opus-5/batch-011.json",
+      "sha256": "1021f3f9d859f07a24803d1c376feb96d9532966b3eecf499cbf7f456647ef40",
+      "size_bytes": 671
+    },
+    "annotations/attempts/claude-opus-5/batch-012.json": {
+      "created_at": "2026-09-07T14:51:16.986703Z",
+      "created_by": "annotate-run",
+      "path": "annotations/attempts/claude-opus-5/batch-012.json",
+      "sha256": "9ddf84463ed096aa3bfe13989600d01b9e071f92d1164f4477b1fc9d63e2febc",
+      "size_bytes": 672
+    },
+    "annotations/attempts/claude-opus-5/batch-013.json": {
+      "created_at": "2026-09-07T14:51:37.280098Z",
+      "created_by": "annotate-run",
+      "path": "annotations/attempts/claude-opus-5/batch-013.json",
+      "sha256": "9bca1a93a4ba2bff8195d9a47e0286328f0dfbb6aa2f49ce6cb662d1b0601705",
+      "size_bytes": 671
+    },
+    "annotations/attempts/claude-opus-5/batch-014.json": {
+      "created_at": "2026-09-07T14:51:49.853279Z",
+      "created_by": "annotate-run",
+      "path": "annotations/attempts/claude-opus-5/batch-014.json",
+      "sha256": "327598de9d4eba56d8b78feabc34be680dcd0a7843a404531a5e4ae6c288349f",
+      "size_bytes": 674
+    },
+    "annotations/attempts/claude-opus-5/batch-015.json": {
+      "created_at": "2026-09-07T14:52:52.651584Z",
+      "created_by": "annotate-run",
+      "path": "annotations/attempts/claude-opus-5/batch-015.json",
+      "sha256": "17bbaaf3f2287d7a020f773376af792354dc7a51e348e1e1a1b155ec41c08001",
+      "size_bytes": 672
+    },
+    "annotations/attempts/claude-opus-5/batch-016.json": {
+      "created_at": "2026-09-07T14:53:26.620948Z",
+      "created_by": "annotate-run",
+      "path": "annotations/attempts/claude-opus-5/batch-016.json",
+      "sha256": "e5380c9e8062032016007426645ae8126e077307915b8f75976841de1df6dc69",
+      "size_bytes": 674
+    },
+    "annotations/attempts/claude-opus-5/batch-017.json": {
+      "created_at": "2026-09-07T14:54:18.450897Z",
+      "created_by": "annotate-run",
+      "path": "annotations/attempts/claude-opus-5/batch-017.json",
+      "sha256": "240539e7c12b0fd458887cf7e64f49140f389efbef5ce90d82b43fe1db752b77",
+      "size_bytes": 674
+    },
+    "annotations/attempts/claude-opus-5/batch-018.json": {
+      "created_at": "2026-09-07T14:53:45.192358Z",
+      "created_by": "annotate-run",
+      "path": "annotations/attempts/claude-opus-5/batch-018.json",
+      "sha256": "cf1add2b5207cb69403129826ad011b213dad2f5929cfe2b062daedc4074b793",
+      "size_bytes": 674
+    },
+    "annotations/attempts/claude-opus-5/batch-019.json": {
+      "created_at": "2026-09-07T14:54:25.722826Z",
+      "created_by": "annotate-run",
+      "path": "annotations/attempts/claude-opus-5/batch-019.json",
+      "sha256": "a433333dc8b6a3888ec6d003603ba2a272f8fdc0b8b246716bddf5af5185a64d",
+      "size_bytes": 672
+    },
+    "annotations/attempts/claude-opus-5/batch-020.json": {
+      "created_at": "2026-09-07T14:55:16.016561Z",
+      "created_by": "annotate-run",
+      "path": "annotations/attempts/claude-opus-5/batch-020.json",
+      "sha256": "27954e15afcb4c37eff7fcf687e6756aeae510ba4f9a25ae8a31c5828d16f58f",
+      "size_bytes": 674
+    },
+    "annotations/attempts/claude-opus-5/batch-021.json": {
+      "created_at": "2026-09-07T14:55:22.203857Z",
+      "created_by": "annotate-run",
+      "path": "annotations/attempts/claude-opus-5/batch-021.json",
+      "sha256": "91559e0c4aa1ae1a9c7c503ba16dde2d4ba82448c5a374f86a41d7d0ecc5a5be",
+      "size_bytes": 669
+    },
+    "annotations/attempts/claude-opus-5/batch-022.json": {
+      "created_at": "2026-09-07T14:56:14.916990Z",
+      "created_by": "annotate-run",
+      "path": "annotations/attempts/claude-opus-5/batch-022.json",
+      "sha256": "404eb83d3a6237c65c66dca99bf431f58c2cad939eddfe7df8a20b12d97e0898",
+      "size_bytes": 674
+    },
+    "annotations/attempts/claude-opus-5/batch-023.json": {
+      "created_at": "2026-09-07T14:56:05.031935Z",
+      "created_by": "annotate-run",
+      "path": "annotations/attempts/claude-opus-5/batch-023.json",
+      "sha256": "921cca58cb6cc0df41de162056fe09541ab90342aee3d515e4821ccc1d5ba252",
+      "size_bytes": 669
+    },
+    "annotations/attempts/claude-opus-5/batch-024.json": {
+      "created_at": "2026-09-07T14:57:07.045711Z",
+      "created_by": "annotate-run",
+      "path": "annotations/attempts/claude-opus-5/batch-024.json",
+      "sha256": "6e26c1911bffc215ff65cb1123a6f23f8e48b67f5f462f1a3aca1c3982be32cc",
+      "size_bytes": 674
+    },
+    "annotations/attempts/claude-opus-5/batch-025.json": {
+      "created_at": "2026-09-07T14:55:31.179182Z",
+      "created_by": "annotate-run",
+      "path": "annotations/attempts/claude-opus-5/batch-025.json",
+      "sha256": "2c1b7ae889854fcce5269e739f1b1137543af0cbd1ef11c36c10db20652807a5",
+      "size_bytes": 670
+    },
+    "annotations/attempts/gpt-5.6-sol/batch-001.json": {
+      "created_at": "2026-09-07T14:56:14.917284Z",
+      "created_by": "annotate-run",
+      "path": "annotations/attempts/gpt-5.6-sol/batch-001.json",
+      "sha256": "a460d598c2e228762446095170356789394dcb9bc62cc28c801b94b6545283ad",
+      "size_bytes": 667
+    },
+    "annotations/attempts/gpt-5.6-sol/batch-002.json": {
+      "created_at": "2026-09-07T14:56:46.821974Z",
+      "created_by": "annotate-run",
+      "path": "annotations/attempts/gpt-5.6-sol/batch-002.json",
+      "sha256": "59a836bf1234fb3a60f537731f05e5582ff69bf58b732c4279a5972d19b36453",
+      "size_bytes": 667
+    },
+    "annotations/attempts/gpt-5.6-sol/batch-003.json": {
+      "created_at": "2026-09-07T14:57:01.901044Z",
+      "created_by": "annotate-run",
+      "path": "annotations/attempts/gpt-5.6-sol/batch-003.json",
+      "sha256": "a569effa65ca73e04617b0d2579ac25f18e2070d1613d1e8f47ad5cfe6f4e604",
+      "size_bytes": 667
+    },
+    "annotations/attempts/gpt-5.6-sol/batch-004.json": {
+      "created_at": "2026-09-07T14:56:41.379007Z",
+      "created_by": "annotate-run",
+      "path": "annotations/attempts/gpt-5.6-sol/batch-004.json",
+      "sha256": "51fe5bf4c5448fddffd9d72b7f5c7acb75fd46e589d4f9eddde77b67b2831504",
+      "size_bytes": 666
+    },
+    "annotations/attempts/gpt-5.6-sol/batch-005.json": {
+      "created_at": "2026-09-07T14:57:26.964688Z",
+      "created_by": "annotate-run",
+      "path": "annotations/attempts/gpt-5.6-sol/batch-005.json",
+      "sha256": "2058f88a286ccc6a346a76bd0b3ea73affec06a63ab1ed4e32c1a3aa89dd89ce",
+      "size_bytes": 667
+    },
+    "annotations/attempts/gpt-5.6-sol/batch-006.json": {
+      "created_at": "2026-09-07T14:57:45.316826Z",
+      "created_by": "annotate-run",
+      "path": "annotations/attempts/gpt-5.6-sol/batch-006.json",
+      "sha256": "674ebae8f6658b50e063593b81c8a38e6ef31bd055bead5a0089612060dd5926",
+      "size_bytes": 667
+    },
+    "annotations/attempts/gpt-5.6-sol/batch-007.json": {
+      "created_at": "2026-09-07T14:57:49.585869Z",
+      "created_by": "annotate-run",
+      "path": "annotations/attempts/gpt-5.6-sol/batch-007.json",
+      "sha256": "dd59b13ba92fdd5cebb0f689bfd7e60ce06a101c7b62520bf772e17a83700e6f",
+      "size_bytes": 667
+    },
+    "annotations/attempts/gpt-5.6-sol/batch-008.json": {
+      "created_at": "2026-09-07T14:57:54.503955Z",
+      "created_by": "annotate-run",
+      "path": "annotations/attempts/gpt-5.6-sol/batch-008.json",
+      "sha256": "3ff0d0e3220ccd9f8b70d31dc2acf02b787f1eb1c6e4d89e2d7cd96445fa2abc",
+      "size_bytes": 667
+    },
+    "annotations/attempts/gpt-5.6-sol/batch-009.json": {
+      "created_at": "2026-09-07T14:58:12.164309Z",
+      "created_by": "annotate-run",
+      "path": "annotations/attempts/gpt-5.6-sol/batch-009.json",
+      "sha256": "e64b63b7fb30cfcddf7c54698a5ce612dc0f4a20371dfc996e9500dbe6655a35",
+      "size_bytes": 667
+    },
+    "annotations/attempts/gpt-5.6-sol/batch-010.json": {
+      "created_at": "2026-09-07T14:58:36.445957Z",
+      "created_by": "annotate-run",
+      "path": "annotations/attempts/gpt-5.6-sol/batch-010.json",
+      "sha256": "ae8eedd9c9df0fb82e6d70ad26b8ea4ed240cc650eea067a881925edadc1942b",
+      "size_bytes": 667
+    },
+    "annotations/attempts/gpt-5.6-sol/batch-011.json": {
+      "created_at": "2026-09-07T14:58:40.830789Z",
+      "created_by": "annotate-run",
+      "path": "annotations/attempts/gpt-5.6-sol/batch-011.json",
+      "sha256": "fa91c83c37a20a23c89980dea1ab770caab0f5c684193b1d73a2ec97a2ff2ff7",
+      "size_bytes": 667
+    },
+    "annotations/attempts/gpt-5.6-sol/batch-012.json": {
+      "created_at": "2026-09-07T14:58:43.968499Z",
+      "created_by": "annotate-run",
+      "path": "annotations/attempts/gpt-5.6-sol/batch-012.json",
+      "sha256": "819961882980d43edb737831728397acfddc1b16f963285002c39a9a87fcf555",
+      "size_bytes": 667
+    },
+    "annotations/attempts/gpt-5.6-sol/batch-013.json": {
+      "created_at": "2026-09-07T14:58:53.409137Z",
+      "created_by": "annotate-run",
+      "path": "annotations/attempts/gpt-5.6-sol/batch-013.json",
+      "sha256": "978a3f5720d993289f0c61af92ad95ad9aca06055b773052343d0e70e77be97b",
+      "size_bytes": 667
+    },
+    "annotations/attempts/gpt-5.6-sol/batch-014.json": {
+      "created_at": "2026-09-07T14:59:22.203870Z",
+      "created_by": "annotate-run",
+      "path": "annotations/attempts/gpt-5.6-sol/batch-014.json",
+      "sha256": "374206f2ed7c3e591b568477cf8279d86c8fd97837111c84c44fbc853ae9a8d4",
+      "size_bytes": 667
+    },
+    "annotations/attempts/gpt-5.6-sol/batch-015.json": {
+      "created_at": "2026-09-07T14:59:35.668539Z",
+      "created_by": "annotate-run",
+      "path": "annotations/attempts/gpt-5.6-sol/batch-015.json",
+      "sha256": "5526f76082bf54a5d9e7c2e702d5386932caabb382fea26e760d5540f85def92",
+      "size_bytes": 667
+    },
+    "annotations/attempts/gpt-5.6-sol/batch-016.json": {
+      "created_at": "2026-09-07T14:59:26.423139Z",
+      "created_by": "annotate-run",
+      "path": "annotations/attempts/gpt-5.6-sol/batch-016.json",
+      "sha256": "af02b4f2fdbe6c5f0e525d8c68ecbfbb5c943784e0b5195292ec92475ddf64a2",
+      "size_bytes": 667
+    },
+    "annotations/attempts/gpt-5.6-sol/batch-017.json": {
+      "created_at": "2026-09-07T14:59:50.703005Z",
+      "created_by": "annotate-run",
+      "path": "annotations/attempts/gpt-5.6-sol/batch-017.json",
+      "sha256": "e22f48befcdf9755beb21c20f71b8adf69905bf7454764c31e334116b252802e",
+      "size_bytes": 667
+    },
+    "annotations/attempts/gpt-5.6-sol/batch-018.json": {
+      "created_at": "2026-09-07T15:00:18.496219Z",
+      "created_by": "annotate-run",
+      "path": "annotations/attempts/gpt-5.6-sol/batch-018.json",
+      "sha256": "fc03fbbdfd4da8615a32a4ac8d68f8f017a9c80c8c90e7ab1f35a2532f4dc34c",
+      "size_bytes": 667
+    },
+    "annotations/attempts/gpt-5.6-sol/batch-019.json": {
+      "created_at": "2026-09-07T15:00:12.374419Z",
+      "created_by": "annotate-run",
+      "path": "annotations/attempts/gpt-5.6-sol/batch-019.json",
+      "sha256": "621e568d568fa0814c755297a0cc25b41358a0a8521bab4c0349286c779ff471",
+      "size_bytes": 667
+    },
+    "annotations/attempts/gpt-5.6-sol/batch-020.json": {
+      "created_at": "2026-09-07T15:00:12.374513Z",
+      "created_by": "annotate-run",
+      "path": "annotations/attempts/gpt-5.6-sol/batch-020.json",
+      "sha256": "39d7d9cc7976d308f9e0ff63ee5c1ce04c74c1b41fa94a0fc5943283bcf672d6",
+      "size_bytes": 667
+    },
+    "annotations/attempts/gpt-5.6-sol/batch-021.json": {
+      "created_at": "2026-09-07T15:00:36.240905Z",
+      "created_by": "annotate-run",
+      "path": "annotations/attempts/gpt-5.6-sol/batch-021.json",
+      "sha256": "57703d531b5759ef61119bf762b62f02eff03b281e1ce20c85b5176bf26f0bb2",
+      "size_bytes": 667
+    },
+    "annotations/attempts/gpt-5.6-sol/batch-022.json": {
+      "created_at": "2026-09-07T15:00:49.863365Z",
+      "created_by": "annotate-run",
+      "path": "annotations/attempts/gpt-5.6-sol/batch-022.json",
+      "sha256": "3cfe9b4320dbae6b1d4a604b86a59fa312f9110c49fc9b0536dfb4983da55ae6",
+      "size_bytes": 667
+    },
+    "annotations/attempts/gpt-5.6-sol/batch-023.json": {
+      "created_at": "2026-09-07T15:01:09.032891Z",
+      "created_by": "annotate-run",
+      "path": "annotations/attempts/gpt-5.6-sol/batch-023.json",
+      "sha256": "a8953e3c443ed684ebf6302094ade171f234fe3836bf07178c321d125666160f",
+      "size_bytes": 667
+    },
+    "annotations/attempts/gpt-5.6-sol/batch-024.json": {
+      "created_at": "2026-09-07T15:01:04.116766Z",
+      "created_by": "annotate-run",
+      "path": "annotations/attempts/gpt-5.6-sol/batch-024.json",
+      "sha256": "09125b6e42dbc4a40a02202fd7f2bf6a6d9eab5930e54a58a700d556c266a160",
+      "size_bytes": 667
+    },
+    "annotations/attempts/gpt-5.6-sol/batch-025.json": {
+      "created_at": "2026-09-07T15:00:41.463515Z",
+      "created_by": "annotate-run",
+      "path": "annotations/attempts/gpt-5.6-sol/batch-025.json",
+      "sha256": "563083581c3d7ce0c4ef74723dcd5b3ea6fe0df4776e7e6098960f3a717538eb",
+      "size_bytes": 661
+    },
+    "annotations/batches/batch-001.json": {
+      "created_at": "2026-09-07T13:34:05.251855Z",
+      "created_by": "annotate-emit",
+      "path": "annotations/batches/batch-001.json",
+      "sha256": "d6a5771626b9c00abcb72043e1987fba3acfae59d0e8559d06053a5224791e03",
+      "size_bytes": 8078
+    },
+    "annotations/batches/batch-002.json": {
+      "created_at": "2026-09-07T13:34:05.252686Z",
+      "created_by": "annotate-emit",
+      "path": "annotations/batches/batch-002.json",
+      "sha256": "37f022c4af0a4766e696861ff3db0989c6d06a106fd0ffe89020d3c9f385ba96",
+      "size_bytes": 8509
+    },
+    "annotations/batches/batch-003.json": {
+      "created_at": "2026-09-07T13:34:05.253216Z",
+      "created_by": "annotate-emit",
+      "path": "annotations/batches/batch-003.json",
+      "sha256": "3867811676c8307cbfc0e6bc4faa2b5a4da2770bf6fe54d660ee8a1a859fcd8c",
+      "size_bytes": 8766
+    },
+    "annotations/batches/batch-004.json": {
+      "created_at": "2026-09-07T13:34:05.253965Z",
+      "created_by": "annotate-emit",
+      "path": "annotations/batches/batch-004.json",
+      "sha256": "8f2fe47ceed39ae5de7d5b2c431ce4455e42f4619f6a15d06ffcd8eeb8b42856",
+      "size_bytes": 8718
+    },
+    "annotations/batches/batch-005.json": {
+      "created_at": "2026-09-07T13:34:05.254767Z",
+      "created_by": "annotate-emit",
+      "path": "annotations/batches/batch-005.json",
+      "sha256": "3008dffd0b9202ee9d49a1d395ba9b4be7802cde8e49cf1f7c95c31f1fb5a0cb",
+      "size_bytes": 8179
+    },
+    "annotations/batches/batch-006.json": {
+      "created_at": "2026-09-07T13:34:05.256128Z",
+      "created_by": "annotate-emit",
+      "path": "annotations/batches/batch-006.json",
+      "sha256": "dd25b89238880b1f97cdbf2f0f8e8921f91d7847a6d200cfff02896dcc3f3de1",
+      "size_bytes": 8518
+    },
+    "annotations/batches/batch-007.json": {
+      "created_at": "2026-09-07T13:34:05.257336Z",
+      "created_by": "annotate-emit",
+      "path": "annotations/batches/batch-007.json",
+      "sha256": "4d20c87bfe08e393acb25e514d7330024dee42251aaa243cfed79268b8ecb08a",
+      "size_bytes": 8069
+    },
+    "annotations/batches/batch-008.json": {
+      "created_at": "2026-09-07T13:34:05.258104Z",
+      "created_by": "annotate-emit",
+      "path": "annotations/batches/batch-008.json",
+      "sha256": "0e334761881bbfd06237ff9cd8789a0a6f2e3d0434aacba90f34b673c7452aeb",
+      "size_bytes": 8602
+    },
+    "annotations/batches/batch-009.json": {
+      "created_at": "2026-09-07T13:34:05.259537Z",
+      "created_by": "annotate-emit",
+      "path": "annotations/batches/batch-009.json",
+      "sha256": "1c4186375b1f5b2241ee57b13fcbdc083ef878ffd92ed1abbcde99bc7ae284b3",
+      "size_bytes": 8360
+    },
+    "annotations/batches/batch-010.json": {
+      "created_at": "2026-09-07T13:34:05.260420Z",
+      "created_by": "annotate-emit",
+      "path": "annotations/batches/batch-010.json",
+      "sha256": "5700e16bad315c39f96dcea09048b578c2d6fd57def938e1d19470987bbd6fc7",
+      "size_bytes": 8337
+    },
+    "annotations/batches/batch-011.json": {
+      "created_at": "2026-09-07T13:34:05.261604Z",
+      "created_by": "annotate-emit",
+      "path": "annotations/batches/batch-011.json",
+      "sha256": "941333580e19dfc52f5886d6591dd1708338c4f91e6e21e4511c3780fbbe086f",
+      "size_bytes": 8499
+    },
+    "annotations/batches/batch-012.json": {
+      "created_at": "2026-09-07T13:34:05.264600Z",
+      "created_by": "annotate-emit",
+      "path": "annotations/batches/batch-012.json",
+      "sha256": "630215f5b6d67cf3d5b7126900b76ce288124d7be01db9d72b362c5b03c2ffb8",
+      "size_bytes": 8656
+    },
+    "annotations/batches/batch-013.json": {
+      "created_at": "2026-09-07T13:34:05.266040Z",
+      "created_by": "annotate-emit",
+      "path": "annotations/batches/batch-013.json",
+      "sha256": "3643623e184e8d0b0b1417abd500056b6189b80a6a0e7ddf48a1a57b2ab7e814",
+      "size_bytes": 8563
+    },
+    "annotations/batches/batch-014.json": {
+      "created_at": "2026-09-07T13:34:05.266774Z",
+      "created_by": "annotate-emit",
+      "path": "annotations/batches/batch-014.json",
+      "sha256": "f464e37b0c223da6d5867f0fce1768b971b091c91d5032b41916832e3d95a855",
+      "size_bytes": 8367
+    },
+    "annotations/batches/batch-015.json": {
+      "created_at": "2026-09-07T13:34:05.267447Z",
+      "created_by": "annotate-emit",
+      "path": "annotations/batches/batch-015.json",
+      "sha256": "b4d707da8999814229803b64e4354d031d04b7b1d12145855cf818386637610a",
+      "size_bytes": 8839
+    },
+    "annotations/batches/batch-016.json": {
+      "created_at": "2026-09-07T13:34:05.268102Z",
+      "created_by": "annotate-emit",
+      "path": "annotations/batches/batch-016.json",
+      "sha256": "4112c706a02683ac32f051d4d39001864ab4200a78911f6014aea84cd519a76a",
+      "size_bytes": 8367
+    },
+    "annotations/batches/batch-017.json": {
+      "created_at": "2026-09-07T13:34:05.268707Z",
+      "created_by": "annotate-emit",
+      "path": "annotations/batches/batch-017.json",
+      "sha256": "4749bc72f867d7f27597bf8cd0e069143113b3955b6edb2f5aeb9be2371aaaf7",
+      "size_bytes": 8463
+    },
+    "annotations/batches/batch-018.json": {
+      "created_at": "2026-09-07T13:34:05.269294Z",
+      "created_by": "annotate-emit",
+      "path": "annotations/batches/batch-018.json",
+      "sha256": "5b325739e429bb6eaaea7ba1131b86010559dda060f865e6377e878edd299892",
+      "size_bytes": 8543
+    },
+    "annotations/batches/batch-019.json": {
+      "created_at": "2026-09-07T13:34:05.270016Z",
+      "created_by": "annotate-emit",
+      "path": "annotations/batches/batch-019.json",
+      "sha256": "d2371fa3a9768ce77e614d6d6ac85a14295e9b6aed35d110b4b84f0f2876758c",
+      "size_bytes": 8257
+    },
+    "annotations/batches/batch-020.json": {
+      "created_at": "2026-09-07T13:34:05.271240Z",
+      "created_by": "annotate-emit",
+      "path": "annotations/batches/batch-020.json",
+      "sha256": "be78a95aa1e8735c0a07203e04c66ead485536c4d9a00818f8f83e26c6d51643",
+      "size_bytes": 8130
+    },
+    "annotations/batches/batch-021.json": {
+      "created_at": "2026-09-07T13:34:05.272050Z",
+      "created_by": "annotate-emit",
+      "path": "annotations/batches/batch-021.json",
+      "sha256": "9decda75eac9ae6c88f97d1186381b612207aa01e2421caf5b35446bf553fb04",
+      "size_bytes": 8327
+    },
+    "annotations/batches/batch-022.json": {
+      "created_at": "2026-09-07T13:34:05.272595Z",
+      "created_by": "annotate-emit",
+      "path": "annotations/batches/batch-022.json",
+      "sha256": "7d7f0b532534277220962ebbe050e5813598daa9c1f145e3fa3056d8aa5482d9",
+      "size_bytes": 8303
+    },
+    "annotations/batches/batch-023.json": {
+      "created_at": "2026-09-07T13:34:05.273135Z",
+      "created_by": "annotate-emit",
+      "path": "annotations/batches/batch-023.json",
+      "sha256": "54288218aac5d5347307ed2386a25b5df62504fffcb28a1154e6d8c2818a437b",
+      "size_bytes": 8272
+    },
+    "annotations/batches/batch-024.json": {
+      "created_at": "2026-09-07T13:34:05.274065Z",
+      "created_by": "annotate-emit",
+      "path": "annotations/batches/batch-024.json",
+      "sha256": "7648092dd240fb3f8fac82588f7f2de5c6310971e3d7ed513aff0b47823db713",
+      "size_bytes": 8206
+    },
+    "annotations/batches/batch-025.json": {
+      "created_at": "2026-09-07T13:34:05.274679Z",
+      "created_by": "annotate-emit",
+      "path": "annotations/batches/batch-025.json",
+      "sha256": "0bb1f46e597b48274b7bd37f4b51d7c732aa62ec706acaa511cf8b58748d3ff7",
+      "size_bytes": 544
+    },
+    "annotations/batches/index.json": {
+      "created_at": "2026-09-07T13:34:05.275206Z",
+      "created_by": "annotate-emit",
+      "path": "annotations/batches/index.json",
+      "sha256": "1a06dfd659961d760d6585fd4952e81c2a4a55d482ba25a61abc922ab8bb7f3c",
+      "size_bytes": 493
+    },
+    "annotations/envelopes/claude-opus-5/batch-011.json": {
+      "created_at": "2026-09-07T14:51:33.162191Z",
+      "created_by": "annotate-run",
+      "path": "annotations/envelopes/claude-opus-5/batch-011.json",
+      "sha256": "18c4d9a22d9fc67410506bb041a53ac06e185aed7322f5a4c9316f55431b4fa8",
+      "size_bytes": 9257
+    },
+    "annotations/envelopes/claude-opus-5/batch-012.json": {
+      "created_at": "2026-09-07T14:51:16.987205Z",
+      "created_by": "annotate-run",
+      "path": "annotations/envelopes/claude-opus-5/batch-012.json",
+      "sha256": "53f5f087573378757178c3101ce7c6c6acfdaed314dba1bfa1438f4c9f53e974",
+      "size_bytes": 9190
+    },
+    "annotations/envelopes/claude-opus-5/batch-013.json": {
+      "created_at": "2026-09-07T14:51:37.280627Z",
+      "created_by": "annotate-run",
+      "path": "annotations/envelopes/claude-opus-5/batch-013.json",
+      "sha256": "fb71b33847f2346a1ab1d30e8f3bc5f5b57dd7ca17cef5290200380029c54d1e",
+      "size_bytes": 9220
+    },
+    "annotations/envelopes/claude-opus-5/batch-014.json": {
+      "created_at": "2026-09-07T14:51:49.853963Z",
+      "created_by": "annotate-run",
+      "path": "annotations/envelopes/claude-opus-5/batch-014.json",
+      "sha256": "04624444cc97524f177a045babba01bb3806ea0c0e399e8fbd22d4357921ef8f",
+      "size_bytes": 9026
+    },
+    "annotations/envelopes/claude-opus-5/batch-015.json": {
+      "created_at": "2026-09-07T14:52:52.652216Z",
+      "created_by": "annotate-run",
+      "path": "annotations/envelopes/claude-opus-5/batch-015.json",
+      "sha256": "28a460113d21e361908d19c7dcb5fc56925a351951ba161a42b022c4b2aab9fb",
+      "size_bytes": 8977
+    },
+    "annotations/envelopes/claude-opus-5/batch-016.json": {
+      "created_at": "2026-09-07T14:53:26.621493Z",
+      "created_by": "annotate-run",
+      "path": "annotations/envelopes/claude-opus-5/batch-016.json",
+      "sha256": "ea416827834140ed61b17af756b583c895eb335f33cdaba1751050517598d5ad",
+      "size_bytes": 7906
+    },
+    "annotations/envelopes/claude-opus-5/batch-017.json": {
+      "created_at": "2026-09-07T14:54:18.451445Z",
+      "created_by": "annotate-run",
+      "path": "annotations/envelopes/claude-opus-5/batch-017.json",
+      "sha256": "bb69f81e8b126fb20f4f0131cc755a57f1b4006346d125058b780941482c5eec",
+      "size_bytes": 9421
+    },
+    "annotations/envelopes/claude-opus-5/batch-018.json": {
+      "created_at": "2026-09-07T14:53:45.192890Z",
+      "created_by": "annotate-run",
+      "path": "annotations/envelopes/claude-opus-5/batch-018.json",
+      "sha256": "acaf3dfecf681a8d09703f6626a3e675f53cdf0c27cc07c0be4b7ccfa20460a2",
+      "size_bytes": 8174
+    },
+    "annotations/envelopes/claude-opus-5/batch-019.json": {
+      "created_at": "2026-09-07T14:54:25.723779Z",
+      "created_by": "annotate-run",
+      "path": "annotations/envelopes/claude-opus-5/batch-019.json",
+      "sha256": "0dd96860218397641c25f3cad674f0f62f481ed411ef421764b966f0e400089b",
+      "size_bytes": 9165
+    },
+    "annotations/envelopes/claude-opus-5/batch-020.json": {
+      "created_at": "2026-09-07T14:55:16.017677Z",
+      "created_by": "annotate-run",
+      "path": "annotations/envelopes/claude-opus-5/batch-020.json",
+      "sha256": "0290d6719e618d877b88fdac27e2b205078cb03edd824069939e9e809a1a8eb2",
+      "size_bytes": 8292
+    },
+    "annotations/envelopes/claude-opus-5/batch-021.json": {
+      "created_at": "2026-09-07T14:55:22.204880Z",
+      "created_by": "annotate-run",
+      "path": "annotations/envelopes/claude-opus-5/batch-021.json",
+      "sha256": "4b68d975b07a04292499f1b50ff53e50a96911e4feafc5db6c609e8b35f40e10",
+      "size_bytes": 9026
+    },
+    "annotations/envelopes/claude-opus-5/batch-022.json": {
+      "created_at": "2026-09-07T14:56:14.917719Z",
+      "created_by": "annotate-run",
+      "path": "annotations/envelopes/claude-opus-5/batch-022.json",
+      "sha256": "c53657e0b556bc39d89c84f4a9e6a6f34ee2341693f9e7c9a50f13cd44526a89",
+      "size_bytes": 7661
+    },
+    "annotations/envelopes/claude-opus-5/batch-023.json": {
+      "created_at": "2026-09-07T14:56:05.032843Z",
+      "created_by": "annotate-run",
+      "path": "annotations/envelopes/claude-opus-5/batch-023.json",
+      "sha256": "f9fdc2fee227d9951fe8323f96de28eae39be0a03da89dfacbc33d5f0ac87853",
+      "size_bytes": 9758
+    },
+    "annotations/envelopes/claude-opus-5/batch-024.json": {
+      "created_at": "2026-09-07T14:57:07.046757Z",
+      "created_by": "annotate-run",
+      "path": "annotations/envelopes/claude-opus-5/batch-024.json",
+      "sha256": "c879502a2be570eafe725dde1a0af893b06aeadfb3c3e8547ec15fc5979e6ce9",
+      "size_bytes": 9011
+    },
+    "annotations/envelopes/claude-opus-5/batch-025.json": {
+      "created_at": "2026-09-07T14:55:31.179842Z",
+      "created_by": "annotate-run",
+      "path": "annotations/envelopes/claude-opus-5/batch-025.json",
+      "sha256": "e04263c317e9bb1e883f17268bb268bc8b33ff6be7be48a06911607344e815a8",
+      "size_bytes": 924
+    },
+    "annotations/envelopes/gpt-5.6-sol/batch-001.json": {
+      "created_at": "2026-09-07T14:56:14.918210Z",
+      "created_by": "annotate-run",
+      "path": "annotations/envelopes/gpt-5.6-sol/batch-001.json",
+      "sha256": "4244cf74138143c6a44631c902be8aa1fed4453f76c2e9ea7cc421682f904aae",
+      "size_bytes": 7829
+    },
+    "annotations/envelopes/gpt-5.6-sol/batch-002.json": {
+      "created_at": "2026-09-07T14:56:46.828706Z",
+      "created_by": "annotate-run",
+      "path": "annotations/envelopes/gpt-5.6-sol/batch-002.json",
+      "sha256": "82fce2a796e4104f4664190d25ceb22ec4276cf8743e794f3a88b1742bbfdca3",
+      "size_bytes": 8522
+    },
+    "annotations/envelopes/gpt-5.6-sol/batch-003.json": {
+      "created_at": "2026-09-07T14:57:01.902001Z",
+      "created_by": "annotate-run",
+      "path": "annotations/envelopes/gpt-5.6-sol/batch-003.json",
+      "sha256": "b50b08382924b400b566c9f634a94db70fbc46b759c4fe5505b73c79cbaf3d8a",
+      "size_bytes": 8428
+    },
+    "annotations/envelopes/gpt-5.6-sol/batch-004.json": {
+      "created_at": "2026-09-07T14:56:41.379550Z",
+      "created_by": "annotate-run",
+      "path": "annotations/envelopes/gpt-5.6-sol/batch-004.json",
+      "sha256": "4815b4f6208393390b03f3992bff7222e2d0fae67686e9befb7b603ff7dcede6",
+      "size_bytes": 8200
+    },
+    "annotations/envelopes/gpt-5.6-sol/batch-005.json": {
+      "created_at": "2026-09-07T14:57:26.965702Z",
+      "created_by": "annotate-run",
+      "path": "annotations/envelopes/gpt-5.6-sol/batch-005.json",
+      "sha256": "3f033dc760e69bb3433a1c58914cf8f89a481199656b91ae841bf6946fe55f48",
+      "size_bytes": 9035
+    },
+    "annotations/envelopes/gpt-5.6-sol/batch-006.json": {
+      "created_at": "2026-09-07T14:57:45.317542Z",
+      "created_by": "annotate-run",
+      "path": "annotations/envelopes/gpt-5.6-sol/batch-006.json",
+      "sha256": "d978f9e92f65adfd3e84e098c234b6b6d2c5fbffbdb48b6aa7f214d0fa1aa62b",
+      "size_bytes": 8408
+    },
+    "annotations/envelopes/gpt-5.6-sol/batch-007.json": {
+      "created_at": "2026-09-07T14:57:49.586437Z",
+      "created_by": "annotate-run",
+      "path": "annotations/envelopes/gpt-5.6-sol/batch-007.json",
+      "sha256": "76731105bacf2ff7d4f9c384084a69bc441daeefdf16b46ae0e889c8eabe74b5",
+      "size_bytes": 9422
+    },
+    "annotations/envelopes/gpt-5.6-sol/batch-008.json": {
+      "created_at": "2026-09-07T14:57:54.504710Z",
+      "created_by": "annotate-run",
+      "path": "annotations/envelopes/gpt-5.6-sol/batch-008.json",
+      "sha256": "0fb1a30d1accee0b7dbc1e8d0b3511c175a820015ac624038614f887fe028eda",
+      "size_bytes": 8989
+    },
+    "annotations/envelopes/gpt-5.6-sol/batch-009.json": {
+      "created_at": "2026-09-07T14:58:12.165002Z",
+      "created_by": "annotate-run",
+      "path": "annotations/envelopes/gpt-5.6-sol/batch-009.json",
+      "sha256": "be31d79d9b8459eb7ba7d5fed5ef5df2425d3e284eefa2e6830784d05d82a764",
+      "size_bytes": 8542
+    },
+    "annotations/envelopes/gpt-5.6-sol/batch-010.json": {
+      "created_at": "2026-09-07T14:58:36.446773Z",
+      "created_by": "annotate-run",
+      "path": "annotations/envelopes/gpt-5.6-sol/batch-010.json",
+      "sha256": "d89f4f89c090af2dffdff038310473d07b29ae97c71c84cc6eab59c2cfc987bb",
+      "size_bytes": 8451
+    },
+    "annotations/envelopes/gpt-5.6-sol/batch-011.json": {
+      "created_at": "2026-09-07T14:58:40.831672Z",
+      "created_by": "annotate-run",
+      "path": "annotations/envelopes/gpt-5.6-sol/batch-011.json",
+      "sha256": "640e28789e2fadbfef695ec173cd59932c20e22bba85c7fc93e6a5bd03e7c0ba",
+      "size_bytes": 8709
+    },
+    "annotations/envelopes/gpt-5.6-sol/batch-012.json": {
+      "created_at": "2026-09-07T14:58:43.969671Z",
+      "created_by": "annotate-run",
+      "path": "annotations/envelopes/gpt-5.6-sol/batch-012.json",
+      "sha256": "454efe5325e270a893e8500e8bdb93ae254077333cbe2a7c070d7414c9a31d71",
+      "size_bytes": 8699
+    },
+    "annotations/envelopes/gpt-5.6-sol/batch-013.json": {
+      "created_at": "2026-09-07T14:58:53.409977Z",
+      "created_by": "annotate-run",
+      "path": "annotations/envelopes/gpt-5.6-sol/batch-013.json",
+      "sha256": "689fbd22c5cd762d4a65a73e83c287e9ae04b02d44a025387cd5977af6baaa93",
+      "size_bytes": 8746
+    },
+    "annotations/envelopes/gpt-5.6-sol/batch-014.json": {
+      "created_at": "2026-09-07T14:59:22.204812Z",
+      "created_by": "annotate-run",
+      "path": "annotations/envelopes/gpt-5.6-sol/batch-014.json",
+      "sha256": "da94575485c9ed94cb5043928d5aaf61866c6170ce3087976c2a00a087e7cfe3",
+      "size_bytes": 8581
+    },
+    "annotations/envelopes/gpt-5.6-sol/batch-015.json": {
+      "created_at": "2026-09-07T14:59:35.669859Z",
+      "created_by": "annotate-run",
+      "path": "annotations/envelopes/gpt-5.6-sol/batch-015.json",
+      "sha256": "02d0b0e9bb287b7def74e23eb5afc72a288d973d3b2adf6aa3c29481b8cbefed",
+      "size_bytes": 8413
+    },
+    "annotations/envelopes/gpt-5.6-sol/batch-016.json": {
+      "created_at": "2026-09-07T14:59:26.423724Z",
+      "created_by": "annotate-run",
+      "path": "annotations/envelopes/gpt-5.6-sol/batch-016.json",
+      "sha256": "6474319e3b06aa17486ac76b2cb5112cc0b34ac49cf05fdb5ba3ec21fd8b7fd1",
+      "size_bytes": 7478
+    },
+    "annotations/envelopes/gpt-5.6-sol/batch-017.json": {
+      "created_at": "2026-09-07T14:59:50.704001Z",
+      "created_by": "annotate-run",
+      "path": "annotations/envelopes/gpt-5.6-sol/batch-017.json",
+      "sha256": "1d8fd5c554d88980e3956644fc921189279dbaee0b6ede6dd32624997fb9cade",
+      "size_bytes": 8853
+    },
+    "annotations/envelopes/gpt-5.6-sol/batch-018.json": {
+      "created_at": "2026-09-07T15:00:18.497202Z",
+      "created_by": "annotate-run",
+      "path": "annotations/envelopes/gpt-5.6-sol/batch-018.json",
+      "sha256": "6c2bcaee4d6c813726f87ec68c3dbfe3ba65960ff33e9886428efa0132a46ec7",
+      "size_bytes": 7740
+    },
+    "annotations/envelopes/gpt-5.6-sol/batch-019.json": {
+      "created_at": "2026-09-07T15:00:12.375667Z",
+      "created_by": "annotate-run",
+      "path": "annotations/envelopes/gpt-5.6-sol/batch-019.json",
+      "sha256": "8cc5ea45ac205d9dbd888d79bae1905e8c95321f30485c4a096048117cdfc8bc",
+      "size_bytes": 8992
+    },
+    "annotations/envelopes/gpt-5.6-sol/batch-020.json": {
+      "created_at": "2026-09-07T15:00:12.375858Z",
+      "created_by": "annotate-run",
+      "path": "annotations/envelopes/gpt-5.6-sol/batch-020.json",
+      "sha256": "0bacbf691949e98986ce31e37760331df863f1988724ec8e73494c99d2012c82",
+      "size_bytes": 7888
+    },
+    "annotations/envelopes/gpt-5.6-sol/batch-021.json": {
+      "created_at": "2026-09-07T15:00:36.241827Z",
+      "created_by": "annotate-run",
+      "path": "annotations/envelopes/gpt-5.6-sol/batch-021.json",
+      "sha256": "a8ef1cd4043521ec598b8ca495f2b39517557db245b0b1fc54ace1105d6743f1",
+      "size_bytes": 8460
+    },
+    "annotations/envelopes/gpt-5.6-sol/batch-022.json": {
+      "created_at": "2026-09-07T15:00:49.864365Z",
+      "created_by": "annotate-run",
+      "path": "annotations/envelopes/gpt-5.6-sol/batch-022.json",
+      "sha256": "3eb26d1bebc2f4fb84df9b35175a4d7faf9c801fb47f97672b340f3679398002",
+      "size_bytes": 8411
+    },
+    "annotations/envelopes/gpt-5.6-sol/batch-023.json": {
+      "created_at": "2026-09-07T15:01:09.033455Z",
+      "created_by": "annotate-run",
+      "path": "annotations/envelopes/gpt-5.6-sol/batch-023.json",
+      "sha256": "8ecc0dac1f51941095a833ba428af939e83b244b08fbbf0a93865c16115e1b4c",
+      "size_bytes": 9203
+    },
+    "annotations/envelopes/gpt-5.6-sol/batch-024.json": {
+      "created_at": "2026-09-07T15:01:04.117459Z",
+      "created_by": "annotate-run",
+      "path": "annotations/envelopes/gpt-5.6-sol/batch-024.json",
+      "sha256": "847aa52c1fe5dd704a10be50fc69085dae77dee73fdce18a11e7e29d458e1780",
+      "size_bytes": 8502
+    },
+    "annotations/envelopes/gpt-5.6-sol/batch-025.json": {
+      "created_at": "2026-09-07T15:00:41.464535Z",
+      "created_by": "annotate-run",
+      "path": "annotations/envelopes/gpt-5.6-sol/batch-025.json",
+      "sha256": "77ee25b22062a0c0345a354a928ce419e29b3babcdf6fe238416eacbc1514114",
+      "size_bytes": 905
+    },
+    "annotations/raw/claude-opus-5/batch-001.jsonl": {
+      "created_at": "2026-09-07T14:49:41.296343Z",
+      "created_by": "annotate-run",
+      "path": "annotations/raw/claude-opus-5/batch-001.jsonl",
+      "sha256": "34d41c11b050f41f67a2c98b45b74dff42b51d08253a597e4345b45c3be96197",
+      "size_bytes": 6877
+    },
+    "annotations/raw/claude-opus-5/batch-002.jsonl": {
+      "created_at": "2026-09-07T14:49:41.296851Z",
+      "created_by": "annotate-run",
+      "path": "annotations/raw/claude-opus-5/batch-002.jsonl",
+      "sha256": "fcec3ae9d44765dad62b555d783e317945f90dfd748eed5703c2b27e9232ff0c",
+      "size_bytes": 7496
+    },
+    "annotations/raw/claude-opus-5/batch-003.jsonl": {
+      "created_at": "2026-09-07T14:49:41.297176Z",
+      "created_by": "annotate-run",
+      "path": "annotations/raw/claude-opus-5/batch-003.jsonl",
+      "sha256": "20f3bface3e9c0d8397ab8f3b71b3fd123afa2d0a05c161624558508dd32ba4b",
+      "size_bytes": 7441
+    },
+    "annotations/raw/claude-opus-5/batch-004.jsonl": {
+      "created_at": "2026-09-07T14:49:41.297125Z",
+      "created_by": "annotate-run",
+      "path": "annotations/raw/claude-opus-5/batch-004.jsonl",
+      "sha256": "452e8d3d418f2556c0ce179e37d0976b3c8c7550af78d1969f6f331add190264",
+      "size_bytes": 7110
+    },
+    "annotations/raw/claude-opus-5/batch-005.jsonl": {
+      "created_at": "2026-09-07T14:49:41.298721Z",
+      "created_by": "annotate-run",
+      "path": "annotations/raw/claude-opus-5/batch-005.jsonl",
+      "sha256": "14cc4e04d5367d69b356ec0180da47a028dd6d1aaddc222439577935b0e3bd20",
+      "size_bytes": 8053
+    },
+    "annotations/raw/claude-opus-5/batch-006.jsonl": {
+      "created_at": "2026-09-07T14:49:41.299219Z",
+      "created_by": "annotate-run",
+      "path": "annotations/raw/claude-opus-5/batch-006.jsonl",
+      "sha256": "13ab13b7ed5530ddce1abd2fef1a2adb04eedd5a619dc50c0d3a0544d8fcdf32",
+      "size_bytes": 7332
+    },
+    "annotations/raw/claude-opus-5/batch-007.jsonl": {
+      "created_at": "2026-09-07T14:49:41.299632Z",
+      "created_by": "annotate-run",
+      "path": "annotations/raw/claude-opus-5/batch-007.jsonl",
+      "sha256": "e1024b47fcc2a74b3223bba7d98742e7dc3f59328c685072994c97b09771066c",
+      "size_bytes": 8462
+    },
+    "annotations/raw/claude-opus-5/batch-008.jsonl": {
+      "created_at": "2026-09-07T14:49:41.299604Z",
+      "created_by": "annotate-run",
+      "path": "annotations/raw/claude-opus-5/batch-008.jsonl",
+      "sha256": "784cdbff826d9c480e168ae0f7200173488fee6721e1f59252ab985c744b4005",
+      "size_bytes": 7973
+    },
+    "annotations/raw/claude-opus-5/batch-009.jsonl": {
+      "created_at": "2026-09-07T14:49:41.300849Z",
+      "created_by": "annotate-run",
+      "path": "annotations/raw/claude-opus-5/batch-009.jsonl",
+      "sha256": "86e9f09923bf3a547bcecd65a14fad2d13aff8197149931497d5098a4ab16f8a",
+      "size_bytes": 7461
+    },
+    "annotations/raw/claude-opus-5/batch-010.jsonl": {
+      "created_at": "2026-09-07T14:49:41.301156Z",
+      "created_by": "annotate-run",
+      "path": "annotations/raw/claude-opus-5/batch-010.jsonl",
+      "sha256": "ecbc64c795f788660c31965c54bc10dcdb745b294622815d5f617603596650cf",
+      "size_bytes": 7461
+    },
+    "annotations/raw/claude-opus-5/batch-011.jsonl": {
+      "created_at": "2026-09-07T14:51:33.161056Z",
+      "created_by": "annotate-run",
+      "path": "annotations/raw/claude-opus-5/batch-011.jsonl",
+      "sha256": "b93be80ae32b97ea2c2c761da0ec6aed86e9c816e0c84d7e053b2cecd82b07ef",
+      "size_bytes": 7717
+    },
+    "annotations/raw/claude-opus-5/batch-012.jsonl": {
+      "created_at": "2026-09-07T14:51:16.985962Z",
+      "created_by": "annotate-run",
+      "path": "annotations/raw/claude-opus-5/batch-012.jsonl",
+      "sha256": "55f06e96bf3d654f1a057b5f88a01efddb18c186b824ea335af3af192ba9c7e7",
+      "size_bytes": 7673
+    },
+    "annotations/raw/claude-opus-5/batch-013.jsonl": {
+      "created_at": "2026-09-07T14:51:37.279372Z",
+      "created_by": "annotate-run",
+      "path": "annotations/raw/claude-opus-5/batch-013.jsonl",
+      "sha256": "8ec6b843040283ec1a8ca489570e55472daf71631172393abc7a4d41869cd261",
+      "size_bytes": 7686
+    },
+    "annotations/raw/claude-opus-5/batch-014.jsonl": {
+      "created_at": "2026-09-07T14:51:49.852461Z",
+      "created_by": "annotate-run",
+      "path": "annotations/raw/claude-opus-5/batch-014.jsonl",
+      "sha256": "29110fefb2a0dee6f7dc23c020e058e6806ca4d58a88c60b0b5ac94c69940c78",
+      "size_bytes": 7517
+    },
+    "annotations/raw/claude-opus-5/batch-015.jsonl": {
+      "created_at": "2026-09-07T14:52:52.650911Z",
+      "created_by": "annotate-run",
+      "path": "annotations/raw/claude-opus-5/batch-015.jsonl",
+      "sha256": "2fb9db8bc416a3ff3458627a3df14ec8abab66ddb3fa282e6052d1743f5e53de",
+      "size_bytes": 7488
+    },
+    "annotations/raw/claude-opus-5/batch-016.jsonl": {
+      "created_at": "2026-09-07T14:53:26.620337Z",
+      "created_by": "annotate-run",
+      "path": "annotations/raw/claude-opus-5/batch-016.jsonl",
+      "sha256": "f86c711166c083fbd082d111b7f207b930df25202373946d9d982bf5d36a7dd6",
+      "size_bytes": 6475
+    },
+    "annotations/raw/claude-opus-5/batch-017.jsonl": {
+      "created_at": "2026-09-07T14:54:18.450215Z",
+      "created_by": "annotate-run",
+      "path": "annotations/raw/claude-opus-5/batch-017.jsonl",
+      "sha256": "d03740b1dece283d98278c8e143879f6f5b3c1ba75119359dd03b840fd25aae1",
+      "size_bytes": 7884
+    },
+    "annotations/raw/claude-opus-5/batch-018.jsonl": {
+      "created_at": "2026-09-07T14:53:45.191662Z",
+      "created_by": "annotate-run",
+      "path": "annotations/raw/claude-opus-5/batch-018.jsonl",
+      "sha256": "e7cfe62030167d2f55fea1d91da639d1bdbad59be7a5ebacda2c7ae4aa927f19",
+      "size_bytes": 6721
+    },
+    "annotations/raw/claude-opus-5/batch-019.jsonl": {
+      "created_at": "2026-09-07T14:54:25.721536Z",
+      "created_by": "annotate-run",
+      "path": "annotations/raw/claude-opus-5/batch-019.jsonl",
+      "sha256": "07977bad0a88f3b50f1d8e3016b4b4b7c9ff7d1608222dc030cb642db3923274",
+      "size_bytes": 7592
+    },
+    "annotations/raw/claude-opus-5/batch-020.jsonl": {
+      "created_at": "2026-09-07T14:55:16.015079Z",
+      "created_by": "annotate-run",
+      "path": "annotations/raw/claude-opus-5/batch-020.jsonl",
+      "sha256": "ed1fdcff34a38bb8fe00ef054a0342bf5c5c90629250181ade2351159f76e9ee",
+      "size_bytes": 6839
+    },
+    "annotations/raw/claude-opus-5/batch-021.jsonl": {
+      "created_at": "2026-09-07T14:55:22.202830Z",
+      "created_by": "annotate-run",
+      "path": "annotations/raw/claude-opus-5/batch-021.jsonl",
+      "sha256": "3087787650d9f2ed5268abfd38a4f82d1bac4723fb1757b74ffae9516ff62ae7",
+      "size_bytes": 7524
+    },
+    "annotations/raw/claude-opus-5/batch-022.jsonl": {
+      "created_at": "2026-09-07T14:56:14.915952Z",
+      "created_by": "annotate-run",
+      "path": "annotations/raw/claude-opus-5/batch-022.jsonl",
+      "sha256": "d512ce5fb79bc7df4580ace6f8d5b9b1b16518f625d4fa2577c5228f538ecd8b",
+      "size_bytes": 6224
+    },
+    "annotations/raw/claude-opus-5/batch-023.jsonl": {
+      "created_at": "2026-09-07T14:56:05.030578Z",
+      "created_by": "annotate-run",
+      "path": "annotations/raw/claude-opus-5/batch-023.jsonl",
+      "sha256": "f9bd2274ff78d5f8d74859580174677da3aa9b53fd18e3d6c25d5e3202ff408d",
+      "size_bytes": 8200
+    },
+    "annotations/raw/claude-opus-5/batch-024.jsonl": {
+      "created_at": "2026-09-07T14:57:07.044495Z",
+      "created_by": "annotate-run",
+      "path": "annotations/raw/claude-opus-5/batch-024.jsonl",
+      "sha256": "57588c74ec24873af1eb17553f344b2ba22f25a5244d3f1e7061521e291bc95a",
+      "size_bytes": 7492
+    },
+    "annotations/raw/claude-opus-5/batch-025.jsonl": {
+      "created_at": "2026-09-07T14:55:31.178162Z",
+      "created_by": "annotate-run",
+      "path": "annotations/raw/claude-opus-5/batch-025.jsonl",
+      "sha256": "7af1d6800e0ee764255c2edc9ec29da9f896e1746f3d9af4ebdc3a8da8bf68cf",
+      "size_bytes": 160
+    },
+    "annotations/raw/gpt-5.6-sol/batch-001.jsonl": {
+      "created_at": "2026-09-07T14:56:14.916102Z",
+      "created_by": "annotate-run",
+      "path": "annotations/raw/gpt-5.6-sol/batch-001.jsonl",
+      "sha256": "04681b29069873288bb8e7d940770b059b139a2b751d74a7d8991c0d0eb87006",
+      "size_bytes": 6407
+    },
+    "annotations/raw/gpt-5.6-sol/batch-002.jsonl": {
+      "created_at": "2026-09-07T14:56:46.820366Z",
+      "created_by": "annotate-run",
+      "path": "annotations/raw/gpt-5.6-sol/batch-002.jsonl",
+      "sha256": "39cab32e704f4b45c7dededc0014a8614482fbf13694fabdc66f65e96267417d",
+      "size_bytes": 7014
+    },
+    "annotations/raw/gpt-5.6-sol/batch-003.jsonl": {
+      "created_at": "2026-09-07T14:57:01.899822Z",
+      "created_by": "annotate-run",
+      "path": "annotations/raw/gpt-5.6-sol/batch-003.jsonl",
+      "sha256": "d10b6cc89f41929f81c6d9ca4ff6fb93e9ea73a8728be01a1bf8a09e36a86994",
+      "size_bytes": 6932
+    },
+    "annotations/raw/gpt-5.6-sol/batch-004.jsonl": {
+      "created_at": "2026-09-07T14:56:41.378331Z",
+      "created_by": "annotate-run",
+      "path": "annotations/raw/gpt-5.6-sol/batch-004.jsonl",
+      "sha256": "e7ef441f432c399d63aecc0cba1e49909309f92c42fa22c02e34221651c5e383",
+      "size_bytes": 6729
+    },
+    "annotations/raw/gpt-5.6-sol/batch-005.jsonl": {
+      "created_at": "2026-09-07T14:57:26.963505Z",
+      "created_by": "annotate-run",
+      "path": "annotations/raw/gpt-5.6-sol/batch-005.jsonl",
+      "sha256": "99bb44c0a9ec99a33fd1e4584d3adde0c4e6b989ba4bc4e1904c8041f68e286f",
+      "size_bytes": 7485
+    },
+    "annotations/raw/gpt-5.6-sol/batch-006.jsonl": {
+      "created_at": "2026-09-07T14:57:45.315948Z",
+      "created_by": "annotate-run",
+      "path": "annotations/raw/gpt-5.6-sol/batch-006.jsonl",
+      "sha256": "50a09a16d3877f648983aefa3492d4175d5c2b301c5eefd904f935b663ca4cc8",
+      "size_bytes": 6932
+    },
+    "annotations/raw/gpt-5.6-sol/batch-007.jsonl": {
+      "created_at": "2026-09-07T14:57:49.585210Z",
+      "created_by": "annotate-run",
+      "path": "annotations/raw/gpt-5.6-sol/batch-007.jsonl",
+      "sha256": "7c18a8531da9c9acc0f5bada3f48f4111b198e988a6cdaac44b2e2d4075192ca",
+      "size_bytes": 7846
+    },
+    "annotations/raw/gpt-5.6-sol/batch-008.jsonl": {
+      "created_at": "2026-09-07T14:57:54.502705Z",
+      "created_by": "annotate-run",
+      "path": "annotations/raw/gpt-5.6-sol/batch-008.jsonl",
+      "sha256": "42032c37411268261d049605823dff2806efad422be82484cb26dbee743aefa1",
+      "size_bytes": 7449
+    },
+    "annotations/raw/gpt-5.6-sol/batch-009.jsonl": {
+      "created_at": "2026-09-07T14:58:12.163363Z",
+      "created_by": "annotate-run",
+      "path": "annotations/raw/gpt-5.6-sol/batch-009.jsonl",
+      "sha256": "718aabc1eb2b4f31b40b8ef662f72389a2a63d5357ad0a83a842b0754245120c",
+      "size_bytes": 7062
+    },
+    "annotations/raw/gpt-5.6-sol/batch-010.jsonl": {
+      "created_at": "2026-09-07T14:58:36.444967Z",
+      "created_by": "annotate-run",
+      "path": "annotations/raw/gpt-5.6-sol/batch-010.jsonl",
+      "sha256": "b95f8c9a611574080336c862f6579831e8546400a4f3e11cdc620a0e690a1aa7",
+      "size_bytes": 6953
+    },
+    "annotations/raw/gpt-5.6-sol/batch-011.jsonl": {
+      "created_at": "2026-09-07T14:58:40.829822Z",
+      "created_by": "annotate-run",
+      "path": "annotations/raw/gpt-5.6-sol/batch-011.jsonl",
+      "sha256": "b993ee0a69bfc573ae1955ecf61dc6c42bcde0634a62d8e4d1a40d27bdce4398",
+      "size_bytes": 7181
+    },
+    "annotations/raw/gpt-5.6-sol/batch-012.jsonl": {
+      "created_at": "2026-09-07T14:58:43.966987Z",
+      "created_by": "annotate-run",
+      "path": "annotations/raw/gpt-5.6-sol/batch-012.jsonl",
+      "sha256": "12e2e862a04f5aba547f9779578ddf2d3f0185b51c37976780d59b7357e5a025",
+      "size_bytes": 7191
+    },
+    "annotations/raw/gpt-5.6-sol/batch-013.jsonl": {
+      "created_at": "2026-09-07T14:58:53.408143Z",
+      "created_by": "annotate-run",
+      "path": "annotations/raw/gpt-5.6-sol/batch-013.jsonl",
+      "sha256": "a4ecb898147c85e05c30f3c94fb0d28646b71e5d55a7b3fea27b3ff9ce413106",
+      "size_bytes": 7218
+    },
+    "annotations/raw/gpt-5.6-sol/batch-014.jsonl": {
+      "created_at": "2026-09-07T14:59:22.202865Z",
+      "created_by": "annotate-run",
+      "path": "annotations/raw/gpt-5.6-sol/batch-014.jsonl",
+      "sha256": "6c91b3df6d055c1eac0fea4e46306346574dc3d00afe8a4bc9534394544d7328",
+      "size_bytes": 7077
+    },
+    "annotations/raw/gpt-5.6-sol/batch-015.jsonl": {
+      "created_at": "2026-09-07T14:59:35.667220Z",
+      "created_by": "annotate-run",
+      "path": "annotations/raw/gpt-5.6-sol/batch-015.jsonl",
+      "sha256": "ac0959dfb15ad9115b28054596fe906cf6879a99f57570df8c77db47e88fcd07",
+      "size_bytes": 6941
+    },
+    "annotations/raw/gpt-5.6-sol/batch-016.jsonl": {
+      "created_at": "2026-09-07T14:59:26.422382Z",
+      "created_by": "annotate-run",
+      "path": "annotations/raw/gpt-5.6-sol/batch-016.jsonl",
+      "sha256": "19946a682904b0463074b550045eb4c9b02076f7dc80610e8957d4e2d665e741",
+      "size_bytes": 6058
+    },
+    "annotations/raw/gpt-5.6-sol/batch-017.jsonl": {
+      "created_at": "2026-09-07T14:59:50.701682Z",
+      "created_by": "annotate-run",
+      "path": "annotations/raw/gpt-5.6-sol/batch-017.jsonl",
+      "sha256": "527f24db0446c6868d01792d7cf5eb76d6c30e1e88e5c2d49524dd440e3bd38a",
+      "size_bytes": 7335
+    },
+    "annotations/raw/gpt-5.6-sol/batch-018.jsonl": {
+      "created_at": "2026-09-07T15:00:18.494761Z",
+      "created_by": "annotate-run",
+      "path": "annotations/raw/gpt-5.6-sol/batch-018.jsonl",
+      "sha256": "c1d3f626b0ede7f5bfaee3eaeb5312ff2e397db54300ad16ac1f8020361e5ce7",
+      "size_bytes": 6296
+    },
+    "annotations/raw/gpt-5.6-sol/batch-019.jsonl": {
+      "created_at": "2026-09-07T15:00:12.373208Z",
+      "created_by": "annotate-run",
+      "path": "annotations/raw/gpt-5.6-sol/batch-019.jsonl",
+      "sha256": "3d386942abfc82b8114146de430c41dd19c4d1e0b60be3102d697a9348007c64",
+      "size_bytes": 7448
+    },
+    "annotations/raw/gpt-5.6-sol/batch-020.jsonl": {
+      "created_at": "2026-09-07T15:00:12.373383Z",
+      "created_by": "annotate-run",
+      "path": "annotations/raw/gpt-5.6-sol/batch-020.jsonl",
+      "sha256": "db3e77c33fc468472b76dc0e098996f163161e4b1d53aad4bcb29a255c3933cb",
+      "size_bytes": 6444
+    },
+    "annotations/raw/gpt-5.6-sol/batch-021.jsonl": {
+      "created_at": "2026-09-07T15:00:36.239597Z",
+      "created_by": "annotate-run",
+      "path": "annotations/raw/gpt-5.6-sol/batch-021.jsonl",
+      "sha256": "42d43d2a0b750b83eb57e5b84ab424910fd46d897ec6e6f4d4999b589b5c7841",
+      "size_bytes": 6972
+    },
+    "annotations/raw/gpt-5.6-sol/batch-022.jsonl": {
+      "created_at": "2026-09-07T15:00:49.862360Z",
+      "created_by": "annotate-run",
+      "path": "annotations/raw/gpt-5.6-sol/batch-022.jsonl",
+      "sha256": "27738a5ebfb4c6aa4deb6a5d15c697cda1a2a2c77265ae1196f6f2d6b3180159",
+      "size_bytes": 6923
+    },
+    "annotations/raw/gpt-5.6-sol/batch-023.jsonl": {
+      "created_at": "2026-09-07T15:01:09.032274Z",
+      "created_by": "annotate-run",
+      "path": "annotations/raw/gpt-5.6-sol/batch-023.jsonl",
+      "sha256": "3c7f98a163a34110eac593c5a97bcf94a50bf8b541e6d0fa47e5399e984b1999",
+      "size_bytes": 7659
+    },
+    "annotations/raw/gpt-5.6-sol/batch-024.jsonl": {
+      "created_at": "2026-09-07T15:01:04.115561Z",
+      "created_by": "annotate-run",
+      "path": "annotations/raw/gpt-5.6-sol/batch-024.jsonl",
+      "sha256": "30e3047ee9846bb1ffebf2c57d5ae93294187202e1ac577869b6bb244280ceba",
+      "size_bytes": 7000
+    },
+    "annotations/raw/gpt-5.6-sol/batch-025.jsonl": {
+      "created_at": "2026-09-07T15:00:41.462100Z",
+      "created_by": "annotate-run",
+      "path": "annotations/raw/gpt-5.6-sol/batch-025.jsonl",
+      "sha256": "109cfbbdbc451d5fe02e3611ea11ca37e4b77ea4f620efc9f1e15159ac29b7c1",
+      "size_bytes": 150
+    },
+    "annotations/rejected/claude-opus-5/batch-004/250ecd5d3b11094b6cf631b0.json": {
+      "created_at": "2026-09-07T14:49:41.289071Z",
+      "created_by": "annotate-run",
+      "path": "annotations/rejected/claude-opus-5/batch-004/250ecd5d3b11094b6cf631b0.json",
+      "sha256": "7cf5aa902e453aee8fde27677be038f0fbd17aaaf69820a105fe1512c725bb45",
+      "size_bytes": 745
+    },
+    "annotations/rejected/claude-opus-5/batch-004/250ecd5d3b11094b6cf631b0.jsonl": {
+      "created_at": "2026-09-07T14:49:41.289491Z",
+      "created_by": "annotate-run",
+      "path": "annotations/rejected/claude-opus-5/batch-004/250ecd5d3b11094b6cf631b0.jsonl",
+      "sha256": "42fc449422f940b116af107172c3eaff37fedb72df4ece158d7baab9d621be2c",
+      "size_bytes": 8740
+    },
+    "annotations/superseded/v1/annotation_preflight_manifest.json": {
+      "created_at": "2026-09-07T14:49:41.291617Z",
+      "created_by": "annotate-run",
+      "path": "annotations/superseded/v1/annotation_preflight_manifest.json",
+      "sha256": "7051cb50214a39416be1b8c727f803b186e86c725dce1eb6388c8a8872bb9290",
+      "size_bytes": 3276
+    },
+    "annotations/superseded/v1/annotations/attempts/claude-opus-5/batch-001.json": {
+      "created_at": "2026-09-07T14:49:41.292032Z",
+      "created_by": "annotate-run",
+      "path": "annotations/superseded/v1/annotations/attempts/claude-opus-5/batch-001.json",
+      "sha256": "5688c7ef6336771cb94b5c9a2a600440265927dc9bd1faf8cbf0f7bb2f3cbb57",
+      "size_bytes": 674
+    },
+    "annotations/superseded/v1/annotations/attempts/claude-opus-5/batch-002.json": {
+      "created_at": "2026-09-07T14:49:41.292599Z",
+      "created_by": "annotate-run",
+      "path": "annotations/superseded/v1/annotations/attempts/claude-opus-5/batch-002.json",
+      "sha256": "929296369e701aca7cca8f2259a3e4d653cfc1b95f9f461d903c33673dadef9d",
+      "size_bytes": 674
+    },
+    "annotations/superseded/v1/annotations/attempts/claude-opus-5/batch-003.json": {
+      "created_at": "2026-09-07T14:49:41.292974Z",
+      "created_by": "annotate-run",
+      "path": "annotations/superseded/v1/annotations/attempts/claude-opus-5/batch-003.json",
+      "sha256": "f2b2d18973c2aa42c444cb7c64714bb19564fef79f90e15a576979fb1453d45e",
+      "size_bytes": 674
+    },
+    "annotations/superseded/v1/annotations/raw/claude-opus-5/batch-001.jsonl": {
+      "created_at": "2026-09-07T14:49:41.293420Z",
+      "created_by": "annotate-run",
+      "path": "annotations/superseded/v1/annotations/raw/claude-opus-5/batch-001.jsonl",
+      "sha256": "866eccfe5b4b00f754537f4390a83d2a7723c5f213f2609a8877038ea3199f8e",
+      "size_bytes": 8399
+    },
+    "annotations/superseded/v1/annotations/raw/claude-opus-5/batch-002.jsonl": {
+      "created_at": "2026-09-07T14:49:41.293854Z",
+      "created_by": "annotate-run",
+      "path": "annotations/superseded/v1/annotations/raw/claude-opus-5/batch-002.jsonl",
+      "sha256": "250084d65869da0e4f40a0430f65fefb79a25e1e1ccd1f2716310e82bacea10b",
+      "size_bytes": 9011
+    },
+    "annotations/superseded/v1/annotations/raw/claude-opus-5/batch-003.jsonl": {
+      "created_at": "2026-09-07T14:49:41.294201Z",
+      "created_by": "annotate-run",
+      "path": "annotations/superseded/v1/annotations/raw/claude-opus-5/batch-003.jsonl",
+      "sha256": "79cb1732fc8ca24a7131c129b288ffc9c27eba567e1ad346a9b9a31c310f57d6",
+      "size_bytes": 9021
+    },
+    "annotations/superseded/v1/migration.json": {
+      "created_at": "2026-09-07T14:49:41.294509Z",
+      "created_by": "annotate-run",
+      "path": "annotations/superseded/v1/migration.json",
+      "sha256": "6cd8cc4424cf627b13567e623598f24196fe518066f073eb7050dacf7ba4167f",
+      "size_bytes": 471
+    },
+    "f3_design_rank.json": {
+      "created_at": "2026-09-07T12:47:48.822543Z",
+      "created_by": "join",
+      "path": "f3_design_rank.json",
+      "sha256": "304fd74a2398b4c553808f5fd99f6bcc1b59037303f4b4902a8f7904c10e8f9d",
+      "size_bytes": 644468
+    },
+    "feature_extraction_verification.json": {
+      "created_at": "2026-09-07T12:48:34.526195Z",
+      "created_by": "features",
+      "path": "feature_extraction_verification.json",
+      "sha256": "13049b629d71954ea89c44fe9d3627292f9d6caa72148f7ffeb0549636362c8e",
+      "size_bytes": 2543
+    },
+    "parser_resource_manifest.json": {
+      "created_at": "2026-09-07T12:48:34.525500Z",
+      "created_by": "features",
+      "path": "parser_resource_manifest.json",
+      "sha256": "b47153e46a4031938a98f417fdff14c224a973ec02026632bd327030e48011e8",
+      "size_bytes": 7609
+    },
+    "partial_reports/01-data-contract.md": {
+      "created_at": "2026-09-07T12:47:48.823124Z",
+      "created_by": "join",
+      "path": "partial_reports/01-data-contract.md",
+      "sha256": "f64b087eed9040c775e374423c3a3c999f5a0536c3084f80fdd20a3438b8c457",
+      "size_bytes": 1241
+    },
+    "partial_reports/02-deterministic-features.md": {
+      "created_at": "2026-09-07T12:48:34.526914Z",
+      "created_by": "features",
+      "path": "partial_reports/02-deterministic-features.md",
+      "sha256": "ce4a87591556d0a4e461ed59be2c7cc04e62af17aeb4fdd8c07351e62df8955b",
+      "size_bytes": 1746
+    },
+    "partial_reports/03-annotation-reliability.md": {
+      "created_at": "2026-09-07T15:03:04.432266Z",
+      "created_by": "annotate-ingest",
+      "path": "partial_reports/03-annotation-reliability.md",
+      "sha256": "f3a78305c044dc65312f8e862d43547dd45ff8339c67cf9f4d2feae5d200b27d",
+      "size_bytes": 1462
+    },
+    "structural_verification.json": {
+      "created_at": "2026-09-07T12:47:48.820085Z",
+      "created_by": "join",
+      "path": "structural_verification.json",
+      "sha256": "a4123d259324d975c085658141e90848a378b5ebb494232aa0dd7f72f3e6dafe",
+      "size_bytes": 2998
+    },
+    "tables/annotation_agreement.parquet": {
+      "created_at": "2026-09-07T15:03:04.428136Z",
+      "created_by": "annotate-ingest",
+      "path": "tables/annotation_agreement.parquet",
+      "sha256": "26954f058b6bc18b4a202c544f89b432c93620eafe7ac302c7c19621e897ff19",
+      "size_bytes": 40072
+    },
+    "tables/annotations_normalized.parquet": {
+      "created_at": "2026-09-07T15:03:04.424839Z",
+      "created_by": "annotate-ingest",
+      "path": "tables/annotations_normalized.parquet",
+      "sha256": "f382e347c6eb53bf53561e73518ccbc7398ab6274d43b7c0c3ad7b1e275fcd28",
+      "size_bytes": 72998
+    },
+    "tables/criterion_table.parquet": {
+      "created_at": "2026-09-07T12:47:48.811953Z",
+      "created_by": "join",
+      "path": "tables/criterion_table.parquet",
+      "sha256": "df19453cb174fe2a7ebe9d0a8eb7fb2ab5fe4dc0dc13a6ecd2b46f37e9fa0cca",
+      "size_bytes": 1497001
+    },
+    "tables/expectation_catalogue.parquet": {
+      "created_at": "2026-09-07T12:47:48.773663Z",
+      "created_by": "join",
+      "path": "tables/expectation_catalogue.parquet",
+      "sha256": "3bab9a218d700f04d46a7d90769a0f992786ff0dd3ef78d20e6ce3b8e5042c89",
+      "size_bytes": 49007
+    },
+    "tables/features_deterministic.parquet": {
+      "created_at": "2026-09-07T12:48:34.518890Z",
+      "created_by": "features",
+      "path": "tables/features_deterministic.parquet",
+      "sha256": "369eac3e638d169131e2aef614ee93f4471cfbd7ca7b037326725c9205c0411f",
+      "size_bytes": 110208
+    },
+    "tables/join_discrepancies.parquet": {
+      "created_at": "2026-09-07T12:47:48.819477Z",
+      "created_by": "join",
+      "path": "tables/join_discrepancies.parquet",
+      "sha256": "90cf652231a42b47b914d6cba2ef504827bdd8f91e3fd40d2c0184b8f5c2fba9",
+      "size_bytes": 9369
+    },
+    "tables/rubric_catalogue.parquet": {
+      "created_at": "2026-09-07T12:47:48.770250Z",
+      "created_by": "join",
+      "path": "tables/rubric_catalogue.parquet",
+      "sha256": "64def91564b1870f6ca1c1df14b81c0fbd52931ca436352b0bb65971d2b0b9ba",
+      "size_bytes": 21460
+    },
+    "tables/spacy_entities.parquet": {
+      "created_at": "2026-09-07T12:48:34.524532Z",
+      "created_by": "features",
+      "path": "tables/spacy_entities.parquet",
+      "sha256": "a2a4b1cfa507a43d774fc3d824ca487d68bdbd7bca60247f813a734c4ae9d2ff",
+      "size_bytes": 30881
+    },
+    "tables/stanza_tokens.parquet": {
+      "created_at": "2026-09-07T12:48:34.522948Z",
+      "created_by": "features",
+      "path": "tables/stanza_tokens.parquet",
+      "sha256": "7e0b7185db0b725bf194662fdc330d282b4f6e2f505ec6672affb0227e54d6c8",
+      "size_bytes": 115849
+    },
+    "tables/trace_pfu_table.parquet": {
+      "created_at": "2026-09-07T12:47:48.818063Z",
+      "created_by": "join",
+      "path": "tables/trace_pfu_table.parquet",
+      "sha256": "d1f50f01d7f3849615f371e1252acd9f751c9d56ff7d40b99531ea2ccc78db1d",
+      "size_bytes": 186628
+    },
+    "tables/variant_catalogue.parquet": {
+      "created_at": "2026-09-07T12:47:48.771763Z",
+      "created_by": "join",
+      "path": "tables/variant_catalogue.parquet",
+      "sha256": "14201a763c3bdbd7de376915438101a6f85fee970077dad5a08f25105fb561e7",
+      "size_bytes": 30400
+    }
+  },
+  "outcome_modeling_unlocked": false,
+  "outcome_modeling_unlocked_at": null,
+  "schema_version": 1,
+  "steps": {
+    "annotate-emit": {
+      "attempts": 1,
+      "completed_at": "2026-09-07T13:34:05.275269Z",
+      "failure": null,
+      "failure_history": [],
+      "started_at": "2026-09-07T13:34:05.211179Z",
+      "status": "completed"
+    },
+    "annotate-ingest": {
+      "attempts": 1,
+      "completed_at": "2026-09-07T15:03:04.432547Z",
+      "failure": null,
+      "failure_history": [],
+      "started_at": "2026-09-07T15:03:04.000506Z",
+      "status": "completed"
+    },
+    "annotate-run": {
+      "attempts": 9,
+      "completed_at": "2026-09-07T15:01:09.043270Z",
+      "failure": null,
+      "failure_history": [
+        {
+          "kind": "gate_failure",
+          "message": "Cursor SDK startup failed model=claude-opus-5 batch=batch-001",
+          "occurred_at": "2026-09-07T14:03:48.727662Z"
+        },
+        {
+          "kind": "gate_failure",
+          "message": "Cursor SDK startup failed model=claude-opus-5 batch=batch-001",
+          "occurred_at": "2026-09-07T14:07:03.461944Z"
+        },
+        {
+          "kind": "malformed_input",
+          "message": "Annotation preflight manifest conflicts with current batches, schemas, prompt, or SDK",
+          "occurred_at": "2026-09-07T14:08:39.701457Z"
+        },
+        {
+          "kind": "gate_failure",
+          "message": "Cursor SDK startup failed model=claude-opus-5 batch=batch-001 code=internal proto_code=None status=500",
+          "occurred_at": "2026-09-07T14:08:55.450841Z"
+        },
+        {
+          "kind": "gate_failure",
+          "message": "Cursor SDK startup failed model=claude-opus-5 batch=batch-001 code=internal proto_code=None status=500 message=EPERM: operation not permitted, mkdir '/Users/krzysztof.mierzejewski/.cursor/projects/var-folders-5c-tsh8fnmx53z42lgs8yc-7x5h0000gp-T-simplemode-annotation-0ftlgfly/sdk-agent-store/ba0299879c15b8ab70c2f9ee35593be9'",
+          "occurred_at": "2026-09-07T14:09:13.163114Z"
+        },
+        {
+          "kind": "malformed_input",
+          "message": "Raw annotation IDs do not match batch: claude-opus-5/batch-004",
+          "occurred_at": "2026-09-07T14:20:09.806718Z"
+        },
+        {
+          "kind": "malformed_input",
+          "message": "Raw annotation IDs do not match batch: claude-opus-5/batch-004",
+          "occurred_at": "2026-09-07T14:24:27.184418Z"
+        }
+      ],
+      "started_at": "2026-09-07T14:49:41.278233Z",
+      "status": "completed"
+    },
+    "features": {
+      "attempts": 1,
+      "completed_at": "2026-09-07T12:48:34.527050Z",
+      "failure": null,
+      "failure_history": [],
+      "started_at": "2026-09-07T12:47:56.707410Z",
+      "status": "completed"
+    },
+    "fit-families": {
+      "attempts": 0,
+      "completed_at": null,
+      "failure": null,
+      "failure_history": [],
+      "started_at": null,
+      "status": "pending"
+    },
+    "fit-layer1": {
+      "attempts": 0,
+      "completed_at": null,
+      "failure": null,
+      "failure_history": [],
+      "started_at": null,
+      "status": "pending"
+    },
+    "gold-ingest": {
+      "attempts": 0,
+      "completed_at": null,
+      "failure": null,
+      "failure_history": [],
+      "started_at": null,
+      "status": "pending"
+    },
+    "gold-sample": {
+      "attempts": 0,
+      "completed_at": null,
+      "failure": null,
+      "failure_history": [],
+      "started_at": null,
+      "status": "pending"
+    },
+    "join": {
+      "attempts": 1,
+      "completed_at": "2026-09-07T12:47:48.823483Z",
+      "failure": null,
+      "failure_history": [],
+      "started_at": "2026-09-07T12:47:47.280438Z",
+      "status": "completed"
+    },
+    "oracle": {
+      "attempts": 0,
+      "completed_at": null,
+      "failure": null,
+      "failure_history": [],
+      "started_at": null,
+      "status": "pending"
+    },
+    "report": {
+      "attempts": 0,
+      "completed_at": null,
+      "failure": null,
+      "failure_history": [],
+      "started_at": null,
+      "status": "pending"
+    },
+    "robustness": {
+      "attempts": 0,
+      "completed_at": null,
+      "failure": null,
+      "failure_history": [],
+      "started_at": null,
+      "status": "pending"
+    },
+    "validate-features": {
+      "attempts": 0,
+      "completed_at": null,
+      "failure": null,
+      "failure_history": [],
+      "started_at": null,
+      "status": "pending"
+    }
+  },
+  "updated_at": "2026-09-07T15:03:04.432547Z"
+}

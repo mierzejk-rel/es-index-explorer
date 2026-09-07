@@ -164,6 +164,18 @@ def _production_handler(
             download_resources=args.download_resources,
         )
         return lambda workspace: run_features(workspace, feature_config)
+    if command is WorkflowCommand.ANNOTATE_EMIT:
+        from es_index_explorer.question_analysis.annotations import run_annotate_emit
+
+        return run_annotate_emit
+    if command is WorkflowCommand.ANNOTATE_RUN:
+        from es_index_explorer.question_analysis.annotations import run_annotate_run
+
+        return run_annotate_run
+    if command is WorkflowCommand.ANNOTATE_INGEST:
+        from es_index_explorer.question_analysis.annotations import run_annotate_ingest
+
+        return run_annotate_ingest
     return None
 
 

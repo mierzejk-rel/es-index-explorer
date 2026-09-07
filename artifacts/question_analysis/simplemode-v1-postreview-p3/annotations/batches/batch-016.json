@@ -1,0 +1,151 @@
+{
+  "batch_id": "batch-016",
+  "item_ids_sha256": "a2062d8d6cc1621804ca9d72cbdd1263676d448fbb667b0c59ce88380549ca70",
+  "items": [
+    {
+      "item_id": "expectation_d63519185c1e956f60a32e18dc91f66c5ebda3224e1f66c08d0ad350c015e6ba",
+      "item_type": "expectation",
+      "source_text": "cites strategic initiatives like comprehensive cybersecurity strategy, CISO consideration, board oversight enhancement.",
+      "text_sha256": "74160d61fcb3dbb349c95678da3119e1f689460e58d23ffb3fbec0d28c46cfbb"
+    },
+    {
+      "item_id": "variant_dc87ecec45b937341c6eff7bf65d8f4910b17c07c56ba7515fe5aed8f8983c30",
+      "item_type": "question",
+      "source_text": "Who was in communication with Ellingson's CEO about the cyberattack?",
+      "text_sha256": "c06de5ed517e1075e41a4fecd4c55bc8c7a5d1782fe0478f67c7e4f0b37962be"
+    },
+    {
+      "item_id": "expectation_a2fb31b1594323e49cd28b4bbfb20c9853e546c70226e7a4560f36a81eeb9129",
+      "item_type": "expectation",
+      "source_text": "Quarterly Playbook, FY13Q2, Territory 70301 – Denver East",
+      "text_sha256": "68f9826b008eb596a73d38c0ba10842229bf35992ec214af2076733421c153b8"
+    },
+    {
+      "item_id": "expectation_7fdd736c2a3b463792eb3ea76fd9d7aa300fdaba699df461e84d6efe1b9d10a9",
+      "item_type": "expectation",
+      "source_text": "Cites Belford's 10/21/95 email to Wallace stating 'Delete any incriminating emails.'",
+      "text_sha256": "cc8f5e1b4740961f8f648ed7b39ca9a22e672ac70dd409dde609c17cea21f5c0"
+    },
+    {
+      "item_id": "expectation_daa7449ac00469d150b445156c3d3bdb024981f1339d36f6283865eb267e0119",
+      "item_type": "expectation",
+      "source_text": "Flags the oddity that after Belford dubbed the attack 'Project Da Vinci' on 10/4/1995, Chen claimed to have named the virus 'Da Vinci' on her own accord on 10/19/1995.",
+      "text_sha256": "7a6afa169b2d92ad2758436fe719dcec7642d1da47e120185b2d321cf95d98b3"
+    },
+    {
+      "item_id": "expectation_2333aa97ed16077f36146ceda854c4afe81c700b97c1754725483d69a53b01af",
+      "item_type": "expectation",
+      "source_text": "Cites Ellingson's claimed business interruption losses from system downtime ($10M).",
+      "text_sha256": "529fa00a5befe38784bd8a5bca550d670612cc268c3fa532905a5b35bdffac8b"
+    },
+    {
+      "item_id": "variant_88732ab36ad6a56b06d3e38747489626ee9040cfaaab3e24b3f4cdea96393c62",
+      "item_type": "question",
+      "source_text": "After Belford's hack, how did Ellingson plan to improve cybersecurity?",
+      "text_sha256": "af80256e0137ea2981fa5dd60c14587e69a4795dd1c1a388b12bd339e656a8ec"
+    },
+    {
+      "item_id": "variant_c34923be59a26c0c7891ce6d9d67ae276d648d988fc98467fe3be31598269c6a",
+      "item_type": "question",
+      "source_text": "Is there evidence that Dr. Argoff was involved with Pennsaid?",
+      "text_sha256": "b7db705a426f141e1d0c92e176bd13e20b9bdef3c91897a26e21467a6e6b703e"
+    },
+    {
+      "item_id": "expectation_cdf9e7eb57a9bfdd6b34e88bf828433307d0e4833b8707ede9fc4b313b1cb4da",
+      "item_type": "expectation",
+      "source_text": "Acknowledges that Belford emailed someone at zero.cool@underground.net but teenage hacker Dade Murphy aka Zer0Cool uses zer0cool@mindvirus.org, and it's unclear if they are the same person.",
+      "text_sha256": "0da6fcb2c0a6a7cc486c4c808777710efe24c57f7a6d8222860c95e896cbe726"
+    },
+    {
+      "item_id": "variant_30682b8085e3ea12d5343ed1a3bfd3b9d8bc00fa5a360d66a571e5cf285e41df",
+      "item_type": "question",
+      "source_text": "Find me Dr. El-Mohandes's email address",
+      "text_sha256": "6c5d786e66be9ca8a092ae2c395662c8f37beeff55d32f186f0c9aa9533d2624"
+    },
+    {
+      "item_id": "expectation_9541238c6fbbc17b2954c4dc6c0c30d6376d3c7c9eb0646f5727c01522ba5f05",
+      "item_type": "expectation",
+      "source_text": "Quarterly Playbook, FY13Q2, Territory 60607 – McAllen Laredo",
+      "text_sha256": "5e2c44432722e33de49030421ca5dcfc01a24bf4517f940da1afb77ae90c6ef6"
+    },
+    {
+      "item_id": "expectation_5635b35f5c951f6ed3fdece5ee65e3be1bb6c056c55c434e5ceb83478f02ab42",
+      "item_type": "expectation",
+      "source_text": "Involved in December 2011 EXALGO Speaker Program",
+      "text_sha256": "c7e4d3808390559e61c2841043ba334cb0b231f4d6d82daab9179f4609f428ef"
+    },
+    {
+      "item_id": "expectation_643567736ab07fbb69d3e93027db2b83776e923e4e5e2e0b3984147caf263fe5",
+      "item_type": "expectation",
+      "source_text": "Cites development of PR strategy on 10/19/1995 6:45pm to proactively maintain shareholder and public confidence.",
+      "text_sha256": "7b352615710559e5a225a05254bbdf2039c9f68f3dcbbd3a91159155952a15c6"
+    },
+    {
+      "item_id": "variant_b54dc23ac14a2b90ce492f4c942aeeac98a76cd611e36666579e56cf89c9214f",
+      "item_type": "question",
+      "source_text": "What documents detail or show Ellingson's cybersecurity protections before October 15, 1995?",
+      "text_sha256": "da558ce3be291595de428786d12b8132964d9893a6c060db28e5db4da688fa66"
+    },
+    {
+      "item_id": "expectation_d268e87d97e705ccf73f14fcc7352ce961145e1652a114c828d8378c111b8319",
+      "item_type": "expectation",
+      "source_text": "Coordinated the initial identification of and response to the cyberattack.",
+      "text_sha256": "9c24e69210da131052c36bda24dadc4e1ca3361274f61bd04d5ca9df7ef0aa6a"
+    },
+    {
+      "item_id": "variant_ca4e9c0cc96d90fcf2eb6d4a4b5d04cc72109a722f7f51a438ef74d1aca49972",
+      "item_type": "question",
+      "source_text": "Show me evidence that Dr. El-Mohandes promoted Pennsaid.",
+      "text_sha256": "b15435c84a73aae2477648ae1050c840c3ae59003429647fbe626839da52b241"
+    },
+    {
+      "item_id": "expectation_b3d97815e0881bfb4b01c7221ad86a87b108f95d3bd1b8cb6bee4824b9b3f899",
+      "item_type": "expectation",
+      "source_text": "Cites technical evidence that Da Vinci virus breached secondary firewalls and attempted to access critical systems.",
+      "text_sha256": "23098d66d00817a2b30c81f4080c445aafad79032809b7f399ad34bb4d59e8f9"
+    },
+    {
+      "item_id": "expectation_e2415a94136ce3841cf62bb0806cc59be049730f2561f5b8941f52686cb5cf57",
+      "item_type": "expectation",
+      "source_text": "Ellingson Insurance Department (insurance.dept@ellingson.com)",
+      "text_sha256": "f08b9ee8a8084fbfcbcb8648d41869e97f7fedd6c6d2bcafc579d297368c1472"
+    },
+    {
+      "item_id": "expectation_132f6dd04974c8525afcf8a7f12c2ccb070566228ad9e39d5851642acf1ecd6c",
+      "item_type": "expectation",
+      "source_text": "Quarterly Playbook, FY13Q3, Territory 70305 – El Paso",
+      "text_sha256": "db369672c22b2497a6e3c462d69d0531380b630d146bd358932558b61c58ba86"
+    },
+    {
+      "item_id": "expectation_dd90be98f0c8c026a2beb8a7591f237f365f35079a8089cbc534898be9ad8d53",
+      "item_type": "expectation",
+      "source_text": "John Smith (john.smith@ellingson.com)",
+      "text_sha256": "eadcce5de4173553a9aca42d2dd83550fc2e86f0f32236242aa164fcd78c2bc1"
+    },
+    {
+      "item_id": "variant_7f8ea80ac1b4b457b9e45e1a48b1bbaa99381db3d28012a9229fccc2bd74c143",
+      "item_type": "question",
+      "source_text": "Did eugene.Belford@ellingson.com aka eugene.belford@offshore-secure.net and Margo.Wallace@ellingson.com plan the Ellingson cyberattack together?",
+      "text_sha256": "2337b08e51cbfcf99728b3d78556534bf0a64673ba1db807fd57752acbf8b546"
+    },
+    {
+      "item_id": "expectation_edf17a5d265de20963e6b16b72edf79f908a93e0a061ef53137ea469366a529d",
+      "item_type": "expectation",
+      "source_text": "Cites doument containing statement about investing heavily in cybersecurity to prevent future incidents, implying current inadequacy.",
+      "text_sha256": "5f43d936f197aa06e376a0fe15bfc834ec6720dd3e81a68705f8005d78a230e6"
+    },
+    {
+      "item_id": "variant_d52e6dac350be50f84cfa173cc8e5071bcb4f468b97416b992c09ff36a879049",
+      "item_type": "question",
+      "source_text": "Was Belford in contact with anyone in the group of young hackers?",
+      "text_sha256": "1ae8eda0631523c639c8e11c4b10e7482498afdfee8ee48ae25cbac53b373bf7"
+    },
+    {
+      "item_id": "expectation_56b79b2410452d88abd334e80bdf84dfc5e81a669eb65af668bf193d4b3c1dac",
+      "item_type": "expectation",
+      "source_text": "Cites email from Belford to Zero Cool (zero.cool@underground.net) acknowledging him as worthy opponent.",
+      "text_sha256": "ea4c42cef5d89b594377c27f3d2e2ed6c41dcf3eb980e841a4bcff2421bb1b2e"
+    }
+  ],
+  "schema_version": 1
+}

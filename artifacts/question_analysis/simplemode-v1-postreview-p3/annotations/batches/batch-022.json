@@ -1,0 +1,151 @@
+{
+  "batch_id": "batch-022",
+  "item_ids_sha256": "7af7ab3c26e61bb268288ac1795ce619bb709ac593ccc07363048b1c5c3db350",
+  "items": [
+    {
+      "item_id": "expectation_aef83294993c96f858587e605a4af8ba133c8a5a2805387a6e26379f403cf8bc",
+      "item_type": "expectation",
+      "source_text": "Associate Meeting Planner at The Selva Group (an inVentiv Health Company)",
+      "text_sha256": "0f3a135447745d787e64fbef2ab89c38bc117da57f5436339b9d697ecc4e9349"
+    },
+    {
+      "item_id": "expectation_b07bb2d93b2dedbe781af1c2aec3a880aaf1dedb5808e356269386d805782555",
+      "item_type": "expectation",
+      "source_text": "Cites document with comprehensive overview of Belford's suspicious activities leading up to attack.",
+      "text_sha256": "04fd4093ace7c99c648e8c12f6fd84645357398f92f18eea9a50849bf8298a70"
+    },
+    {
+      "item_id": "variant_7b277547f8b55276846032b8abf374b64594bac18878902422b973b7042fc9e1",
+      "item_type": "question",
+      "source_text": "Explain how Ellingson's CTO responded to Eugene Belford's hack.",
+      "text_sha256": "34cfcc4f92e116d34bdfbecd359f98ea0b6c8f6105f4c7169c6b693b184dd175"
+    },
+    {
+      "item_id": "variant_e6a43dd4ad1912414f9800631b14ff4996b321a6b473285065f3d28b4b698586",
+      "item_type": "question",
+      "source_text": "What is Dr. Chen's role at Ellingson?",
+      "text_sha256": "236e936cf15c416d336823e47080a64e5bdc94813e61b2c89e7fb426976b1f76"
+    },
+    {
+      "item_id": "variant_f918dabc50f503b9b1da6d563970f53efb2c0606c82126b8caf093415db00126",
+      "item_type": "question",
+      "source_text": "What was Chen's involvement in the Da Vinci hack?",
+      "text_sha256": "5536f5dd0f7ead36ff9811da9a78dd73f60c14cd10a34ba8e42e2222e2dd83dd"
+    },
+    {
+      "item_id": "expectation_5a869d33ca27ce00bd1e9f45f4dc13c9f40cbfca1609486aa454f4bcf8cb524a",
+      "item_type": "expectation",
+      "source_text": "On April 4, 2014, Debbie LaVelle emailed FAQs in response to some questions concerning the recently communicated HCP meal guidelines, including regarding an exception with DM/district manager approval or if meals being the only way a rep has access to an office.",
+      "text_sha256": "8b8baaebe347143c2e878c761f47e8d604e2b5c60bc238254bb1337067ec5128"
+    },
+    {
+      "item_id": "variant_c82fa05a7cbd3373d718fa0fcaa95e89022f7695e83b7e98f12433237d069092",
+      "item_type": "question",
+      "source_text": "Who is Elmo or Dr. Elmo, in connection with Covidien/Mallinckrodt?",
+      "text_sha256": "372e6b62578a125c3330edeebfe1c7db9b8a35624acd247397da9e6aef9ceb9f"
+    },
+    {
+      "item_id": "variant_d0cd4d1047017fc9da3aad38c5f04afdf0e469371f109984eb91be4cf7d143d5",
+      "item_type": "question",
+      "source_text": "Which documents are most harmful to Ellingson Mineral Company in a potential federal investigation for failure to adequately protect its data and systems?",
+      "text_sha256": "a171dd49c4529d827c3f3abb1ecd486534108f40a18f77b88d2742a882914cc0"
+    },
+    {
+      "item_id": "expectation_094721f9ccb1ecacc38a31023efa5484929e6052b384e527ef58042151657196",
+      "item_type": "expectation",
+      "source_text": "Event planner for Exalgo speaker programs in 2011 and 2012: September 2011, November 2011, December 2011, January 2012, February 2012",
+      "text_sha256": "308229a830bf24c010e0d85bb305fea5b858bc2eded4fe02cdc77511eb0b6b16"
+    },
+    {
+      "item_id": "expectation_6720a89487963c2f84fe4d9283989302cd6db25be3adee5d99be02a0f99e7201",
+      "item_type": "expectation",
+      "source_text": "Identifies Phantom Phreak (phantom.phreak@undergroundhax0r.net) and Margo Wallace (margo.wallace@ellingson.com) as having communicated with Belford about the plan.",
+      "text_sha256": "c14a5b5715530921678565bc29d50e5cc166dc89b66c64f3399b294d95e84a19"
+    },
+    {
+      "item_id": "variant_5846876a19479ac3fc0b9d37d5aff119fbfd55849bda900b80e66c7f4a7ecc0d",
+      "item_type": "question",
+      "source_text": "Why was Matt Smith hesitant to email Deborah Moses?",
+      "text_sha256": "3976c70ed79823fbe192aed16987bc0430853a814b75eead2a7f0990cb15e52e"
+    },
+    {
+      "item_id": "variant_b39646ef5db331983462b6cec06dc33f6263764f86011f8b10466cb33d0f0229",
+      "item_type": "question",
+      "source_text": "Tell me about Matt Smith being hesitant to share information.",
+      "text_sha256": "f8613c34aee4abf410e53787bc70723717df1260c38d5f3c4f76a40e74dc78f8"
+    },
+    {
+      "item_id": "variant_7475a2fcc602fcb9ad7d0d28f84322e5db445dece7b9e3b45830ad7d204f9e4a",
+      "item_type": "question",
+      "source_text": "Who was Dr. ElMohandes emailing with at Covidien/Mallinckrodt?",
+      "text_sha256": "e59d657102485da267be20579903d06c6611a352fd6093088aae607b4fc59a17"
+    },
+    {
+      "item_id": "expectation_c545d1a2810f850fd64e1870a17917e43860662104f4a8725bab50d84bb6878f",
+      "item_type": "expectation",
+      "source_text": "Cites communication where Belford instructs Phantom Phreak to activate contingency plan.",
+      "text_sha256": "3bbc9e60fad7b5039b8d7871b3baa417fba6bf29e35378288276ed746804565f"
+    },
+    {
+      "item_id": "expectation_87703ef7429fe194f1cd26f2b5be598e2139fbc3d7874692ff5af31c190e638c",
+      "item_type": "expectation",
+      "source_text": "Cites revised budget proposal increasing cybersecurity budget by 311.11%.",
+      "text_sha256": "74b928ba29877fd8a4833ecfbcb1f4a60b32fc59fe1034a1e6ab6b5bef641ac6"
+    },
+    {
+      "item_id": "expectation_a086ae1df228156cf480dfd433c3a2a26aa6c40e2157af78a2dc9a74c4af9e00",
+      "item_type": "expectation",
+      "source_text": "CEO Benson commended Dr. Chen's leadership, quick thinking, and clear communication amidst the cyberattack.",
+      "text_sha256": "ab343c91e3901d2bce8aedcd83d9e3679b8c839f71c6c64324dbde472c829d24"
+    },
+    {
+      "item_id": "expectation_2d9fb554fb940c3ab216c5d69818cdf51764df46d369cd7d160b1807f06c5b8b",
+      "item_type": "expectation",
+      "source_text": "Cites delays and loss of efficiency in oil tanker routing due to potential system compromise.",
+      "text_sha256": "2b78908f2c4f308be210ec21fb3738d73cd91be8939996fcd818d4c3074df2b7"
+    },
+    {
+      "item_id": "variant_c9812510b5eee71e96c0798f1b23c6f107da205e0cefd214ef6f2973cd58a8c0",
+      "item_type": "question",
+      "source_text": "Who were the physicians who presented for Covidien at its 10/2012 Exalgo national broadcast event?",
+      "text_sha256": "a8e8ab2cad45604cb836c86aea3cc8a6eeeaf814d49e8eed5e7fcd6d1e4cd462"
+    },
+    {
+      "item_id": "expectation_8325aeb1a74adcd3b3ef36ffbcbb82a2a7c00b087f172445c55dc8fa495f2428",
+      "item_type": "expectation",
+      "source_text": "Cites implementation of new security protocols.",
+      "text_sha256": "16d0ce8172208e4c61ba32bce1549a3adb0c2722f46e3d23f390ca7fe05bb6ba"
+    },
+    {
+      "item_id": "expectation_13169aba85b3ab0bae3ea08fac2f4f3d5016b11d3ba20ce7ac3b3d68f5458bdd",
+      "item_type": "expectation",
+      "source_text": "Cites secondary firewalls in place.",
+      "text_sha256": "eb3c8857aa9d6fd6dce4a9a72c7ba998aca7c9aabf112c43880471f8952a3e7f"
+    },
+    {
+      "item_id": "expectation_59f55ff7dfd2a9d31bd1f9ba90a8836191dae405de3cd046d356b1a7720ca4d9",
+      "item_type": "expectation",
+      "source_text": "Cites overview of Belford's suspicious activities leading up to the attack.",
+      "text_sha256": "9dc4b9e9a24de06b95de2932539dee7feb6d88556b65c5f370cc951fe6dfa62a"
+    },
+    {
+      "item_id": "variant_a0a169f6ac408a075f350c6deede60164ecf8fe4239e0cf368ea897a569ecf19",
+      "item_type": "question",
+      "source_text": "Find me Dr. Argoff's email address",
+      "text_sha256": "73383b4abe967659c97733f82164e64ab9c05e8f3b501e8c25270e0aa3a7b5ca"
+    },
+    {
+      "item_id": "expectation_1d864a4d4c5933dcbb4ac3ba532bf9fa45a7bed5b31ebb13a91cdf7c6abdc23d",
+      "item_type": "expectation",
+      "source_text": "Involved in February 2012 EXALGO Speaker Program with Dr. Perper",
+      "text_sha256": "8b38b4004c54fb8fd809cfd04903ecbee5f54684dc5e1b6125a1e989a4aa395c"
+    },
+    {
+      "item_id": "variant_bffda83f3e0301ed45ec7dffb834a316da2c69670512030612a046cf426fcb47",
+      "item_type": "question",
+      "source_text": "Who did Belford communicate with about his plan to hack Ellingson?",
+      "text_sha256": "e118c322da49672baec9ea4d42feaeab7bf350968850db521a0a805dac2e5474"
+    }
+  ],
+  "schema_version": 1
+}

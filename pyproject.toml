@@ -39,7 +39,7 @@ analysis-test = [
     "ty>=0.0.73",
 ]
 annotation = [
-    "cursor-sdk>=1.0.28",
+    "cursor-sdk==1.0.28",
 ]
 dev = [
     "pytest>=8.0",
