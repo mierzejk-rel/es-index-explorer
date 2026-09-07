@@ -1534,51 +1534,67 @@ arbitrary-dependence correction and therefore must not claim finite-sample 5% FD
 
 
 
-### Mundlak (1978)
+### Mundlak (1978) — human-confirmed
 
 - **Full source:** Yair Mundlak, “On the Pooling of Time Series and Cross Section Data,”
 *Econometrica* 46(1):69–85.
-- **Link:** [JSTOR](https://www.jstor.org/stable/1913646).
+- **Links:** [JSTOR](https://www.jstor.org/stable/1913646);
+  [user-supplied local PDF](sources/Mundlak%201978%20-%20On%20the%20Pooling%20of%20Time%20Series%20and%20Cross%20Section%20Data.pdf).
 - **Research Plan use:** within/between cluster-mean decomposition.
-- **Quotation — abstract only:**
-  > “The analysis is presented in a unified framework in which it is shown that the random
-  > effects model is a special case of the fixed effects model.”
-- **Assessment:** **PARTIAL.** The abstract does not establish the exact cluster-mean coding,
-nonlinear interpretation, or project estimands.
-- **Human verdict:** [ ] supply full text [ ] retain as context [ ] remove
+- **Quotations:**
+  > “In such an analysis an explicit account should be taken of the statistical dependence
+  > that exists between the quantitative variables and the effects.”
+  > “It is shown that when this is done, the random effect approach and the fixed effect
+  > approach yield the same estimate for the slopes, the ‘within’ estimate.”
+  > “In order to take an explicit account of such relationships we introduce the auxiliary
+  > regression…”
+- **Locator:** Abstract, p. 69; §2, p. 71, equations (2.3)–(2.4), which regress the unit effect
+  on the unit-level covariate mean.
+- **Assessment:** **PARTIAL.** It anchors the correlated-effects/cluster-mean construction,
+  not the plan’s nonlinear GLM interpretation, exact averaging unit, or project estimands.
+- **Human verdict:** [x] quotations confirmed [x] locators confirmed [x] retain with
+  nonlinear-extension caveat
 
 
 
-### Phipson & Smyth (2010)
+### Phipson & Smyth (2010) — human-confirmed
 
 - **Full source:** Belinda Phipson and Gordon K. Smyth, “Permutation P-values Should Never Be
 Zero,” *Statistical Applications in Genetics and Molecular Biology* 9(1), Article 39.
-- **Link:** [DOI](https://doi.org/10.2202/1544-6115.1585).
+- **Links:** [DOI](https://doi.org/10.2202/1544-6115.1585);
+  [user-supplied local PDF](sources/Phipson%202010%20-%20Permutation%20P-values%20Should%20Never%20Be%20Zero.pdf).
 - **Research Plan use:** §5.3: sampled-regime `(b+1)/(B+1)` p-values.
-- **Quotation:**
-  > “The exact p-value when B permutations are randomly drawn with replacement is
-  > (b+1)/(B+1), where b is the number of permutation statistics greater than or equal
-  > to the observed statistic.”
-- **Locator:** §4, Monte Carlo p-value equation.
-- **Assessment:** **PARTIAL.** Exactness does not transfer automatically to the restricted
-multiway wild bootstrap without the same randomization/exchangeability structure.
-- **Human verdict:** [ ] accept formula with caveat [ ] reject [ ] require derivation
+- **Quotations:**
+  > “Hence the exact Monte Carlo p-value is pᵤ = P(B ≤ b) = (b + 1)/(m + 1).”
+  > “The exact p-value is now slightly less than (b + 1)/(m + 1), because of the possibility
+  > that the original data is included at least once as one of the random permutations.”
+  > “The valid but conservative p-value pᵤ has been recommended by a number of authors…”
+- **Locator:** §4, p. 5; §6.1, p. 7; §6.2, p. 8.
+- **Assessment:** **CONTEXT ONLY.** The `+1` formula is exact for the paper’s Monte Carlo setup
+  and for the without-replacement permutation case discussed in §5. For permutations sampled
+  with replacement it is a conservative upper bound, not the exact p-value. The paper does not
+  establish finite-sample exactness for this project’s restricted multiway wild bootstrap.
+- **Human verdict:** [x] quotations confirmed [x] locators confirmed [x] retain only for the
+  nonzero conservative finite-resample convention
 
 
 
-### Liddell & Kruschke (2018)
+### Liddell & Kruschke (2018) — human-confirmed
 
 - **Full source:** Torrin M. Liddell and John K. Kruschke, “Analyzing Ordinal Data with Metric
 Models: What Could Possibly Go Wrong?” *Journal of Experimental Social Psychology*
 79:328–348.
-- **Link:** [DOI](https://doi.org/10.1016/j.jesp.2018.08.009).
+- **Links:** [DOI](https://doi.org/10.1016/j.jesp.2018.08.009);
+  [user-supplied local PDF](sources/Liddell%202018%20-%20Analyzing%20Ordinal%20Data%20with%20Metric%20Models.pdf).
 - **Research Plan use:** §8: model ordered grades as ordinal rather than interval-scaled.
-- **Quotation — abstract only:**
-  > “Ordinal data are commonly analyzed as if they were metric, but this can systematically
-  > lead to errors.”
+- **Quotation — abstract:**
+  > “We present novel evidence that analyzing ordinal data as if they were metric can
+  > systematically lead to errors.”
+- **Locator:** Abstract, p. 328.
 - **Assessment:** **PARTIAL.** It supports an ordinal model but not proportional odds,
 specific thresholds, or proportional-odds validity for this dataset.
-- **Human verdict:** [ ] accept general claim [ ] supply full text [ ] reject
+- **Human verdict:** [x] quotation confirmed [x] locator confirmed [x] retain with
+  model-specificity caveat
 
 
 

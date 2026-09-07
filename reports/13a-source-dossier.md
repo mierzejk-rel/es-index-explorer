@@ -379,11 +379,18 @@ two-sided, potentially confounded redundancy proxy.
   plan’s limitation; the correction remains deliberately unadopted. **verified;
   human-confirmed**.
 - **Mundlak (1978), pooling time series and cross-sections.**
-  [JSTOR 1913646](https://www.jstor.org/stable/1913646). Cluster means anchor the frozen
-  within/between decomposition. **verified-open**.
+  [JSTOR 1913646](https://www.jstor.org/stable/1913646); user-supplied article.
+  The abstract and §2, pp. 69 and 71, account for dependence between covariates and unit
+  effects through an auxiliary regression on unit-level covariate means. This anchors the
+  correlated-effects/within-between construction, not the plan’s nonlinear GLM interpretation
+  or exact averaging unit. **verified; human-confirmed**.
 - **Phipson & Smyth (2010), finite Monte Carlo p-values.** DOI
-  [10.2202/1544-6115.1585](https://doi.org/10.2202/1544-6115.1585). Including the
-  observed arrangement anchors the sampled-regime `+1` formula. **verified-open**.
+  [10.2202/1544-6115.1585](https://doi.org/10.2202/1544-6115.1585);
+  user-supplied article. Section 4, p. 5, derives `(b+1)/(m+1)` as the exact Monte Carlo
+  p-value. Sections 6.1–6.2, pp. 7–8, show that for permutations sampled with replacement it
+  is instead a valid conservative upper bound. It supports a nonzero finite-resample
+  convention, not finite-sample exactness for the plan’s restricted multiway wild bootstrap.
+  **verified; human-confirmed as context only**.
 - **McCullagh (1980), “Regression Models for Ordinal Data.”** DOI
   [10.1111/j.2517-6161.1980.tb01109.x](https://doi.org/10.1111/j.2517-6161.1980.tb01109.x);
   user-supplied article. Pages 109–110 develop ordinal-response models without assuming
@@ -392,9 +399,12 @@ two-sided, potentially confounded redundancy proxy.
   [10.1002/9780470594001](https://doi.org/10.1002/9780470594001);
   user-supplied book. Pages 10, 44, 47–48, and 58 develop cumulative logits and the
   proportional-odds restriction. **Liddell & Kruschke (2018).** DOI
-  [10.1016/j.jesp.2018.08.009](https://doi.org/10.1016/j.jesp.2018.08.009).
-  These anchor grade-model ordering and ordinal interpretation. **verified; human-confirmed**
-  for McCullagh/Agresti and **verified-open** for Liddell–Kruschke.
+  [10.1016/j.jesp.2018.08.009](https://doi.org/10.1016/j.jesp.2018.08.009);
+  user-supplied article. Its abstract, p. 328, documents systematic errors from treating
+  ordinal data as metric and advocates ordered-probit or similar models. These sources anchor
+  grade-model ordering and ordinal interpretation; Liddell–Kruschke does not establish
+  proportional odds or validate that assumption for this dataset. **verified;
+  human-confirmed**.
 - **Cameron & Trivedi (2005), _Microeconometrics: Methods and Applications_.** DOI
   [10.1017/CBO9780511811241](https://doi.org/10.1017/CBO9780511811241);
   user-supplied book. The overview and Chapter 24, pp. xii and 813–814, identify nonlinear

@@ -996,8 +996,12 @@ numerical Hessian and not a `statsmodels` default covariance.
    incompletely specified for the enumerated case.**
    - **Sampled regime**: `p_f = (1 + #{ W*_b >= W_obs }) / (B + 1)`, computed over the
      `B = 9999` valid replicates obtained after replenishment. The `+1` in both numerator and
-     denominator is the standard finite-resample correction that guarantees `p_f > 0` and
-     accounts for the observed statistic itself being one exchangeable draw under the null.
+     denominator guarantees `p_f > 0` and is used here as a conservative finite-resample
+     convention. **Phipson & Smyth (2010), §§4 and 6, pp. 5 and 7–8 (human-verified)** derive
+     the formula as exact for their Monte Carlo setup but show that it is a conservative upper
+     bound, not the exact p-value, for permutations sampled with replacement. Their exactness
+     argument does not transfer to this restricted multiway wild bootstrap, and no
+     finite-sample exactness claim is made here.
    - **Enumerated regime: an assumption-free bracket on the true support `S_f`, not a point
      value renormalised to the surviving count.** A revision of this section previously
      computed `p_f = #{W*_s >= W_obs} / S_f_valid`, dividing by the count of vectors that
@@ -1689,8 +1693,9 @@ quality continuum. Replacement, mirroring the short-circuit in `compute_ordinal_
   pp. 109–110 (human-verified ordinal/proportional-odds source)**;
   **Agresti (2010), *Analysis of Ordinal Categorical Data*, 2nd ed.,
   pp. 10, 44, 47–48, and 58 (human-verified cumulative-logit/proportional-odds source)**;
-  and Liddell & Kruschke (2018). The proportional-odds assumption remains a model assumption
-  to be checked at fit time.
+  and **Liddell & Kruschke (2018), Abstract, p. 328 (human-verified evidence against treating
+  ordinal data as metric; not support for proportional odds specifically)**. The
+  proportional-odds assumption remains a model assumption to be checked at fit time.
 
 This is the formal counterpart of the **coverage-by-error typology** - coverage crossed with
 error - whose dangerous cell is **high coverage with a critical error**, a confident,
@@ -1932,7 +1937,10 @@ confirmatory claims**.
 Features with both within- and between-rubric variation enter as a **Mundlak within-between
 decomposition**, `X_rv` split into `(X_rv - Xbar_r)` and `Xbar_r`, with the family's joint
 null covering both components, since a single coefficient in a fixed-effects model cannot
-answer both questions.
+answer both questions. **Mundlak (1978), Abstract and §2, pp. 69 and 71 (human-verified)**,
+anchors the correlated-effects auxiliary regression on unit-level covariate means. Its linear
+panel-data derivation does not establish this plan’s nonlinear GLM interpretation, exact
+averaging unit, or project estimands.
 
 - **F1 Retrieval decomposition.** Primary `qdmr_step_count`; secondary `hop_structure`. H1:
   greater decomposition lowers pass probability. Between-rubric.
