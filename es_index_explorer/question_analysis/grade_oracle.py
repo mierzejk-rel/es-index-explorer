@@ -37,8 +37,13 @@ class GradeOracle:
         provenance = _read_json(provenance_path)
         if fixture.get("schema_version") != 1 or provenance.get("schema_version") != 1:
             raise MalformedInputError("Unsupported grade-oracle schema version")
-        if provenance.get("fixture_sha256") != sha256(fixture_path.read_bytes()).hexdigest():
-            raise MalformedInputError("Grade-oracle fixture does not match its provenance")
+        if (
+            provenance.get("fixture_sha256")
+            != sha256(fixture_path.read_bytes()).hexdigest()
+        ):
+            raise MalformedInputError(
+                "Grade-oracle fixture does not match its provenance"
+            )
         max_n = fixture.get("max_n")
         rows = fixture.get("rows")
         if not isinstance(max_n, int) or max_n < 1 or not isinstance(rows, list):
@@ -59,7 +64,9 @@ class GradeOracle:
             except (KeyError, TypeError, ValueError) as error:
                 raise MalformedInputError(f"Invalid grade-oracle row: {row}") from error
             if grade not in GRADE_ORDER or key in grades:
-                raise MalformedInputError(f"Invalid or duplicate grade-oracle key: {key}")
+                raise MalformedInputError(
+                    f"Invalid or duplicate grade-oracle key: {key}"
+                )
             grades[key] = grade
 
         expected_keys = {
@@ -88,7 +95,9 @@ class GradeOracle:
         try:
             return self.grades[key]
         except KeyError as error:
-            raise MalformedInputError(f"Grade-oracle key is outside the fixture: {key}") from error
+            raise MalformedInputError(
+                f"Grade-oracle key is outside the fixture: {key}"
+            ) from error
 
     def expectations_to_next_grade(
         self, passes: int, failures: int, undetermined: int, error_override: bool
@@ -122,7 +131,9 @@ def _read_json(path: Path) -> dict[str, object]:
     try:
         payload = json.loads(path.read_text(encoding="utf-8"))
     except (OSError, json.JSONDecodeError) as error:
-        raise MalformedInputError(f"Invalid grade-oracle JSON {path}: {error}") from error
+        raise MalformedInputError(
+            f"Invalid grade-oracle JSON {path}: {error}"
+        ) from error
     if not isinstance(payload, dict):
         raise MalformedInputError(f"Grade-oracle JSON must contain an object: {path}")
     return payload

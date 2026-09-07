@@ -1,0 +1,121 @@
+{
+  "blocking_failures": [],
+  "coverage": {
+    "arm_balance_failure_count": 0,
+    "blocking_discrepancy_count": 0,
+    "ineligible_trace_count": 0,
+    "run_variant_failure_count": 0,
+    "warning_discrepancy_count": 7
+  },
+  "deferred_degenerate_cases": [
+    "outer_mml_nonconvergence",
+    "laplace_mode_or_hessian_failure",
+    "importance_resampling_low_ess",
+    "perfect_or_quasi_perfect_separation",
+    "singular_observed_restricted_covariance",
+    "singular_or_nonfinite_bootstrap_replicate",
+    "empty_proportional_odds_cut_point",
+    "degenerate_gold_validation"
+  ],
+  "degenerate_case_census": {
+    "F_zero_trace_count": 2396,
+    "P_zero_trace_count": 1812,
+    "U_zero_trace_count": 7363,
+    "all_undetermined_trace_count": 0,
+    "error_override_trace_count": 501,
+    "missing_error_judgement_trace_count": 0,
+    "single_expectation_rubric_count": 10,
+    "single_expectation_trace_count": 1092,
+    "zero_component_smoothing_required_trace_count": 7363
+  },
+  "derived_totals": {
+    "actual_eligible_criterion_observations": 36624,
+    "expectations": 314,
+    "expected_criterion_observations": 36624,
+    "rubrics": 63,
+    "traces": 7364,
+    "variants": 263
+  },
+  "f3_design_rank": {
+    "H_F3": 6,
+    "full_rank": true,
+    "interaction_status": "confirmatory"
+  },
+  "integrity": {
+    "grade_block_threshold": 0.01,
+    "grade_mismatch_count": 0,
+    "grade_mismatch_rate": 0.0,
+    "rubric_v2_mismatch_count": 0
+  },
+  "materiality": {
+    "expectation_count": 314,
+    "material_expectation_count": 314,
+    "non_material_expectation_count": 0,
+    "passed": true,
+    "rubric_mismatch_count": 0
+  },
+  "passed": true,
+  "per_segment": {
+    "emc2_set1": {
+      "actual": {
+        "expectations": 120,
+        "rubrics": 21,
+        "traces": 2856,
+        "variants": 102
+      },
+      "expected": {
+        "expectations": 120,
+        "rubrics": 21,
+        "traces": 2856,
+        "variants": 102
+      },
+      "passed": true
+    },
+    "emc2_set2": {
+      "actual": {
+        "expectations": 98,
+        "rubrics": 20,
+        "traces": 2212,
+        "variants": 79
+      },
+      "expected": {
+        "expectations": 98,
+        "rubrics": 20,
+        "traces": 2212,
+        "variants": 79
+      },
+      "passed": true
+    },
+    "mallinckrodt": {
+      "actual": {
+        "expectations": 96,
+        "rubrics": 22,
+        "traces": 2296,
+        "variants": 82
+      },
+      "expected": {
+        "expectations": 96,
+        "rubrics": 22,
+        "traces": 2296,
+        "variants": 82
+      },
+      "passed": true
+    }
+  },
+  "run_count": 84,
+  "schema_version": 1,
+  "snapshot": {
+    "checksums_verified": true,
+    "experiment_count": 84,
+    "manifest_sha256": "9d8534f901f207f9db2defec0f31c08dad34e673b354fedbb9e396672b99cb14",
+    "run_count": 84,
+    "schema_version": 3
+  },
+  "variant_range": {
+    "V_r_equals_1_rubric_count": 0,
+    "blocking": false,
+    "max_V_r": 7,
+    "min_V_r": 2,
+    "min_V_r_at_least_2": true
+  }
+}

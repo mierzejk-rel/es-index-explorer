@@ -22,6 +22,7 @@ EXPECTED_STREAM_SEEDS = {
     "glm_bootstrap": 5921207744115555729,
     "r_oracle": 801891564970050136,
     "gold_sampling": 13609121314617641732,
+    "gold_recode_sampling": 14671333374540819100,
     "annotation_shuffle": 1545213380394893023,
     "diagnostic_resampling": 11705599034764626503,
 }
@@ -47,7 +48,11 @@ def test_individual_derivation_matches_manifest(name: str, seed: int) -> None:
 @pytest.mark.parametrize(
     "stream_seeds",
     (
-        {name: seed for name, seed in EXPECTED_STREAM_SEEDS.items() if name != "r_oracle"},
+        {
+            name: seed
+            for name, seed in EXPECTED_STREAM_SEEDS.items()
+            if name != "r_oracle"
+        },
         {**EXPECTED_STREAM_SEEDS, "unexpected": 1},
         {**EXPECTED_STREAM_SEEDS, "gold_sampling": 1},
     ),
@@ -55,10 +60,13 @@ def test_individual_derivation_matches_manifest(name: str, seed: int) -> None:
 def test_manifest_rejects_noncanonical_stream_seeds(
     stream_seeds: dict[str, int],
 ) -> None:
-    specification = FileFingerprint(path="specification.md", sha256="ab" * 32, size_bytes=1)
+    specification = FileFingerprint(
+        path="specification.md", sha256="ab" * 32, size_bytes=1
+    )
 
     with pytest.raises(
-        ValidationError, match="stream_seeds must exactly match the frozen named streams"
+        ValidationError,
+        match="stream_seeds must exactly match the frozen named streams",
     ):
         AnalysisLockManifest(
             specification=specification,

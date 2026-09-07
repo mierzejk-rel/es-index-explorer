@@ -1,0 +1,151 @@
+{
+  "batch_id": "batch-009",
+  "item_ids_sha256": "7578ae117e12297c2fa5881aafded3894409f2307592ed964384c79186f87f19",
+  "items": [
+    {
+      "item_id": "variant_631e4bec6d13fdd86f9778a5afe158d0367a103e386773db29c071ddc839fd02",
+      "item_type": "question",
+      "source_text": "What did Ellingson do in response to the Belford hack, with dates and times for each item?",
+      "text_sha256": "4536d1e87a56e350777647310c0f45f825af595591745e7e77480d8bd8acc12d"
+    },
+    {
+      "item_id": "expectation_5abf6fb52d1f3bd05bb031b7834baded66d3ddde5c70c3d18f3379eac2f58bf3",
+      "item_type": "expectation",
+      "source_text": "Quarterly playbook, draft content (see cover email, REL0000038871), January 2013 for Territory – New Hampshire",
+      "text_sha256": "8be8d0c0b7c51abedbb1b2c82ad5003920297a7fb18b3f7e6b53d647094e67ae"
+    },
+    {
+      "item_id": "variant_f3ba5b232aec2ffa0568ea221cf550b75b22e68aa03647b16f781fb01db9e478",
+      "item_type": "question",
+      "source_text": "List documents refuting the claim that Ellingson should have had greater cybersecurity protections in place.",
+      "text_sha256": "ea870dc23aefcae0d2950f2600e14971338bfaf3d9326a2dc074c911e0414673"
+    },
+    {
+      "item_id": "expectation_24afecfac80a920c0c7f6208e82c7ba774d418f09c64fb93ff8395d2e3543886",
+      "item_type": "expectation",
+      "source_text": "Cites isolation of Gibson from other systems as of 10/19 3:30pm.",
+      "text_sha256": "221bf2046b08203c0796b433ff60ca95010b9ea44d926ca117b9452bb9a3fc85"
+    },
+    {
+      "item_id": "expectation_0ee2a9ef5368bef491380dfae950d7080c39062853e59a00309aa678d646244e",
+      "item_type": "expectation",
+      "source_text": "spreadsheet showing potential legal implications of the breach",
+      "text_sha256": "30a7c2d51106e58551d559b5ac54173319fff78d4c3c81f797e6538adf3a3d53"
+    },
+    {
+      "item_id": "expectation_99e1bac011fe5f2a0ce0718ff74867ad8c985f145bc3794791553a2274595b6a",
+      "item_type": "expectation",
+      "source_text": "Cites crisis team working round the clock continuous as of 10/22 2:15pm.",
+      "text_sha256": "a367b3f81cba31923dbd05a34439481701143144e0528586575750f4cc8b6e91"
+    },
+    {
+      "item_id": "expectation_fa3c4a578113a01df69d8337222b874468734eaad7e7056a78367535ae4e36f4",
+      "item_type": "expectation",
+      "source_text": "Quarterly Playbook, FY13Q2, Territory 60610 - Austin",
+      "text_sha256": "15cdb07283f4803b0522c08454c7015ea8e2f79bf33e629d1eb0fe89b7c85792"
+    },
+    {
+      "item_id": "expectation_01f22a5aacce6a2cdbed72880f912708aac1a5c8348853c2879526d2ae7a38df",
+      "item_type": "expectation",
+      "source_text": "Dr. Chen reached out to and subsequently brought in a group of young hackers to consult with Ellingson to assist with its cybersecurity situation post-cyberattack.",
+      "text_sha256": "62373ef387a50894c5827be83b8fc7ee6e0a60cdbd2e186b091dc64e074c0136"
+    },
+    {
+      "item_id": "expectation_ab0fa3c8bbc2c23ca4668f45cc322605285c7a8e08f8eed6eba2f80945041879",
+      "item_type": "expectation",
+      "source_text": "Cites one or more email between Belford and Wallace preparing for or carrying out the Ellingson hack.",
+      "text_sha256": "407f4f22ddf854d041de198fe03a942d7f25ad74527c5ea25c1e150642137fc7"
+    },
+    {
+      "item_id": "variant_095dad3e7eeea883885ab606be91f3d38c3301abf32d2f80362f77595facbf8c",
+      "item_type": "question",
+      "source_text": "Provide an overview of compliance's March 13, 2014 communication about meal frequency and the responses or follow-ups to the communication.",
+      "text_sha256": "6d81e5bffe44b40f3ce4cad2de9c2028491fecbb6b18bfe68ae4b227ad70d567"
+    },
+    {
+      "item_id": "expectation_b4df82619cb764530acf27c72d299391d91bbe51a46a358eeec7908a4520b869",
+      "item_type": "expectation",
+      "source_text": "Cites email address cargoff@nycap.rr.com for Dr. Charles Argoff, MD",
+      "text_sha256": "df9dc400cd24de1004e39637e1bc4a56bed56b8afb31c28045824f9ab258c623"
+    },
+    {
+      "item_id": "expectation_6ee2a1ea453c6a3be54a7cde3b5b08725052dfbd078e8d3d759925a7a11e22ca",
+      "item_type": "expectation",
+      "source_text": "Focuses on evidence of Ellingson's actual deficiencies and vulnerabilities, rather than external commentary or concerns about them.",
+      "text_sha256": "0ab49db3265dbd5d025a072db1f1737d56f9b562a20887ea892598412d370fa6"
+    },
+    {
+      "item_id": "variant_bd0ca30d4ac23af7123a6c6f8a5df5053a4da79df2beeff1a473da7e12a23439",
+      "item_type": "question",
+      "source_text": "What did Ellingson plan to do in order to increase its cybersecurity protections after it was subject to the cyberattack?",
+      "text_sha256": "402ed95d9ac36029522c4168113b456d99a9076b7c1c275c5a9fb00295be64cc"
+    },
+    {
+      "item_id": "variant_cdafcc774d1eb6dd3305bdc7b7e151effd219a57f8b80880049e3e898fe7f9a7",
+      "item_type": "question",
+      "source_text": "List the pharmaceutical companies with which Charles Argoff was associated, other than Covidien/Mallinckrodt.",
+      "text_sha256": "3055dde51acc30cbbac5b0a0414f1089d65dd3cc7815cb7af9e4e021649fc17d"
+    },
+    {
+      "item_id": "expectation_6c5dfd913d09ee337b91363eae9c73520a9fd62af2e62b125ddccd9382ad2a86",
+      "item_type": "expectation",
+      "source_text": "Lawyer (lawyer@legalfirm.com)",
+      "text_sha256": "3ba84f5fe6cd6383424f0bd46ec8bf0bbb3bba14e61fa70b137c64d12b2d8d11"
+    },
+    {
+      "item_id": "variant_867afbfceb4d7203f51d5434bde736d71623c3e86d7ad37ae1b2d6459c3a54c8",
+      "item_type": "question",
+      "source_text": "Was Belford in contact with young hacker Zer0Cool?",
+      "text_sha256": "ba41600397dc1986a5e44e6ab21da096e9a0e3cc3d4ce1f9a4a35077127791c6"
+    },
+    {
+      "item_id": "expectation_e5a25dd711fab3ead79998d556f797a091f6864f3d5617e2827018c13d20cef0",
+      "item_type": "expectation",
+      "source_text": "States Eugene Belford used the address eugene.belford@ellingson.com and also eugene.belford@offshore-secure.net.",
+      "text_sha256": "b044d5b2c4596c045a75c6de28be46b622228ad007272cb3b6d92e76433696d8"
+    },
+    {
+      "item_id": "expectation_d649f4dd367bd682fa9f62a5798ef6aaca62c3a4e2d0c0346e0b9280de5fd648",
+      "item_type": "expectation",
+      "source_text": "Quarterly Playbook, FY13Q2, Territory 60605 - Beaumont",
+      "text_sha256": "2e2c301044f19bf460ec8af0437517b994c5567085893a96e142d6a35abc49c3"
+    },
+    {
+      "item_id": "variant_7e2717a0df0b8076fd4fe15b3562d10e7b93903c2f5ccfe3facf068793282b46",
+      "item_type": "question",
+      "source_text": "What was Eugene Belford's email address?",
+      "text_sha256": "850e62907a1b0eb4fc0d1c8486dea84ee3a7cc5bdec010182b5aedc585165a76"
+    },
+    {
+      "item_id": "variant_dfd98e933a8c0db433d0a503a3cb7eb6126ecb576b3b58489c25afc7f3cffe6d",
+      "item_type": "question",
+      "source_text": "Who at Ellingson was in communication with federal law enforcement about the Belford Da Vinci hack?",
+      "text_sha256": "2a1e5e10837ddb80508514757f0c83438b8384d91f6fabf21d3cd49c85ba43e3"
+    },
+    {
+      "item_id": "expectation_2e9001af054fd6b1c5c103499ad4130888da8ac1f72b7218dc96b5f54b62537f",
+      "item_type": "expectation",
+      "source_text": "Involved in February 1, 2012 EXALGO Speaker Program, location not stated in documents",
+      "text_sha256": "3abf8a5c6df2a66f3bbccb5e6e4b9e09acbe93bbaaed48e9a3f5207f806b4ad1"
+    },
+    {
+      "item_id": "variant_51546600d35f0d5e47953cd6dba6f8b71419c09f6fbe6196ba32a2f0487bb357",
+      "item_type": "question",
+      "source_text": "List the documents showing that Ellingson knew, before October 15, 1995, that its cybersecurity protections did not meet industry standards.",
+      "text_sha256": "f94ba887b8af6621abe8c4dee3190bf678ab5943a689fe8371404a4680df3015"
+    },
+    {
+      "item_id": "variant_1bf43d1b339e9e87007c81acde9ba433a10d1c407c6013697dc0e35ad012f5ba",
+      "item_type": "question",
+      "source_text": "What documents show Dr. El-Mohandes's involvement in promoting Pennsaid?",
+      "text_sha256": "b6882231d4a501c0e23fc208bcf4f8068e04fc0f3ae8dcc7b9463b6afb98f935"
+    },
+    {
+      "item_id": "expectation_894b24fc07bf0027edd28c90e4878d78c219dd87d684b34af1c52f4c799599a9",
+      "item_type": "expectation",
+      "source_text": "Media spokesperson for PENNSAID",
+      "text_sha256": "fe251d9c1d81bcc14f0f5fa32d12b1c6468b85aa9d6b9a98c03dc56a0f952e97"
+    }
+  ],
+  "schema_version": 1
+}

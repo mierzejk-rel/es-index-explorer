@@ -9,7 +9,10 @@ from es_index_explorer.question_analysis.contracts import (
     WorkflowCommand,
     WorkflowState,
 )
-from es_index_explorer.question_analysis.errors import PrerequisiteError
+from es_index_explorer.question_analysis.errors import (
+    MalformedInputError,
+    PrerequisiteError,
+)
 from es_index_explorer.question_analysis.workflow import (
     PREREQUISITES,
     complete_step,
@@ -51,7 +54,10 @@ def _complete(
     )
     assert should_run
     return complete_step(
-        running, command, now=START + timedelta(minutes=offset, seconds=1)
+        running,
+        command,
+        authorize_outcome_modeling=command is WorkflowCommand.VALIDATE_FEATURES,
+        now=START + timedelta(minutes=offset, seconds=1),
     )
 
 
@@ -95,6 +101,34 @@ def test_validate_unlocks_models_but_oracle_remains_required() -> None:
 
     assert should_run
     assert running.steps[WorkflowCommand.FIT_LAYER1].status is StepStatus.RUNNING
+
+
+def test_validate_completion_without_explicit_authorization_is_rejected() -> None:
+    state = WorkflowState.initial(START)
+    for offset, command in enumerate(
+        (
+            WorkflowCommand.JOIN,
+            WorkflowCommand.FEATURES,
+            WorkflowCommand.ANNOTATE_EMIT,
+            WorkflowCommand.ANNOTATE_RUN,
+            WorkflowCommand.ANNOTATE_INGEST,
+            WorkflowCommand.GOLD_SAMPLE,
+            WorkflowCommand.GOLD_INGEST,
+        )
+    ):
+        state = _complete(state, command, offset)
+    running, _ = start_step(
+        state,
+        WorkflowCommand.VALIDATE_FEATURES,
+        now=START + timedelta(minutes=8),
+    )
+
+    with pytest.raises(MalformedInputError, match="unlock authorization"):
+        complete_step(
+            running,
+            WorkflowCommand.VALIDATE_FEATURES,
+            now=START + timedelta(minutes=8, seconds=1),
+        )
 
 
 def test_oracle_can_run_before_join_but_not_after_fitting_starts() -> None:

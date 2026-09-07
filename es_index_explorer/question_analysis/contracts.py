@@ -13,7 +13,28 @@ ANALYSIS_LOCK_TAG = "analysis-lock/simple-mode-question-suitability"
 MASTER_SEED = 20
 ANNOTATION_BATCH_SIZE = 24
 GOLD_SAMPLE_PER_STRATUM = 12
+GOLD_RECODE_FRACTION = 0.20
+GOLD_RECODE_MINIMUM_PER_STRATUM = 2
+GOLD_RECODE_MINIMUM_DELAY_DAYS = 14
+VALIDATION_BOOTSTRAP_REPLICATES = 2_000
 ANNOTATOR_MODELS = ("Claude Opus 5 (high thinking)", "GPT-5.6 Sol")
+GOLD_VALIDATION_FEATURES = (
+    "qdmr_step_count",
+    "hop_structure",
+    "exhaustivity_requirement",
+    "negative_conclusiveness",
+    "referring_form_type",
+    "answer_locality",
+    "recall_orientation",
+)
+GOLD_STRATIFYING_FEATURES = (
+    "hop_structure",
+    "exhaustivity_requirement",
+    "negative_conclusiveness",
+    "referring_form_type",
+    "answer_locality",
+    "recall_orientation",
+)
 QDMR_OPERATOR_INVENTORY = (
     "SELECT",
     "FILTER",
@@ -193,6 +214,20 @@ class FeatureValidationStatus(StrEnum):
     VALIDATED = "VALIDATED"
     VALIDATED_WITH_LIMITATIONS = "VALIDATED_WITH_LIMITATIONS"
     NOT_VALIDATED = "NOT_VALIDATED"
+
+
+class DslGateStatus(StrEnum):
+    """Design-based surrogate-label derivation outcomes."""
+
+    ESTABLISHED = "DSL_ESTABLISHED"
+    NOT_ESTABLISHED = "DSL_NOT_ESTABLISHED"
+
+
+class AnnotatorKind(StrEnum):
+    """Permitted gold-workflow annotator kinds."""
+
+    HUMAN = "human"
+    PROVISIONAL_LLM = "provisional_llm"
 
 
 class AnnotationConstructAnomaly(StrEnum):

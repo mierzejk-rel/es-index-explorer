@@ -5,7 +5,7 @@ The pipeline implements the analysis contract in
 existing MLflow snapshot CLI and writes only under:
 
 ```text
-artifacts/question_analysis/simplemode-v1-postremediation-final/
+artifacts/question_analysis/simplemode-v1-segment5/
 ├── manifest.json
 ├── state.json
 ├── tables/
@@ -21,8 +21,8 @@ The `artifacts/question_analysis/simplemode-v1/` directory is the immutable pre-
 Segment 3 run. `simplemode-v1-postreview`, `simplemode-v1-postreview-p2`, and
 `simplemode-v1-postreview-p3` are immutable post-review checkpoints retained for comparison;
 they are not resumed or rewritten. No artificial `simplemode-v1-postreview-p4` checkpoint
-exists. The post-remediation root shown above is the canonical default for the refreshed
-Stage 4 artifacts and the Segment 5 handoff.
+exists. `simplemode-v1-postremediation-final` is the immutable canonical Stage 4 handoff.
+Segment 5 executes in the freshly locked `simplemode-v1-segment5` root shown above.
 
 ## Environment
 
@@ -95,8 +95,9 @@ required, or normalize iterable values at the consumer boundary. `source_text`
 and `text_sha256` preserve canonical catalogue bytes, including source
 whitespace.
 
-Later commands remain unavailable until their implementation segments register
-them. The shell never marks a placeholder command complete.
+`gold-sample`, `gold-ingest`, and `validate-features` are implemented but remain manual,
+outcome-blind data-gate steps. The shell never marks a placeholder or incomplete human gate
+complete.
 
 ## Segment 4 annotation
 
@@ -104,6 +105,32 @@ Segment 4 uses the local Cursor Python SDK. It needs a one-time Cursor user API
 key setup; keep the key outside the repository in `CURSOR_API_KEY`. For the
 exact setup, model-access checkpoint, isolation boundary, and command sequence,
 see [`reports/15-segment-4-annotation-operations.md`](reports/15-segment-4-annotation-operations.md).
+
+## Segment 5 human gold and feature validation
+
+The frozen user decisions are recorded in
+[`reports/16-segment-5-gold-validation-decisions.md`](reports/16-segment-5-gold-validation-decisions.md).
+The CSV workflow, 14-day delayed re-code rule, provisional-LLM restrictions, metrics, DSL
+fallback, and unlock conditions are documented in
+[`reports/17-segment-5-gold-validation-operations.md`](reports/17-segment-5-gold-validation-operations.md).
+
+Implementation verification prepares the Segment 5 root through `annotate-ingest` and stops.
+The user starts the live gate explicitly:
+
+```bash
+UV_NO_ENV_FILE=1 uv run --no-env-file question-suitability gold-sample
+UV_NO_ENV_FILE=1 uv run --no-env-file question-suitability gold-ingest \
+  --adjudication-csv <completed-initial.csv> \
+  --recode-csv <completed-delayed-recode.csv> \
+  --provenance-json <human-provenance.json>
+UV_NO_ENV_FILE=1 uv run --no-env-file question-suitability validate-features \
+  --decisions-dir <committed-feature-decisions>
+```
+
+The re-code must be completed at least 14 days after initial human adjudication. A frontier-LLM
+re-code is provisional non-human evidence only: it cannot complete the human gate or set
+`outcome_modeling_unlocked=true`. Until qualifying human gold, delayed human re-code, feature
+decisions, and a recorded DSL path all pass, both fit commands remain fail-closed.
 
 Exit categories are stable:
 

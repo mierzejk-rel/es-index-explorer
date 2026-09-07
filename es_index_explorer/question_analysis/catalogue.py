@@ -200,8 +200,10 @@ def _require_rows(
     payload: dict[str, object], key: str, path: Path
 ) -> list[dict[str, object]]:
     value = payload.get(key)
-    if not isinstance(value, list) or not value or not all(
-        isinstance(row, dict) for row in value
+    if (
+        not isinstance(value, list)
+        or not value
+        or not all(isinstance(row, dict) for row in value)
     ):
         raise MalformedInputError(f"Missing or invalid [[{key}]] in {path}")
     return value

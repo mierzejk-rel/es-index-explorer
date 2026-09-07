@@ -14,6 +14,7 @@ STREAM_NAMES = (
     "glm_bootstrap",
     "r_oracle",
     "gold_sampling",
+    "gold_recode_sampling",
     "annotation_shuffle",
     "diagnostic_resampling",
 )

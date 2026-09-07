@@ -73,7 +73,9 @@ def test_missing_catalogue_filename_mapping_fails_closed() -> None:
         [{"eval_dataset": "emc2_set1", "rubric_file_path": "missing.rubric.toml"}]
     )
 
-    with pytest.raises(GateFailureError, match="without a unique catalogue source path"):
+    with pytest.raises(
+        GateFailureError, match="without a unique catalogue source path"
+    ):
         _attach_catalogue_source_paths(trace, catalogue)
 
 

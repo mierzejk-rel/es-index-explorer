@@ -1,0 +1,13 @@
+{
+  "batch_id": "batch-025",
+  "item_ids_sha256": "7bcb2656f26b08789fd9cc27b320e121d63b77640f0de6ec0de25accb92015d5",
+  "items": [
+    {
+      "item_id": "expectation_7519eb62d238a476ccebaa050c81d93455775564c2f5203f96769a7f4b454925",
+      "item_type": "expectation",
+      "source_text": "Cites communication where Belford tells Phantom Phreak that Da Vinci virus is operational and Ellingson systems are compromised.",
+      "text_sha256": "4eff20a99e523f19dadb743f90461bfcc65683dfcfe4994afb00ff5c88727f60"
+    }
+  ],
+  "schema_version": 1
+}

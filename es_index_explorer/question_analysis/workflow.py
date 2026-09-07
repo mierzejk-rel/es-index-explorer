@@ -102,12 +102,21 @@ def complete_step(
     command: WorkflowCommand,
     artifacts: Iterable[ArtifactMetadata] = (),
     *,
+    authorize_outcome_modeling: bool = False,
     now: datetime | None = None,
 ) -> WorkflowState:
     """Complete a running command and record all output hashes."""
     record = state.steps[command]
     if record.status is not StepStatus.RUNNING:
         raise MalformedInputError(f"{command.value} is not running")
+    if command is WorkflowCommand.VALIDATE_FEATURES and not authorize_outcome_modeling:
+        raise MalformedInputError(
+            "validate-features completion requires verified unlock authorization"
+        )
+    if authorize_outcome_modeling and command is not WorkflowCommand.VALIDATE_FEATURES:
+        raise MalformedInputError(
+            "Only validate-features may authorize outcome modeling"
+        )
     timestamp = now or datetime.now(UTC)
     artifact_map = dict(state.artifacts)
     for artifact in artifacts:
@@ -129,12 +138,11 @@ def complete_step(
             "steps": steps,
             "artifacts": artifact_map,
             "outcome_modeling_unlocked": (
-                state.outcome_modeling_unlocked
-                or command is WorkflowCommand.VALIDATE_FEATURES
+                state.outcome_modeling_unlocked or authorize_outcome_modeling
             ),
             "outcome_modeling_unlocked_at": (
                 timestamp
-                if command is WorkflowCommand.VALIDATE_FEATURES
+                if authorize_outcome_modeling
                 else state.outcome_modeling_unlocked_at
             ),
             "updated_at": timestamp,

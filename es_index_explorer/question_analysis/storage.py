@@ -29,6 +29,7 @@ ARTIFACT_DIRECTORIES = (
     "tables",
     "draws",
     "annotations",
+    "gold",
     "statistics",
     "figures",
     "partial_reports",

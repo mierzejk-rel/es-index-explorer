@@ -13,9 +13,7 @@ ClauseType = Literal[
 ]
 
 PUNCTUATION_UPOS = "PUNCT"
-CLAUSAL_RELATIONS = frozenset(
-    {"advcl", "acl", "ccomp", "xcomp", "csubj", "parataxis"}
-)
+CLAUSAL_RELATIONS = frozenset({"advcl", "acl", "ccomp", "xcomp", "csubj", "parataxis"})
 SUBORDINATE_RELATIONS = frozenset({"advcl", "acl", "ccomp", "xcomp", "csubj"})
 COMPLEX_NOMINAL_RELATIONS = frozenset(
     {"amod", "appos", "compound", "nmod", "nummod", "acl"}
@@ -104,14 +102,14 @@ def extract_linguistic_features(
 ) -> LinguisticFeatures:
     """Compute the frozen P2/P3 features."""
     if not source_text.strip() or not sentences:
-        raise ValueError("Deterministic linguistic extraction requires parsed, non-empty text")
+        raise ValueError(
+            "Deterministic linguistic extraction requires parsed, non-empty text"
+        )
 
     words = tuple(word for sentence in sentences for word in sentence.words)
     content_words = tuple(word for word in words if word.upos != PUNCTUATION_UPOS)
     dependency_lengths = tuple(
-        abs(word.word_id - word.head)
-        for word in content_words
-        if word.head != 0
+        abs(word.word_id - word.head) for word in content_words if word.head != 0
     )
     clauses = tuple(
         clause for sentence in sentences for clause in _clauses(sentence.words)
@@ -218,9 +216,7 @@ def _is_matrix_imperative(
 def _is_matrix_interrogative(
     interrogative: ParsedWord, content_words: tuple[ParsedWord, ...]
 ) -> bool:
-    by_key = {
-        (word.sentence_index, word.word_id): word for word in content_words
-    }
+    by_key = {(word.sentence_index, word.word_id): word for word in content_words}
     seen: set[tuple[int, int]] = set()
     current = interrogative
     while current.head:
@@ -265,9 +261,7 @@ def _has_subject_auxiliary_inversion(
     return _has_subject(predicate, content_words)
 
 
-def _has_subject(
-    predicate: ParsedWord, content_words: tuple[ParsedWord, ...]
-) -> bool:
+def _has_subject(predicate: ParsedWord, content_words: tuple[ParsedWord, ...]) -> bool:
     return any(
         word.sentence_index == predicate.sentence_index
         and word.head == predicate.word_id
@@ -346,7 +340,9 @@ def _first_logical_sentence(
         logical_sentences.append(sentence)
 
     words = tuple(
-        word for logical_sentence in logical_sentences for word in logical_sentence.words
+        word
+        for logical_sentence in logical_sentences
+        for word in logical_sentence.words
     )
     starts = [word.start_char for word in words if word.start_char is not None]
     ends = [word.end_char for word in words if word.end_char is not None]
@@ -368,7 +364,9 @@ def _boundary_is_inside_email(
     email_spans: tuple[tuple[int, int], ...],
 ) -> bool:
     left_ends = [word.end_char for word in left.words if word.end_char is not None]
-    right_starts = [word.start_char for word in right.words if word.start_char is not None]
+    right_starts = [
+        word.start_char for word in right.words if word.start_char is not None
+    ]
     if not left_ends or not right_starts:
         return False
     left_end = max(left_ends)
@@ -405,8 +403,7 @@ def _is_complex_nominal(
     if word.upos not in {"NOUN", "PROPN", "PRON"}:
         return False
     return any(
-        child.head == word.word_id
-        and child.base_relation in COMPLEX_NOMINAL_RELATIONS
+        child.head == word.word_id and child.base_relation in COMPLEX_NOMINAL_RELATIONS
         for child in sentence_words
     )
 

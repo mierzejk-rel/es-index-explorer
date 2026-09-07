@@ -27,8 +27,8 @@ from es_index_explorer.question_analysis.workspace import (
 pytestmark = pytest.mark.unit
 
 
-def test_default_root_is_canonical_postremediation_root() -> None:
-    assert DEFAULT_ANALYSIS_ROOT.name == "simplemode-v1-postremediation-final"
+def test_default_root_is_segment5_execution_root() -> None:
+    assert DEFAULT_ANALYSIS_ROOT.name == "simplemode-v1-segment5"
 
 
 def _specification(tmp_path: Path) -> Path:
@@ -66,6 +66,11 @@ def test_manifest_round_trip_and_frozen_layout(tmp_path: Path) -> None:
         "segment4_annotations_source",
         "segment4_cli_source",
         "segment4_workflow_source",
+        "segment5_decision_ledger",
+        "segment5_dsl_gate_source",
+        "segment5_gold_source",
+        "segment5_operations",
+        "segment5_validation_source",
         "stanza_en_resource_manifest",
     }
     assert workspace.load_manifest() == manifest

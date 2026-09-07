@@ -17,7 +17,12 @@ from es_index_explorer.question_analysis.contracts import (
     COGNITIVE_PROCESS_LEVELS,
     EXPLICIT_OUTCOME_FIELD_NAMES,
     FROZEN_RECOMMENDATION_FIELD_NAMES,
+    GOLD_RECODE_FRACTION,
+    GOLD_RECODE_MINIMUM_DELAY_DAYS,
+    GOLD_RECODE_MINIMUM_PER_STRATUM,
     GOLD_SAMPLE_PER_STRATUM,
+    GOLD_STRATIFYING_FEATURES,
+    GOLD_VALIDATION_FEATURES,
     OUTCOME_FIELD_CONTRACT_VERSION,
     OUTCOME_FIELD_DENYLIST,
     QDMR_OPERATOR_INVENTORY,
@@ -318,6 +323,19 @@ def test_r_oracle_base_image_is_digest_pinned() -> None:
 def test_annotation_constants_match_locked_specification() -> None:
     assert ANNOTATION_BATCH_SIZE == 24
     assert GOLD_SAMPLE_PER_STRATUM == 12
+    assert GOLD_RECODE_FRACTION == 0.20
+    assert GOLD_RECODE_MINIMUM_PER_STRATUM == 2
+    assert GOLD_RECODE_MINIMUM_DELAY_DAYS == 14
+    assert GOLD_VALIDATION_FEATURES == (
+        "qdmr_step_count",
+        "hop_structure",
+        "exhaustivity_requirement",
+        "negative_conclusiveness",
+        "referring_form_type",
+        "answer_locality",
+        "recall_orientation",
+    )
+    assert GOLD_STRATIFYING_FEATURES == GOLD_VALIDATION_FEATURES[1:]
     assert OUTCOME_FIELD_CONTRACT_VERSION == 1
     assert ANNOTATOR_MODELS == (
         "Claude Opus 5 (high thinking)",
@@ -454,6 +472,29 @@ def test_stage4_quality_gate_is_scoped_and_fail_closed() -> None:
     assert "--cov-fail-under=88" in quality_section
     assert "collected-test count" in quality_section
     assert "unit-only run" in quality_section
+
+
+def test_segment5_decision_ledger_and_operations_freeze_user_choices() -> None:
+    decision_ledger = (
+        PROJECT_ROOT / "reports" / "16-segment-5-gold-validation-decisions.md"
+    ).read_text(encoding="utf-8")
+    operations = (
+        PROJECT_ROOT / "reports" / "17-segment-5-gold-validation-operations.md"
+    ).read_text(encoding="utf-8")
+
+    for required in (
+        "minimum 14-day delay",
+        "Horvitz–Thompson-weighted MAE skill",
+        "`DISPUTED`",
+        "`simplemode-v1-segment5`",
+        "Both annotators must pass",
+        "Do not run Grok 4.6",
+    ):
+        assert required in decision_ledger
+    assert "DSL_NOT_ESTABLISHED" in operations
+    assert "cannot complete canonical `gold-ingest`" in operations
+    assert "No Grok or other" in operations
+    assert "model-based implementation audit is run" in operations
 
 
 def test_question_analysis_has_no_r1_evals_import() -> None:

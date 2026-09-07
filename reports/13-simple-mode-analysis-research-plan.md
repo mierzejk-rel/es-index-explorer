@@ -2450,6 +2450,20 @@ gold confusion matrix; the feature's **assigned accuracy metric** with an interv
 scale rule below; the widest class-level interval; the human coder's test-retest
 self-agreement on that feature; and enumerated failure modes with examples.
 
+The formal three-status gate applies only to the P4 predictors entering confirmatory families:
+`qdmr_step_count`, `hop_structure`, `exhaustivity_requirement`,
+`negative_conclusiveness`, `referring_form_type`, `answer_locality`, and
+`recall_orientation`. Exploratory P4 annotations receive descriptive validity and reliability
+evidence but do not independently admit or exclude a confirmatory family.
+`qdmr_normalized_question` is retained as faithfulness evidence rather than treated as a
+categorical feature.
+
+Claude and GPT are compared with human gold separately. Both model-specific assigned-metric
+intervals must pass the applicable structural rule; neither model is selected after inspecting
+gold, and their predictions are not pooled as pseudo-replicates of one human label. Both
+complete dossiers are retained and the gate summary reports the weaker point result and wider
+interval.
+
 **The accuracy metric is assigned by measurement scale, and each has a matched naive
 baseline:**
 
@@ -2468,6 +2482,14 @@ baseline:**
   `remember < understand < apply < analyze < evaluate < create`; the ordinal branch is
   therefore **active for that feature**. Counts remain numeric and all other categorical labels
   are binary or nominal.
+- **Numeric P4 count**: `qdmr_step_count` uses **Horvitz-Thompson-weighted mean-absolute-error
+  skill** against the constant predictor equal to the Horvitz-Thompson-weighted median human
+  count: `MAE_skill = 1 - MAE_model / MAE_naive`. Its matched naive baseline is **0** and
+  larger is better. If `MAE_naive = 0`, the skill is undefined and receives
+  `METRIC_UNDEFINED_DEGENERATE_GOLD` rather than an invented perfect or zero score.
+  Krippendorff alpha for this numeric count uses interval-scale disagreement. This is a
+  project-specific pre-specified metric, not a claim derived from the retained agreement
+  literature.
 
 **These are feature-scale-specific validity screens, not comparable numbers.** Balanced
 accuracy, macro-F1, quadratically weighted kappa and Krippendorff alpha are on different
@@ -2600,9 +2622,11 @@ strata a **strict partition** - every item in exactly one stratum - so that the 
 Horvitz-Thompson machinery of §13.2a is exact rather than approximate.
 
 1. **Stratifying features, named rather than described as "the rarest".** The stratifying
-   features are the confirmatory categorical P4 features entering any family's `R_f` (§11.1);
-   the specific list is fixed by name when the codebook (§9, §12) freezes, and is not
-   determined by a runtime notion of rarity.
+   features are exactly `hop_structure`, `exhaustivity_requirement`,
+   `negative_conclusiveness`, `referring_form_type`, `answer_locality`, and
+   `recall_orientation`: the confirmatory categorical P4 features entering a family's `R_f`
+   (§11.1). Explicit missingness reasons are candidate levels. Numeric `qdmr_step_count` is
+   human-coded for sampled question items but does not define a categorical stratum.
 2. **Stratum label, resolved for two annotators by agreement.** Each item's stratifying label
    for a given feature is: the **shared** outcome-blind preliminary label, if both annotator
    models agree; otherwise the item falls into a separate **`DISPUTED`** stratum for that
@@ -2642,6 +2666,19 @@ Horvitz-Thompson machinery of §13.2a is exact rather than approximate.
    routed to each feature's `DISPUTED` stratum specifically, since a large disputed stratum is
    itself a finding about inter-model reliability (§13.2).
 
+**Delayed blind re-code subset.** Independently within each realised gold stratum, select
+`min(n_h, max(2, ceil(0.20 * n_h)))` sampled items using the dedicated
+`gold_recode_sampling` seed stream. The re-code bundle is separately keyed and shuffled and
+hides model labels, strata, initial labels and initial comments. A human re-code is accepted
+only when its completion timestamp is at least fourteen elapsed days after completion of the
+initial human adjudication.
+
+A frontier-LLM re-code may be stored only as provisional non-human evidence. It records exact
+model/interface/version, prompt and codebook hashes, parameters, context isolation,
+timestamps, run identity, usage and response hashes. It does not populate human test-retest
+fields, does not complete the human gold gate, and cannot unlock outcome modelling; the need
+for independent human expert verification remains an explicit unresolved validation item.
+
 ### 13.4 Measurement-error correction, as a formal gate
 
 Direct use of imperfect surrogate labels biases downstream regressions and invalidates
@@ -2664,6 +2701,14 @@ the lock**:
 
 The outcome of the gate is recorded in the lock, not chosen after seeing which path gives a
 nicer answer.
+
+The derivation is established only if hash-linked evidence satisfies every pre-outcome
+obligation: the target estimand and observed-data structure; surrogate-error and missingness
+assumptions; unequal-probability gold sampling; mapping to the frozen two-way clustered score;
+nuisance estimation and cross-fitting; influence/score correction and two-way variance; and
+synthetic calibration, bias, coverage and failure-boundary tests. Any unmet obligation records
+`DSL_NOT_ESTABLISHED` and mechanically selects the gold-only confirmatory fallback. An
+unsupported or provisional extension is never treated as passed.
 
 ## 14. Sensitivity and stability matrix
 
@@ -3126,6 +3171,8 @@ independently from the same master seed:
   once and never touched again after the fixture is committed.
 - `gold_sampling` - the stratified gold sample draw (§13.3) and the stratified bootstrap
   intervals of §13.2a.
+- `gold_recode_sampling` - the deterministic twenty-percent within-stratum delayed blind
+  re-code subset and its independent shuffle (§13.3).
 - `annotation_shuffle` - the seeded-shuffle batch ordering (§13.1) and the feature-validation
   seeded-shuffle judging order (§13.2a).
 - `diagnostic_resampling` - the importance-resampling check (§5.1), the leave-one-arm-out and
@@ -3176,6 +3223,10 @@ schematised artefact or artefact family, not an implicit in-memory structure:
 - **`gold_sample.parquet`, `gold_labels.parquet`, `feature_validation.parquet` and
   `validated_features.parquet`** - inclusion probabilities, adjudication/re-code labels,
   validation dossiers/statuses and the feature set admitted past the gate.
+- **`dsl_gate.json`, `validation_unlock.json` and `unresolved_validation_items.json`** - the
+  proof-obligation outcome and fallback, explicit unlock evidence, and any outstanding human,
+  degenerate-gold or provenance requirement. Provisional non-human evidence is represented as
+  an unresolved item and is never sufficient unlock evidence.
 - **The R-oracle input/output fixture** - frozen linear-reduction inputs, Docker image digest,
   R/package versions, seed, call arguments, `W_obs` and `p_f`.
 - **`design_matrix_<family>`** - one per confirmatory family, at the criterion-in-trace grain
@@ -3458,6 +3509,13 @@ the content names the tag.
    of step 1/`join`, matching that command's ownership of grade-fixture generation and lookup.
 7. Only then is outcome modelling unlocked (`fit-layer1`, `fit-families`, then `robustness` and
    `report`).
+
+Implementation completion is distinct from data-gate completion. Segment 5 software, tests,
+documentation and a freshly locked `simplemode-v1-segment5` root may be completed while
+`gold-sample`, `gold-ingest`, and `validate-features` remain pending. In that state
+`outcome_modeling_unlocked` remains false. No fixture, provisional LLM re-code, or completed
+handler alone can set it; only verified `validation_unlock.json` backed by qualifying initial
+human gold and a fourteen-day delayed human re-code may do so.
 
 `status` is read-only and may be called after any command. It appears last in the public CLI
 contract (§18.4), but it is not a release-sequence step or state transition and does not gate

@@ -36,10 +36,7 @@ from es_index_explorer.question_analysis.workflow import (
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
 DEFAULT_ANALYSIS_ROOT = (
-    PROJECT_ROOT
-    / "artifacts"
-    / "question_analysis"
-    / f"{ANALYSIS_ID}-postremediation-final"
+    PROJECT_ROOT / "artifacts" / "question_analysis" / f"{ANALYSIS_ID}-segment5"
 )
 DEFAULT_SPECIFICATION = (
     PROJECT_ROOT / "reports" / "13-simple-mode-analysis-research-plan.md"
@@ -125,9 +122,39 @@ DEFAULT_RESOURCES = {
     / "es_index_explorer"
     / "question_analysis"
     / "workflow.py",
+    "segment5_decision_ledger": PROJECT_ROOT
+    / "reports"
+    / "16-segment-5-gold-validation-decisions.md",
+    "segment5_operations": PROJECT_ROOT
+    / "reports"
+    / "17-segment-5-gold-validation-operations.md",
+    "segment5_gold_source": PROJECT_ROOT
+    / "es_index_explorer"
+    / "question_analysis"
+    / "gold.py",
+    "segment5_validation_source": PROJECT_ROOT
+    / "es_index_explorer"
+    / "question_analysis"
+    / "validation.py",
+    "segment5_dsl_gate_source": PROJECT_ROOT
+    / "es_index_explorer"
+    / "question_analysis"
+    / "dsl_gate.py",
 }
 
-StepAction = Callable[["AnalysisWorkspace"], Iterable[ArtifactMetadata] | None]
+
+@dataclass(frozen=True, slots=True)
+class StepExecutionResult:
+    """Return registered artifacts and explicit unlock authorization."""
+
+    artifacts: tuple[ArtifactMetadata, ...] = ()
+    authorize_outcome_modeling: bool = False
+
+
+StepAction = Callable[
+    ["AnalysisWorkspace"],
+    Iterable[ArtifactMetadata] | StepExecutionResult | None,
+]
 
 
 def _installed_version(distribution: str) -> str:
@@ -277,11 +304,22 @@ class AnalysisWorkspace:
             return False
         self.save_state(state)
         try:
-            artifacts = tuple(action(self) or ())
+            result = action(self)
         except AnalysisError as error:
             self.save_state(fail_step(state, command, error))
             raise
-        completed = complete_step(state, command, artifacts)
+        if isinstance(result, StepExecutionResult):
+            artifacts = result.artifacts
+            authorize_outcome_modeling = result.authorize_outcome_modeling
+        else:
+            artifacts = tuple(result or ())
+            authorize_outcome_modeling = False
+        completed = complete_step(
+            state,
+            command,
+            artifacts,
+            authorize_outcome_modeling=authorize_outcome_modeling,
+        )
         self.save_state(completed)
         return True
 

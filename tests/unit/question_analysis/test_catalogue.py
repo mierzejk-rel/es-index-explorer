@@ -104,9 +104,7 @@ def test_catalogue_preserves_variants_with_identical_questions(tmp_path: Path) -
     task.write_text(TASK, encoding="utf-8")
 
     catalogue = build_catalogue(rubric_root, task)
-    variants = catalogue.variants[
-        catalogue.variants["eval_dataset"].eq("emc2_set1")
-    ]
+    variants = catalogue.variants[catalogue.variants["eval_dataset"].eq("emc2_set1")]
 
     assert variants["variant_index"].tolist() == [0, 1, 2]
     assert variants["question"].tolist() == [

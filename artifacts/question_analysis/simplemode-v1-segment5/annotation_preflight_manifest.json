@@ -1,0 +1,80 @@
+{
+  "batch_count": 25,
+  "batch_hashes": {
+    "batch-001": "f496f0a1a62fe95a553be20d6ade512110f716250ee6895f2dd53c387ee8f16b",
+    "batch-002": "faeb7b1a64d1262026ed851f7f0183db8dc80a76029622fc4716d0545fa895de",
+    "batch-003": "fee7351ba28212c1f7428022e27119f4f364bd366a220a26e254ff3d767ce5ce",
+    "batch-004": "670ffaa76983dc3dac917471beb42ba4eb849af324878b33f489e9bf8e0ac0a7",
+    "batch-005": "746453dded48c16ad7bfc99cd26307822091910afcf79312899eb17a38ec21ce",
+    "batch-006": "13b99bc33ff859c5eea8364eaa3a4d4c9620e1cb99633166855b2edfb8e503f4",
+    "batch-007": "954f2bdb982941a01a299ec85b472b6ed20d4884643860b2be399cb5a1ecb12e",
+    "batch-008": "7d5ad7c86ba69eca2a813caa333697c03e787c323d8015c347e8e800c30ea34a",
+    "batch-009": "7578ae117e12297c2fa5881aafded3894409f2307592ed964384c79186f87f19",
+    "batch-010": "4adabde4c197b775f1af9702a36f05ff947d0628e0438db0fdbe670afd8f941f",
+    "batch-011": "9eaa8ead1d5b0016f9ef4eda3c5dba093f6134ae0c3377e4bcfcbd71e037f979",
+    "batch-012": "22ebe27975e5459fa1ce522df5a6c9d55cd5906b369671ac8de809ded4357d9b",
+    "batch-013": "8534dad485d792c7e66c54724cd234653bfddc9e821a87989533729f4ee18f4f",
+    "batch-014": "487992c7edce60053bad49481d1375c04e93036b9d26e4e084dbd514baf247df",
+    "batch-015": "4d5b6ec72208cbed55108a61444c7de31d2b0b529651939c2255cb80bfea4068",
+    "batch-016": "a2062d8d6cc1621804ca9d72cbdd1263676d448fbb667b0c59ce88380549ca70",
+    "batch-017": "0084caee4b321f5028cc41447bbad48fc0044685331bb5d7a09c5bc939ef1111",
+    "batch-018": "e9ff1e381dd0800714301ae23f31fbc1edb1123af0d8f68a64a43e4906454415",
+    "batch-019": "ca8854fe180b61dd0372ec097e8ab32067834554f623583af99376998767f5aa",
+    "batch-020": "699fd01b75f1b4a912f89ae059238fbf7fb8368faf8d552249dd437c6fb1fbfe",
+    "batch-021": "bf37a9461589eded1f3db3d4dc51067bde581d6716b456064283fbb3e67ead7f",
+    "batch-022": "7af7ab3c26e61bb268288ac1795ce619bb709ac593ccc07363048b1c5c3db350",
+    "batch-023": "95a97651c6f8024b3a04fa2d62544e8c93d9e4bb6867b7d839ee96623d495175",
+    "batch-024": "8d7dcdce50b1a561f25927a01446e30767a18692c5ab63daece5152c40a1574d",
+    "batch-025": "7bcb2656f26b08789fd9cc27b320e121d63b77640f0de6ec0de25accb92015d5"
+  },
+  "batch_size": 24,
+  "expectation_schema_sha256": "edc8d5bcf41a1311504abd70bdfa6b650093a57f950843f2c6f7699c863b5198",
+  "models": [
+    {
+      "display_name": "Claude Opus 5",
+      "model_id": "claude-opus-5",
+      "parameters": [
+        [
+          "thinking",
+          "true"
+        ],
+        [
+          "context",
+          "1m"
+        ],
+        [
+          "effort",
+          "high"
+        ],
+        [
+          "fast",
+          "false"
+        ]
+      ],
+      "requested_name": "Claude Opus 5 (high thinking)"
+    },
+    {
+      "display_name": "GPT-5.6 Sol",
+      "model_id": "gpt-5.6-sol",
+      "parameters": [
+        [
+          "context",
+          "1m"
+        ],
+        [
+          "reasoning",
+          "medium"
+        ],
+        [
+          "fast",
+          "false"
+        ]
+      ],
+      "requested_name": "GPT-5.6 Sol"
+    }
+  ],
+  "prompt_sha256": "ec9836788ba3198272d0742509e51efd61bec9f177ff0faf37b1bb22a7378bca",
+  "question_schema_sha256": "969377dabbf399e7d04bdabaad0395b12887b22ac8e36bfe30d1c43aa67a184d",
+  "schema_version": 2,
+  "sdk_version": "1.0.28"
+}

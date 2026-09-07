@@ -13,9 +13,7 @@ from es_index_explorer.question_analysis.linguistics import (
 pytestmark = pytest.mark.unit
 
 
-def _sentence(
-    text: str, *words: ParsedWord, sentence_index: int = 0
-) -> ParsedSentence:
+def _sentence(text: str, *words: ParsedWord, sentence_index: int = 0) -> ParsedSentence:
     return ParsedSentence(sentence_index=sentence_index, text=text, words=tuple(words))
 
 
@@ -137,9 +135,7 @@ def test_fragment_records_clause_ratio_missingness() -> None:
         _word(2, "Argoff", "PROPN", 1, "nmod"),
     )
 
-    result = extract_linguistic_features(
-        "expectation", sentence.text, (sentence,), ()
-    )
+    result = extract_linguistic_features("expectation", sentence.text, (sentence,), ())
 
     assert result.clause_count == 0
     assert result.subordinate_clause_ratio is None
@@ -188,9 +184,7 @@ def test_finite_matrix_copula_counts_as_clause() -> None:
         _word(3, "Elmo", "PROPN", 1, "nsubj"),
     )
 
-    result = extract_linguistic_features(
-        "question", sentence.text, (sentence,), ()
-    )
+    result = extract_linguistic_features("question", sentence.text, (sentence,), ())
 
     assert result.clause_count == 1
     assert result.subordinate_clause_ratio == 0
@@ -209,9 +203,7 @@ def test_subordinate_copula_inherits_predicate_relation() -> None:
         _word(6, "ready", "ADJ", 3, "advcl"),
     )
 
-    result = extract_linguistic_features(
-        "expectation", sentence.text, (sentence,), ()
-    )
+    result = extract_linguistic_features("expectation", sentence.text, (sentence,), ())
 
     assert result.clause_count == 2
     assert result.subordinate_clause_ratio == pytest.approx(0.5)
@@ -225,9 +217,7 @@ def test_copula_does_not_duplicate_existing_verbal_clause() -> None:
         _word(3, "happening", "VERB", 0, "root", VerbForm="Part"),
     )
 
-    result = extract_linguistic_features(
-        "question", sentence.text, (sentence,), ()
-    )
+    result = extract_linguistic_features("question", sentence.text, (sentence,), ())
 
     assert result.clause_count == 1
     assert result.subordinate_clause_ratio == 0
@@ -240,9 +230,7 @@ def test_nonfinite_copula_does_not_create_clause() -> None:
         _word(2, "ready", "ADJ", 0, "root"),
     )
 
-    result = extract_linguistic_features(
-        "expectation", sentence.text, (sentence,), ()
-    )
+    result = extract_linguistic_features("expectation", sentence.text, (sentence,), ())
 
     assert result.clause_count == 0
     assert result.subordinate_clause_ratio is None
@@ -257,9 +245,7 @@ def test_auxiliary_root_is_not_duplicated() -> None:
         _word(3, "present", "ADJ", 1, "xcomp"),
     )
 
-    result = extract_linguistic_features(
-        "question", sentence.text, (sentence,), ()
-    )
+    result = extract_linguistic_features("question", sentence.text, (sentence,), ())
 
     assert result.clause_count == 1
     assert result.clause_type == "closed_interrogative"
@@ -460,10 +446,7 @@ def test_nominal_list_parser_error_is_repaired() -> None:
         _word(3, "supporting", "VERB", 2, "acl", VerbForm="Ger"),
     )
 
-    assert (
-        classify_clause_type(sentence.text, (sentence,))
-        == "directive_imperative"
-    )
+    assert classify_clause_type(sentence.text, (sentence,)) == "directive_imperative"
 
 
 def test_nominal_list_repair_requires_subjectless_nominal_root() -> None:
@@ -486,10 +469,7 @@ def test_matrix_imperative_precedes_embedded_wh() -> None:
         _word(4, "happened", "VERB", 2, "acl", Mood="Ind", VerbForm="Fin"),
     )
 
-    assert (
-        classify_clause_type(sentence.text, (sentence,))
-        == "directive_imperative"
-    )
+    assert classify_clause_type(sentence.text, (sentence,)) == "directive_imperative"
 
 
 @pytest.mark.parametrize("root_text", ("List", "Find", "Explain", "Tell"))
@@ -504,10 +484,7 @@ def test_observed_request_roots_precede_embedded_interrogative(
         _word(4, "happened", "VERB", 1, "ccomp", Mood="Ind", VerbForm="Fin"),
     )
 
-    assert (
-        classify_clause_type(sentence.text, (sentence,))
-        == "directive_imperative"
-    )
+    assert classify_clause_type(sentence.text, (sentence,)) == "directive_imperative"
 
 
 def test_direct_matrix_interrogative_is_open() -> None:
@@ -655,8 +632,7 @@ def test_clause_classification_skips_empty_leading_sentence() -> None:
     )
 
     assert (
-        classify_clause_type(question.text, (empty, question))
-        == "closed_interrogative"
+        classify_clause_type(question.text, (empty, question)) == "closed_interrogative"
     )
 
 
@@ -677,17 +653,13 @@ def test_invalid_copular_dependency_is_rejected() -> None:
     )
 
     with pytest.raises(ValueError, match="Invalid copular dependency"):
-        extract_linguistic_features(
-            "expectation", sentence.text, (sentence,), ()
-        )
+        extract_linguistic_features("expectation", sentence.text, (sentence,), ())
 
 
 def test_single_root_has_no_dependency_length() -> None:
     sentence = _sentence("Evidence", _word(1, "Evidence", "NOUN", 0, "root"))
 
-    result = extract_linguistic_features(
-        "expectation", sentence.text, (sentence,), ()
-    )
+    result = extract_linguistic_features("expectation", sentence.text, (sentence,), ())
 
     assert result.mean_dependency_length is None
     assert dict(result.missingness)["mean_dependency_length"] == "no_dependencies"
@@ -716,9 +688,7 @@ def test_email_boundary_without_offsets_is_not_guessed() -> None:
         ),
     )
 
-    assert (
-        classify_clause_type(source_text, sentences) == "directive_imperative"
-    )
+    assert classify_clause_type(source_text, sentences) == "directive_imperative"
 
 
 @pytest.mark.parametrize(
@@ -742,6 +712,4 @@ def test_invalid_dependency_tree_is_rejected() -> None:
     )
 
     with pytest.raises(ValueError, match="Invalid dependency tree"):
-        extract_linguistic_features(
-            "expectation", sentence.text, (sentence,), ()
-        )
+        extract_linguistic_features("expectation", sentence.text, (sentence,), ())

@@ -246,9 +246,7 @@ def verify_stanza_resources(
         with path.open("rb") as handle:
             actual_md5 = hashlib.file_digest(handle, "md5").hexdigest()
         if actual_md5 != pin.md5:
-            raise MalformedInputError(
-                f"Stanza model checksum mismatch for {path.name}"
-            )
+            raise MalformedInputError(f"Stanza model checksum mismatch for {path.name}")
         selected_paths.append(path)
     return tuple(sorted(selected_paths))
 
@@ -298,9 +296,7 @@ def build_parser_resource_manifest(model_dir: Path) -> dict[str, object]:
             "static_manifest": fingerprint_file(
                 STANZA_MANIFEST_PATH, label=STANZA_MANIFEST_PATH.name
             ).model_dump(mode="json"),
-            "model_files": [
-                _resource_file(path, model_dir) for path in stanza_files
-            ],
+            "model_files": [_resource_file(path, model_dir) for path in stanza_files],
         },
         "spacy": {
             "distribution_version": spacy_manifest.spacy_version,
@@ -311,9 +307,7 @@ def build_parser_resource_manifest(model_dir: Path) -> dict[str, object]:
             "static_manifest": fingerprint_file(
                 SPACY_MANIFEST_PATH, label=SPACY_MANIFEST_PATH.name
             ).model_dump(mode="json"),
-            "model_files": [
-                _resource_file(path, package_root) for path in spacy_files
-            ],
+            "model_files": [_resource_file(path, package_root) for path in spacy_files],
         },
     }
 

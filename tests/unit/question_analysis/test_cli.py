@@ -89,6 +89,34 @@ def test_annotation_migration_requires_resume_only(tmp_path: Path) -> None:
     assert "requires --resume-only" in error_output.getvalue()
 
 
+def test_gold_ingest_and_validation_parsers_require_manual_gate_inputs(
+    tmp_path: Path,
+) -> None:
+    gold_arguments = build_parser().parse_args(
+        [
+            "gold-ingest",
+            "--adjudication-csv",
+            str(tmp_path / "initial.csv"),
+            "--recode-csv",
+            str(tmp_path / "recode.csv"),
+            "--provenance-json",
+            str(tmp_path / "provenance.json"),
+        ]
+    )
+    validation_arguments = build_parser().parse_args(
+        [
+            "validate-features",
+            "--decisions-dir",
+            str(tmp_path / "decisions"),
+        ]
+    )
+
+    assert gold_arguments.adjudication_csv == tmp_path / "initial.csv"
+    assert gold_arguments.recode_csv == tmp_path / "recode.csv"
+    assert gold_arguments.provenance_json == tmp_path / "provenance.json"
+    assert validation_arguments.decisions_dir == tmp_path / "decisions"
+
+
 def test_status_is_read_only_for_uninitialized_root(tmp_path: Path) -> None:
     root = tmp_path / "missing"
     output = StringIO()

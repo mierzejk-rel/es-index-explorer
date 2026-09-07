@@ -111,6 +111,37 @@ def build_parser() -> argparse.ArgumentParser:
                 action="store_true",
                 help="Reconstruct verified responses without model listing or model calls.",
             )
+        elif command is WorkflowCommand.GOLD_INGEST:
+            command_parser.add_argument(
+                "--adjudication-csv",
+                type=Path,
+                required=True,
+                help="Completed initial human-adjudication CSV.",
+            )
+            command_parser.add_argument(
+                "--recode-csv",
+                type=Path,
+                required=True,
+                help="Completed delayed blind-recode CSV.",
+            )
+            command_parser.add_argument(
+                "--provenance-json",
+                type=Path,
+                required=True,
+                help="Strict human adjudication/re-code provenance JSON.",
+            )
+        elif command is WorkflowCommand.VALIDATE_FEATURES:
+            command_parser.add_argument(
+                "--decisions-dir",
+                type=Path,
+                required=True,
+                help="Directory containing write-once feature decision JSON files.",
+            )
+            command_parser.add_argument(
+                "--emit-next",
+                action="store_true",
+                help="Expose only the next seeded-order feature dossier without completing validation.",
+            )
         elif command is WorkflowCommand.STATUS:
             command_parser.add_argument("--json", action="store_true", dest="as_json")
     return parser
@@ -132,6 +163,18 @@ def main(
         if command is WorkflowCommand.STATUS:
             return _show_status(args.analysis_root, as_json=args.as_json, output=output)
         workspace = AnalysisWorkspace.initialize(args.analysis_root, args.specification)
+        if command is WorkflowCommand.VALIDATE_FEATURES and args.emit_next:
+            from es_index_explorer.question_analysis.validation import (
+                emit_next_feature_dossier,
+            )
+
+            assert_can_start(workspace.load_state(), command)
+            dossier_path = emit_next_feature_dossier(
+                workspace,
+                args.decisions_dir,
+            )
+            print(f"validate-features: emitted {dossier_path}", file=output)
+            return 0
         handler = (
             handlers.get(command)
             if handlers is not None
@@ -196,6 +239,23 @@ def _production_handler(
         from es_index_explorer.question_analysis.annotations import run_annotate_ingest
 
         return run_annotate_ingest
+    if command is WorkflowCommand.GOLD_SAMPLE:
+        from es_index_explorer.question_analysis.gold import run_gold_sample
+
+        return run_gold_sample
+    if command is WorkflowCommand.GOLD_INGEST:
+        from es_index_explorer.question_analysis.gold import run_gold_ingest
+
+        return lambda workspace: run_gold_ingest(
+            workspace,
+            args.adjudication_csv,
+            args.recode_csv,
+            args.provenance_json,
+        )
+    if command is WorkflowCommand.VALIDATE_FEATURES:
+        from es_index_explorer.question_analysis.validation import run_validate_features
+
+        return lambda workspace: run_validate_features(workspace, args.decisions_dir)
     return None
 
 
