@@ -35,7 +35,12 @@ from es_index_explorer.question_analysis.workflow import (
 )
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
-DEFAULT_ANALYSIS_ROOT = PROJECT_ROOT / "artifacts" / "question_analysis" / ANALYSIS_ID
+DEFAULT_ANALYSIS_ROOT = (
+    PROJECT_ROOT
+    / "artifacts"
+    / "question_analysis"
+    / f"{ANALYSIS_ID}-postreview-p3"
+)
 DEFAULT_SPECIFICATION = (
     PROJECT_ROOT / "reports" / "13-simple-mode-analysis-research-plan.md"
 )
@@ -76,6 +81,12 @@ DEFAULT_RESOURCES = {
     / "es_index_explorer"
     / "question_analysis"
     / "join.py",
+    "segment3_source_dossier": PROJECT_ROOT
+    / "reports"
+    / "13a-source-dossier.md",
+    "segment3_quotation_audit": PROJECT_ROOT
+    / "reports"
+    / "13a-source-quotation-audit.md",
     "segment3_codebook": PROJECT_ROOT
     / "reports"
     / "14-question-linguistic-codebook.md",

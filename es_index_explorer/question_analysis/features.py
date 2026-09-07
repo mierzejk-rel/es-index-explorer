@@ -42,6 +42,14 @@ CATALOGUE_ARTIFACTS = {
     "expectations": "tables/expectation_catalogue.parquet",
 }
 EXPECTED_ITEM_COUNTS = {"question": 263, "expectation": 314}
+ALLOWED_CLAUSE_TYPES = frozenset(
+    {
+        "open_interrogative",
+        "closed_interrogative",
+        "directive_imperative",
+        "declarative_request",
+    }
+)
 type LiteralItemType = Literal["question", "expectation"]
 ENTITY_COLUMNS = [
     "item_id",
@@ -174,16 +182,33 @@ def build_features(
         item_id = str(item["item_id"])
         source_text = str(item["source_text"])
         item_type = cast(str, item["item_type"])
-        sentences = stanza_parser.parse(source_text)
-        entities = spacy_ner.parse(source_text)
         if item_type not in EXPECTED_ITEM_COUNTS:
             raise MalformedInputError(f"Unknown deterministic item type: {item_type}")
-        linguistic = extract_linguistic_features(
-            cast(LiteralItemType, item_type),
-            source_text,
-            sentences,
-            entities,
-        )
+        try:
+            sentences = stanza_parser.parse(source_text)
+        except Exception as error:
+            raise GateFailureError(
+                f"stanza_parser_failed item_id={item_id}"
+            ) from error
+        if not sentences or not any(sentence.words for sentence in sentences):
+            raise GateFailureError(f"stanza_empty_parse item_id={item_id}")
+        try:
+            entities = spacy_ner.parse(source_text)
+        except Exception as error:
+            raise GateFailureError(
+                f"spacy_ner_failed item_id={item_id}"
+            ) from error
+        try:
+            linguistic = extract_linguistic_features(
+                cast(LiteralItemType, item_type),
+                source_text,
+                sentences,
+                entities,
+            )
+        except Exception as error:
+            raise GateFailureError(
+                f"deterministic_rule_failed item_id={item_id}"
+            ) from error
 
         missingness = dict(linguistic.missingness)
         if item_type == "question":
@@ -416,9 +441,35 @@ def _verify_features(
     )
     if question_clause_missing:
         blocking_failures.append("question_clause_type")
+    observed_clause_types = set(features["clause_type"].dropna().astype(str))
+    unexpected_clause_types = sorted(observed_clause_types - ALLOWED_CLAUSE_TYPES)
+    if unexpected_clause_types:
+        blocking_failures.append("clause_type_inventory")
     token_item_count = int(stanza_tokens["item_id"].nunique())
     if token_item_count != len(features):
         blocking_failures.append("parse_archive_coverage")
+    invalid_subordinate_ratios = int(
+        (
+            features["subordinate_clause_ratio"].notna()
+            & ~features["subordinate_clause_ratio"].between(0.0, 1.0)
+        ).sum()
+    )
+    invalid_complex_nominal_ratios = int(
+        (
+            features["complex_nominals_per_clause"].notna()
+            & features["complex_nominals_per_clause"].lt(0.0)
+        ).sum()
+    )
+    if invalid_subordinate_ratios or invalid_complex_nominal_ratios:
+        blocking_failures.append("ratio_range")
+    applicability_failures = _applicability_failures(features)
+    if applicability_failures:
+        blocking_failures.append("feature_applicability")
+    manifest_mismatch_count = int(
+        features["parser_manifest_sha256"].ne(parser_manifest_sha256).sum()
+    )
+    if manifest_mismatch_count:
+        blocking_failures.append("parser_manifest_identity")
 
     missingness = {
         column: int(features[column].isna().sum())
@@ -442,6 +493,11 @@ def _verify_features(
         "mandatory_missingness": mandatory_missing,
         "expected_missingness": missingness,
         "question_clause_type_missing_count": question_clause_missing,
+        "unexpected_clause_types": unexpected_clause_types,
+        "invalid_subordinate_ratio_count": invalid_subordinate_ratios,
+        "invalid_complex_nominal_ratio_count": invalid_complex_nominal_ratios,
+        "applicability_failures": applicability_failures,
+        "parser_manifest_mismatch_count": manifest_mismatch_count,
         "parser_manifest_sha256": parser_manifest_sha256,
         "outcome_columns_loaded": [],
         "numeric_distributions": {
@@ -476,6 +532,71 @@ def _verify_features(
             .items()
         },
     }
+
+
+def _applicability_failures(features: pd.DataFrame) -> dict[str, int]:
+    failures = {
+        "question_identity": 0,
+        "expectation_identity": 0,
+        "expectation_document_count": 0,
+        "clause_type": 0,
+        "clause_ratio_missingness": 0,
+    }
+    for row in features.to_dict(orient="records"):
+        item_type = str(row["item_type"])
+        reasons = json.loads(str(row["missingness_reasons"]))
+        clause_count = int(row["clause_count"])
+        subordinate_missing = pd.isna(row["subordinate_clause_ratio"])
+        complex_nominal_missing = pd.isna(row["complex_nominals_per_clause"])
+        if item_type == "question":
+            failures["question_identity"] += int(
+                row["item_id"] != row["variant_id"]
+                or not pd.isna(row["expectation_id"])
+                or pd.isna(row["variant_index"])
+            )
+            failures["expectation_document_count"] += int(
+                not pd.isna(row["expectation_document_count"])
+                or reasons.get("expectation_document_count")
+                != "not_applicable_to_question"
+            )
+            failures["clause_type"] += int(
+                pd.isna(row["clause_type"]) or "clause_type" in reasons
+            )
+        elif item_type == "expectation":
+            failures["expectation_identity"] += int(
+                row["item_id"] != row["expectation_id"]
+                or not pd.isna(row["variant_id"])
+                or not pd.isna(row["variant_index"])
+            )
+            failures["expectation_document_count"] += int(
+                pd.isna(row["expectation_document_count"])
+                or "expectation_document_count" in reasons
+            )
+            failures["clause_type"] += int(
+                not pd.isna(row["clause_type"])
+                or reasons.get("clause_type") != "not_applicable_to_expectation"
+            )
+        else:
+            failures["question_identity"] += 1
+
+        ratios_missing = subordinate_missing and complex_nominal_missing
+        no_clause_reasons = (
+            reasons.get("subordinate_clause_ratio") == "no_clause"
+            and reasons.get("complex_nominals_per_clause") == "no_clause"
+        )
+        failures["clause_ratio_missingness"] += int(
+            (clause_count == 0 and not (ratios_missing and no_clause_reasons))
+            or (
+                clause_count > 0
+                and (
+                    subordinate_missing
+                    or complex_nominal_missing
+                    or "subordinate_clause_ratio" in reasons
+                    or "complex_nominals_per_clause" in reasons
+                )
+            )
+        )
+    return {name: count for name, count in failures.items() if count}
 
 
 def _numeric_distribution(series: pd.Series) -> dict[str, int | float | None]:

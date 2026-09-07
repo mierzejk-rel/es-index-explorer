@@ -5,10 +5,16 @@ This dossier records the sources that carry methodological or linguistic weight 
 
 Status meanings:
 
-- **verified-open** — canonical metadata and the relevant public text were checked.
-- **verified-paywalled** — canonical metadata was checked, but no claim is made that closed
-  full text was inspected.
-- **to-verify** — the exact passage or a stable edition-specific identifier remains unresolved.
+- **verified; human-confirmed** — the retained primary text, passage and locator were checked
+  against a user-supplied or otherwise accessible copy.
+- **verified-open; human-confirmed** — the same checks were completed against an openly
+  accessible primary text.
+- **verified-local** — local implementation evidence, rather than literature, was checked.
+- **removed/historical** — a source excluded from the active contract and retained only in the
+  quotation audit's removal history.
+
+There are no active `to-verify`, paywall-only, or user-access-required sources in the current
+Segment 3 contract.
 
 ## Dimension A — illocution and clause type
 
@@ -39,6 +45,13 @@ Status meanings:
   User-supplied book. Chapter 3, pp. 121, 123, and 127, distinguishes clause type,
   sentence mood, and sentential force and recognizes declarative, interrogative, and
   imperative as basic types. **verified; human-confirmed**.
+
+The retained sources anchor the four-category inventory and the distinction between form and
+use. They do not prescribe the project's deterministic Stanza rules, including the exact
+email-boundary repair, matrix dependency-path test, subject-auxiliary inversion detector, or
+narrow nominal-`list` parser repair; those are project-specific operationalizations recorded
+in the codebook. The source-supported open/closed and imperative distinctions do not make the
+exact computational precedence a literature claim.
 
 ## Dimension B — answerhood, exhaustivity, and presupposition
 
@@ -172,7 +185,11 @@ Status meanings:
   the project’s maximum UD root-to-token arc count. **verified; human-confirmed**.
 
 The codebook explicitly labels its UD clause/CN definitions as operationalizations; it does
-not claim byte-for-byte equivalence to constituency-based L2SCA.
+not claim byte-for-byte equivalence to constituency-based L2SCA. Its finite-copula rule counts
+one clause per nonverbal predicate governor with a finite `AUX/cop`, subject to a double-count
+guard, and inherits subordinate status from that governor. This is a project-specific UD
+mapping introduced to avoid treating finite copular questions as verbless fragments; no
+retained source is cited as prescribing the exact rule.
 
 ## Dimension F — exploratory lexical features
 

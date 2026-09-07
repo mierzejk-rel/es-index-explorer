@@ -5,6 +5,7 @@ from pathlib import Path
 
 import pytest
 
+from es_index_explorer.question_analysis import workspace as workspace_module
 from es_index_explorer.question_analysis.contracts import (
     ANALYSIS_LOCK_TAG,
     MASTER_SEED,
@@ -18,9 +19,16 @@ from es_index_explorer.question_analysis.errors import (
 )
 from es_index_explorer.question_analysis.seeds import named_stream_seeds
 from es_index_explorer.question_analysis.storage import ARTIFACT_DIRECTORIES
-from es_index_explorer.question_analysis.workspace import AnalysisWorkspace
+from es_index_explorer.question_analysis.workspace import (
+    DEFAULT_ANALYSIS_ROOT,
+    AnalysisWorkspace,
+)
 
 pytestmark = pytest.mark.unit
+
+
+def test_default_root_is_postreview_and_preserves_analysis_id() -> None:
+    assert DEFAULT_ANALYSIS_ROOT.name == "simplemode-v1-postreview-p3"
 
 
 def _specification(tmp_path: Path) -> Path:
@@ -31,7 +39,8 @@ def _specification(tmp_path: Path) -> Path:
 
 def test_manifest_round_trip_and_frozen_layout(tmp_path: Path) -> None:
     root = tmp_path / "analysis"
-    workspace = AnalysisWorkspace.initialize(root, _specification(tmp_path))
+    specification = _specification(tmp_path)
+    workspace = AnalysisWorkspace.initialize(root, specification)
     manifest = workspace.load_manifest()
 
     assert manifest.master_seed == MASTER_SEED
@@ -50,15 +59,53 @@ def test_manifest_round_trip_and_frozen_layout(tmp_path: Path) -> None:
         "segment3_features_source",
         "segment3_linguistics_source",
         "segment3_nlp_resources_source",
+        "segment3_quotation_audit",
+        "segment3_source_dossier",
         "segment3_spacy_manifest",
         "segment3_storage_source",
         "stanza_en_resource_manifest",
     }
     assert workspace.load_manifest() == manifest
+    assert AnalysisWorkspace.initialize(root, specification)
     assert (
         workspace.load_state().steps[WorkflowCommand.JOIN].status is StepStatus.PENDING
     )
     assert all((root / directory).is_dir() for directory in ARTIFACT_DIRECTORIES)
+
+
+def test_specification_drift_blocks_reinitialize_and_open(tmp_path: Path) -> None:
+    root = tmp_path / "analysis"
+    specification = _specification(tmp_path)
+    AnalysisWorkspace.initialize(root, specification)
+    specification.write_text("# Changed specification\n", encoding="utf-8")
+
+    with pytest.raises(
+        MalformedInputError, match="Specification fingerprint differs"
+    ):
+        AnalysisWorkspace.initialize(root, specification)
+    with pytest.raises(MalformedInputError, match="Locked input changed"):
+        AnalysisWorkspace.open_existing(root)
+
+
+def test_resource_drift_blocks_reinitialize_and_open(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    root = tmp_path / "analysis"
+    specification = _specification(tmp_path)
+    resource = tmp_path / "resource.md"
+    resource.write_text("frozen\n", encoding="utf-8")
+    monkeypatch.setattr(
+        workspace_module,
+        "DEFAULT_RESOURCES",
+        {"test_resource": resource},
+    )
+    AnalysisWorkspace.initialize(root, specification)
+    resource.write_text("changed\n", encoding="utf-8")
+
+    with pytest.raises(MalformedInputError, match="Resource fingerprint differs"):
+        AnalysisWorkspace.initialize(root, specification)
+    with pytest.raises(MalformedInputError, match="Locked input changed"):
+        AnalysisWorkspace.open_existing(root)
 
 
 def test_successful_step_records_output_hash_and_skips_repeat(tmp_path: Path) -> None:

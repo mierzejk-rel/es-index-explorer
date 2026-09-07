@@ -1,5 +1,6 @@
 """Pure deterministic linguistic feature rules."""
 
+import re
 from dataclasses import dataclass
 from typing import Literal
 
@@ -22,6 +23,9 @@ COMPLEX_NOMINAL_RELATIONS = frozenset(
 SUBJECT_RELATIONS = frozenset({"nsubj", "csubj", "expl"})
 WH_FORMS = frozenset(
     {"who", "whom", "whose", "what", "which", "when", "where", "why", "how"}
+)
+EMAIL_PATTERN = re.compile(
+    r"[A-Za-z0-9][A-Za-z0-9._%+-]*@[A-Za-z0-9][A-Za-z0-9.-]*\.[A-Za-z]{2,}"
 )
 
 
@@ -70,6 +74,12 @@ class EntitySpan:
 
 
 @dataclass(frozen=True, slots=True)
+class _Clause:
+    predicate_id: int
+    effective_relation: str
+
+
+@dataclass(frozen=True, slots=True)
 class LinguisticFeatures:
     """P2/P3 values and explicit deterministic missingness."""
 
@@ -103,15 +113,12 @@ def extract_linguistic_features(
         for word in content_words
         if word.head != 0
     )
-    clause_heads = tuple(
-        word
-        for sentence in sentences
-        for word in sentence.words
-        if _is_clause_head(word)
+    clauses = tuple(
+        clause for sentence in sentences for clause in _clauses(sentence.words)
     )
-    clause_count = len(clause_heads)
+    clause_count = len(clauses)
     subordinate_count = sum(
-        word.base_relation in SUBORDINATE_RELATIONS for word in clause_heads
+        clause.effective_relation in SUBORDINATE_RELATIONS for clause in clauses
     )
     complex_nominal_count = sum(
         _is_complex_nominal(word, sentence.words)
@@ -138,7 +145,7 @@ def extract_linguistic_features(
         )
 
     if item_type == "question":
-        clause_type: ClauseType | None = classify_clause_type(sentences[0])
+        clause_type: ClauseType | None = classify_clause_type(source_text, sentences)
     else:
         clause_type = None
         missingness.append(("clause_type", "not_applicable_to_expectation"))
@@ -165,30 +172,137 @@ def extract_linguistic_features(
     )
 
 
-def classify_clause_type(sentence: ParsedSentence) -> ClauseType:
-    """Apply the frozen first-sentence clause-type precedence."""
+def classify_clause_type(
+    source_text: str, sentences: tuple[ParsedSentence, ...]
+) -> ClauseType:
+    """Apply the frozen first-logical-sentence clause-type precedence."""
+    sentence = _first_logical_sentence(source_text, sentences)
     content_words = tuple(
         word for word in sentence.words if word.upos != PUNCTUATION_UPOS
     )
-    if any(word.feature("PronType") == "Int" for word in content_words):
+    root = next((word for word in content_words if word.head == 0), None)
+    if _is_matrix_imperative(content_words, root):
+        return "directive_imperative"
+    if any(
+        word.feature("PronType") == "Int"
+        and _is_matrix_interrogative(word, content_words)
+        for word in content_words
+    ):
         return "open_interrogative"
     if content_words and content_words[0].text.casefold() in WH_FORMS:
         return "open_interrogative"
-    if sentence.text.rstrip().endswith("?"):
+    if sentence.text.rstrip().endswith("?") or _has_subject_auxiliary_inversion(
+        content_words, root
+    ):
         return "closed_interrogative"
 
-    root = next((word for word in content_words if word.head == 0), None)
-    if root is not None and root.upos in {"VERB", "AUX"}:
-        has_subject = any(
-            word.head == root.word_id and word.base_relation in SUBJECT_RELATIONS
-            for word in content_words
-        )
-        if root.feature("Mood") == "Imp" or not has_subject:
-            return "directive_imperative"
+    if (
+        root is not None
+        and root.upos in {"VERB", "AUX"}
+        and not _has_subject(root, content_words)
+    ):
+        return "directive_imperative"
     return "declarative_request"
 
 
-def _is_clause_head(word: ParsedWord) -> bool:
+def _is_matrix_imperative(
+    content_words: tuple[ParsedWord, ...], root: ParsedWord | None
+) -> bool:
+    return (
+        root is not None
+        and root.feature("Mood") == "Imp"
+        or _is_nominal_list_imperative(content_words, root)
+    )
+
+
+def _is_matrix_interrogative(
+    interrogative: ParsedWord, content_words: tuple[ParsedWord, ...]
+) -> bool:
+    by_key = {
+        (word.sentence_index, word.word_id): word for word in content_words
+    }
+    seen: set[tuple[int, int]] = set()
+    current = interrogative
+    while current.head:
+        key = (current.sentence_index, current.word_id)
+        if key in seen:
+            raise ValueError("Invalid interrogative dependency path")
+        if current.base_relation in SUBORDINATE_RELATIONS:
+            return False
+        seen.add(key)
+        parent = by_key.get((current.sentence_index, current.head))
+        if parent is None:
+            raise ValueError("Invalid interrogative dependency path")
+        current = parent
+    return current.base_relation not in SUBORDINATE_RELATIONS
+
+
+def _has_subject_auxiliary_inversion(
+    content_words: tuple[ParsedWord, ...], root: ParsedWord | None
+) -> bool:
+    if not content_words or root is None:
+        return False
+    auxiliary = content_words[0]
+    if auxiliary.upos != "AUX":
+        return False
+    if auxiliary.head == 0:
+        predicate = auxiliary
+    elif auxiliary.base_relation in {"aux", "cop"}:
+        predicate = next(
+            (
+                word
+                for word in content_words
+                if word.sentence_index == auxiliary.sentence_index
+                and word.word_id == auxiliary.head
+                and word.head == 0
+            ),
+            None,
+        )
+        if predicate is None:
+            return False
+    else:
+        return False
+    return _has_subject(predicate, content_words)
+
+
+def _has_subject(
+    predicate: ParsedWord, content_words: tuple[ParsedWord, ...]
+) -> bool:
+    return any(
+        word.sentence_index == predicate.sentence_index
+        and word.head == predicate.word_id
+        and word.base_relation in SUBJECT_RELATIONS
+        for word in content_words
+    )
+
+
+def _clauses(words: tuple[ParsedWord, ...]) -> tuple[_Clause, ...]:
+    by_id = {word.word_id: word for word in words}
+    clauses = {
+        word.word_id: _Clause(
+            predicate_id=word.word_id,
+            effective_relation=word.base_relation,
+        )
+        for word in words
+        if _is_standard_clause_head(word)
+    }
+    for copula in words:
+        if not _is_finite_copula(copula):
+            continue
+        predicate = by_id.get(copula.head)
+        if predicate is None:
+            raise ValueError("Invalid copular dependency")
+        clauses.setdefault(
+            predicate.word_id,
+            _Clause(
+                predicate_id=predicate.word_id,
+                effective_relation=predicate.base_relation,
+            ),
+        )
+    return tuple(clauses.values())
+
+
+def _is_standard_clause_head(word: ParsedWord) -> bool:
     if word.upos not in {"VERB", "AUX"}:
         return False
     if word.head == 0:
@@ -197,6 +311,91 @@ def _is_clause_head(word: ParsedWord) -> bool:
         return True
     return word.base_relation == "conj" and (
         word.feature("VerbForm") == "Fin" or word.feature("Mood") is not None
+    )
+
+
+def _is_finite_copula(word: ParsedWord) -> bool:
+    return (
+        word.upos == "AUX"
+        and word.base_relation == "cop"
+        and (word.feature("VerbForm") == "Fin" or word.feature("Mood") is not None)
+    )
+
+
+def _first_logical_sentence(
+    source_text: str, sentences: tuple[ParsedSentence, ...]
+) -> ParsedSentence:
+    if not sentences:
+        raise ValueError("Clause classification requires at least one sentence")
+    first_index = next(
+        (
+            index
+            for index, sentence in enumerate(sentences)
+            if any(word.text.strip() for word in sentence.words)
+        ),
+        None,
+    )
+    if first_index is None:
+        raise ValueError("Clause classification requires a non-empty sentence")
+
+    logical_sentences = [sentences[first_index]]
+    email_spans = tuple(match.span() for match in EMAIL_PATTERN.finditer(source_text))
+    for sentence in sentences[first_index + 1 :]:
+        if not _boundary_is_inside_email(logical_sentences[-1], sentence, email_spans):
+            break
+        logical_sentences.append(sentence)
+
+    words = tuple(
+        word for logical_sentence in logical_sentences for word in logical_sentence.words
+    )
+    starts = [word.start_char for word in words if word.start_char is not None]
+    ends = [word.end_char for word in words if word.end_char is not None]
+    text = (
+        source_text[min(starts) : max(ends)]
+        if starts and ends
+        else " ".join(sentence.text for sentence in logical_sentences)
+    )
+    return ParsedSentence(
+        sentence_index=logical_sentences[0].sentence_index,
+        text=text,
+        words=words,
+    )
+
+
+def _boundary_is_inside_email(
+    left: ParsedSentence,
+    right: ParsedSentence,
+    email_spans: tuple[tuple[int, int], ...],
+) -> bool:
+    left_ends = [word.end_char for word in left.words if word.end_char is not None]
+    right_starts = [word.start_char for word in right.words if word.start_char is not None]
+    if not left_ends or not right_starts:
+        return False
+    left_end = max(left_ends)
+    right_start = min(right_starts)
+    return any(
+        span_start < left_end <= right_start < span_end
+        for span_start, span_end in email_spans
+    )
+
+
+def _is_nominal_list_imperative(
+    content_words: tuple[ParsedWord, ...], root: ParsedWord | None
+) -> bool:
+    if not content_words or root is None:
+        return False
+    first = content_words[0]
+    if not (
+        first.lemma.casefold() == "list"
+        and first.upos == "NOUN"
+        and first.base_relation == "compound"
+        and first.head == root.word_id
+        and root.upos in {"NOUN", "PROPN"}
+    ):
+        return False
+    return not any(
+        word.head == root.word_id and word.base_relation in SUBJECT_RELATIONS
+        for word in content_words
     )
 
 

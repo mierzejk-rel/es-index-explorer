@@ -2160,7 +2160,16 @@ addition, since more features would only inflate researcher degrees of freedom.
 Many rubric "questions" are directive imperatives (`List the evidence...`, `Summarize...`),
 not interrogatives. Labels: open (wh) interrogative / closed (polar) interrogative /
 directive imperative / declarative request. Partly derivable from UD (`PronType=Int`,
-`Mood=Imp`, root `VerbForm`), so P2/P3 where possible.
+`Mood=Imp`, root `VerbForm`), so P2/P3 where possible. The frozen P3 rules repair two
+observed Stanza boundary/tagging failures without changing that inventory: adjacent sentence
+fragments split inside an exact source-text email address are one logical sentence for
+`clause_type`, and an initial `list` parsed as a nominal `compound` of a subjectless nominal
+root is a directive imperative. Matrix `Mood=Imp` and that narrow repair take precedence over
+interrogative words embedded in their complements; otherwise an interrogative form is open
+only when its dependency path to the matrix root crosses no subordinate-clause relation.
+Closed interrogatives are recognized by terminal `?` or matrix subject-auxiliary inversion,
+so missing punctuation does not turn a polar clause into a declarative request. These are
+deterministic project-specific operationalizations, not rules attributed to the sources below.
 
 Anchors: **Searle (1969), *Speech Acts*,
 [doi:10.1017/CBO9781139173438](https://doi.org/10.1017/CBO9781139173438),
@@ -2288,8 +2297,12 @@ for the UD root-to-token-depth feature).
 Tooling: **Stanza English UD, frozen as the sole authoritative dependency parser** for this
 dimension (§18) - not "spaCy or Stanza" as an open choice, since running both and reconciling
 disagreements would itself be an unspecified analytical decision. spaCy is used elsewhere only
-for NER. L2SCA clause and T-unit definitions reimplemented over Stanza's UD parses, documented
-in the codebook.
+for NER. The codebook's clause and complex-nominal definitions are UD operationalizations of
+L2SCA constructs, not a constituency-based L2SCA reimplementation. One finite copular clause is
+represented by each nonverbal predicate governor with a finite `AUX/cop`, unless that predicate
+is already counted as a verbal clause head; subordinate status follows the predicate governor's
+relation. This project-specific rule prevents finite copular questions from being treated as
+verbless fragments and does not claim source-defined UD/L2SCA equivalence.
 
 ### Dimension F - Lexical and information-theoretic (exploratory only)
 
@@ -2905,7 +2918,12 @@ Query strings:
   number stays auditable. **Stanza (English UD) is the frozen, authoritative dependency parser
   for every P2 morphosyntactic feature (§9); spaCy is retained solely as the NER source** for
   the features that need it - the two are not redundant alternatives, each is authoritative for
-  a disjoint feature subset, and no feature is computed from both and reconciled. `r1-evals` is
+  a disjoint feature subset, and no feature is computed from both and reconciled. Stanza is
+  pinned to 1.14.0 and spaCy to 3.8.14 in both dependency and runtime contracts; Stanza setup
+  downloads only the selected processor/package mapping and its declared checksum-pinned
+  dependencies. The installed `en_core_web_sm` 3.8.0 tree is verified before loading against
+  a frozen aggregate over sorted relative paths, file SHA-256 values and sizes; recording an
+  unverified same-version tree after the fact is insufficient. `r1-evals` is
   **not a dependency of this package at all, direct or test-only, runtime or otherwise**
   (verified: absent from `pyproject.toml` and from every import in the repository); the grade
   oracle test (§18.6 test 7) instead consults an **immutable, source-generated fixture** derived
@@ -3113,7 +3131,11 @@ schematised artefact or artefact family, not an implicit in-memory structure:
 - **`rubric_catalogue.parquet`, `variant_catalogue.parquet` and
   `expectation_catalogue.parquet`** - the complete all-`[[input]]` catalogue at its three stable
   identity grains, including list-valued `use_cases` normalized from source `meta.use_case`
-  against the `specification.use_cases` task taxonomy.
+  against the `specification.use_cases` task taxonomy. `use_cases` is Parquet logical
+  `list<string>`; schema-aware pandas consumers use the Arrow dtype backend or normalize
+  iterable cells at their input boundary rather than treating the default backend's NumPy
+  array as a different persisted type. Canonical text and its SHA-256 preserve source bytes,
+  including leading or trailing whitespace; parsing does not rewrite the persisted text.
 - **`criterion_table.parquet`** - one row per `(rubric_id, variant_index, arm_id, trace_id,
   expectation_id)`: `expectation_index`, non-key `expectation_name`, `state`
   (`PASS`/`FAIL`/`UNDETERMINED`), `material`, join-eligibility flags. `expectation_name` is not
@@ -3130,7 +3152,10 @@ schematised artefact or artefact family, not an implicit in-memory structure:
   `r1-evals-new` revision and source-file SHA.
 - **Parser/resource manifests, parse archives and `features_deterministic.parquet`** - pinned
   Stanza/spaCy resources, source hashes, parses, tokens, extracted P1/P2/P3 features and
-  missingness reasons.
+  missingness reasons. Stanza, spaCy, empty-parse and deterministic-rule failures are blocking
+  component-specific gate failures keyed by `item_id`, never substantive zero/missing values;
+  their bounded messages omit source text and are persisted in workflow failure state before
+  any Segment 3 artifact is written.
 - **`annotation_manifest.json`, emitted batches, immutable raw responses,
   `annotations_normalized.parquet` and `annotation_agreement.parquet`** - exact Cursor model
   IDs, batch/run IDs, hashes, schema-validation outcomes, normalized P4 labels and reliability.
@@ -3440,9 +3465,9 @@ associations.
 ## 20. Deliverables and status
 
 Deliverables: this report (Parts I and II); `reports/13a-source-dossier.md` (per-source notes
-with DOI/ISBN, the dimension or method anchored, exact chapter or section, verified/to-verify
-markers); `reports/14-question-linguistic-codebook.md`; **the rubric-level and variant-level
-recommendation tables** (§6.3); the programme skeleton and dependency group.
+with DOI/ISBN, the dimension or method anchored, exact chapter or section, human-confirmed
+status or removal history); `reports/14-question-linguistic-codebook.md`; **the rubric-level
+and variant-level recommendation tables** (§6.3); the programme skeleton and dependency group.
 
 **Closed decisions carried into the lock:** `gamma` = 0.90 (§6.1); `kappa` = 0.75 (§6.2); one
 joint family test stacked across both co-primary outcomes, preserving ten confirmatory

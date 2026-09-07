@@ -429,7 +429,7 @@ requires-dist = [
     { name = "requests", specifier = ">=2.33.0" },
     { name = "rich", specifier = ">=13.7.0" },
     { name = "sentence-transformers", specifier = ">=5.0" },
-    { name = "spacy", specifier = ">=3.7" },
+    { name = "spacy", specifier = "==3.8.14" },
     { name = "torch", specifier = ">=2.2", index = "https://download.pytorch.org/whl/cpu" },
     { name = "torchvision", specifier = ">=0.17", index = "https://download.pytorch.org/whl/cpu" },
     { name = "transformers", specifier = ">=4.0" },
@@ -445,7 +445,7 @@ analysis = [
     { name = "pyarrow", specifier = ">=25.0.0" },
     { name = "scipy", specifier = ">=1.17.1" },
     { name = "seaborn", specifier = ">=0.13.2" },
-    { name = "stanza", specifier = ">=1.14.0" },
+    { name = "stanza", specifier = "==1.14.0" },
     { name = "statsmodels", specifier = ">=0.14.6" },
 ]
 analysis-test = [

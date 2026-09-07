@@ -15,7 +15,7 @@ dependencies = [
     "transformers>=4.0",
     "sentence-transformers>=5.0",
     "wtpsplit>=2.1",
-    "spacy>=3.7",
+    "spacy==3.8.14",
 ]
 
 [project.scripts]
@@ -30,7 +30,7 @@ analysis = [
     "pyarrow>=25.0.0",
     "scipy>=1.17.1",
     "seaborn>=0.13.2",
-    "stanza>=1.14.0",
+    "stanza==1.14.0",
     "statsmodels>=0.14.6",
 ]
 analysis-test = [

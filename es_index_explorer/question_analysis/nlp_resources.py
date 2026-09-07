@@ -1,6 +1,7 @@
 """Pinned Stanza and spaCy resource loading."""
 
 import hashlib
+import json
 from dataclasses import dataclass
 from importlib import import_module
 from importlib.metadata import version
@@ -59,7 +60,10 @@ class SpacyStaticManifest(BaseModel):
     language: str
     model: str
     model_version: str
+    model_file_count: int
+    model_tree_sha256: str
     pipeline_component: str
+    spacy_version: str
     spacy_compatibility: str
     wheel_url: str
     wheel_sha256: str
@@ -167,11 +171,7 @@ class SpacyNer:
     @classmethod
     def load(cls) -> "SpacyNer":
         manifest = load_spacy_manifest()
-        installed = version("en-core-web-sm")
-        if installed != manifest.model_version:
-            raise MalformedInputError(
-                f"spaCy model version is {installed}; expected {manifest.model_version}"
-            )
+        verify_spacy_resources(manifest=manifest)
         pipeline = spacy.load(manifest.model, enable=[manifest.pipeline_component])
         return cls(pipeline=cast(_SpacyPipeline, pipeline))
 
@@ -204,12 +204,17 @@ def load_spacy_manifest() -> SpacyStaticManifest:
 def download_stanza_resources(model_dir: Path) -> None:
     """Download the exact selected Stanza packages."""
     manifest = load_stanza_manifest()
+    _verify_distribution_version("stanza", manifest.stanza_version)
+    processors = {
+        processor: manifest.selected_models[processor].package
+        for processor in manifest.processors
+    }
     model_dir.mkdir(parents=True, exist_ok=True)
     stanza.download(
         lang=manifest.language,
         model_dir=model_dir.as_posix(),
-        processors=None,
-        package="default",
+        processors=processors,
+        package=None,
         resources_url=manifest.resources_url.rsplit("/", maxsplit=1)[0],
         resources_version=manifest.stanza_version,
         verbose=False,
@@ -222,6 +227,7 @@ def verify_stanza_resources(
 ) -> tuple[Path, ...]:
     """Verify all selected Stanza model files against the pinned catalogue."""
     manifest = manifest or load_stanza_manifest()
+    _verify_distribution_version("stanza", manifest.stanza_version)
     resources_path = model_dir / "resources.json"
     if not resources_path.is_file():
         raise MalformedInputError(
@@ -247,25 +253,43 @@ def verify_stanza_resources(
     return tuple(sorted(selected_paths))
 
 
+def verify_spacy_resources(
+    package_root: Path | None = None,
+    manifest: SpacyStaticManifest | None = None,
+) -> tuple[Path, tuple[Path, ...]]:
+    """Verify the installed spaCy model tree against the frozen manifest."""
+    manifest = manifest or load_spacy_manifest()
+    _verify_distribution_version("spacy", manifest.spacy_version)
+    installed = version("en-core-web-sm")
+    if installed != manifest.model_version:
+        raise MalformedInputError(
+            f"spaCy model version is {installed}; expected {manifest.model_version}"
+        )
+    if package_root is None:
+        spacy_package = import_module(manifest.model)
+        package_root = Path(str(spacy_package.__file__)).resolve().parent
+    files = _spacy_model_files(package_root)
+    if len(files) != manifest.model_file_count:
+        raise MalformedInputError(
+            f"spaCy model file count is {len(files)}; "
+            f"expected {manifest.model_file_count}"
+        )
+    actual_tree_sha256 = _spacy_model_tree_sha256(files, package_root)
+    if actual_tree_sha256 != manifest.model_tree_sha256:
+        raise MalformedInputError("spaCy model tree checksum mismatch")
+    return package_root, files
+
+
 def build_parser_resource_manifest(model_dir: Path) -> dict[str, object]:
     """Describe the exact parser files used by a feature run."""
     stanza_manifest = load_stanza_manifest()
     spacy_manifest = load_spacy_manifest()
     stanza_files = verify_stanza_resources(model_dir, stanza_manifest)
-    spacy_package = import_module(spacy_manifest.model)
-    package_file = Path(str(spacy_package.__file__)).resolve()
-    package_root = package_file.parent
-    spacy_files = tuple(
-        path
-        for path in sorted(package_root.rglob("*"))
-        if path.is_file()
-        and "__pycache__" not in path.parts
-        and path.suffix not in {".pyc", ".pyo"}
-    )
+    package_root, spacy_files = verify_spacy_resources(manifest=spacy_manifest)
     return {
         "schema_version": 1,
         "stanza": {
-            "distribution_version": version("stanza"),
+            "distribution_version": stanza_manifest.stanza_version,
             "language": stanza_manifest.language,
             "processors": stanza_manifest.processors,
             "resource_catalogue": fingerprint_file(
@@ -279,10 +303,11 @@ def build_parser_resource_manifest(model_dir: Path) -> dict[str, object]:
             ],
         },
         "spacy": {
-            "distribution_version": version("spacy"),
+            "distribution_version": spacy_manifest.spacy_version,
             "model": spacy_manifest.model,
             "model_version": version("en-core-web-sm"),
             "pipeline_component": spacy_manifest.pipeline_component,
+            "model_tree_sha256": spacy_manifest.model_tree_sha256,
             "static_manifest": fingerprint_file(
                 SPACY_MANIFEST_PATH, label=SPACY_MANIFEST_PATH.name
             ).model_dump(mode="json"),
@@ -291,6 +316,33 @@ def build_parser_resource_manifest(model_dir: Path) -> dict[str, object]:
             ],
         },
     }
+
+
+def _spacy_model_files(package_root: Path) -> tuple[Path, ...]:
+    return tuple(
+        path
+        for path in sorted(package_root.rglob("*"))
+        if path.is_file()
+        and "__pycache__" not in path.parts
+        and path.suffix not in {".pyc", ".pyo"}
+    )
+
+
+def _spacy_model_tree_sha256(files: tuple[Path, ...], package_root: Path) -> str:
+    rows = [_resource_file(path, package_root) for path in files]
+    payload = (
+        json.dumps(rows, sort_keys=True, separators=(",", ":"), ensure_ascii=False)
+        + "\n"
+    ).encode("utf-8")
+    return hashlib.sha256(payload).hexdigest()
+
+
+def _verify_distribution_version(distribution: str, expected: str) -> None:
+    installed = version(distribution)
+    if installed != expected:
+        raise MalformedInputError(
+            f"{distribution} version is {installed}; expected {expected}"
+        )
 
 
 def _resource_file(path: Path, root: Path) -> dict[str, object]:

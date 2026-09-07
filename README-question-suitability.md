@@ -5,7 +5,7 @@ The pipeline implements the analysis contract in
 existing MLflow snapshot CLI and writes only under:
 
 ```text
-artifacts/question_analysis/simplemode-v1/
+artifacts/question_analysis/simplemode-v1-postreview-p3/
 ├── manifest.json
 ├── state.json
 ├── tables/
@@ -17,6 +17,13 @@ artifacts/question_analysis/simplemode-v1/
 └── logs/
 ```
 
+The `artifacts/question_analysis/simplemode-v1/` directory is the immutable pre-review
+Segment 3 run. `artifacts/question_analysis/simplemode-v1-postreview/` is the immutable
+P1-remediated run, and `artifacts/question_analysis/simplemode-v1-postreview-p2/` is the
+P2-remediated run. All three are retained for comparison and are not resumed or rewritten.
+The P3-remediated root shown above is the default for regenerated Segment 3 artifacts and all
+later commands.
+
 ## Environment
 
 Install the Python groups required by the pipeline:
@@ -25,15 +32,16 @@ Install the Python groups required by the pipeline:
 uv sync --group analysis --group annotation --group analysis-test
 ```
 
-- `analysis`: numerical, tabular, plotting, Stanza, spaCy, and the pinned
-  `en_core_web_sm` 3.8.0 model.
+- `analysis`: numerical, tabular, plotting, Stanza 1.14.0, spaCy 3.8.14, and
+  the pinned `en_core_web_sm` 3.8.0 model.
 - `annotation`: Cursor Python SDK only.
 - `analysis-test`: pytest, Ruff, and ty for this pipeline.
 
 The official Stanza 1.14.0 resource catalogue is pinned by SHA-256 in
 `es_index_explorer/question_analysis/resources/stanza-en-resource-manifest.json`.
-The exact downloaded English model files are selected and hashed with the
-deterministic linguistic pipeline.
+Setup downloads only the selected processor/package mapping and its declared
+dependencies; those files are checksum verified. The spaCy distribution and
+28-file model tree are also verified before loading.
 
 Download them once, then subsequent feature runs are offline:
 
@@ -80,6 +88,12 @@ expectation descriptions with the pinned Stanza/spaCy resources, and writes the
 deterministic feature table, token/entity archives, resource verification, and
 `partial_reports/02-deterministic-features.md`. Override the model cache with
 `--stanza-model-dir`.
+
+Catalogue and feature `use_cases` columns are Parquet logical `list<string>`.
+Use `pd.read_parquet(path, dtype_backend="pyarrow")` when Python list cells are
+required, or normalize iterable values at the consumer boundary. `source_text`
+and `text_sha256` preserve canonical catalogue bytes, including source
+whitespace.
 
 Later commands remain unavailable until their implementation segments register
 them. The shell never marks a placeholder command complete.

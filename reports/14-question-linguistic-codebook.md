@@ -14,17 +14,24 @@ the outcome-blind annotation workflow in Segment 4.
 - An **expectation item** is one row of `expectation_catalogue.parquet`, keyed by
   `expectation_id`.
 - `item_id` is the existing variant or expectation identifier. Text is hashed exactly as stored;
-  no lower-casing or whitespace normalization precedes parsing.
+  no lower-casing or whitespace normalization precedes parsing. Canonical leading or trailing
+  whitespace therefore remains in `source_text` and contributes to `text_sha256`.
+- `use_cases` is persisted as Parquet logical `list<string>`. Schema-aware pandas consumers use
+  `dtype_backend="pyarrow"` or normalize iterable cell values at their input boundary; a
+  default-backend NumPy array is an in-memory representation of the same logical list.
 - A feature that does not apply to an item type is missing with an explicit reason. It is never
   represented by zero.
 
 ## 2. Parser authority
 
 - Stanza 1.14.0 English UD is authoritative for tokenization, morphology, lemmas, dependency
-  relations, and every P2 morphosyntactic feature.
-- spaCy `en_core_web_sm` 3.8.0 is authoritative only for named-entity spans.
+  relations, and every P2 morphosyntactic feature. The distribution version is exact, and
+  setup downloads only the frozen processor/package mapping plus declared dependencies.
+- spaCy 3.8.14 with `en_core_web_sm` 3.8.0 is authoritative only for named-entity spans.
 - No parser vote or reconciliation is performed. Model packages and selected files are hashed
-  in `parser_resource_manifest.json`.
+  in `parser_resource_manifest.json`. Before loading, the installed spaCy model tree is checked
+  against the frozen sorted-path/SHA-256/size aggregate in its static resource manifest; a
+  same-version modified, missing, or extra model file is rejected.
 
 ## 3. P1 structural features
 
@@ -57,9 +64,15 @@ A **clause head** is:
 1. a verbal or auxiliary sentence root; or
 2. a verbal or auxiliary dependent with base relation `advcl`, `acl`, `ccomp`, `xcomp`,
    `csubj`, or `parataxis`; or
-3. a verbal or auxiliary `conj` dependent with `VerbForm=Fin` or a `Mood` feature.
+3. a verbal or auxiliary `conj` dependent with `VerbForm=Fin` or a `Mood` feature; or
+4. one nonverbal predicate governor per sentence that has at least one `AUX` dependent with
+   base relation `cop` and `VerbForm=Fin` or a `Mood` feature, unless the governor is already
+   represented by rules 1-3.
 
-The base relation is the part before a UD subtype colon.
+The base relation is the part before a UD subtype colon. For rule 4, the copular clause's
+effective base relation is the predicate governor's relation. Multiple finite `cop` dependents
+of the same governor represent one clause, and a finite copula never duplicates a verbal
+predicate already counted by rules 1-3.
 
 - `clause_count` (`C`): number of clause heads.
 - `subordinate_clause_ratio` (`DC/C`): clause heads whose base relation is `advcl`, `acl`,
@@ -70,8 +83,9 @@ The base relation is the part before a UD subtype colon.
 - `coordination_count`: number of non-punctuation `conj` dependents. This is a deterministic
   exploratory Dimension E feature and is excluded from confirmatory restrictions.
 
-Both ratios are missing with `no_clause` when `C=0`. This occurs legitimately for fragments.
-The definitions are UD operationalizations of the L2SCA constructs, not claims that a
+Both ratios are missing with `no_clause` when `C=0`. Under the finite-copula rule, this state
+is reserved for genuine verbless fragments rather than finite copular clauses. The definitions
+are project-specific UD operationalizations of the L2SCA constructs, not claims that a
 dependency tree reproduces constituency-based L2SCA output exactly.
 
 ### 4.3 Entity and temporal metrics
@@ -86,14 +100,25 @@ belongs to P4 `referring_form_type`.
 ## 5. P3 deterministic clause type
 
 `clause_type` applies only to question items. It has four nominal levels and is assigned from
-the first non-empty Stanza sentence using this precedence:
+the first logical sentence using this precedence:
 
-1. `open_interrogative`: the sentence contains `PronType=Int`, or begins with a wh-form from
-   `who`, `whom`, `whose`, `what`, `which`, `when`, `where`, `why`, or `how`.
-2. `closed_interrogative`: the source sentence ends in `?` and rule 1 did not match.
-3. `directive_imperative`: the root has `Mood=Imp`, or is `VERB`/`AUX` with no nominal subject,
-   clausal subject, or expletive dependent.
-4. `declarative_request`: every remaining request.
+1. `directive_imperative`: the matrix root has `Mood=Imp`, or the narrow parser-repair case
+   applies where initial lemma `list` is tagged `NOUN` with base relation `compound` and its
+   governor is a subjectless nominal sentence root. Matrix imperative form takes precedence
+   over interrogative words inside its complement.
+2. `open_interrogative`: a `PronType=Int` token is matrix-level, meaning its dependency path to
+   the matrix root does not cross `advcl`, `acl`, `ccomp`, `xcomp`, or `csubj`; coordinated
+   matrix interrogatives remain matrix-level. An initial wh-form from `who`, `whom`, `whose`,
+   `what`, `which`, `when`, `where`, `why`, or `how` is the deterministic fallback when the
+   parser omits `PronType=Int`.
+3. `closed_interrogative`: rules 1-2 did not match and either the logical source sentence ends
+   in `?`, or it has matrix subject-auxiliary inversion. The inversion rule requires the first
+   non-punctuation word to be `AUX`, attached to the matrix predicate as `aux` or `cop` (or
+   itself the matrix root), with a nominal subject, clausal subject, or expletive dependent of
+   that matrix predicate.
+4. `directive_imperative`: rules 1-3 did not match and the matrix root is `VERB`/`AUX` with no
+   nominal subject, clausal subject, or expletive dependent.
+5. `declarative_request`: every remaining request.
 
 The reference level is `open_interrogative`; therefore F7 has `k=4` and `q=2*(k-1)=6`.
 Expectation items receive `not_applicable_to_expectation`.
@@ -105,9 +130,19 @@ Examples:
 - “List the supporting documents.” → `directive_imperative`
 - “I would like a summary of the response.” → `declarative_request`
 
-For a mixed multi-sentence request, only the first non-empty sentence determines the label.
-Fragments ending in `?` are closed interrogatives. Parser failure is not replaced by a
-text-only guess.
+The first logical sentence is the first non-empty Stanza sentence plus immediately adjacent
+Stanza sentence fragments when their boundary falls inside an email address matching
+`[A-Za-z0-9][A-Za-z0-9._%+-]*@[A-Za-z0-9][A-Za-z0-9.-]*\.[A-Za-z]{2,}` in the exact source
+text. This repairs Stanza splits such as `eugene.` / `Belford@ellingson.com` for P3 only; it
+does not alter source text, sentence/token archives, or P2 features. For a genuine mixed
+multi-sentence request, only the first logical sentence determines the label. Fragments ending
+in `?` are closed interrogatives. Parser failure is not replaced by an unrestricted text-only
+guess.
+
+The four-category inventory is anchored in the retained clause-type literature. The email
+boundary repair, finite-copula mapping, matrix dependency-path rule, subject-auxiliary
+inversion detector, precedence, and narrow `list` repair are deterministic project-specific
+operationalizations; the retained sources do not prescribe these algorithms.
 
 ## 6. P4 question annotation contract
 
@@ -188,6 +223,9 @@ sources for one fact.
 ## 9. Missingness and edge cases
 
 - Empty source text or parser failure is blocking for deterministic extraction.
+- Stanza, spaCy, empty-parse, and deterministic-rule failures are separate blocking extraction
+  stages. They are reported by component and `item_id` without source text; no failure is
+  replaced by zero, missing, or a substantive label.
 - `no_dependencies`, `no_clause`, `not_applicable_to_question`,
   `not_applicable_to_expectation`, `not_applicable`, and `no_focal_referent` are distinct
   reasons.

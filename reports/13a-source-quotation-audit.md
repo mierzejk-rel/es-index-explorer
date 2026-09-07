@@ -1,6 +1,6 @@
 # Simple Mode source quotation audit
 
-Status: draft for human verification  
+Status: complete for all active sources; human-confirmed  
 Source inventory: `reports/13a-source-dossier.md`  
 Claim inventory: `reports/13-simple-mode-analysis-research-plan.md`
 
@@ -16,8 +16,9 @@ Each record distinguishes four questions:
 `SUPPORTED` means the quotation directly supports the cited use. `PARTIAL` means it supports
 the general construct but not the exact project operationalization. `NOT SUPPORTED` means the
 quoted source does not establish the stated claim. `USER ACCESS REQUIRED` means no quotation
-has been supplied because the primary text was not accessible. No quotation in this file is
-reconstructed from model memory.
+has been supplied because the primary text was not accessible; it is a historical workflow
+state and applies to no active source. No quotation in this file is reconstructed from model
+memory.
 
 # 1. Verified-open primary sources
 
@@ -144,6 +145,13 @@ conversational force.
 - **Assessment:** **SUPPORTED** as theoretical architecture. It does not itself determine the
 project’s four labels or parser heuristics.
 - **Human verdict:** [x] quotations confirmed [x] locators confirmed [x] retain source
+
+**Post-review implementation note.** The four-category inventory remains source-anchored.
+Coalescing Stanza sentence fragments split inside an email address and repairing the narrow
+initial nominal-`list` parse are project-specific deterministic conventions. Matrix-imperative
+precedence, the matrix dependency-path test for interrogative forms, and the punctuation-
+independent subject-auxiliary inversion detector are likewise project-specific. They do not
+add or strengthen any claim about the retained Dimension A sources.
 
 
 
@@ -407,7 +415,7 @@ Question Answering,” *EMNLP 2018*, pp. 2369–2380.
 - **Assessment:** **SUPPORTED** as source taxonomy context. Mapping it to the project’s
 four-level `hop_structure` remains an operational simplification.
 - **Human verdict:** [x] quotations confirmed [x] locators confirmed [x] retain source
-[ ] revise mapping
+[x] mapping caveat recorded; no source-defined one-to-one mapping claimed
 
 
 
@@ -549,6 +557,12 @@ Lu’s definition, and omit some Lu classes. They are analogous project operatio
 not a faithful L2SCA reimplementation.
 - **Human verdict:** [x] quotations confirmed [x] locators confirmed [x] retain as a
 non-equivalent operationalization
+
+**Post-review implementation note.** Counting one clause per nonverbal predicate governor
+with a finite `AUX/cop`, with a double-count guard and governor-derived subordinate status, is
+a project-specific UD operationalization. It corrects the observed treatment of finite copular
+questions as verbless fragments but is not attributed to Lu, UD, Kyle, or any other retained
+source.
 
 
 
@@ -1625,8 +1639,9 @@ citation.
 - **Former Research Plan use:** discourse-old/new and hearer-old/new context for Dimension D.
 - **Decision:** **REMOVED at user request.** No verifiable primary copy was available to the
 user, so no quotation or locator could be confirmed.
-- **Impact:** documentation only. Gundel et al. and Ariel remain the Dimension D theoretical
-anchors; no implemented feature or completed artifact depends on Prince.
+- **Impact:** documentation only. Gundel et al. remains the Dimension D theoretical anchor;
+no implemented feature or completed artifact depends on Prince. Ariel is also removed below
+and is not part of the active source contract.
 
 
 
