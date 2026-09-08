@@ -3,6 +3,7 @@
 from datetime import UTC, datetime, timedelta
 
 import pytest
+from pydantic import ValidationError
 
 from es_index_explorer.question_analysis.contracts import (
     StepStatus,
@@ -30,7 +31,14 @@ EXPECTED_PREREQUISITES = {
     WorkflowCommand.ANNOTATE_RUN: frozenset({WorkflowCommand.ANNOTATE_EMIT}),
     WorkflowCommand.ANNOTATE_INGEST: frozenset({WorkflowCommand.ANNOTATE_RUN}),
     WorkflowCommand.GOLD_SAMPLE: frozenset({WorkflowCommand.ANNOTATE_INGEST}),
-    WorkflowCommand.GOLD_INGEST: frozenset({WorkflowCommand.GOLD_SAMPLE}),
+    WorkflowCommand.GOLD_INGEST_INITIAL: frozenset({WorkflowCommand.GOLD_SAMPLE}),
+    WorkflowCommand.GOLD_RECODE_RELEASE: frozenset(
+        {WorkflowCommand.GOLD_INGEST_INITIAL}
+    ),
+    WorkflowCommand.GOLD_INGEST_PROVISIONAL: frozenset(
+        {WorkflowCommand.GOLD_RECODE_RELEASE}
+    ),
+    WorkflowCommand.GOLD_INGEST: frozenset({WorkflowCommand.GOLD_RECODE_RELEASE}),
     WorkflowCommand.VALIDATE_FEATURES: frozenset({WorkflowCommand.GOLD_INGEST}),
     WorkflowCommand.ORACLE: frozenset(),
     WorkflowCommand.FIT_LAYER1: frozenset(
@@ -81,6 +89,8 @@ def test_validate_unlocks_models_but_oracle_remains_required() -> None:
         WorkflowCommand.ANNOTATE_RUN,
         WorkflowCommand.ANNOTATE_INGEST,
         WorkflowCommand.GOLD_SAMPLE,
+        WorkflowCommand.GOLD_INGEST_INITIAL,
+        WorkflowCommand.GOLD_RECODE_RELEASE,
         WorkflowCommand.GOLD_INGEST,
         WorkflowCommand.VALIDATE_FEATURES,
     )
@@ -113,6 +123,8 @@ def test_validate_completion_without_explicit_authorization_is_rejected() -> Non
             WorkflowCommand.ANNOTATE_RUN,
             WorkflowCommand.ANNOTATE_INGEST,
             WorkflowCommand.GOLD_SAMPLE,
+            WorkflowCommand.GOLD_INGEST_INITIAL,
+            WorkflowCommand.GOLD_RECODE_RELEASE,
             WorkflowCommand.GOLD_INGEST,
         )
     ):
@@ -139,10 +151,12 @@ def test_oracle_can_run_before_join_but_not_after_fitting_starts() -> None:
     state = _complete(state, WorkflowCommand.ANNOTATE_RUN, 4)
     state = _complete(state, WorkflowCommand.ANNOTATE_INGEST, 5)
     state = _complete(state, WorkflowCommand.GOLD_SAMPLE, 6)
-    state = _complete(state, WorkflowCommand.GOLD_INGEST, 7)
-    state = _complete(state, WorkflowCommand.VALIDATE_FEATURES, 8)
+    state = _complete(state, WorkflowCommand.GOLD_INGEST_INITIAL, 7)
+    state = _complete(state, WorkflowCommand.GOLD_RECODE_RELEASE, 8)
+    state = _complete(state, WorkflowCommand.GOLD_INGEST, 9)
+    state = _complete(state, WorkflowCommand.VALIDATE_FEATURES, 10)
     state, _ = start_step(
-        state, WorkflowCommand.FIT_FAMILIES, now=START + timedelta(minutes=9)
+        state, WorkflowCommand.FIT_FAMILIES, now=START + timedelta(minutes=11)
     )
     steps = dict(state.steps)
     steps[WorkflowCommand.ORACLE] = steps[WorkflowCommand.ORACLE].model_copy(
@@ -156,7 +170,7 @@ def test_oracle_can_run_before_join_but_not_after_fitting_starts() -> None:
     state = state.model_copy(update={"steps": steps})
 
     with pytest.raises(PrerequisiteError, match="after outcome fitting has started"):
-        start_step(state, WorkflowCommand.ORACLE, now=START + timedelta(minutes=10))
+        start_step(state, WorkflowCommand.ORACLE, now=START + timedelta(minutes=12))
 
 
 def test_running_step_resumes_and_completed_step_is_idempotent() -> None:
@@ -179,3 +193,12 @@ def test_running_step_resumes_and_completed_step_is_idempotent() -> None:
     )
     assert not should_run
     assert unchanged == completed
+
+
+def test_workflow_state_rejects_detached_outcome_unlock() -> None:
+    payload = WorkflowState.initial(START).model_dump()
+    payload["outcome_modeling_unlocked"] = True
+    payload["outcome_modeling_unlocked_at"] = START
+
+    with pytest.raises(ValidationError, match="must match validate-features"):
+        WorkflowState.model_validate(payload)

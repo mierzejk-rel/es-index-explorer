@@ -28,7 +28,12 @@ COMMAND_HELP: dict[WorkflowCommand, str] = {
     WorkflowCommand.ANNOTATE_RUN: "Run both frozen Cursor SDK annotators.",
     WorkflowCommand.ANNOTATE_INGEST: "Validate and normalize raw P4 annotations.",
     WorkflowCommand.GOLD_SAMPLE: "Emit the deterministic stratified gold sample.",
-    WorkflowCommand.GOLD_INGEST: "Ingest adjudication and delayed blind re-code labels.",
+    WorkflowCommand.GOLD_INGEST_INITIAL: "Checkpoint initial human adjudication.",
+    WorkflowCommand.GOLD_RECODE_RELEASE: "Release the delayed blind re-code bundle.",
+    WorkflowCommand.GOLD_INGEST_PROVISIONAL: (
+        "Persist a non-human provisional re-code sidecar."
+    ),
+    WorkflowCommand.GOLD_INGEST: "Ingest delayed human re-code labels.",
     WorkflowCommand.VALIDATE_FEATURES: "Run feature-validation and DSL gates.",
     WorkflowCommand.ORACLE: "Run the independent R fwildclusterboot reference check.",
     WorkflowCommand.FIT_LAYER1: "Fit Layer 1 and assign rubric/variant tiers.",
@@ -47,7 +52,7 @@ class AnalysisArgumentParser(argparse.ArgumentParser):
 
 
 def build_parser() -> argparse.ArgumentParser:
-    """Build the frozen fourteen-command parser."""
+    """Build the frozen workflow command parser."""
     parser = AnalysisArgumentParser(
         description="Run the Simple Mode question-suitability analysis."
     )
@@ -111,13 +116,23 @@ def build_parser() -> argparse.ArgumentParser:
                 action="store_true",
                 help="Reconstruct verified responses without model listing or model calls.",
             )
-        elif command is WorkflowCommand.GOLD_INGEST:
+        elif command is WorkflowCommand.GOLD_INGEST_INITIAL:
             command_parser.add_argument(
                 "--adjudication-csv",
                 type=Path,
                 required=True,
                 help="Completed initial human-adjudication CSV.",
             )
+            command_parser.add_argument(
+                "--provenance-json",
+                type=Path,
+                required=True,
+                help="Strict initial-human provenance JSON.",
+            )
+        elif command in (
+            WorkflowCommand.GOLD_INGEST,
+            WorkflowCommand.GOLD_INGEST_PROVISIONAL,
+        ):
             command_parser.add_argument(
                 "--recode-csv",
                 type=Path,
@@ -128,8 +143,19 @@ def build_parser() -> argparse.ArgumentParser:
                 "--provenance-json",
                 type=Path,
                 required=True,
-                help="Strict human adjudication/re-code provenance JSON.",
+                help=(
+                    "Strict provisional-LLM provenance JSON."
+                    if command is WorkflowCommand.GOLD_INGEST_PROVISIONAL
+                    else "Strict delayed-human provenance JSON."
+                ),
             )
+            if command is WorkflowCommand.GOLD_INGEST_PROVISIONAL:
+                command_parser.add_argument(
+                    "--raw-response",
+                    type=Path,
+                    required=True,
+                    help="Immutable raw frontier-LLM response artifact.",
+                )
         elif command is WorkflowCommand.VALIDATE_FEATURES:
             command_parser.add_argument(
                 "--decisions-dir",
@@ -243,12 +269,34 @@ def _production_handler(
         from es_index_explorer.question_analysis.gold import run_gold_sample
 
         return run_gold_sample
+    if command is WorkflowCommand.GOLD_INGEST_INITIAL:
+        from es_index_explorer.question_analysis.gold import run_gold_ingest_initial
+
+        return lambda workspace: run_gold_ingest_initial(
+            workspace,
+            args.adjudication_csv,
+            args.provenance_json,
+        )
+    if command is WorkflowCommand.GOLD_RECODE_RELEASE:
+        from es_index_explorer.question_analysis.gold import run_gold_recode_release
+
+        return run_gold_recode_release
+    if command is WorkflowCommand.GOLD_INGEST_PROVISIONAL:
+        from es_index_explorer.question_analysis.gold import (
+            run_gold_ingest_provisional,
+        )
+
+        return lambda workspace: run_gold_ingest_provisional(
+            workspace,
+            args.recode_csv,
+            args.provenance_json,
+            args.raw_response,
+        )
     if command is WorkflowCommand.GOLD_INGEST:
         from es_index_explorer.question_analysis.gold import run_gold_ingest
 
         return lambda workspace: run_gold_ingest(
             workspace,
-            args.adjudication_csv,
             args.recode_csv,
             args.provenance_json,
         )

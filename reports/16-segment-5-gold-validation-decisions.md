@@ -300,3 +300,56 @@ The user will review the implementation and initiate any later audit.
 **Consequence.** Automated verification is limited to deterministic tests, lint, formatting,
 type checks, schema/hash checks, and artifact reproducibility. A future provisional LLM
 re-code is annotation evidence, not an implementation audit.
+
+## 16. P0/P1 remediation decisions
+
+Decision date: 2026-09-08
+
+The pre-remediation implementation audit confirmed four defects: feature-long gold rows were
+keyed as if each item had only one feature; the validation dossier omitted mandatory evidence;
+explicit model missingness could disappear from substantive confusion totals; and the
+fourteen-day delay relied only on declared timestamps.
+
+**Dossier decision.** Use the scale-matched comprehensive dossier. Categorical features report
+raw and Horvitz-Thompson-weighted confusion cells, per-class precision/recall intervals, and
+the assigned metric; binary fields also report sensitivity and specificity. Numeric
+`qdmr_step_count` reports weighted error summaries without artificial bins. Human test-retest
+uses the same scale-matched metric plus measurement-level alpha, with joint gold/re-code
+inclusion weights and intervals. Deterministic observed failure patterns and stable examples
+are generated before the human materiality decision.
+
+**Delay decision.** Use trusted two-phase human evidence plus delayed release. Initial labels
+are ingested and system-timestamped separately. The blind re-code bundle is released only
+after fourteen elapsed days and final `gold-ingest` accepts only a human re-code produced
+after that release. Required provenance hashes are verified at both boundaries.
+
+**Classification.** Specification remediation; project-specific methodology and workflow
+convention.
+
+**Consequence.** The canonical sequence becomes `gold-sample` → `gold-ingest-initial` →
+fourteen-day wait → `gold-recode-release` → `gold-ingest` → `validate-features`. The Stage 4
+roots remain immutable, provisional LLM evidence remains non-human, and outcome modelling
+cannot unlock before the final human validation gate.
+
+## 17. P2 remediation decisions
+
+Decision date: 2026-09-08
+
+**Provisional workflow.** Implement a persist-only `gold-ingest-provisional` sidecar after
+`gold-recode-release`. It validates externally produced labels, provenance and raw response,
+but never invokes a model, populates human fields, completes human `gold-ingest`, or unlocks
+outcome modelling. Provisional and later human evidence may coexist.
+
+**Exploratory inventory.** Produce comprehensive non-gating evidence for
+`presupposition_load`, `cognitive_process_level`, `qdmr_operator_set`,
+`qdmr_normalized_question`, `demand_type`, `specificity`, and structural/descriptive
+`qdmr_applicability`. Use scale-matched HT metrics, bootstrap intervals, available human
+test-retest evidence, and deterministic examples. These artifacts cannot create statuses or
+affect a family, DSL mode, or unlock.
+
+**Alpha implementation.** Replace the pair-list approximation with an explicit weighted
+coincidence matrix. Validate equal-weight behavior against canonical reference cases and the
+HT extension against hand-calculated cases. The HT extension and percentile interval remain
+project-specific conventions rather than claims supported directly by retained literature.
+
+**Classification.** P2 implementation and test-contract completion.

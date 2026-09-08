@@ -3,6 +3,7 @@
 import platform
 from collections.abc import Callable, Iterable
 from dataclasses import dataclass
+from datetime import datetime
 from importlib.metadata import PackageNotFoundError, version
 from pathlib import Path
 
@@ -297,16 +298,22 @@ class AnalysisWorkspace:
         self._write_root_model("manifest.json", manifest)
         return manifest
 
-    def run_step(self, command: WorkflowCommand, action: StepAction) -> bool:
+    def run_step(
+        self,
+        command: WorkflowCommand,
+        action: StepAction,
+        *,
+        now: datetime | None = None,
+    ) -> bool:
         """Run a gated action, persisting running/failure/completion states."""
-        state, should_run = start_step(self.load_state(), command)
+        state, should_run = start_step(self.load_state(), command, now=now)
         if not should_run:
             return False
         self.save_state(state)
         try:
             result = action(self)
         except AnalysisError as error:
-            self.save_state(fail_step(state, command, error))
+            self.save_state(fail_step(state, command, error, now=now))
             raise
         if isinstance(result, StepExecutionResult):
             artifacts = result.artifacts
@@ -319,6 +326,7 @@ class AnalysisWorkspace:
             command,
             artifacts,
             authorize_outcome_modeling=authorize_outcome_modeling,
+            now=now,
         )
         self.save_state(completed)
         return True

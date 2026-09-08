@@ -432,8 +432,8 @@
     },
     "segment3_contracts_source": {
       "path": "/Users/krzysztof.mierzejewski/PycharmProjects/es-index-explorer/es_index_explorer/question_analysis/contracts.py",
-      "sha256": "6e1ad552c55123b316133da49fabc5411791a050d1a6067eb34d95a598c647a5",
-      "size_bytes": 11466
+      "sha256": "71ab59aec0e8d5cda296b2386c07b1f1ba516c065ed1fa9b254bceba6ef5045e",
+      "size_bytes": 11838
     },
     "segment3_features_source": {
       "path": "/Users/krzysztof.mierzejewski/PycharmProjects/es-index-explorer/es_index_explorer/question_analysis/features.py",
@@ -477,18 +477,18 @@
     },
     "segment4_cli_source": {
       "path": "/Users/krzysztof.mierzejewski/PycharmProjects/es-index-explorer/es_index_explorer/question_analysis/cli.py",
-      "sha256": "790fbe0594081a171870356870b2839db589d0487600a3132736f17f307a3af3",
-      "size_bytes": 12546
+      "sha256": "496454682be768bbd63d0dc8382574aa3ca154a5fdcf2775556389f28eed2b39",
+      "size_bytes": 14447
     },
     "segment4_workflow_source": {
       "path": "/Users/krzysztof.mierzejewski/PycharmProjects/es-index-explorer/es_index_explorer/question_analysis/workflow.py",
-      "sha256": "62eb81d8aaebfd033388cb0236dbbb72c3c385ed73d880a8c21d65907c896273",
-      "size_bytes": 6456
+      "sha256": "ce00c98dd5509e6174f78a4667c1bf24d60e884f91ec8f1e10e837c337140aa2",
+      "size_bytes": 6761
     },
     "segment5_decision_ledger": {
       "path": "/Users/krzysztof.mierzejewski/PycharmProjects/es-index-explorer/reports/16-segment-5-gold-validation-decisions.md",
-      "sha256": "51cc5e68b1ab65ea204572561da5c401ecb99a2ecff71b4ae6fb02c61b779a04",
-      "size_bytes": 11918
+      "sha256": "2b5390242e9054d1cab733beebe099b1110fbd34c18457f235b0af9dfa6c6980",
+      "size_bytes": 14996
     },
     "segment5_dsl_gate_source": {
       "path": "/Users/krzysztof.mierzejewski/PycharmProjects/es-index-explorer/es_index_explorer/question_analysis/dsl_gate.py",
@@ -497,18 +497,18 @@
     },
     "segment5_gold_source": {
       "path": "/Users/krzysztof.mierzejewski/PycharmProjects/es-index-explorer/es_index_explorer/question_analysis/gold.py",
-      "sha256": "1eb090ef748346113aa68718e17331150dd7f3f3f5aee16afaf8da28cea49d18",
-      "size_bytes": 30633
+      "sha256": "22d5f0539e7a20714933bf185e3083fa4ae2bbccee0cf3ae01ae6a2b99eec3be",
+      "size_bytes": 56030
     },
     "segment5_operations": {
       "path": "/Users/krzysztof.mierzejewski/PycharmProjects/es-index-explorer/reports/17-segment-5-gold-validation-operations.md",
-      "sha256": "f14df8a4a86fd07ce4b619405f4e8ef5b6da0561281a3a8577d706782aa0c26e",
-      "size_bytes": 10793
+      "sha256": "31bad2aebba2ee5b29a5b791a094392aad91ec64dc8aead5818063b9438ca6bf",
+      "size_bytes": 14261
     },
     "segment5_validation_source": {
       "path": "/Users/krzysztof.mierzejewski/PycharmProjects/es-index-explorer/es_index_explorer/question_analysis/validation.py",
-      "sha256": "2cab9897cec8230e65d9d659b7760b55db69c230d43e6ce1b7f01c17cfe9d56e",
-      "size_bytes": 32304
+      "sha256": "4849b6fc40d094e2ac7bf17b91174786be109eed17a5899ee7ea64616db9a503",
+      "size_bytes": 80559
     },
     "stanza_en_resource_manifest": {
       "path": "/Users/krzysztof.mierzejewski/PycharmProjects/es-index-explorer/es_index_explorer/question_analysis/resources/stanza-en-resource-manifest.json",
@@ -519,8 +519,8 @@
   "schema_version": 1,
   "specification": {
     "path": "/Users/krzysztof.mierzejewski/PycharmProjects/es-index-explorer/reports/13-simple-mode-analysis-research-plan.md",
-    "sha256": "8c6e7912cc8cdd52a5f43b86c1cf522777431e01eaaad6d66bc55027a5e2b6e9",
-    "size_bytes": 290370
+    "sha256": "03ec6195bc9e98d55fda4a9a3fe72ed1a77dae8eacfb969cfeb6a747cf098ff6",
+    "size_bytes": 295183
   },
   "stream_seeds": {
     "annotation_shuffle": 1545213380394893023,

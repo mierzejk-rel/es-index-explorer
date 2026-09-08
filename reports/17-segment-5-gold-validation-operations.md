@@ -39,10 +39,19 @@ run only after the user explicitly starts adjudication:
 
 ```bash
 UV_NO_ENV_FILE=1 uv run --no-env-file question-suitability gold-sample
-UV_NO_ENV_FILE=1 uv run --no-env-file question-suitability gold-ingest \
+UV_NO_ENV_FILE=1 uv run --no-env-file question-suitability gold-ingest-initial \
   --adjudication-csv <completed-initial.csv> \
+  --provenance-json <initial-human-provenance.json>
+# Wait until the trusted initial checkpoint is at least 14 elapsed days old.
+UV_NO_ENV_FILE=1 uv run --no-env-file question-suitability gold-recode-release
+# Optional non-human sidecar; this does not advance the human gate.
+UV_NO_ENV_FILE=1 uv run --no-env-file question-suitability gold-ingest-provisional \
+  --recode-csv <completed-provisional-recode.csv> \
+  --provenance-json <provisional-provenance.json> \
+  --raw-response <provisional-raw-response>
+UV_NO_ENV_FILE=1 uv run --no-env-file question-suitability gold-ingest \
   --recode-csv <completed-delayed-recode.csv> \
-  --provenance-json <human-provenance.json>
+  --provenance-json <recode-human-provenance.json>
 UV_NO_ENV_FILE=1 uv run --no-env-file question-suitability validate-features \
   --decisions-dir <committed-feature-decisions>
 ```
@@ -78,7 +87,7 @@ identity, use only codebook values, distinguish substantive missingness from bla
 carry a separate provenance record with:
 
 - annotator kind and role;
-- bundle, schema, codebook, and decision-ledger hashes;
+- template bundle, completed adjudication, schema, codebook, and decision-ledger hashes;
 - started/completed timestamps;
 - an outcome-blindness declaration;
 - optional non-sensitive notes.
@@ -93,14 +102,17 @@ The re-code subset is selected independently within each realised gold stratum:
 
 `min(n_h, max(2, ceil(0.20 * n_h)))`.
 
-Selection uses the dedicated cryptographic `gold_recode_sampling` stream. The emitted bundle
-uses new local keys and a separately shuffled order. It hides model labels, stratum labels,
-initial labels, initial comments, and the mapping to initial local keys. It shows only source
-text and the codebook fields required for re-coding.
+Selection uses the dedicated cryptographic `gold_recode_sampling` stream. Initial ingest
+records a trusted system completion timestamp and persists the selected identities only in
+the hidden mapping. `gold-recode-release` is refused until that checkpoint is at least
+fourteen elapsed days old. The then-emitted bundle uses new local keys and a separately
+shuffled order. It hides model labels, stratum labels, initial labels, initial comments, and
+the mapping to initial local keys. It shows only source text and the codebook fields required
+for re-coding.
 
-`gold-ingest` rejects a human re-code completed less than 14 elapsed days after completion of
-the initial adjudication. It verifies the hidden mapping locally and persists human
-test-retest values only after both bundles pass.
+`gold-ingest` accepts only a human re-code started after the trusted release timestamp and
+completed no later than the ingest time. It verifies the hidden mapping and all locked
+provenance hashes locally and persists human test-retest values only after both bundles pass.
 
 ## Provisional frontier-LLM re-code
 
@@ -108,7 +120,7 @@ A future frontier-LLM re-code may exercise the protocol after the same 14-day bo
 is non-human provisional evidence. Its provenance records:
 
 - provider, interface, exact model and version;
-- prompt, schema, codebook, bundle, and decision-ledger hashes;
+- prompt, schema, codebook, template bundle, completed response, and decision-ledger hashes;
 - reasoning/temperature and other exposed parameters;
 - session identifier, fresh-context declaration, and context-isolation description;
 - start/completion timestamps, agent/run identifiers, usage, status, and raw-response hash.
@@ -117,6 +129,12 @@ Provisional rows remain physically and semantically separate from `human_recode_
 They cannot complete canonical `gold-ingest`, cannot satisfy human test-retest requirements,
 and cannot appear in `validation_unlock.json` as qualifying evidence. The unresolved need for
 independent human expert verification is persisted for later review.
+
+`gold-ingest-provisional` copies the completed CSV, raw response and canonical provenance into
+`gold/provisional/`, writes normalized `provisional_*` labels to a separate Parquet table, and
+registers a verification artifact with `qualifies_as_human_recode=false` and
+`can_unlock_outcome_modeling=false`. It never invokes an SDK or model. Human `gold-ingest`
+may run whether the optional sidecar is pending or complete.
 
 ## Validation metrics
 
@@ -142,6 +160,34 @@ resampling independently with replacement within realised gold strata. Feature/m
 seeds are SHA-256 derived so execution order cannot change results. Both Claude and GPT must
 pass each structural rule; the gate summary reports the weaker point result and wider
 interval while retaining both dossiers.
+
+Categorical dossiers retain raw and weighted confusion cells and per-class precision/recall
+intervals; binary dossiers name sensitivity and specificity. Explicit model missingness on a
+substantive human-gold row is an error, not an omitted row. Human-gold missingness is reported
+descriptively but remains outside the substantive assigned metric. `qdmr_step_count` receives
+weighted absolute-error summaries rather than a binned confusion table. Human test-retest
+uses the same scale-matched metric and alpha with the inverse joint gold/re-code inclusion
+probability. Observed error patterns and stable item examples are fixed in the dossier before
+the material-failure decision.
+
+Krippendorff alpha is calculated from a weighted coincidence matrix. A unit with fewer than
+two valid ratings is omitted from both observed coincidences and marginals. Nominal,
+frequency-aware ordinal and interval distances are explicit. Inverse inclusion weights form a
+project-specific pseudo-population expansion; reference tests pin the equal-weight result and
+hand calculations pin unequal-weight behavior.
+
+## Exploratory P4 evidence
+
+`validate-features` also emits separate descriptive dossiers for `presupposition_load`,
+`cognitive_process_level`, `qdmr_operator_set`, `qdmr_normalized_question`, `demand_type`,
+`specificity`, and structural `qdmr_applicability`. They use scale-matched HT metrics,
+stratified intervals, available human test-retest evidence and stable examples. Operator sets
+use mean Jaccard and exact-set agreement; normalized-question faithfulness uses exact match
+and whitespace/case-normalized token F1. Undefined evidence is recorded rather than coerced.
+
+These dossiers have no three-status field, no feature decision, no family or DSL mapping, and
+no unlock contribution. They are written under `statistics/exploratory_p4_evidence/` with a
+separate table and report.
 
 The three statuses are `VALIDATED`, `VALIDATED_WITH_LIMITATIONS`, and `NOT_VALIDATED`.
 `METRIC_UNDEFINED_DEGENERATE_GOLD` is a separate blocking state, not a fourth validation
@@ -192,8 +238,9 @@ outcome without changing the decision rule.
 - every input, decision, and output hash matches the Segment 5 lock.
 
 Provisional LLM evidence is an explicit denial condition. During implementation-only
-preparation, `gold-sample`, `gold-ingest`, and `validate-features` remain pending and the
-unlock remains false.
+preparation, `gold-sample`, `gold-ingest-initial`, `gold-recode-release`, `gold-ingest`, and
+optional `gold-ingest-provisional`, plus `validate-features`, remain pending and the unlock
+remains false.
 
 ## Verification
 
@@ -206,14 +253,16 @@ audit.
 
 The Segment 5 software, schemas, decision ledger, operational documentation, fixture-driven
 human/provisional workflow tests, weighted-metric tests, DSL fallback, and explicit unlock
-authorization contract are implemented. The complete test tree passes **420 tests** with
-**88.21% branch coverage** over `es_index_explorer.question_analysis`; Ruff, formatting, and
-ty pass for the package and its unit tests.
+authorization contract are implemented. The complete test tree passes the required
+branch-coverage floor; Ruff, formatting, and ty pass for the package and its tests. Exact
+current counts are recorded in
+`reports/18-stage-5-gold-validation-remediation.md` after each remediation quality gate.
 
 The freshly locked `simplemode-v1-segment5` root has been rematerialized through
 `annotate-ingest` from the immutable Stage 4 handoff without an SDK/model call. It contains
 1,154 normalized annotation rows for 577 items, 50 raw responses, 50 attempts, 50 envelopes,
-and the six retained QDMR construct anomalies. `gold-sample`, `gold-ingest`, and
+and the six retained QDMR construct anomalies. `gold-sample`, `gold-ingest-initial`,
+`gold-recode-release`, optional `gold-ingest-provisional`, `gold-ingest`, and
 `validate-features` remain pending with zero attempts, and
 `outcome_modeling_unlocked=false`. This is the intended implementation-complete,
 data-gate-pending handoff.

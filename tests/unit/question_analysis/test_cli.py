@@ -92,15 +92,33 @@ def test_annotation_migration_requires_resume_only(tmp_path: Path) -> None:
 def test_gold_ingest_and_validation_parsers_require_manual_gate_inputs(
     tmp_path: Path,
 ) -> None:
+    initial_arguments = build_parser().parse_args(
+        [
+            "gold-ingest-initial",
+            "--adjudication-csv",
+            str(tmp_path / "initial.csv"),
+            "--provenance-json",
+            str(tmp_path / "initial-provenance.json"),
+        ]
+    )
     gold_arguments = build_parser().parse_args(
         [
             "gold-ingest",
-            "--adjudication-csv",
-            str(tmp_path / "initial.csv"),
             "--recode-csv",
             str(tmp_path / "recode.csv"),
             "--provenance-json",
             str(tmp_path / "provenance.json"),
+        ]
+    )
+    provisional_arguments = build_parser().parse_args(
+        [
+            "gold-ingest-provisional",
+            "--recode-csv",
+            str(tmp_path / "provisional.csv"),
+            "--provenance-json",
+            str(tmp_path / "provisional.json"),
+            "--raw-response",
+            str(tmp_path / "raw.bin"),
         ]
     )
     validation_arguments = build_parser().parse_args(
@@ -111,9 +129,13 @@ def test_gold_ingest_and_validation_parsers_require_manual_gate_inputs(
         ]
     )
 
-    assert gold_arguments.adjudication_csv == tmp_path / "initial.csv"
+    assert initial_arguments.adjudication_csv == tmp_path / "initial.csv"
+    assert initial_arguments.provenance_json == tmp_path / "initial-provenance.json"
     assert gold_arguments.recode_csv == tmp_path / "recode.csv"
     assert gold_arguments.provenance_json == tmp_path / "provenance.json"
+    assert provisional_arguments.recode_csv == tmp_path / "provisional.csv"
+    assert provisional_arguments.provenance_json == tmp_path / "provisional.json"
+    assert provisional_arguments.raw_response == tmp_path / "raw.bin"
     assert validation_arguments.decisions_dir == tmp_path / "decisions"
 
 

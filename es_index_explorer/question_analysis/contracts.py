@@ -27,6 +27,15 @@ GOLD_VALIDATION_FEATURES = (
     "answer_locality",
     "recall_orientation",
 )
+GOLD_EXPLORATORY_EVIDENCE_FEATURES = (
+    "presupposition_load",
+    "cognitive_process_level",
+    "qdmr_operator_set",
+    "qdmr_normalized_question",
+    "demand_type",
+    "specificity",
+    "qdmr_applicability",
+)
 GOLD_STRATIFYING_FEATURES = (
     "hop_structure",
     "exhaustivity_requirement",
@@ -175,6 +184,9 @@ class WorkflowCommand(StrEnum):
     ANNOTATE_RUN = "annotate-run"
     ANNOTATE_INGEST = "annotate-ingest"
     GOLD_SAMPLE = "gold-sample"
+    GOLD_INGEST_INITIAL = "gold-ingest-initial"
+    GOLD_RECODE_RELEASE = "gold-recode-release"
+    GOLD_INGEST_PROVISIONAL = "gold-ingest-provisional"
     GOLD_INGEST = "gold-ingest"
     VALIDATE_FEATURES = "validate-features"
     ORACLE = "oracle"

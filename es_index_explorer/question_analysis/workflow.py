@@ -24,7 +24,14 @@ PREREQUISITES: dict[WorkflowCommand, frozenset[WorkflowCommand]] = {
     WorkflowCommand.ANNOTATE_RUN: frozenset({WorkflowCommand.ANNOTATE_EMIT}),
     WorkflowCommand.ANNOTATE_INGEST: frozenset({WorkflowCommand.ANNOTATE_RUN}),
     WorkflowCommand.GOLD_SAMPLE: frozenset({WorkflowCommand.ANNOTATE_INGEST}),
-    WorkflowCommand.GOLD_INGEST: frozenset({WorkflowCommand.GOLD_SAMPLE}),
+    WorkflowCommand.GOLD_INGEST_INITIAL: frozenset({WorkflowCommand.GOLD_SAMPLE}),
+    WorkflowCommand.GOLD_RECODE_RELEASE: frozenset(
+        {WorkflowCommand.GOLD_INGEST_INITIAL}
+    ),
+    WorkflowCommand.GOLD_INGEST_PROVISIONAL: frozenset(
+        {WorkflowCommand.GOLD_RECODE_RELEASE}
+    ),
+    WorkflowCommand.GOLD_INGEST: frozenset({WorkflowCommand.GOLD_RECODE_RELEASE}),
     WorkflowCommand.VALIDATE_FEATURES: frozenset({WorkflowCommand.GOLD_INGEST}),
     WorkflowCommand.ORACLE: frozenset(),
     WorkflowCommand.FIT_LAYER1: frozenset(

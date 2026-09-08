@@ -2423,6 +2423,14 @@ describe disagreement and construct the later gold workflow. It does not compute
 Krippendorff alpha. Alpha and its interval are computed as part of the mandatory
 `validate-features` dossier below; the preliminary agreement report is not a substitute.
 
+Alpha is computed from an explicit coincidence matrix. Units with fewer than two valid
+ratings contribute neither observed coincidences nor marginals. Nominal disagreement is
+identity-based, interval disagreement is squared distance, and ordinal disagreement uses the
+frequency-aware ordered-category distance from the coincidence marginals. Gold and delayed
+re-code units carry their inverse inclusion weights. This unequal-probability expansion is a
+project-specific survey-weighted extension; retained Krippendorff sources support the
+coincidence framework and measurement levels, not this HT extension or its bootstrap.
+
 ### 13.2a The confirmatory feature-validation gate
 
 The question is not whether a feature is mathematically permitted but whether **its
@@ -2450,6 +2458,24 @@ gold confusion matrix; the feature's **assigned accuracy metric** with an interv
 scale rule below; the widest class-level interval; the human coder's test-retest
 self-agreement on that feature; and enumerated failure modes with examples.
 
+The dossier contract is scale-matched and machine-readable. For categorical features, each
+model dossier contains the raw and Horvitz-Thompson-weighted confusion cells, per-class
+precision and recall with intervals, and the assigned metric with its interval. Binary
+features additionally name the two class recalls as sensitivity and specificity. Explicit
+model missingness on a substantively classified human-gold item is a forecast error and
+contributes false-negative mass; it is never silently discarded. Human-gold missingness
+remains outside the substantive assigned metric but is retained in a separate descriptive
+matrix and exclusion ledger. For `qdmr_step_count`, no artificial bins are introduced:
+the dossier contains weighted absolute-error summaries, MAE skill and interval-scale alpha.
+
+Human test-retest evidence uses the same feature-scale metric and measurement-level alpha on
+the delayed re-code subset. Its weight is the inverse of the joint probability of entering
+the gold sample and then entering the delayed re-code subset. Every point estimate receives
+the same stratified percentile interval used elsewhere in this section. Before a status is
+assigned, deterministic observed error patterns and stable example item identifiers are
+materialised in the dossier; the human decision records which, if any, are material to the
+intended construct and whether a class interval is materially uninformative.
+
 The formal three-status gate applies only to the P4 predictors entering confirmatory families:
 `qdmr_step_count`, `hop_structure`, `exhaustivity_requirement`,
 `negative_conclusiveness`, `referring_form_type`, `answer_locality`, and
@@ -2457,6 +2483,17 @@ The formal three-status gate applies only to the P4 predictors entering confirma
 evidence but do not independently admit or exclude a confirmatory family.
 `qdmr_normalized_question` is retained as faithfulness evidence rather than treated as a
 categorical feature.
+
+The closed descriptive inventory is `presupposition_load`, `cognitive_process_level`,
+`qdmr_operator_set`, `qdmr_normalized_question`, `demand_type`, `specificity`, and
+`qdmr_applicability`. The last is structural QDMR applicability evidence, not a predictor.
+These fields receive separate non-gating dossiers: binary balanced accuracy; nominal
+macro-F1; quadratically weighted kappa for ordered cognitive process; weighted mean Jaccard
+and exact-set agreement for the operator set; and exact plus whitespace/case-normalized token
+F1 with examples for normalized-question faithfulness. Intervals and available human
+test-retest evidence use the same stratified HT machinery as confirmatory dossiers. Undefined
+or unavailable exploratory evidence is reported, never converted into a validation status,
+family decision, DSL mode, or outcome-modelling condition.
 
 Claude and GPT are compared with human gold separately. Both model-specific assigned-metric
 intervals must pass the applicable structural rule; neither model is selected after inspecting
@@ -2673,11 +2710,27 @@ hides model labels, strata, initial labels and initial comments. A human re-code
 only when its completion timestamp is at least fourteen elapsed days after completion of the
 initial human adjudication.
 
+The elapsed-time boundary is enforced by trusted workflow checkpoints, not solely by
+operator-declared timestamps. After the initial adjudication is ingested, the workflow records
+its own completion time and retains the deterministic re-code selection internally. The blind
+re-code bundle is not released until that checkpoint is at least fourteen elapsed days old.
+The final gold ingest accepts only a re-code started after release and completed no later than
+the ingest time. Initial and re-code provenance separately bind annotator identity and human
+status, role, expertise/qualification, annotation environment, start/completion times, schema,
+codebook, bundle and decision-ledger hashes, and the outcome-blindness declaration.
+
 A frontier-LLM re-code may be stored only as provisional non-human evidence. It records exact
 model/interface/version, prompt and codebook hashes, parameters, context isolation,
 timestamps, run identity, usage and response hashes. It does not populate human test-retest
 fields, does not complete the human gold gate, and cannot unlock outcome modelling; the need
 for independent human expert verification remains an explicit unresolved validation item.
+
+The persistence path is the optional `gold-ingest-provisional` sidecar after
+`gold-recode-release`. It validates an externally produced re-code CSV and raw response,
+persists them with normalized `provisional_*` fields in a physically separate table, and
+records `qualifies_as_human_recode=false` and `can_unlock_outcome_modeling=false`. Completing
+this optional command is not a prerequisite for human `gold-ingest` or `validate-features`;
+later human evidence may coexist and remains authoritative for the scientific gate.
 
 ### 13.4 Measurement-error correction, as a formal gate
 
@@ -3271,21 +3324,27 @@ frozen subcommand set, in release-sequence order (§19):
    raw responses into feature tables.
 6. `gold-sample` - runs §13.3's deterministic stratified sampling algorithm and emits the human
    adjudication bundle.
-7. `gold-ingest` - ingests human gold and the delayed blind re-code once returned.
-8. `validate-features` - runs the §13.2a validation gate in seeded-shuffle order.
-9. `oracle` - runs the R `fwildclusterboot` Docker oracle (§5.3, §18.6 test 2); may be run at
+7. `gold-ingest-initial` - validates and checkpoints the completed initial human adjudication.
+8. `gold-recode-release` - after the trusted fourteen-day boundary, emits the separately
+   keyed blind re-code bundle.
+9. `gold-ingest-provisional` - optionally validates and persists a frontier-LLM re-code as a
+   physically separate non-human sidecar; it is not on the human release path.
+10. `gold-ingest` - validates the returned delayed human re-code and materialises canonical
+   human-gold evidence.
+11. `validate-features` - runs the §13.2a validation gate in seeded-shuffle order.
+12. `oracle` - runs the R `fwildclusterboot` Docker oracle (§5.3, §18.6 test 2); may be run at
    any point before `fit-layer1` or `fit-families`, per §19's oracle-order note, but not after
    either. Grade-fixture generation, lookup and integrity belong to `join` (§18.4), not this
    statistical-oracle command.
-10. `fit-layer1` - the empirical-Bayes hierarchy of §5.1-§5.2 and the tier decisions of §6;
+13. `fit-layer1` - the empirical-Bayes hierarchy of §5.1-§5.2 and the tier decisions of §6;
     refuses to run unless annotation, gold, feature-validation and the oracle check are all
     recorded complete.
-11. `fit-families` - the ten confirmatory families of §5.3-§5.6/§11; the same unlock check as
+14. `fit-families` - the ten confirmatory families of §5.3-§5.6/§11; the same unlock check as
     `fit-layer1`, enforced independently since either command may be re-run on its own.
-12. `robustness` - the aggregation-robustness (§7), sensitivity matrix (§14) and secondary
+15. `robustness` - the aggregation-robustness (§7), sensitivity matrix (§14) and secondary
     grade/error/use-case analyses (§8-§10).
-13. `report` - renders the recommendation tables and figures from persisted artefacts.
-14. `status` - reports, for a given run directory, which release-sequence steps are recorded
+16. `report` - renders the recommendation tables and figures from persisted artefacts.
+17. `status` - reports, for a given run directory, which release-sequence steps are recorded
     complete and which are outstanding; read-only, callable at any time.
 
 Each subcommand's non-zero exit codes are reserved by category, unchanged from the earlier
@@ -3497,8 +3556,9 @@ the content names the tag.
 2. Outcome-blind annotation of all **exactly 577** items (263 questions + 314 expectation
    descriptions, both exact per the per-segment coverage gate of §18), in batches of the frozen
    size (§18.5) (`annotate-emit`, `annotate-run`, `annotate-ingest`).
-3. Human gold sampling, adjudication, then the delayed blind re-code (`gold-sample`,
-   `gold-ingest`).
+3. Human gold sampling and initial adjudication (`gold-sample`,
+   `gold-ingest-initial`), followed by the trusted fourteen-day wait, blind re-code release
+   (`gold-recode-release`), and final delayed re-code ingest (`gold-ingest`).
 4. The confirmatory feature-validation gate (§13.2a), applied in seeded-shuffle order,
    decisions committed one at a time, blind to outcomes and to any coefficient estimate
    (`validate-features`).
@@ -3512,10 +3572,12 @@ the content names the tag.
 
 Implementation completion is distinct from data-gate completion. Segment 5 software, tests,
 documentation and a freshly locked `simplemode-v1-segment5` root may be completed while
-`gold-sample`, `gold-ingest`, and `validate-features` remain pending. In that state
-`outcome_modeling_unlocked` remains false. No fixture, provisional LLM re-code, or completed
-handler alone can set it; only verified `validation_unlock.json` backed by qualifying initial
-human gold and a fourteen-day delayed human re-code may do so.
+`gold-sample`, `gold-ingest-initial`, `gold-recode-release`, optional
+`gold-ingest-provisional`, `gold-ingest`, and `validate-features` remain pending. In that
+state `outcome_modeling_unlocked` remains false.
+No fixture, provisional LLM re-code, or completed handler alone can set it; only verified
+`validation_unlock.json` backed by qualifying initial human gold and a fourteen-day delayed
+human re-code may do so.
 
 `status` is read-only and may be called after any command. It appears last in the public CLI
 contract (§18.4), but it is not a release-sequence step or state transition and does not gate
@@ -3916,7 +3978,7 @@ recorded here because each would otherwise be easy to reintroduce from an older 
   is not selected because it adds no benefit to this batch annotation lifecycle.
 - **The seven-command CLI and a monolithic `fit`.** Withdrawn because it hid artefact
   boundaries, conflated gold sampling with adjudication, and allowed Layer 1 and family
-  inference to share one opaque enforcement point. Replaced by the fourteen-command contract
+  inference to share one opaque enforcement point. Replaced by the expanded staged-command contract
   of §18.4; `gold-adjudicate` and `fit` are superseded rather than retained as aliases.
   `fit-layer1` and `fit-families` independently enforce the annotation, gold, validation, DSL
   and R-oracle gates.

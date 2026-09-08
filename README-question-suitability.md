@@ -67,7 +67,9 @@ The public commands are:
 
 ```text
 join → features → annotate-emit → annotate-run → annotate-ingest
-     → gold-sample → gold-ingest → validate-features
+     → gold-sample → gold-ingest-initial
+     → gold-recode-release → [gold-ingest-provisional]
+     → gold-ingest → validate-features
 oracle
 fit-layer1 + fit-families → robustness → report
 status
@@ -95,9 +97,9 @@ required, or normalize iterable values at the consumer boundary. `source_text`
 and `text_sha256` preserve canonical catalogue bytes, including source
 whitespace.
 
-`gold-sample`, `gold-ingest`, and `validate-features` are implemented but remain manual,
-outcome-blind data-gate steps. The shell never marks a placeholder or incomplete human gate
-complete.
+The gold sampling, initial checkpoint, delayed release, final ingest, and validation commands
+are implemented but remain manual, outcome-blind data-gate steps. The shell never marks a
+placeholder or incomplete human gate complete.
 
 ## Segment 4 annotation
 
@@ -113,24 +115,36 @@ The frozen user decisions are recorded in
 The CSV workflow, 14-day delayed re-code rule, provisional-LLM restrictions, metrics, DSL
 fallback, and unlock conditions are documented in
 [`reports/17-segment-5-gold-validation-operations.md`](reports/17-segment-5-gold-validation-operations.md).
+The consolidated remediation evidence is recorded in
+[`reports/18-stage-5-gold-validation-remediation.md`](reports/18-stage-5-gold-validation-remediation.md).
 
 Implementation verification prepares the Segment 5 root through `annotate-ingest` and stops.
 The user starts the live gate explicitly:
 
 ```bash
 UV_NO_ENV_FILE=1 uv run --no-env-file question-suitability gold-sample
-UV_NO_ENV_FILE=1 uv run --no-env-file question-suitability gold-ingest \
+UV_NO_ENV_FILE=1 uv run --no-env-file question-suitability gold-ingest-initial \
   --adjudication-csv <completed-initial.csv> \
+  --provenance-json <initial-human-provenance.json>
+# Run only after the trusted initial checkpoint is at least 14 days old.
+UV_NO_ENV_FILE=1 uv run --no-env-file question-suitability gold-recode-release
+# Optional non-human sidecar; never advances the human gate.
+UV_NO_ENV_FILE=1 uv run --no-env-file question-suitability gold-ingest-provisional \
+  --recode-csv <completed-provisional-recode.csv> \
+  --provenance-json <provisional-provenance.json> \
+  --raw-response <provisional-raw-response>
+UV_NO_ENV_FILE=1 uv run --no-env-file question-suitability gold-ingest \
   --recode-csv <completed-delayed-recode.csv> \
-  --provenance-json <human-provenance.json>
+  --provenance-json <recode-human-provenance.json>
 UV_NO_ENV_FILE=1 uv run --no-env-file question-suitability validate-features \
   --decisions-dir <committed-feature-decisions>
 ```
 
-The re-code must be completed at least 14 days after initial human adjudication. A frontier-LLM
-re-code is provisional non-human evidence only: it cannot complete the human gate or set
-`outcome_modeling_unlocked=true`. Until qualifying human gold, delayed human re-code, feature
-decisions, and a recorded DSL path all pass, both fit commands remain fail-closed.
+The re-code bundle cannot be released until 14 elapsed days after the trusted initial-human
+checkpoint. A frontier-LLM re-code is provisional non-human evidence only: it cannot complete
+the human gate or set `outcome_modeling_unlocked=true`. Until qualifying human gold, delayed
+human re-code, feature decisions, and a recorded DSL path all pass, both fit commands remain
+fail-closed.
 
 Exit categories are stable:
 
