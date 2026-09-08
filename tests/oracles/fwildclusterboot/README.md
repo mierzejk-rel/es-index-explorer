@@ -4,6 +4,14 @@ This directory keeps the one-off R reference generator separate from Python
 dependencies. Host R is never required. The reference platform is fixed to
 `linux/amd64`; Docker Desktop provides emulation on Apple Silicon.
 
+The pinned Rocker OCI index also supports `linux/arm64`, but amd64 remains canonical. Fixing
+one architecture avoids otherwise harmless compiler, BLAS, and floating-point reduction
+differences from changing byte-level fixture output between developer machines. Docker is
+needed only for fixture regeneration; ordinary Python tests and the `oracle` command do not
+run it. An arm64 build may be used as a compatibility check, but must not replace the
+canonical fixture without passing its `p_f`, `W_obs`, and invalid-statistic-count comparisons
+and an explicit re-lock.
+
 The environment is reproducible at three levels:
 
 - `Dockerfile` pins Rocker R 4.4.3 by OCI digest;

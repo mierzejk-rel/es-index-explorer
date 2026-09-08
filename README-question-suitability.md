@@ -145,6 +145,14 @@ UV_NO_ENV_FILE=1 uv run --no-env-file python \
   --image simplemode-fwildclusterboot:0.14.3
 ```
 
+Although the upstream Rocker image also supports native `linux/arm64`, amd64 is the single
+canonical fixture architecture. This makes the fixture reproducible across hosts despite
+possible compiler, BLAS, and floating-point-reduction differences. The emulation cost is
+limited to one-off fixture generation; normal analysis and the offline `oracle` command do
+not require Docker. See
+[`reports/19-segment-6-statistical-oracle-operations.md`](reports/19-segment-6-statistical-oracle-operations.md)
+for the compatibility-check and re-lock conditions.
+
 No model audit or outcome fit is part of this stage. The canonical Segment 6 root records the
 oracle pass while `outcome_modeling_unlocked=false` until the separate human-gold workflow
 finishes.

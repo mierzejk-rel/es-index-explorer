@@ -25,6 +25,26 @@ Host R and RStudio are not required. The oracle image is defined by
 The Dockerfile and `renv.lock` are the infrastructure-as-code boundary. Docker Compose and a
 development container are unnecessary for this one-off computation.
 
+## Architecture decision
+
+The canonical oracle is fixed to `linux/amd64`. The Rocker image's OCI index also publishes
+`linux/arm64`, which Docker Desktop can run natively on Apple Silicon, but a single canonical
+architecture is more important here than the performance of a one-off fixture-generation job.
+It prevents compiler, BLAS, and floating-point reduction differences between architectures
+from creating non-byte-identical fixture output while appearing to represent the same
+calculation.
+
+The statistical result is expected to agree across amd64 and arm64 within the frozen
+comparison tolerances, but exact identity is not assumed. Docker is not used by normal
+analysis or Python test replay, so the amd64 emulation cost is bounded: the initial image
+build on the implementation host took roughly three minutes and fixture generation roughly
+ten seconds. These are observed local timings, not a guarantee.
+
+An arm64 build may be used only as a non-canonical compatibility check. Compare it with the
+canonical fixture's `p_f` (absolute tolerance `1e-4`), `W_obs` (relative tolerance `1e-6`),
+and invalid-statistic count. Do not overwrite the amd64 fixture or change its provenance
+unless that comparison passes and the project explicitly re-locks the new reference.
+
 ## Manual checkpoint
 
 Before the first image build, start Docker Desktop. Docker Desktop 4.90.0 on macOS supports

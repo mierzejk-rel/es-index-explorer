@@ -1151,6 +1151,19 @@ input and its output `p_f` and `W_obs` are committed to the repository as a fixt
 Python test suite replays that fixture without invoking Docker or R again, so the analysis run
 itself requires neither R, Docker, nor `fwildclusterboot` installed.
 
+**Architecture decision.** The canonical reference is deliberately fixed to `linux/amd64`,
+even though the pinned Rocker OCI index also publishes a `linux/arm64` image suitable for
+Apple Silicon. Fixing one architecture improves cross-machine reproducibility: compiler,
+BLAS and floating-point reduction differences can prevent byte-identical intermediate output
+across architectures even where the statistical result is expected to agree within the frozen
+numeric tolerances. The cost is accepted because Docker is used only for the one-off fixture
+generation—not ordinary analysis or CI replay. The initial amd64 build on the implementation
+host took roughly three minutes under Docker Desktop emulation, and fixture generation took
+roughly ten seconds; these observations are operational context, not a performance guarantee.
+An arm64 run may be used as a non-canonical compatibility check, but cannot replace or amend
+the canonical fixture unless it independently satisfies the same `p_f`, `W_obs`, and
+invalid-statistic-count comparisons and is explicitly re-locked.
+
 The claim this earns must not be inflated. **The R oracle reproduction validates the linear
 special case; it is a regression-test oracle for the shared numerical components, not
 validation of the GLM extension.** Specifically it does cover: the three-term CRVE assembly,
