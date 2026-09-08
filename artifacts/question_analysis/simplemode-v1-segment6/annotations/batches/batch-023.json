@@ -1,0 +1,151 @@
+{
+  "batch_id": "batch-023",
+  "item_ids_sha256": "95a97651c6f8024b3a04fa2d62544e8c93d9e4bb6867b7d839ee96623d495175",
+  "items": [
+    {
+      "item_id": "variant_3aeee60bedea0b04d5ab5dfd89c420f12dc73d681473eaa19a79abe5dc38e6f1",
+      "item_type": "question",
+      "source_text": "What email address did Ali El-Mohandes use?",
+      "text_sha256": "f0e4555a87c9a91a7420327fe2e4a28859bffeac788c9fd9336a5ca52f07b42d"
+    },
+    {
+      "item_id": "expectation_899b7155b080ab52ccf0db47f2cab781bb17e434fc61f29de2353099d0381ff0",
+      "item_type": "expectation",
+      "source_text": "Cites Ellingson's claimed costs to rebuild and secure affected systems ($2M).",
+      "text_sha256": "6c97c0c42a8e592fc021ade56ae8b45824109c2cbfeaff7ec7fa77b8adccf084"
+    },
+    {
+      "item_id": "variant_6a9ea44f4fe51590db0e1916116322585dce1664ac9ed1210115c8ee6f5d00c2",
+      "item_type": "question",
+      "source_text": "In what ways did Ellingson actually increase its cybersecurity protections post-Da Vinci hack?",
+      "text_sha256": "dd9c8f1d0c47199272e3daca3b353a69a83030ae1276d9000812ffb64272ffb0"
+    },
+    {
+      "item_id": "expectation_a7800facf306efeeba16658cb676f847751fb9964b6b52521215b9275d853b5e",
+      "item_type": "expectation",
+      "source_text": "Confirms that a hacker using the alias Phantom Phreak is part of the teenage hacker group with the email address phantomphreak@ghostline.com.",
+      "text_sha256": "0cb94921cc45c2f7f9b18e97cff8b4b0af09563e2a8227148ae9f2cebe9e2700"
+    },
+    {
+      "item_id": "variant_ff0b76d50ab4871d63fe3cbdb9bf88f24697858144c5b9baddcff2340ada675f",
+      "item_type": "question",
+      "source_text": "Did Charles Argoff send or receive any emails?",
+      "text_sha256": "97c299b4fbbfe7433a1fed2639c458444d27b7b0abb20b138596b273f17e55b3"
+    },
+    {
+      "item_id": "variant_5197203c22e0d5afa5e4229f20d0b850300e8368987a60c6f9768fcb586db3f1",
+      "item_type": "question",
+      "source_text": "List the evidence showing that Belford communicated with Phantom Phreak about the cyberattack against Ellingson.",
+      "text_sha256": "d6dc4dceb672db6a054d84b25c00af630fefccefd3513b7b1f8504a5666ed516"
+    },
+    {
+      "item_id": "expectation_0e15a2f9673c3b99b8aedbab0d07d0bb7c92371c603bf9d93f374ed8bd381d81",
+      "item_type": "expectation",
+      "source_text": "Cites Phantom Phreak's expression of agreement with Belford's plan.",
+      "text_sha256": "8120cce564b1d81f218aa660374d27c2eb48fc16109b21be975886805d6cdfa1"
+    },
+    {
+      "item_id": "expectation_6ed31dcb8a8acff244668e13dd5edf99487fd168b50f482f03a2bd6034c39dd9",
+      "item_type": "expectation",
+      "source_text": "Matt Smith (j.matthew.smith@covidien.com) sent and received emails with Brian Donalty (brian.donalty@covidien.com)",
+      "text_sha256": "5140eedf71f55595ecc29d07ee68928f9cb5bc9f1792dc497dd882c574fc2d2a"
+    },
+    {
+      "item_id": "expectation_e031f17562bf2b8feca42e608bc851666e4844ec0b04d5e334921e5b723d4131",
+      "item_type": "expectation",
+      "source_text": "Cites hacker team completing TV station hack.",
+      "text_sha256": "02cb257d91d9f8cbe70e7cdf7d4683392bd45111a9c8be10e4fc195aa53845a8"
+    },
+    {
+      "item_id": "variant_692496ad225da4bdcf1b53dbdd00be760649410bef2c697ce311c7990f09e23c",
+      "item_type": "question",
+      "source_text": "What evidence supports the claim that Ellingson had information available to it before October 19, 1995, that Belford was going to execute the Da Vinci virus?",
+      "text_sha256": "56964f3c0f93ff7a162591403658c4ece794c3e509f955fd6f930e073fd6c75e"
+    },
+    {
+      "item_id": "expectation_41dc9669f04dbd504d5b9005cbed834f367de492b9b6603f3cd44d68b38728c5",
+      "item_type": "expectation",
+      "source_text": "In an email dated October 18, 1995, at 5:20 a.m., Belford informing Wallace that the Da Vinci virus will activate at midnight tomorrow",
+      "text_sha256": "fb036ffb12f3852e045ad9567408a8b923d51cd5cfa75885aecde92f1adfa587"
+    },
+    {
+      "item_id": "expectation_a0c664293887ee2b9534fce148927327ecace198d17724fc3b7dc548339eda1b",
+      "item_type": "expectation",
+      "source_text": "Identifies Dr. Sarah Chen, Acting CTO; Tim Silent; and Paul Jenkins as involved in monitoring and containment.",
+      "text_sha256": "67e02744c5b1a6a849d2590a02e5697947e452e1cdce3c26cbbd356b2c9a1607"
+    },
+    {
+      "item_id": "expectation_9d0686dcf63d3cc829cbf258b5534c1cf9d1f9711ec572857fee51840207827a",
+      "item_type": "expectation",
+      "source_text": "Cites email from Crash Override/zer0cool to Lord Nikon instructing 'delete this email.'",
+      "text_sha256": "51783fa3347adfa0dba640c23d80f2237609bed65dde4012ff7be40d60783fac"
+    },
+    {
+      "item_id": "variant_87461d3e85e514f32fcda802bb5be13318c574716e523dc83beefb7376cabbe2",
+      "item_type": "question",
+      "source_text": "Who did Belford communicate with about his plan to execute a cyberattack against Ellingson?",
+      "text_sha256": "922d79b03d7d7ab672c896ddadb6599bef90cc75fc0c33449f5412b0a254820a"
+    },
+    {
+      "item_id": "expectation_8687cd747f95e6c5a9b7e142739490ae2b731cfecbd001455f4f06c5fc8efcb9",
+      "item_type": "expectation",
+      "source_text": "Confirms that a hacker using the alias Phantom Phreak is part of the teenage hacker group with the email address phantomphreak@ghostline.com.",
+      "text_sha256": "0cb94921cc45c2f7f9b18e97cff8b4b0af09563e2a8227148ae9f2cebe9e2700"
+    },
+    {
+      "item_id": "variant_620ef77f8f87ec3d8e134fb9ae41c0e11712d06bde1b9be474c87d3b4a9cc2f2",
+      "item_type": "question",
+      "source_text": "List evidence showing that Ellingson's cybersecurity infrastructure was not sufficient to prevent a cyberattack.",
+      "text_sha256": "0f2a38ef64535397d4c56a86b22efaef45f4058eee23dac0bf6977235c77f587"
+    },
+    {
+      "item_id": "expectation_6e558de006a8dbe2b395a24cb95635b8e44e53ef613b8ed0fcd078a84544a020",
+      "item_type": "expectation",
+      "source_text": "Identifies Tim Silent as IT staff monitoring systems in data center.",
+      "text_sha256": "01271e19376ca036a7ea287020f48f46b67d44436a946dcb96e9e1f42fad2b90"
+    },
+    {
+      "item_id": "variant_5a903ad1d395595bdf316c9783968233dbf4df53e636942b16b6344174d776bc",
+      "item_type": "question",
+      "source_text": "Show me all the playbooks from Texas territories",
+      "text_sha256": "72be59cdfc3d6241ff82d1fe2f0862fe7af2c6826d2ba930c545a33a627a1106"
+    },
+    {
+      "item_id": "variant_b02fd0a53fa8a0fde2efd545ec1646af68a23e1bdfb53fb3ec66bb5535a91c3e",
+      "item_type": "question",
+      "source_text": "What did Ellingson plan to do to improve cybersecurity after discovering the Belford hack?",
+      "text_sha256": "477c292c362ec50e5c1e94c820a8ba95f6a758357aafab69bf9766b407d43480"
+    },
+    {
+      "item_id": "variant_066d6fb39894792b865434a465b978c08fce5fc2d266cfdec61e17b64bbd3d55",
+      "item_type": "question",
+      "source_text": "Find me playbooks from Texas",
+      "text_sha256": "07f627b6e18bb16d3aa606ee245c70b04bd34aef962594f578cbd078aecb1e3f"
+    },
+    {
+      "item_id": "variant_4072f3f978ce5eaf4f72015b1c3ea396d02bba631d46909abf632c4ca3c3f5a7",
+      "item_type": "question",
+      "source_text": "Who comprise the group of teenage hackers?",
+      "text_sha256": "a6bb772e2c22415c824d1ed4acbbc0fcd56147f1473bf197ab32ab244d53c55a"
+    },
+    {
+      "item_id": "variant_93e30bc4f62d10c817f1a539d7d161904c78317cb3b10650227e5ecfcc86e9e8",
+      "item_type": "question",
+      "source_text": "Who was Eugene Belford in communication with about planning the Ellingson hack?",
+      "text_sha256": "9f95b470433891ba0a49cfc7eb34a459fc1b0543576bb6c3b341fade10728570"
+    },
+    {
+      "item_id": "variant_05815c94f819a09b9bc221825f5f40eeb92ecbd10bbb1fad22d5c64d15151b33",
+      "item_type": "question",
+      "source_text": "find me Covidien/Mallinckrodt playbooks",
+      "text_sha256": "efb50d24844c4ed36612254f0023ea976b16f9cceb2d7e3d409f2703d213a5ce"
+    },
+    {
+      "item_id": "expectation_0d8a4b99dcb3093bb592f257cbd14d5111d7e7f1dcfbefa1353cd8ed9907c3de",
+      "item_type": "expectation",
+      "source_text": "Dr. Sarah Chen uses the email address Sarah.Chen@secure-ellingson.com.",
+      "text_sha256": "86b837c6e5ff3c32d4bcd4dca3e1c6c171c8d625a82cd3c1c2445fd86cc363cd"
+    }
+  ],
+  "schema_version": 1
+}

@@ -762,7 +762,7 @@ independence-based estimating equations.
 First, unbiasedness here is a property of the estimating *function* - `E[s_i(beta_0)] = 0`
 at the true mean parameters - and **not** of the estimator: `beta_hat` is not claimed to be
 unbiased in finite samples, and no such claim is made anywhere. Second, the resulting
-consistency is **asymptotic in the number of clusters**, which here is 28 arms and 64
+consistency is **asymptotic in the number of clusters**, which here is 28 arms and 63
 rubrics, so it is a limiting property invoked as justification for the estimator's target
 rather than a finite-sample guarantee about this dataset. Finite-sample behaviour is handled
 separately and deliberately: by the bootstrap of §5.3, the aggregation-based robustness
@@ -1115,8 +1115,10 @@ exact check is available: MNW's procedures are implemented for the **linear** mo
 package **`fwildclusterboot`** (Fischer, Roodman, MacKinnon, Nielsen & Webb). Stata's
 `boottest` (Roodman, MacKinnon, Nielsen & Webb, 2019) implements the same procedures but is not
 available in this environment; `fwildclusterboot` is the R port of the same reference
-implementation and is run inside a **digest-pinned Docker image** rather than installed on the
-host, so the oracle has a reproducible, immutable environment. Python `wildboottest` and
+implementation and is run once inside a **digest-pinned Docker image** rather than installed on
+the host, so the oracle has a reproducible, immutable environment. The resulting immutable
+reference fixture is what the ordinary `oracle` workflow step and Python tests replay; they do
+not invoke Docker or R. Python `wildboottest` and
 PyFixest were considered and rejected as substitutes because both **explicitly document that
 they do not support multiway clustering**, which is exactly the property this oracle exists to
 check. The implementation is first exercised on a linear reduction of the data with a fixed
@@ -1133,7 +1135,15 @@ the frozen `fwildclusterboot::boottest()` call uses `clustid = c("rubric", "arm"
 `bootcluster = "arm"`, `B = 9999`, `type = "rademacher"`, `impose_null = TRUE` (restricted WCR)
 - the `type` argument is set explicitly because `fwildclusterboot`'s default is Webb six-point
 weights, which is a different distribution and would silently fail to match if left at its
-default; seed = a dedicated value from the master seed's `r_oracle` stream (§18); tolerance =
+default - and `boot_ssc(adj = FALSE, fixef.K = "none", cluster.adj = TRUE,
+cluster.df = "conventional")`, so the R reference uses exactly §5.2's three per-term cluster
+factors without an additional `(N-1)/(N-k)` multiplier. The environment is
+`rocker/r-ver:4.4.3` at the recorded OCI digest on `linux/amd64`, with
+`fwildclusterboot` 0.14.3 and all transitive packages frozen in `renv.lock`. The 64-bit
+`r_oracle` seed is passed losslessly as two 32-bit words, and the R-generated auxiliary sign
+schedule is persisted with the fixture so Python and R compare the same finite set of draws
+rather than two unrelated Monte Carlo samples. Seed = the dedicated value from the master
+seed's `r_oracle` stream (§18); tolerance =
 agreement of `p_f` to `1e-4` and of `W_obs` to relative `1e-6`. **R, Docker and
 `fwildclusterboot` are a one-off verification dependency, not a dependency of the analysis
 programme**: the reference run is executed once inside the pinned image, its `(y, X, seed)`
@@ -3332,10 +3342,12 @@ frozen subcommand set, in release-sequence order (§19):
 10. `gold-ingest` - validates the returned delayed human re-code and materialises canonical
    human-gold evidence.
 11. `validate-features` - runs the §13.2a validation gate in seeded-shuffle order.
-12. `oracle` - runs the R `fwildclusterboot` Docker oracle (§5.3, §18.6 test 2); may be run at
-   any point before `fit-layer1` or `fit-families`, per §19's oracle-order note, but not after
-   either. Grade-fixture generation, lookup and integrity belong to `join` (§18.4), not this
-   statistical-oracle command.
+12. `oracle` - replays the committed R `fwildclusterboot` reference fixture and verifies the
+   Python linear special case (§5.3, §18.6 test 2); the one-off fixture-generation utility,
+   not this ordinary workflow command, invokes the digest-pinned Docker image. It may be run
+   at any point before `fit-layer1` or `fit-families`, per §19's oracle-order note, but not
+   after either. Grade-fixture generation, lookup and integrity belong to `join` (§18.4), not
+   this statistical-oracle command.
 13. `fit-layer1` - the empirical-Bayes hierarchy of §5.1-§5.2 and the tier decisions of §6;
     refuses to run unless annotation, gold, feature-validation and the oracle check are all
     recorded complete.
@@ -3398,9 +3410,10 @@ alone does not supply.
    proceed to `fit-layer1` for the affected rubric, and any family population requiring that
    affected unit is blocked from `fit-families`.
 2. **R `fwildclusterboot` reproduction.** Fixture: the committed `(y, X, cluster, R, seed)`
-   tuple, replayed inside a **digest-pinned Docker image** running R with `fwildclusterboot`
-   (a two-way `clustid`, arm `bootcluster`, restricted Rademacher WCR call frozen in §5.3), and
-   the committed R output. Stata `boottest` is not used: it is not available locally, and
+   tuple and R output, generated once inside a **digest-pinned Docker image** running
+   `fwildclusterboot` (a two-way `clustid`, arm `bootcluster`, restricted Rademacher WCR call
+   frozen in §5.3), then replayed by Python without Docker. Stata `boottest` is not used: it
+   is not available locally, and
    Python `wildboottest`/PyFixest are not substitutes because both explicitly lack multiway
    clustering support. Invariant: Python-computed `p_f` and `W_obs` match the committed R
    output. Tolerance: `p_f` to `1e-4`, `W_obs` to relative `1e-6`. Failure action: the GLM

@@ -37,7 +37,7 @@ from es_index_explorer.question_analysis.workflow import (
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
 DEFAULT_ANALYSIS_ROOT = (
-    PROJECT_ROOT / "artifacts" / "question_analysis" / f"{ANALYSIS_ID}-segment5"
+    PROJECT_ROOT / "artifacts" / "question_analysis" / f"{ANALYSIS_ID}-segment6"
 )
 DEFAULT_SPECIFICATION = (
     PROJECT_ROOT / "reports" / "13-simple-mode-analysis-research-plan.md"
@@ -48,6 +48,51 @@ DEFAULT_RESOURCES = {
     / "oracles"
     / "fwildclusterboot"
     / "Dockerfile",
+    "r_oracle_dockerignore": PROJECT_ROOT
+    / "tests"
+    / "oracles"
+    / "fwildclusterboot"
+    / ".dockerignore",
+    "r_oracle_renv_lock": PROJECT_ROOT
+    / "tests"
+    / "oracles"
+    / "fwildclusterboot"
+    / "renv.lock",
+    "r_oracle_runner": PROJECT_ROOT
+    / "tests"
+    / "oracles"
+    / "fwildclusterboot"
+    / "run_reference.R",
+    "r_oracle_input": PROJECT_ROOT
+    / "tests"
+    / "oracles"
+    / "fwildclusterboot"
+    / "fixtures"
+    / "f6-linear-input.csv",
+    "r_oracle_contract": PROJECT_ROOT
+    / "tests"
+    / "oracles"
+    / "fwildclusterboot"
+    / "fixtures"
+    / "f6-linear-contract.json",
+    "r_oracle_output": PROJECT_ROOT
+    / "tests"
+    / "oracles"
+    / "fwildclusterboot"
+    / "fixtures"
+    / "f6-linear-r-output.json",
+    "r_oracle_weights": PROJECT_ROOT
+    / "tests"
+    / "oracles"
+    / "fwildclusterboot"
+    / "fixtures"
+    / "f6-linear-rademacher-weights.csv",
+    "r_oracle_provenance": PROJECT_ROOT
+    / "tests"
+    / "oracles"
+    / "fwildclusterboot"
+    / "fixtures"
+    / "f6-linear-provenance.json",
     "stanza_en_resource_manifest": PROJECT_ROOT
     / "es_index_explorer"
     / "question_analysis"
@@ -141,6 +186,40 @@ DEFAULT_RESOURCES = {
     / "es_index_explorer"
     / "question_analysis"
     / "dsl_gate.py",
+    "segment6_operations": PROJECT_ROOT
+    / "reports"
+    / "19-segment-6-statistical-oracle-operations.md",
+    "segment6_glm_primitives_source": PROJECT_ROOT
+    / "es_index_explorer"
+    / "question_analysis"
+    / "glm_primitives.py",
+    "segment6_cluster_covariance_source": PROJECT_ROOT
+    / "es_index_explorer"
+    / "question_analysis"
+    / "cluster_covariance.py",
+    "segment6_stacked_scores_source": PROJECT_ROOT
+    / "es_index_explorer"
+    / "question_analysis"
+    / "stacked_scores.py",
+    "segment6_wild_bootstrap_source": PROJECT_ROOT
+    / "es_index_explorer"
+    / "question_analysis"
+    / "wild_bootstrap.py",
+    "segment6_multiplicity_source": PROJECT_ROOT
+    / "es_index_explorer"
+    / "question_analysis"
+    / "multiplicity.py",
+    "segment6_statistical_oracle_source": PROJECT_ROOT
+    / "es_index_explorer"
+    / "question_analysis"
+    / "statistical_oracle.py",
+    "segment6_seed_source": PROJECT_ROOT
+    / "es_index_explorer"
+    / "question_analysis"
+    / "seeds.py",
+    "segment6_fixture_generator": PROJECT_ROOT
+    / "scripts"
+    / "generate_fwildclusterboot_fixture.py",
 }
 
 

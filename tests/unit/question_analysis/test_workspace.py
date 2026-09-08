@@ -27,8 +27,8 @@ from es_index_explorer.question_analysis.workspace import (
 pytestmark = pytest.mark.unit
 
 
-def test_default_root_is_segment5_execution_root() -> None:
-    assert DEFAULT_ANALYSIS_ROOT.name == "simplemode-v1-segment5"
+def test_default_root_is_segment6_execution_root() -> None:
+    assert DEFAULT_ANALYSIS_ROOT.name == "simplemode-v1-segment6"
 
 
 def _specification(tmp_path: Path) -> Path:
@@ -49,7 +49,15 @@ def test_manifest_round_trip_and_frozen_layout(tmp_path: Path) -> None:
     assert set(manifest.resources) == {
         "ordinal_grade_oracle",
         "ordinal_grade_oracle_provenance",
+        "r_oracle_contract",
+        "r_oracle_dockerignore",
         "r_oracle_dockerfile",
+        "r_oracle_input",
+        "r_oracle_output",
+        "r_oracle_provenance",
+        "r_oracle_renv_lock",
+        "r_oracle_runner",
+        "r_oracle_weights",
         "segment2_arms_source",
         "segment2_catalogue_source",
         "segment2_grade_oracle_source",
@@ -71,6 +79,15 @@ def test_manifest_round_trip_and_frozen_layout(tmp_path: Path) -> None:
         "segment5_gold_source",
         "segment5_operations",
         "segment5_validation_source",
+        "segment6_cluster_covariance_source",
+        "segment6_fixture_generator",
+        "segment6_glm_primitives_source",
+        "segment6_multiplicity_source",
+        "segment6_operations",
+        "segment6_seed_source",
+        "segment6_stacked_scores_source",
+        "segment6_statistical_oracle_source",
+        "segment6_wild_bootstrap_source",
         "stanza_en_resource_manifest",
     }
     assert workspace.load_manifest() == manifest

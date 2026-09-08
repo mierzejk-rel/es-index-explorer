@@ -1,0 +1,151 @@
+{
+  "batch_id": "batch-004",
+  "item_ids_sha256": "670ffaa76983dc3dac917471beb42ba4eb849af324878b33f489e9bf8e0ac0a7",
+  "items": [
+    {
+      "item_id": "expectation_2d66e10aa96024b91c30abab7ddbc9e62e141e3a5c702674cd57b019c78150fd",
+      "item_type": "expectation",
+      "source_text": "In 2010, Dr. Argoff was reported to be a paid consultant for Vertex.",
+      "text_sha256": "d06e102d5bd1b514f858ac4402f975c466e4b6edb10e083512f436d4b2ae98a2"
+    },
+    {
+      "item_id": "expectation_e2edcaf3de87b0751f0f751ec771215040f8cabc40e6dfb1e13e34cae592243e",
+      "item_type": "expectation",
+      "source_text": "In 2010, Dr. Argoff was reported to be a paid consultant for Pricara, on the speakers' bureau for Pricara, and receive honoraria from Pricara.",
+      "text_sha256": "bc155dd4d125ea6cea137f09a1f61b7128f049476bf1e8c06b688022953d06e0"
+    },
+    {
+      "item_id": "expectation_77d2034d2431852fe09e1fcb24b7b01b4e2b26c6b75df24db9ea97825126d2e6",
+      "item_type": "expectation",
+      "source_text": "Cites document with revised proposed budget increasing cybersecurity by 311.11%, showing acknowledgment of severe deficiency.",
+      "text_sha256": "2a13628180c094f5e27449e1f915a871bb80433a3b0ab65bd2105e0e013a81f4"
+    },
+    {
+      "item_id": "variant_434d5661ec77b5312f576c3504cc301a50fcc940303a70aca0f1df864c6e08f5",
+      "item_type": "question",
+      "source_text": "Who emailed with CEO Benson about the Belford hack?",
+      "text_sha256": "92281999f2bae8c31f8affdd523380efc59704a67e659e9758a30814efc5635d"
+    },
+    {
+      "item_id": "expectation_3e4d2e8d6881bfd7a090d3498c7cb6603faa1ba398f500fd02cef0ae75cf2664",
+      "item_type": "expectation",
+      "source_text": "Cites contacting group of hackers to consult and stop the Plague as of 10/23 12:10am.",
+      "text_sha256": "66e853270fc19e02a9864bd80c6aab38b557ac58a61e0f39352edbbd3ec39ee8"
+    },
+    {
+      "item_id": "expectation_76ec4adfe981eaf52a26c36636aa43f88ae516088433170f589499b65959623e",
+      "item_type": "expectation",
+      "source_text": "Cites oil tanker routing system adjustments: back online with manual oversight as of 10/19 3:30pm and emergency adjustments to oil tanker routes as of 10/20 10:45.",
+      "text_sha256": "ba858414ae19d31ef3417e53f0999ae6b53b5c08f763d0d95e7d6aefa81bac7d"
+    },
+    {
+      "item_id": "expectation_b1d40fe130820aeb9236467cadbc8cc19019a8568def0fb142d2403b30ea2ca0",
+      "item_type": "expectation",
+      "source_text": "Identifies Eugene Belford.",
+      "text_sha256": "62050d1e718b3e7dca880d12e89a0efe50beee6be0e48aff214b1483d0e9332a"
+    },
+    {
+      "item_id": "variant_d3aeee2c40fc2ef6c1467684c9e2220cc8182fd5f2b8cb66170eeb6e6c3ea52c",
+      "item_type": "question",
+      "source_text": "List the ways in which Covidien/Mallinckrodt engaged Dr. Charles Argoff to work with them",
+      "text_sha256": "4b3c6f7b0e52d1984aa82abbbceb95c467c1f37f898ae8ddaabfc8496bd00435"
+    },
+    {
+      "item_id": "expectation_3052b0f59236e9fbe0321c8af338800ae4283c22009c712cfd090dd62f45c9a7",
+      "item_type": "expectation",
+      "source_text": "In 2010, Dr. Argoff was reported to be a paid consultant for Endo, on the speakers bureau for Endo, receive grant or research support from Endo, and receive honoraria from Endo.",
+      "text_sha256": "a6dab161a506591e77e229c74d6e87c9fe02d1255c075931a94d911707726a77"
+    },
+    {
+      "item_id": "expectation_99fa5b016fee67a2642d8d2ad01b8ee8a131452607e0cd27b39c79b80201b54a",
+      "item_type": "expectation",
+      "source_text": "Cites email titled 'Go Dark' mentioning the FBI closing in and instructing Wallace to 'use the escape plan now'.",
+      "text_sha256": "82e09a6ecd306ec12ad2cfa35adca368e5e374e859c5c4ff9143c6e12b16cfe4"
+    },
+    {
+      "item_id": "expectation_4812824fa3a75e8f46d4c5b144378dddabd0ea8644aa363722178a38d81d5ee1",
+      "item_type": "expectation",
+      "source_text": "Cites potential compromise of employee data including SSNs.",
+      "text_sha256": "b9fe4451dbadcaf21f364b131a74ff499f42644a34500e2794ade81e5656a794"
+    },
+    {
+      "item_id": "expectation_93ff1d26131088effcc69583a520d5e50cc6aaa328bc856351cefc128e42700f",
+      "item_type": "expectation",
+      "source_text": "In an October 18, 1995, email to Margo Wallace, Belford stating that, at the same time the following day (October 19, 1995), they will be $25 million richer.",
+      "text_sha256": "d78d2bdbd41085252a4a0e33b1fd0ca5fb335c725cc156060c8cf62d350b4886"
+    },
+    {
+      "item_id": "expectation_059ba7fc872180e7b98e00171f74b401d28b7b93ff49208d7be03e0157ab4a25",
+      "item_type": "expectation",
+      "source_text": "Matt Brown (Covidien) email to Dr. El-Mohandes reminding of the upcoming Exalgo dinner program, noting that attendees are excited to talk about the Doctor's use of Exalgo and how it has helped his patients.",
+      "text_sha256": "1d4b70c25629dfc5cdaff356632fd0ac07a74b1554aed87953d70ebd79d9515b"
+    },
+    {
+      "item_id": "variant_25fc4f76bd1c03e042dc71b8cfdd6c54633e19b2a65a3f80564c86eacc30b74b",
+      "item_type": "question",
+      "source_text": "Which Covidien/Mallinckrodt speaker series events was megan.lowrey@theselvagroup.com involved in?",
+      "text_sha256": "0edcf73c3c09aa7b0352b3e330bf5abcef8b3765bda7b3162b9407b141fabdc5"
+    },
+    {
+      "item_id": "variant_b020aabb939e68fd26f4a12985938d2ec0121bb0e029b8cf1af13f8ffd102dfb",
+      "item_type": "question",
+      "source_text": "List the documents that describe or indicate what cybersecurity protections Ellingson had in place before the Belford hack?",
+      "text_sha256": "1981a81eb5c4ed22aa91cb33c7ebc8cf80114cb0cdc1f7946360b701a10f3ef4"
+    },
+    {
+      "item_id": "expectation_a782b5dee84c2e3bee7ee21f6d35b656c4b0138a25bc9ef84ab3293c77e0bfcf",
+      "item_type": "expectation",
+      "source_text": "Acknowledges that it's not clear from the evidence whether Phantom Phreak who coordinated with Belford (phantom.phreak@undergroundhax0r.net) is same as Phantom Phreak in teenage hacker group (phantomphreak@ghostline.com).",
+      "text_sha256": "2e7dede80b8995ae1b344b633d446098ae1b59b8b44f0bf6ce49804b5c9f12e4"
+    },
+    {
+      "item_id": "variant_0c69a779cfe06592a2cb86d4915b29c020d63d4cef2a65c04ea8e77f651a1dc6",
+      "item_type": "question",
+      "source_text": "What information did Ellingson have available to it that Belford was going to execute the Da Vinci virus as of October 19, 1995?",
+      "text_sha256": "dd0b7c707dde2c36f6208e93e38e41835962dab97aa26fc564f2d7cb71f70178"
+    },
+    {
+      "item_id": "expectation_c2a70cf13359c6f782311d8fcefd71d1b2caeade1ab1618b487657411c6b0ae0",
+      "item_type": "expectation",
+      "source_text": "Joseph Shurman, MD was one of three physician presenters at Covidien's 2012 Exalgo national broadcast event",
+      "text_sha256": "8c0ff42218340fb8a5a1e675888f44968ac4119a1fbfab31b6d6262f4fe4e117"
+    },
+    {
+      "item_id": "variant_c3a2c17be1134d83e67781ba5a9d86c78a070db52b349e8e4fa2e884cb56f04a",
+      "item_type": "question",
+      "source_text": "What internal Ellingson files estimate the company's damages from the cyberattack?",
+      "text_sha256": "045ea8752e378d1363f4553f0e91d60c76f746a7ebb8618c4190b6e2464f0b92"
+    },
+    {
+      "item_id": "expectation_c6b4ce227546f04865a5f5e145673b63d7a537f4617de3555aad55c75f76d8cb",
+      "item_type": "expectation",
+      "source_text": "Cites email about 'package is ready', 'test run', and 'exit strategy'.",
+      "text_sha256": "a182595aeb24a5a18162fe22958e2fae889cce0837d6b683dba2b926919ae5a2"
+    },
+    {
+      "item_id": "variant_585adfb6d9f2534f38b81043fe285bf3a0eff38d3cbf5c25367b45554f2d1f6b",
+      "item_type": "question",
+      "source_text": "With whom did J.Matthew.Smith@covidien.com email most frequently?",
+      "text_sha256": "249c034cc74e0c97f5719544b050e424cda52b2367ffb0f470cf5b471d13c5c4"
+    },
+    {
+      "item_id": "variant_156c9d8fde1b6b493160f2685b428e2563c8dff90d1185f383806ebfd4952bd4",
+      "item_type": "question",
+      "source_text": "What is Chen's position?",
+      "text_sha256": "181957fe35f4fdf812d77439aabd0f60d5006e5bbfb68b96d238ec4da07ded40"
+    },
+    {
+      "item_id": "variant_4fb8e0c313a847c500257b8433d1f637010c935e4a7f39e69eebb22049cbe45f",
+      "item_type": "question",
+      "source_text": "When did the cyberattack against Ellingson occur?",
+      "text_sha256": "39a83dd597356fc094ac81a1c9be2c17cb57ac5d08234b7b8ed973969a462a3d"
+    },
+    {
+      "item_id": "variant_9cc935b5b1689808168d8bf443fde7cdf304371cd3c44269f7d7594eb692731b",
+      "item_type": "question",
+      "source_text": "Who is sarah.chen@ellingson-it.com?",
+      "text_sha256": "28af4cf09df973aa575c662a4457aad9748c22e0c8aef7bce4f4731672007c9a"
+    }
+  ],
+  "schema_version": 1
+}

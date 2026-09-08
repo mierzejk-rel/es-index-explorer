@@ -1,0 +1,151 @@
+{
+  "batch_id": "batch-003",
+  "item_ids_sha256": "fee7351ba28212c1f7428022e27119f4f364bd366a220a26e254ff3d767ce5ce",
+  "items": [
+    {
+      "item_id": "expectation_3c828b0f6e38e78e8cd954ca2bc1e5d2570bd804118a0c521119289c39f862f9",
+      "item_type": "expectation",
+      "source_text": "In an email to co-conspirator Margo Wallace, Belford stating that he submitted his resignation and that, in two weeks, they'll be sipping mai tais on a beach while Ellingson burns.",
+      "text_sha256": "807624cf118b6b514fc8b292836446faa5ed27f6d14e1090f949269bf5aec1d7"
+    },
+    {
+      "item_id": "variant_227289af123fd52eb9f8d4f6a73cf0cdbc6b8575289146952ed5f90df3a9029d",
+      "item_type": "question",
+      "source_text": "What documents show that Ellingson was aware its cybersecurity protections prior to the Belford hack were not sufficient to protect against a cyberattack?",
+      "text_sha256": "3aa94396efc1238f622f1c810033c33afdff3939be16397fc56895c9ffef3fc7"
+    },
+    {
+      "item_id": "variant_610c0395ea3c94c0dbfca227af0bd87c21e9d29fcce38296730845af13133614",
+      "item_type": "question",
+      "source_text": "Who contacted or was contacted by Hal Benson about Belford's hack?",
+      "text_sha256": "3680ad158884cb77227ae2f109bcc98109e4889a6e9cae053f7e4abc68e2e114"
+    },
+    {
+      "item_id": "variant_40fe3c2aad28bb3d732297445dfdad03aec406da5a87dc2508b2cff27bb7309a",
+      "item_type": "question",
+      "source_text": "When did Wallace disavow Eugene Belford and his Da Vinci hack?",
+      "text_sha256": "e1412ef3f2e383cf794700f9180ca66f56882331ca0ad1fd5e28e042ec290ffb"
+    },
+    {
+      "item_id": "variant_f30e4223ea76b2b83fe79d374d654492ffb862ce78d111e9e0ed7e342d094d99",
+      "item_type": "question",
+      "source_text": "Summarize the teenage hackers' involvement in the Belford Da Vinci cyberattack.",
+      "text_sha256": "1de61b8bc64cdf99e37bb273473747cbff86d24590b0b71c8f785ac7497d4eed"
+    },
+    {
+      "item_id": "variant_6d3e9bdc1b9166411c3625e2834fd2dbc0ebb80e40ceaecebd3bc145155825b7",
+      "item_type": "question",
+      "source_text": "Did cargoff@nycap.rr.com send or receive any emails?",
+      "text_sha256": "fd87a158d79bd1fa74909d808b959670107abefb1cecb396431a1d9d7ff9d5f7"
+    },
+    {
+      "item_id": "expectation_139e8d6524185063d07e55cec7f133c2e23a05c97632ecf4881b1be4462609b0",
+      "item_type": "expectation",
+      "source_text": "Cites Belford's 10/10/95 email resigning from his position at Ellingson, which, taken together with his emails to Wallace and other suspicious activities, could have raised alarms.",
+      "text_sha256": "15893fb963c61c96a6640f1d1d871ee652274af9bc78e0eafc258690f9bf907f"
+    },
+    {
+      "item_id": "expectation_5417bc65fdb9c7a4919c1df8f0d5fc971caf90e2b13b407e30a5d7888b760e3b",
+      "item_type": "expectation",
+      "source_text": "Provides coherent narrative summary covering discovery, evidence provision, and recognition of their role.",
+      "text_sha256": "25ae4dea1a96234f82a03ac1dae69f8a65fce19df59b244239be10701c0413b8"
+    },
+    {
+      "item_id": "variant_3801132c2d4fd20bc1b64055c52823ac44ea831c1d3f9d93c8f3a57e768a3fa1",
+      "item_type": "question",
+      "source_text": "Is there evidence suggesting Sarah Chen might have worked with Belford on the Da Vinci attack against Ellingson?",
+      "text_sha256": "cf45182a900b17a12532f1b28ecbf4f2f1a85c3fea5d8d7d9f6920cfc9d8c758"
+    },
+    {
+      "item_id": "variant_7e0018f9221832c97fcc74f729adcc1bd1045294f5bf1d8c1f257f06a7ff5104",
+      "item_type": "question",
+      "source_text": "List the Ellingson employees who were in touch with law enforcement about Belford's hack.",
+      "text_sha256": "321c0e530521fb3a4e11f448e645a1ba8ab72a00095ff42ab4e57f03213b9ff2"
+    },
+    {
+      "item_id": "expectation_4cafb858c30a150e2a67aa71ba752b3f25c455e72cf74197a33814bd73fd1fa1",
+      "item_type": "expectation",
+      "source_text": "Identifies all five teenage hackers who were hired.",
+      "text_sha256": "d53fa12f973f8b153f53bd73a21a28894c66884ca4ba3f80bbbc338ddb2285d3"
+    },
+    {
+      "item_id": "expectation_2f1c31b5984480138f0870656fcf577bcab6240f24aea288e524c9a6c485bc5a",
+      "item_type": "expectation",
+      "source_text": "Dr. El-Mohandes was unable to reach the venue because his plane was unable to land in the area due to weather issues/fog.",
+      "text_sha256": "448ef54351d220e7ee6ab97f569f3eafd2f2f5fd336ee46784be6118dd5e5e35"
+    },
+    {
+      "item_id": "expectation_27d05aab0974deb2e8841bc29c6c7d979604d1e1095f6e995cc391e722cd2c4a",
+      "item_type": "expectation",
+      "source_text": "Ginger Hoffman (ginger.hoffman@covidien.com) emailed with Dr. Mohandes (AElmohandes@myspinedoctors.com) regarding her assignment as his permanent rep for Exalgo",
+      "text_sha256": "245939f882829418606b490a1792817dda05764d0c60b9b6162a07307c42feb4"
+    },
+    {
+      "item_id": "expectation_14cfafeb3a5ade072f8dc8b0ac020bd42cd0eb2a26d8e937f936d0b5092d3d86",
+      "item_type": "expectation",
+      "source_text": "Cites email about resignation and plan to leave while Ellingson faces consequences.",
+      "text_sha256": "dc52d770bb56db4c8e34bc514fec548ab731926550558441db98cb363d6132bc"
+    },
+    {
+      "item_id": "variant_d58a439c455fa6025a666228e5f75d84b3bbd17a7d48fe211e0d0798952f05e4",
+      "item_type": "question",
+      "source_text": "Did Belford and Wallace communicate about the Ellingson cyberattack?",
+      "text_sha256": "1b940a457603707e3ba11143810c2b3b6dd93e711c783da492869141d835a6d5"
+    },
+    {
+      "item_id": "expectation_bc5defd3ac7c78cbb9f2e2266365e19f4c5dbe1f4abf09372905f60f6a3056db",
+      "item_type": "expectation",
+      "source_text": "Ellingson Operations Team (operations-team@ellingson.com)",
+      "text_sha256": "4108f550ca45aeb539a0efc38092c93032281716f7b661f5afa434677657be33"
+    },
+    {
+      "item_id": "variant_2929404427025adcb9b30fea1a7804f676b6c72f0ca8f13c30e6fcfc9c279191",
+      "item_type": "question",
+      "source_text": "How were the teenage hackers involved in the cyberattack against Ellingson?",
+      "text_sha256": "ba0cc02462763b4da599ff8a5b62dd9f98d7fe75e53671c3ee68b41113543dd5"
+    },
+    {
+      "item_id": "expectation_ff45c555e2843e29396cfc6ccb1668249a92ae72a8317407821b2778d13e6528",
+      "item_type": "expectation",
+      "source_text": "Responds that there are no documents from September 1995 or that documents from September 1995 cannot be identified",
+      "text_sha256": "b669c9056aedf9130fe285cebd22ab83865f634f657baf9eac7107bd092d358b"
+    },
+    {
+      "item_id": "variant_3a9eeaf6aabc0e36034d795a6c328374da8ba5d8a2c4367a3fe5141e5b4341eb",
+      "item_type": "question",
+      "source_text": "Did Dr. Argoff receive or send email from or to any Covidien/Mallinckrodt executive?",
+      "text_sha256": "93de35cf72456ff48398fa51abb690eeb9a56d423c79a8e6c28b6bc874b23f4a"
+    },
+    {
+      "item_id": "expectation_883bb20b87466ef9a091c10d4588ba44aa5a396d012f38ec3ad9b448acebe1de",
+      "item_type": "expectation",
+      "source_text": "Notes emails suggesting they could be same person, such as Belford telling Phreak to 'keep an eye on those pesky kids'.",
+      "text_sha256": "0435f78045b1b8434fb4fc9747bb857c81c612bd3598922c95f7c3e837212cdf"
+    },
+    {
+      "item_id": "expectation_821647a425cb9ab1f04d3736e55a50cd55f293e645d5d73d47e36da60f4319d7",
+      "item_type": "expectation",
+      "source_text": "In response to compliance email about purchasing meals/snacks/coffee for health care providers, inquiring to a sales rep about consistent Starbucks and whether the compliance email will affect that.",
+      "text_sha256": "54daf2e54c29162d78fe01c6cce7dc73223e97d2a0eff9d5e0c91a20f46ae0f7"
+    },
+    {
+      "item_id": "expectation_a0a041b452e9c0783a69de2a3109d4ac5fff980f1ce1ba1bfb7dcc596296e040",
+      "item_type": "expectation",
+      "source_text": "Michael Brennan, MD was one of three physician presenters at Covidien's 2012 Exalgo national broadcast event",
+      "text_sha256": "434325410c143186bddcd00c7f9fe1d17a87d9e0af43abc36e2c8d4f2b5a2875"
+    },
+    {
+      "item_id": "expectation_0774ecb29d44454bd4deaff1723cc2c60243651b4c9bab9cc6f7e2dd9c3a85eb",
+      "item_type": "expectation",
+      "source_text": "Matt Brown (matthew.r.brown@covidien.com) emailed Dr. El-Mohandes (AElmohandes@myspinedoctors.com) regarding the February 7, 2012, Exalgo Dinner Program",
+      "text_sha256": "49d0beff4aa2377871fb13d6fe7e8afa1fabf240dbe604d769120509c64dabea"
+    },
+    {
+      "item_id": "variant_efad6bbdaa007ef2bacea2eeb02aa5889763f60796f9738dcdb20837ef1c9ead",
+      "item_type": "question",
+      "source_text": "Which playbooks are from territories in Texas",
+      "text_sha256": "1f69a02d36a742a0ac0fe329530246e3e8f4cfae45d75be01b50adb8e6127214"
+    }
+  ],
+  "schema_version": 1
+}

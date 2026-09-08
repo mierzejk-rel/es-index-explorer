@@ -153,22 +153,27 @@ def test_status_is_read_only_for_uninitialized_root(tmp_path: Path) -> None:
     assert not root.exists()
 
 
-def test_unimplemented_command_fails_closed(tmp_path: Path) -> None:
+def test_oracle_command_runs_offline_and_records_artifact(tmp_path: Path) -> None:
+    root = tmp_path / "analysis"
     error_output = StringIO()
+    output = StringIO()
 
     exit_code = main(
         [
             "--analysis-root",
-            str(tmp_path / "analysis"),
+            str(root),
             "--specification",
             str(_specification(tmp_path)),
             "oracle",
         ],
+        stdout=output,
         stderr=error_output,
     )
 
-    assert exit_code == ExitCode.PREREQUISITE
-    assert "no implementation registered" in error_output.getvalue()
+    assert exit_code == 0
+    assert error_output.getvalue() == ""
+    assert "oracle: completed" in output.getvalue()
+    assert (root / "statistics" / "r_oracle_verification.json").is_file()
 
 
 def test_malformed_arguments_use_locked_exit_code() -> None:

@@ -1,0 +1,151 @@
+{
+  "batch_id": "batch-010",
+  "item_ids_sha256": "4adabde4c197b775f1af9702a36f05ff947d0628e0438db0fdbe670afd8f941f",
+  "items": [
+    {
+      "item_id": "expectation_45d9f64aee09284142fdb86e40f46f4daad2070b2c8a721bf3497da137b7cb15",
+      "item_type": "expectation",
+      "source_text": "Quarterly Playbook, FY13Q3, Territory 50202 - Manhattan",
+      "text_sha256": "7a30e80de1c3a1c8127b86a35743d3ce0a776411812e1b2d2e186fa413c4d316"
+    },
+    {
+      "item_id": "expectation_fbb57c48c216b87a1e0f0ecfdd63409798b9d7a4767cc62c901b6affbaac174d",
+      "item_type": "expectation",
+      "source_text": "Cites email where Belford tells Wallace 'Da Vinci virus will activate at midnight tomorrow' and to 'act surprised'.",
+      "text_sha256": "b059ca9dbae2654123532c157c4c227bbf189885973126d545f50d69a9b1d017"
+    },
+    {
+      "item_id": "variant_7b3447e31337fa42aa1ac758e510c16cee9d91b55528cda3079e99f2010d55ec",
+      "item_type": "question",
+      "source_text": "Who did Wallace communicate with, other than Belford?",
+      "text_sha256": "2e7462ab7c6c8635487c1369a7328ad519a3509d42284a8aaf3a5b75c3c275ce"
+    },
+    {
+      "item_id": "expectation_4caf5642813e2b7204c9e218d5da96a792dd5d55f70b353a298a327c1b38aff8",
+      "item_type": "expectation",
+      "source_text": "Cites Ellingson's claimed direct losses from damage to Gibson supercomputer and other systems ($5M).",
+      "text_sha256": "9d4f8df975f29da27321092b10a7bdf8edffefe56a2054e9d6c0513937396509"
+    },
+    {
+      "item_id": "expectation_cb4616e693d75fc548dc5710fc4b1673fdda20ad169087ba4e63b74a969d34ed",
+      "item_type": "expectation",
+      "source_text": "Involved in many other activities with Covidien, like ad boards",
+      "text_sha256": "143d86f5cf5683e0677fdb1188d98da2d85b0b23eaa06a820a0adb5dc2d4312e"
+    },
+    {
+      "item_id": "expectation_66662e2428486c53a960c6589c04bd02f23dc93b228a775df6a8d738a3f96038",
+      "item_type": "expectation",
+      "source_text": "Involved in September 2011 EXALGO Speaker Program",
+      "text_sha256": "e5d106410387298a4fd590e35a16d3476859f5988134cceaaca10bb41aa4c2bd"
+    },
+    {
+      "item_id": "variant_3b677f4c5c3c86415386c2af1c9fa7627a68d21cad62fa1515967ee7986082a5",
+      "item_type": "question",
+      "source_text": "Summarize the emails between cargoff@nycap.rr.com and Covidien/Mallinckrodt executives.",
+      "text_sha256": "0cc8847cf8fc3975f2bce26f8271545a40eb710edf93d63d50b04bfc092f465e"
+    },
+    {
+      "item_id": "variant_64e4286cef6af3d0db99977eb8fb86f71d4f1f54ff879572ef3a29fc1c38efa6",
+      "item_type": "question",
+      "source_text": "How were zer0cool@mindvirus.org, acid.burn@hacktheplanet.net, cerealkiller@crunchycorp.com, phantomphreak@ghostline.com, and lordnikon@perfectrecall.com involved in the cyberattack against Ellingson?",
+      "text_sha256": "9eeeff7d82942c510257d61e53f55991e1645daa2a3d940658e59e446077e1e3"
+    },
+    {
+      "item_id": "variant_8c354e64a16c17f6eeab9a0e3fc6f67fcdbde366704a384622fdef10d9c90df4",
+      "item_type": "question",
+      "source_text": "Find documents showing what cybersecurity protections Ellingson had in place before October 15, 1995?",
+      "text_sha256": "af2ecf982b95019e9bda04e62b152df116ac43d7ec85f55f0d7ebff0633af4f2"
+    },
+    {
+      "item_id": "expectation_97833f69cd79d53c651bdfbcdc51a27b7179b012e4b83c7dba4a4d2e20eb1591",
+      "item_type": "expectation",
+      "source_text": "Identifies Acid Burn as Kate Libby.",
+      "text_sha256": "382b73e115e4e4c0e2dc1f184dccdee81b267d996f8ea31068b379ba223bf3c6"
+    },
+    {
+      "item_id": "variant_2696cedcf41dd842a8a4faa9f777b50785a4066e26f83d1fa3e88f00a18f31ba",
+      "item_type": "question",
+      "source_text": "Were there instances of Matt Smith not wanting to share information, and if so, what were they?",
+      "text_sha256": "4bc7b2d3eb69f92332a67e3164b3d6cedfe36534c0603dd401c18580d0f9aa1c"
+    },
+    {
+      "item_id": "expectation_d585cfdcc657fd3225105c5e3912b26652d0e3cdb92d1afebcd5c8b1b6189984",
+      "item_type": "expectation",
+      "source_text": "Ellingson CEO, Hal Benson (hal.benson@ellingson.com)",
+      "text_sha256": "a2b1805686291eabf187cc962b26c5ff2935e7c1ecc2311973543686308fc855"
+    },
+    {
+      "item_id": "variant_20a5edeba469aa1f195f85a1a09eee466a70a0dfd3db0b82956a15e8b8ce28f0",
+      "item_type": "question",
+      "source_text": "Which Ellingson IT personnel were involved in monitoring and containing the Da Vinci hack?",
+      "text_sha256": "e6d2ddf04941e185b949aa819419ce25ce724ad5fa45c4a920458c7cc2efdf90"
+    },
+    {
+      "item_id": "variant_0e9fd61c2ed19a402a6f0404c0f73f1d4049f0b174948a099760e41498a9f74c",
+      "item_type": "question",
+      "source_text": "What, if any, unusual email patterns are there between Ellingson employees?",
+      "text_sha256": "b17bf87a6adc024e08c328994bbe50952202b388c9eb5975b523ff09cf6bd018"
+    },
+    {
+      "item_id": "expectation_4363a22d3e9852ed4efabed4bafdc6ce544809ebb9750f29cf119a87d8c96db4",
+      "item_type": "expectation",
+      "source_text": "Identifies Dr. Sarah Chen, Acting CTO, as involved in monitoring and containment.",
+      "text_sha256": "e69497af12cbe70b8b379d9fc60053850b5ae834aa424b89757c996fe12873dd"
+    },
+    {
+      "item_id": "expectation_353cf899076d5cc8dff903f60f4b6dccb5027e28a0cca6c6798d2ab582e0eb34",
+      "item_type": "expectation",
+      "source_text": "Cites CFO proposal to increase cybersecurity budget 'in light of recent events'.",
+      "text_sha256": "cb6fa68f4315762d916b7e5a5c0f0c204aeb12a7bb308ec9ffc8bcb7b55ae147"
+    },
+    {
+      "item_id": "variant_68b705348edfaff5f90ec102c41a28d14afd1ab3e85d4850b4a7462b6b03efd5",
+      "item_type": "question",
+      "source_text": "Who are each of the young hackers?",
+      "text_sha256": "574a749777367e6099766b3ec3b1db7dadf2ac59015540c29a0d774bb2cc24ed"
+    },
+    {
+      "item_id": "expectation_afbd295600cc9ae9877389308a20c10b0dd66a1ced6aa873063f18c3ec137ff2",
+      "item_type": "expectation",
+      "source_text": "Cites Cereal Killer developing idea to hack TV station and Dade creating plan with delegated roles.",
+      "text_sha256": "00e5037757acf6718a7851ee02a0ee9cd7788c5fd2e0ccd1fc5d0d0ca5d65b7f"
+    },
+    {
+      "item_id": "variant_d4fcf74c6551798dde62254e4348ceaae0068efaf500348cea6bfb597bb61138",
+      "item_type": "question",
+      "source_text": "What evidence supports the assertion that, as of October 15, 1995, Ellingson was aware that its cybersecurity protections were not sufficient to protect against a cyberattack?",
+      "text_sha256": "9442aa79ecb1de1da7a988523a69d3e8f7416d2b1dd7eb0f8ee5d64f7b15c669"
+    },
+    {
+      "item_id": "expectation_6f7907912eaf6450165ecc9866c32ed3576ab1e9ac7607b8cea0959947ac2a88",
+      "item_type": "expectation",
+      "source_text": "An advisory board member noted to be willing to make time for sales reps if they bring in Starbucks to the office",
+      "text_sha256": "087bb450a6d0db753d22b250e6ad58fd818c738d47e53c92f5e9d4cc602cff85"
+    },
+    {
+      "item_id": "expectation_033dedc6e5a570df58124c370281ab20e50dbde768067bdd89e4239de6a83c99",
+      "item_type": "expectation",
+      "source_text": "Ellingson Legal Team (legal.team@ellingson.com)",
+      "text_sha256": "c9d839aada8cb648010e136633f4b1c334d7d3e4a84d0b444dc42a4f4dd84e4f"
+    },
+    {
+      "item_id": "expectation_437cb468a4b4413f44d6684d5a8aad1b1b7c96c703ece30c3d4f8af27c68da52",
+      "item_type": "expectation",
+      "source_text": "Identifies Dr. Sarah Chen (Acting CTO) as communicating with FBI about the hack.",
+      "text_sha256": "81e6df51065763046bbbccdcf561b536fbd85ac574464cae6a7eaf782fe46f7c"
+    },
+    {
+      "item_id": "variant_9d78504c7f92a8476f77a598a90c114fe9fa5ce6393d02541a7b3a472e3e2f32",
+      "item_type": "question",
+      "source_text": "What actions did Ellingson undertake to improve cybersecurity after the Belford hack?",
+      "text_sha256": "728a8b68485f9023914f2b6a4903babdfaebd6ca341d513712af9314ff7190dd"
+    },
+    {
+      "item_id": "variant_9a5f38d7298719919421b40c904142e9be687bcbf0b7714cab9baf1df322cd68",
+      "item_type": "question",
+      "source_text": "Is there any evidence that Sarah Chen was potentially involved as a nefarious actor, on Belford's side, in the Belford hack?",
+      "text_sha256": "94d8dd13a868fe0f9b2b31a71b29c46c3b50d5422652b2a7237f01af49c4bd3d"
+    }
+  ],
+  "schema_version": 1
+}

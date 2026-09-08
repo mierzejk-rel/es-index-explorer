@@ -218,15 +218,37 @@ __marimo__/
 
 # Streamlit
 .streamlit/secrets.toml
+
 /.agents/
 /skills-lock.json
 /*.jsonl
+
+# macOS metadata
+.DS_Store
+
+# Ignore generated artifacts by default
 /artifacts/*
+
+# Preserve the canonical, privacy-filtered MLflow snapshot
+!/artifacts/mlflow/
+/artifacts/mlflow/*
+!/artifacts/mlflow/simplemode-stage-v3/
+/artifacts/mlflow/simplemode-stage-v3/*
+!/artifacts/mlflow/simplemode-stage-v3/manifest.json
+!/artifacts/mlflow/simplemode-stage-v3/*.parquet
+
+# Preserve frozen question-analysis checkpoints
 !/artifacts/question_analysis/
 /artifacts/question_analysis/*
+
 !/artifacts/question_analysis/simplemode-v1-postreview-p3/
 !/artifacts/question_analysis/simplemode-v1-postreview-p3/**
+
 !/artifacts/question_analysis/simplemode-v1-postremediation-final/
 !/artifacts/question_analysis/simplemode-v1-postremediation-final/**
+
 !/artifacts/question_analysis/simplemode-v1-segment5/
 !/artifacts/question_analysis/simplemode-v1-segment5/**
+
+!/artifacts/question_analysis/simplemode-v1-segment6/
+!/artifacts/question_analysis/simplemode-v1-segment6/**

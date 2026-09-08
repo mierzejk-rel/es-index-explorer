@@ -5,7 +5,7 @@ The pipeline implements the analysis contract in
 existing MLflow snapshot CLI and writes only under:
 
 ```text
-artifacts/question_analysis/simplemode-v1-segment5/
+artifacts/question_analysis/simplemode-v1-segment6/
 ├── manifest.json
 ├── state.json
 ├── tables/
@@ -22,7 +22,8 @@ Segment 3 run. `simplemode-v1-postreview`, `simplemode-v1-postreview-p2`, and
 `simplemode-v1-postreview-p3` are immutable post-review checkpoints retained for comparison;
 they are not resumed or rewritten. No artificial `simplemode-v1-postreview-p4` checkpoint
 exists. `simplemode-v1-postremediation-final` is the immutable canonical Stage 4 handoff.
-Segment 5 executes in the freshly locked `simplemode-v1-segment5` root shown above.
+`simplemode-v1-segment5` is the immutable Stage 5 software handoff. Segment 6 executes in the
+freshly locked `simplemode-v1-segment6` root shown above; the human-gold gate remains pending.
 
 ## Environment
 
@@ -49,9 +50,10 @@ Download them once, then subsequent feature runs are offline:
 UV_ENV_FILE= uv run question-suitability features --download-resources
 ```
 
-R is not a Python dependency. Its base environment is pinned separately in
-`tests/oracles/fwildclusterboot/Dockerfile`; the package lock and reference
-fixtures are added with the statistical oracle.
+R is not a Python dependency. Its one-off reference environment is pinned in
+`tests/oracles/fwildclusterboot/Dockerfile` and `renv.lock`. Ordinary Python tests and the
+`oracle` workflow command replay the committed fixture without Docker or host R. See
+[`reports/19-segment-6-statistical-oracle-operations.md`](reports/19-segment-6-statistical-oracle-operations.md).
 
 ## CLI
 
@@ -75,9 +77,11 @@ fit-layer1 + fit-families → robustness → report
 status
 ```
 
-`oracle` may run at any time before either fit command. Both fits require the
-annotation/gold/validation unlock and the recorded oracle pass. `status` is
-read-only and works for an uninitialized root.
+`oracle` may run at any time before either fit command. It verifies the Python linear special
+case against the immutable R fixture and writes `statistics/r_oracle_verification.json`.
+Docker is used only by the deliberate fixture-generation utility. Both fits require the
+annotation/gold/validation unlock and the recorded oracle pass. `status` is read-only and
+works for an uninitialized root.
 
 `join` reads the frozen schema-v3 snapshot and authoritative
 rubric TOMLs, then writes the three catalogues, criterion and PFU tables,
@@ -118,7 +122,35 @@ fallback, and unlock conditions are documented in
 The consolidated remediation evidence is recorded in
 [`reports/18-stage-5-gold-validation-remediation.md`](reports/18-stage-5-gold-validation-remediation.md).
 
-Implementation verification prepares the Segment 5 root through `annotate-ingest` and stops.
+## Segment 6 statistical oracle and numerical primitives
+
+Segment 6 provides Bernoulli-logit and linear score/bread primitives, frozen Newton/KKT
+solvers, three-term CGM covariance and PSD projection, stacked co-primary score construction,
+sampled/enumerated restricted WCR, full-refit validation, finite-support brackets, and
+two-corner BH adjudication.
+
+The committed R fixture uses `fwildclusterboot` 0.14.3 under R 4.4.3 on `linux/amd64`.
+Regenerate it only with the documented Docker commands:
+
+```bash
+docker buildx build \
+  --platform linux/amd64 \
+  --network host \
+  --load \
+  --tag simplemode-fwildclusterboot:0.14.3 \
+  tests/oracles/fwildclusterboot
+UV_NO_ENV_FILE=1 uv run --no-env-file python \
+  scripts/generate_fwildclusterboot_fixture.py \
+  --analysis-root artifacts/question_analysis/simplemode-v1-segment5 \
+  --image simplemode-fwildclusterboot:0.14.3
+```
+
+No model audit or outcome fit is part of this stage. The canonical Segment 6 root records the
+oracle pass while `outcome_modeling_unlocked=false` until the separate human-gold workflow
+finishes.
+
+Implementation verification prepares the Segment 6 root through `annotate-ingest`, records the
+independent oracle pass, and stops.
 The user starts the live gate explicitly:
 
 ```bash

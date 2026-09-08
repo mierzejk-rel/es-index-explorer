@@ -25,6 +25,7 @@ EXPECTED_STREAM_SEEDS = {
     "gold_recode_sampling": 14671333374540819100,
     "annotation_shuffle": 1545213380394893023,
     "diagnostic_resampling": 11705599034764626503,
+    "oracle_offdiag": 10969513090860944516,
 }
 
 

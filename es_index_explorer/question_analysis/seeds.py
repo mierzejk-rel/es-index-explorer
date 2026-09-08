@@ -17,6 +17,7 @@ STREAM_NAMES = (
     "gold_recode_sampling",
     "annotation_shuffle",
     "diagnostic_resampling",
+    "oracle_offdiag",
 )
 
 
@@ -40,3 +41,12 @@ def rng_for(stream_name: str, master_seed: int = MASTER_SEED) -> "Generator":
     from numpy.random import default_rng
 
     return default_rng(derive_stream_seed(stream_name, master_seed))
+
+
+def derive_child_seed(stream_name: str, child_name: str) -> int:
+    """Derive a stable child seed without consuming the parent stream."""
+    if not child_name:
+        raise ValueError("child_name must be non-empty")
+    parent = derive_stream_seed(stream_name)
+    digest = sha256(f"{parent}:{child_name}".encode("utf-8")).digest()  # noqa: UP012
+    return int.from_bytes(digest[:8], byteorder="big")

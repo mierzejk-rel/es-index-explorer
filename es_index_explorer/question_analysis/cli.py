@@ -304,6 +304,10 @@ def _production_handler(
         from es_index_explorer.question_analysis.validation import run_validate_features
 
         return lambda workspace: run_validate_features(workspace, args.decisions_dir)
+    if command is WorkflowCommand.ORACLE:
+        from es_index_explorer.question_analysis.statistical_oracle import run_oracle
+
+        return run_oracle
     return None
 
 

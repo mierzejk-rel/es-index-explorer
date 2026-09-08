@@ -1,0 +1,151 @@
+{
+  "batch_id": "batch-017",
+  "item_ids_sha256": "0084caee4b321f5028cc41447bbad48fc0044685331bb5d7a09c5bc939ef1111",
+  "items": [
+    {
+      "item_id": "expectation_7731ec2bb92905b77846e2d0eceb1440d948cf34076a2d4c50e548af450d6675",
+      "item_type": "expectation",
+      "source_text": "Answers in the affirmative that yes there is an email to Dr. Charles Argoff",
+      "text_sha256": "a86d7da070e15774029cdda631c3ddfbaaa01e752992c4826e59ad8cd64b6f30"
+    },
+    {
+      "item_id": "variant_2bee49421beffd71b86abbc033a9871b7779298b45cd85ba496ab8acea61f021",
+      "item_type": "question",
+      "source_text": "Which Ellingson personnel were in contact with law enforcement about the cyberattack?",
+      "text_sha256": "d6e540d4d409435ca0c98f8656414b343d638928d3ea9f181070bc706171c22a"
+    },
+    {
+      "item_id": "variant_3577df4867c50658115b24576d94cea1695b7a083d9086bd319c298aad3c8ba2",
+      "item_type": "question",
+      "source_text": "List the communications between Belford and Phantom Phreak regarding the hack of Ellingson.",
+      "text_sha256": "512c44f8f6bd8e6e38a41c51b855bcf42c5bad8ad2b9972115247e8d69c4fe16"
+    },
+    {
+      "item_id": "variant_71c0bb3407b505fabd8a2015cda0e91c1efc1a4b4560b9366d8bdc9b03fe534f",
+      "item_type": "question",
+      "source_text": "When did the Da Vinci virus hack happen?",
+      "text_sha256": "a8a7e65ad444ed24079a3e69f5df750ec85286007c5b56e824ec828dd0cd527a"
+    },
+    {
+      "item_id": "expectation_93ce343e557cb4116e6d6305f3f51198b363b7a6de0c4d6a0a76f9e5ea94aa22",
+      "item_type": "expectation",
+      "source_text": "Quarterly Playbook, FY13Q3, Territory 50207 – Queens North",
+      "text_sha256": "0ac9547f592ff8609371ccd42531c8077c33321513d1752a45e75b838acc74ee"
+    },
+    {
+      "item_id": "expectation_af07bbf7044b05d29250a6ef2ef1079d8c6f72d6a1ba0ad3b92321881dc2c745",
+      "item_type": "expectation",
+      "source_text": "Identifies email from Jennifer Krcmery (jkrcmery@CampbellAlliance.com) to various recipients, including Dr. Charles Argoff (cargoff@nycap.rr.com)",
+      "text_sha256": "b33ea040626cb28a1ae5b1c7ee3f5d116f164ad98d5b6299591612f4bdb2a75f"
+    },
+    {
+      "item_id": "variant_d048df1592206b65cd2630cbc37e5f00b7debb5002622a6101ca332bc7a69051",
+      "item_type": "question",
+      "source_text": "Find emails from Dr. El-Mohandes mentioning Exalgo",
+      "text_sha256": "62abafee108e9d4658c6f04bbce9cff690f048f5ccf76f2b075ce90de8123df2"
+    },
+    {
+      "item_id": "variant_7d2e64d0ef8ddec866ccaed207415bfc806420e90a29a0523450d0932d4089e0",
+      "item_type": "question",
+      "source_text": "Describe Ellingson's response to the October 1995 cyberattack against it.",
+      "text_sha256": "97d1503f09605cee8e4465ccca15ec902434f6fed05673d6565dc345a77a354a"
+    },
+    {
+      "item_id": "expectation_9f9928caac38ac117d26ca7d6b7343c5270b5853f0d1c73e64e278a53f751fe6",
+      "item_type": "expectation",
+      "source_text": "Dr. Sarah Chen is the Acting CTO at Ellingson Mineral Company.",
+      "text_sha256": "6128d983a4b4c56f88956ff108bad55cccebce98436042d07cad757114e0df72"
+    },
+    {
+      "item_id": "variant_5c8dbaacdc39e5e225c5bf5bd0b43ac7374556221b556db4032c099a057e3662",
+      "item_type": "question",
+      "source_text": "Other than Eugene Belford, with whom did Margo Wallace communicate?",
+      "text_sha256": "00bb3c6d156d2d0291e2585ab7b64828c7879ff2bec82538c784795d4ccd45e9"
+    },
+    {
+      "item_id": "expectation_106852105450b2b7a8daf2d2daea38d6579ba59e7aae23a50e903ac386f34054",
+      "item_type": "expectation",
+      "source_text": "Cites Dade Murphy/Zer0 Cool/Crash Override calling group together to discuss Ellingson and Gibson hack.",
+      "text_sha256": "b0e39e8fde89355dccc245f83da893e45eca4a44200559d94041cbddb8943cf6"
+    },
+    {
+      "item_id": "variant_8108e9e91c936404f3c49faf4612ac58182e3ddc66d0b384865259222caa7ad6",
+      "item_type": "question",
+      "source_text": "Did Dr. Argoff exchange emails with any Covidien/Mallinckrodt executives?",
+      "text_sha256": "1e69f98e0bc72652ff944d6c2c46edbad2c2fb4bf54b12f324db8115662c6105"
+    },
+    {
+      "item_id": "variant_1dbcd84d3e040c35b361e4ca2f1c8a859221bb5fd4ac9ca6dcde281c822f650d",
+      "item_type": "question",
+      "source_text": "What evidence is there that key documents or emails were destroyed?",
+      "text_sha256": "940d24e5a670d8a8100cea626829929ba93c261f7cb19856f218c6912ec5313a"
+    },
+    {
+      "item_id": "variant_62eff4adfe723b386092461b55f13f6131ab437673bf63f4b216859bf52a1f3e",
+      "item_type": "question",
+      "source_text": "What evidence shows Ellingson's cybersecurity protections before Eugene Belford's hack?",
+      "text_sha256": "5390aea76b660bc7fcab2293560df641f59e3d7bc23966b52bf4e1f4330a0a3b"
+    },
+    {
+      "item_id": "expectation_b9b2314e5f24f6e330acc745047e312d59173f0e3c3301e5f5f38935f25035a1",
+      "item_type": "expectation",
+      "source_text": "Cites Ellingson's claimed costs for providing credit monitoring to affected individuals ($250K).",
+      "text_sha256": "fba1d339d97a10d9b09d7363da1cf7abb326d8afc3d0d5969af1fe7811727542"
+    },
+    {
+      "item_id": "expectation_354ccfb431e532edf9be95ec8162cfb366fd1a80922994e645b3701b525f4fd7",
+      "item_type": "expectation",
+      "source_text": "Spoke at Northern CA Pain Specialists' first meeting on Sept. 1, 2011, and presented on behalf of Covidien",
+      "text_sha256": "cbd257d73ed7051578fb7a72c1303939d100f077bf1cbf2088c7b489c6308044"
+    },
+    {
+      "item_id": "expectation_7e18e11a429f8d92b4e6a2fd63690f96810f0a18709de3452e0a777f788f6a49",
+      "item_type": "expectation",
+      "source_text": "Notes the two Phantom Phreaks have different email addresses (phantom.phreak@undergroundhax0r.net vs phantomphreak@ghostline.com).",
+      "text_sha256": "e5dd53bd60c6c17a8f72977992e1cb53a76630bd1c2c0935fcdd87e728d92e98"
+    },
+    {
+      "item_id": "variant_ad1d970276fb0dad13468bfe8d1c437128eb18fb1c0ec1df609f4bff63bd433f",
+      "item_type": "question",
+      "source_text": "What evidence shows sales staff buying Starbucks for medical providers?",
+      "text_sha256": "00ac25257223944cd9208773af57f8899de5c15df3f35e14193a37c32aabb8af"
+    },
+    {
+      "item_id": "variant_215b21328c3a3e11f8846724332a55b11630f2ce6ef9f5367da77b174f4134a0",
+      "item_type": "question",
+      "source_text": "List documents supporting the claim that Ellingson had sufficient cybersecurity protections in place.",
+      "text_sha256": "76c8b92c448e9156738724fd167b92c9527080682afae1a7a4d1f20b5a821c5d"
+    },
+    {
+      "item_id": "expectation_4691cd9495cf5a02b2981bbadeffa671840ff0e6c58b16266ccd58bfc1ade180",
+      "item_type": "expectation",
+      "source_text": "Identifies CEO Hal Benson as communicating with FBI about the hack.",
+      "text_sha256": "e0073ad838a4e837bee48fed8a4e34facf971364fa48a31539099e045bb7453b"
+    },
+    {
+      "item_id": "expectation_9c7ef96407d8e1d08180ce11a6132260913de715694d09f60f5fb96d309da292",
+      "item_type": "expectation",
+      "source_text": "Acknowledges that it's not clear from the evidence whether Phantom Phreak who coordinated with Belford (phantom.phreak@undergroundhax0r.net) is same as Phantom Phreak in teenage hacker group (phantomphreak@ghostline.com).",
+      "text_sha256": "2e7dede80b8995ae1b344b633d446098ae1b59b8b44f0bf6ce49804b5c9f12e4"
+    },
+    {
+      "item_id": "variant_06888f4b981017ee71d751ee87ede39b9dfa43473bb7bd4f3da281c7786d197f",
+      "item_type": "question",
+      "source_text": "Who within Ellingson's IT department was responsible for working on containment of the Da Vinci virus?",
+      "text_sha256": "343eb7388d2d26db31a5f4475520c4227b1b56a2a63d5108200a4a53a4306b60"
+    },
+    {
+      "item_id": "expectation_335807d0ff7247373bb0cece75299b7bfdf9d41ac9ac325b000a107664a7b115",
+      "item_type": "expectation",
+      "source_text": "In 2010, Dr. Argoff was reported to be a paid consultant for Lilly, on the speakers' bureau for Lilly, receive grant or research support from Lilly, and receive honoraria from Lilly.",
+      "text_sha256": "2306744297cce2e102c39dcd346aced45d9819abc726854c70917ca6297f1e6b"
+    },
+    {
+      "item_id": "expectation_cf32e8bb60b6afc4a3aa5f0bfc7ec4da983e17784731127f5b1936d770746ad3",
+      "item_type": "expectation",
+      "source_text": "Worked with Ellingson IT team to mitigate the effects of the virus",
+      "text_sha256": "9664d62dca34166ae38f8c0c4b95371b2f10c5792488f5a0c06139d6ccd1806d"
+    }
+  ],
+  "schema_version": 1
+}

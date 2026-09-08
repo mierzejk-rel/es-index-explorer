@@ -1,0 +1,21 @@
+{
+  "W_obs_relative_difference": 1.598397167005476e-14,
+  "W_obs_relative_tolerance": 1e-06,
+  "fixture_hashes": {
+    "f6-linear-contract.json": "36d0bdaf49678a962e5866df30440a36a43ec541788f20ff82adfdf4ce3e8603",
+    "f6-linear-input.csv": "ce72007f916ec4b42d695b3ab4afac5de67444f3ef55dd31205f3d34561c1f2d",
+    "f6-linear-r-output.json": "f1db7bdc33020d60858a5d3983e1cc3f9d722463df241a1f2198bb3a1f54515c",
+    "f6-linear-rademacher-weights.csv": "9bb80124bdf16d20e95ce95f7364975581d7b48935a027ab066ec62d6ee8cc71"
+  },
+  "oracle_scope": "linear_f6_special_case_only",
+  "p_f_absolute_difference": 0.0,
+  "p_f_tolerance": 0.0001,
+  "passed": true,
+  "python_W_obs": 0.024310482190529767,
+  "python_invalid_t_count": 223,
+  "python_p_f": 0.8878887070376432,
+  "r_W_obs": 0.024310482190530155,
+  "r_invalid_t_count": 223,
+  "r_p_f": 0.8878887070376432,
+  "schema_version": 1
+}

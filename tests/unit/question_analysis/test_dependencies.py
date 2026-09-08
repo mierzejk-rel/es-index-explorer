@@ -311,13 +311,19 @@ def test_spacy_distribution_version_mismatch_is_rejected() -> None:
 
 
 def test_r_oracle_base_image_is_digest_pinned() -> None:
-    dockerfile = (
-        PROJECT_ROOT / "tests" / "oracles" / "fwildclusterboot" / "Dockerfile"
-    ).read_text(encoding="utf-8")
+    oracle_root = PROJECT_ROOT / "tests" / "oracles" / "fwildclusterboot"
+    dockerfile = (oracle_root / "Dockerfile").read_text(encoding="utf-8")
 
     first_line = dockerfile.splitlines()[0]
     assert first_line.startswith("FROM rocker/r-ver:4.4.3@sha256:")
     assert len(first_line.rsplit(":", maxsplit=1)[-1]) == 64
+    lock = json.loads((oracle_root / "renv.lock").read_text(encoding="utf-8"))
+    assert lock["R"]["Version"] == "4.4.3"
+    assert lock["Packages"]["fwildclusterboot"]["Version"] == "0.14.3"
+    assert lock["Packages"]["jsonlite"]["Version"] == "2.0.0"
+    assert "fwildclusterboot" in (oracle_root / "run_reference.R").read_text(
+        encoding="utf-8"
+    )
 
 
 def test_annotation_constants_match_locked_specification() -> None:

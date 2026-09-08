@@ -1,0 +1,21 @@
+{
+  "agent_id": "agent-dce7d6ec-b3aa-4a73-87f7-9beb6e478d5b",
+  "attempts": 1,
+  "batch_hash": "bf37a9461589eded1f3db3d4dc51067bde581d6716b456064283fbb3e67ead7f",
+  "batch_id": "batch-021",
+  "created_at": "2026-09-07T14:59:51.511Z",
+  "duration_ms": 44291,
+  "model_id": "gpt-5.6-sol",
+  "response_sha256": "42d43d2a0b750b83eb57e5b84ab424910fd46d897ec6e6f4d4999b589b5c7841",
+  "run_id": "run-3224d7b4-bf48-4541-8cd8-b537881efc93",
+  "schema_version": 1,
+  "status": "finished",
+  "usage": {
+    "cache_read_tokens": 0,
+    "cache_write_tokens": 5214,
+    "input_tokens": 5217,
+    "output_tokens": 4022,
+    "reasoning_tokens": 2292,
+    "total_tokens": 14453
+  }
+}

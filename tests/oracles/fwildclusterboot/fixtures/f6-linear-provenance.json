@@ -1,0 +1,17 @@
+{
+  "contract_sha256": "36d0bdaf49678a962e5866df30440a36a43ec541788f20ff82adfdf4ce3e8603",
+  "docker_image": "simplemode-fwildclusterboot:0.14.3",
+  "docker_image_id": "sha256:db8302612727f27beb089a793f049e8cea63fb395de345222e99c0bdffb7ab49",
+  "docker_platform": "linux/amd64",
+  "dockerfile_sha256": "5177b94cb15fa0460867f827e4480290aae4327a05f4190f667ab1c58e43fda0",
+  "dockerignore_sha256": "1fc9a7ce26b0d949601e313f3a6bc1ac527680974217706f5567925603c0c558",
+  "fwildclusterboot_remote_sha": "336bb574eba169ac0183317f01d0564791d8122f",
+  "fwildclusterboot_source_sha256": "ea84ef950fbc76af12f0cddc05106744e548b6f092b976df288c86cf025893ca",
+  "input_sha256": "ce72007f916ec4b42d695b3ab4afac5de67444f3ef55dd31205f3d34561c1f2d",
+  "output_sha256": "f1db7bdc33020d60858a5d3983e1cc3f9d722463df241a1f2198bb3a1f54515c",
+  "renv_lock_sha256": "79ee0a36b087b4d537df6ff3d0d083b1f9916c50a900b009092d767461e22be3",
+  "runner_sha256": "8b4c04fedf80fe7dd0b66dfb84e7b4dd4f70e97c8e95acb4d1cab956950ac700",
+  "schema_version": 1,
+  "source_analysis_root": "simplemode-v1-segment5",
+  "weights_sha256": "9bb80124bdf16d20e95ce95f7364975581d7b48935a027ab066ec62d6ee8cc71"
+}
