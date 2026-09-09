@@ -16,6 +16,7 @@ from es_index_explorer.question_analysis.contracts import AnalysisFlag
 from es_index_explorer.question_analysis.errors import (
     MalformedInputError,
     NonFiniteBootstrapReplicateError,
+    NonFiniteWaldStatisticError,
     NumericalError,
     SingularRestrictionCovarianceError,
 )
@@ -771,6 +772,62 @@ def test_full_refit_all_one_signs_reproduces_unperturbed_logit_statistic() -> No
             replicate.unrestricted_solution.coefficients,
         ),
     )
+
+
+def test_one_step_translates_non_finite_wald_to_discardable_replicate(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    problem = _problem()
+    weights = {arm: 1.0 for arm in set(problem.arm_clusters)}
+
+    def raise_non_finite_wald(
+        _coefficients: np.ndarray,
+        _covariance: np.ndarray,
+        _restriction: np.ndarray,
+    ) -> None:
+        raise NonFiniteWaldStatisticError("Unexpected primitive wording")
+
+    monkeypatch.setattr(
+        bootstrap_module,
+        "joint_wald_statistic",
+        raise_non_finite_wald,
+    )
+
+    with pytest.raises(
+        NonFiniteBootstrapReplicateError,
+        match="One-step Wald statistic is non-finite",
+    ) as raised:
+        one_step_replicate(problem, weights)
+
+    assert isinstance(raised.value.__cause__, NonFiniteWaldStatisticError)
+
+
+def test_full_refit_translates_non_finite_wald_to_discardable_replicate(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    fixture = _logit_refit_fixture()
+    weights: dict[object, float] = {arm_id: 1.0 for arm_id in set(fixture.arm)}
+
+    def raise_non_finite_wald(
+        _coefficients: np.ndarray,
+        _covariance: np.ndarray,
+        _restriction: np.ndarray,
+    ) -> None:
+        raise NonFiniteWaldStatisticError("Unexpected primitive wording")
+
+    monkeypatch.setattr(
+        bootstrap_module,
+        "joint_wald_statistic",
+        raise_non_finite_wald,
+    )
+
+    with pytest.raises(
+        NonFiniteBootstrapReplicateError,
+        match="Full-refit Wald statistic is non-finite",
+    ) as raised:
+        fixture.evaluator(weights)
+
+    assert isinstance(raised.value.__cause__, NonFiniteWaldStatisticError)
 
 
 def test_nontrivial_full_refit_matches_independent_scipy_root() -> None:

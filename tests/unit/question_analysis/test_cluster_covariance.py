@@ -13,6 +13,7 @@ from es_index_explorer.question_analysis.cluster_covariance import (
 )
 from es_index_explorer.question_analysis.errors import (
     MalformedInputError,
+    NonFiniteWaldStatisticError,
     NumericalError,
 )
 from es_index_explorer.question_analysis.stacked_scores import (
@@ -161,6 +162,20 @@ def test_singular_restricted_covariance_is_non_computable() -> None:
             np.array([1.0, 2.0]),
             np.array([[1.0, 0.0], [0.0, 0.0]]),
             np.array([[0.0, 1.0]]),
+        )
+
+
+def test_non_finite_wald_statistic_has_context_neutral_typed_error() -> None:
+    with (
+        np.errstate(over="ignore", invalid="ignore"),
+        pytest.raises(
+            NonFiniteWaldStatisticError, match="Wald statistic is non-finite"
+        ),
+    ):
+        joint_wald_statistic(
+            np.array([1e308]),
+            np.array([[1.0]]),
+            np.array([[1.0]]),
         )
 
 

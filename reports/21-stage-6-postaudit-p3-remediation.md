@@ -81,13 +81,13 @@ modeling or run later statistical stages.
 
 The post-fix pre-root gate on 2026-09-09 passed:
 
-- **523 tests**, with no skips;
+- **524 tests**, with no skips;
 - **89.50% branch coverage**, above the required 88%;
 - Ruff lint;
 - Ruff formatting; and
 - `ty` type checking.
 
-Targeted Stage 6 execution passed 117 oracle, dependency-contract, bootstrap, covariance,
+Targeted Stage 6 execution passed 118 oracle, dependency-contract, bootstrap, covariance,
 and CLI tests. Final acceptance additionally requires an offline oracle replay in the new
 root, byte-identical deterministic Stage 5/Stage 6 tables, and a repeat of the complete
 quality gate after root materialization.

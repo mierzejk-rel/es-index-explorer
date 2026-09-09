@@ -46,5 +46,9 @@ class SingularRestrictionCovarianceError(NumericalError):
     """A restricted covariance is singular after the frozen PSD projection."""
 
 
+class NonFiniteWaldStatisticError(NumericalError):
+    """A Wald calculation produced a non-finite statistic."""
+
+
 class NonFiniteBootstrapReplicateError(NumericalError):
     """A bootstrap replicate produced a non-finite coefficient or statistic."""

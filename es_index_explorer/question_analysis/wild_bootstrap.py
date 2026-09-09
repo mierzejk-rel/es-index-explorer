@@ -15,6 +15,7 @@ from es_index_explorer.question_analysis.cluster_covariance import (
 from es_index_explorer.question_analysis.errors import (
     MalformedInputError,
     NonFiniteBootstrapReplicateError,
+    NonFiniteWaldStatisticError,
     NumericalError,
     SingularRestrictionCovarianceError,
 )
@@ -195,11 +196,14 @@ def one_step_replicate(
         problem.rubric_clusters,
         problem.arm_clusters,
     )
-    wald = joint_wald_statistic(
-        coefficients, covariance.covariance, problem.restriction
-    ).value
-    if not np.isfinite(wald):
-        raise NonFiniteBootstrapReplicateError("One-step Wald statistic is non-finite")
+    try:
+        wald = joint_wald_statistic(
+            coefficients, covariance.covariance, problem.restriction
+        ).value
+    except NonFiniteWaldStatisticError as error:
+        raise NonFiniteBootstrapReplicateError(
+            "One-step Wald statistic is non-finite"
+        ) from error
     return BootstrapReplicate(wald, dict(weights_by_arm), covariance.meat)
 
 
@@ -383,9 +387,14 @@ def logit_full_refit_statistic(
         # not the Bernoulli information definition.
         bread = bernoulli_bread(matrix, unrestricted.coefficients)
         covariance = three_term_cluster_covariance(bread, score_rows, rubrics, arms)
-        wald = joint_wald_statistic(
-            unrestricted.coefficients, covariance.covariance, constraints
-        ).value
+        try:
+            wald = joint_wald_statistic(
+                unrestricted.coefficients, covariance.covariance, constraints
+            ).value
+        except NonFiniteWaldStatisticError as error:
+            raise NonFiniteBootstrapReplicateError(
+                "Full-refit Wald statistic is non-finite"
+            ) from error
         return FullRefitReplicate(
             wald=wald,
             weights_by_arm=dict(weights_by_arm),

@@ -7,6 +7,7 @@ import numpy as np
 
 from es_index_explorer.question_analysis.errors import (
     MalformedInputError,
+    NonFiniteWaldStatisticError,
     NumericalError,
     SingularRestrictionCovarianceError,
 )
@@ -207,5 +208,5 @@ def joint_wald_statistic(
     except np.linalg.LinAlgError as error:
         raise NumericalError("Restricted covariance is non-computable") from error
     if not np.isfinite(value):
-        raise NumericalError("Wald statistic is non-finite")
+        raise NonFiniteWaldStatisticError("Wald statistic is non-finite")
     return WaldStatistic(value, restricted_covariance, rank)
