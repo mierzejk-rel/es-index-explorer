@@ -1,0 +1,13 @@
+{
+  "attempt_count": 50,
+  "model_calls_allowed": false,
+  "provenance_file_count": 10,
+  "raw_response_count": 50,
+  "schema_version": 1,
+  "source_annotation_manifest_sha256": "b4605f0380bc353e97fb1c0b8774ab5e44ad4c5904c669e5b2b71c1eb0239e33",
+  "source_files_sha256": "97400bb1eca56e9b7d957748e44bd74cd59e88fa8d4dc8213b4b45d1d6a55584",
+  "source_manifest_sha256": "393f947ddd61fb003b59e6c4da103f338ea298de3cb700c0bf006fac1bdc38fd",
+  "source_preflight_sha256": "10500d28a4d8e16e81fa52719d3754a5dd3093577c62d9d01918f10fe0d7c08f",
+  "source_root": "/Users/krzysztof.mierzejewski/PycharmProjects/es-index-explorer/artifacts/question_analysis/simplemode-v1-segment6-postremediation-final",
+  "source_state_sha256": "633d945c84ef9d734b703bd36628f3505d6d7c19da142aabfa6884813b2a78ec"
+}

@@ -145,7 +145,8 @@ result <- fwildclusterboot::boottest(
 The 64-bit `r_oracle` stream seed is split into two signed 32-bit R words without passing
 through a floating-point representation. The deliberate private `get_weights()` call persists
 the auxiliary schedule before the seed reset; `boottest()` itself does not retain a second
-copy of those weights.
+copy of those weights. The native output's schema-v2 typed call metadata records every one of
+these arguments, including `conf_int = FALSE`; omission or drift is a validation failure.
 
 ## Offline workflow verification
 
@@ -153,7 +154,7 @@ After the reference exists, ordinary verification requires neither Docker nor R:
 
 ```bash
 UV_NO_ENV_FILE=1 uv run --no-env-file question-suitability \
-  --analysis-root artifacts/question_analysis/simplemode-v1-segment6-postremediation-final \
+  --analysis-root artifacts/question_analysis/simplemode-v1-segment6-postaudit-final \
   oracle
 ```
 
@@ -165,6 +166,12 @@ The command validates fixture provenance and hashes, runs both Python paths, and
 - component-meat, covariance, and eigenvalue agreement at relative `1e-8` and absolute
   `1e-10`;
 - exact realised cluster counts and PSD diagnostic flags.
+
+Each numerical comparison records its maximum absolute difference, maximum reference
+magnitude, and maximum tolerance ratio
+`max(abs(actual - expected) / (atol + rtol * abs(expected)))`. A passing comparison has a
+tolerance ratio at most one. This preserves the frozen `rtol`/`atol` gate without reporting a
+misleading relative percentage for reference entries inside the absolute-tolerance region.
 
 It writes `statistics/r_oracle_verification.json` and records the `oracle` workflow step only
 after every required comparison passes. A mismatch is a blocking gate failure.
@@ -178,10 +185,11 @@ is not resolved by removing the frozen PSD map or substituting the native raw st
 
 `simplemode-v1-segment6` remains the immutable pre-remediation Stage 6 checkpoint; its
 schema-v1 oracle artifact is historical evidence and is not rewritten.
-`simplemode-v1-segment6-postremediation-final` is the single final Stage 6 checkpoint. It
+`simplemode-v1-segment6-postremediation-final` remains the immutable six-finding remediation
+checkpoint. `simplemode-v1-segment6-postaudit-final` is the current Stage 6 checkpoint. It
 rematerializes deterministic tables and hash-verified annotation provenance, records the
-schema-v3 two-layer oracle, and stops while the human-data gate remains locked. No per-finding
-temporary root is a canonical checkpoint.
+schema-v4 two-layer verification and schema-v2 native call, and stops while the human-data
+gate remains locked. No per-finding temporary root is a canonical checkpoint.
 
 The reference package reports and drops non-finite linear-reference statistics according to
 its own documented implementation; the committed run records 223 such draws and Python
@@ -205,7 +213,10 @@ The one-step invariant check applies only while restricted scores and bread are 
 the actual restricted and unrestricted solver results, recomputed bread and covariance, and
 full-refit Wald statistic. The p-value is rebuilt from those full-refit Wald values. No
 one-step meat is attached to a full-refit replicate, and no fixed-score invariant is claimed
-for re-estimated covariance blocks.
+for re-estimated covariance blocks. The synthetic SciPy comparison independently writes the
+weighted score equations, Bernoulli bread, CGM cluster sums, PSD map, and Wald calculation;
+it does not call production numerical helpers. This remains a synthetic GLM extension check,
+not an external-package GLM oracle.
 
 Two-corner BH adjudication emits one deterministic decision per family. Every family in the
 lower/upper rejection-set symmetric difference, including an unaffected family whose decision
@@ -215,7 +226,9 @@ Bootstrap failure disclosure retains singular and non-finite counts separately a
 persists their combined count, denominator, rate, and strict one-percent trigger. Sampled WCR
 uses the requested valid target `B` as the denominator even when replenishment makes
 `attempted_replicates > B`; enumeration uses the full attainable support `S_f`. Exactly 1%
-does not trigger because the frozen comparison is `rate > 0.01`.
+does not trigger because the frozen comparison is `rate > 0.01`. Closed exception types,
+rather than message parsing, distinguish singular restricted covariance from non-finite
+replicates. Any other numerical error propagates and fails the family closed.
 
 ## Failure recovery
 

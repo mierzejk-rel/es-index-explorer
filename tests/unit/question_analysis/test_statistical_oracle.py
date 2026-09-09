@@ -2,10 +2,12 @@
 
 import json
 from pathlib import Path
+from typing import cast
 
 import numpy as np
 import pandas as pd
 import pytest
+from pydantic import ValidationError
 
 from es_index_explorer.question_analysis import statistical_oracle as oracle_module
 from es_index_explorer.question_analysis.errors import (
@@ -50,6 +52,9 @@ def test_committed_r_fixture_has_frozen_contract_and_versions() -> None:
     assert output.fwildclusterboot_version == "0.14.3"
     assert output.r_version.startswith("R version 4.4.3")
     assert output.invalid_t_count == 223
+    assert output.schema_version == 2
+    assert output.call.B == contract.bootstrap_replicates
+    assert output.call.conf_int is False
 
 
 def test_python_linear_special_case_reproduces_r_reference() -> None:
@@ -60,7 +65,7 @@ def test_python_linear_special_case_reproduces_r_reference() -> None:
     assert verification.raw_W_obs_relative_difference < 1e-12
     assert verification.python_invalid_t_count == verification.r_invalid_t_count == 223
     assert verification.oracle_scope == "linear_f6_external_raw_and_independent_r_psd"
-    assert verification.schema_version == 3
+    assert verification.schema_version == 4
     assert verification.external_p_value_convention == (
         "fwildclusterboot_valid_only_strict_no_plus_one"
     )
@@ -116,6 +121,8 @@ def test_production_cgm_psd_and_wald_match_independent_r_reference() -> None:
     assert verification.external_raw_wald.passed
     assert verification.production_raw_wald.passed
     assert verification.production_projected_wald.passed
+    assert verification.rubric_meat.maximum_tolerance_ratio < 1.0
+    assert verification.rubric_meat.maximum_reference_magnitude > 100_000
     assert all(
         agreement.passed
         for _field_name, agreement in verification
@@ -282,7 +289,64 @@ def test_numerical_agreement_rejects_shape_mismatch() -> None:
 
     assert not agreement.passed
     assert agreement.maximum_absolute_difference == float("inf")
-    assert agreement.maximum_relative_difference == float("inf")
+    assert agreement.maximum_reference_magnitude == float("inf")
+    assert agreement.maximum_tolerance_ratio == float("inf")
+
+
+@pytest.mark.parametrize(
+    ("actual", "expected", "maximum_tolerance_ratio", "passed"),
+    (
+        ([1.0], [1.0], 0.0, True),
+        ([5e-11], [0.0], 0.5, True),
+        ([1_000_000.005], [1_000_000.0], 0.499999995, True),
+        ([2e-10], [0.0], 2.0, False),
+    ),
+)
+def test_numerical_agreement_reports_scale_aware_tolerance_ratio(
+    actual: list[float],
+    expected: list[float],
+    maximum_tolerance_ratio: float,
+    passed: bool,
+) -> None:
+    agreement = _numerical_agreement(
+        actual,
+        expected,
+        relative_tolerance=1e-8,
+        absolute_tolerance=1e-10,
+    )
+
+    assert agreement.maximum_tolerance_ratio == pytest.approx(maximum_tolerance_ratio)
+    assert agreement.passed is passed
+
+
+@pytest.mark.parametrize(
+    ("field_path", "invalid_value"),
+    (
+        (("call", "conf_int"), True),
+        (("call", "B"), 10_000),
+        (("call", "ssc", "cluster.df"), "min"),
+    ),
+)
+def test_r_oracle_output_rejects_call_contract_drift(
+    field_path: tuple[str, ...],
+    invalid_value: object,
+) -> None:
+    payload = json.loads(OUTPUT_FILE.read_text())
+    target = payload
+    for key in field_path[:-1]:
+        target = cast(dict[str, object], target[key])
+    target[field_path[-1]] = invalid_value
+
+    with pytest.raises((ValidationError, ValueError)):
+        ROracleOutput.model_validate(payload)
+
+
+def test_r_oracle_output_rejects_missing_confidence_interval_setting() -> None:
+    payload = json.loads(OUTPUT_FILE.read_text())
+    payload["call"].pop("conf_int")
+
+    with pytest.raises(ValidationError):
+        ROracleOutput.model_validate(payload)
 
 
 def test_provenance_tampering_fails_closed(

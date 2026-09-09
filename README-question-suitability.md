@@ -5,7 +5,7 @@ The pipeline implements the analysis contract in
 existing MLflow snapshot CLI and writes only under:
 
 ```text
-artifacts/question_analysis/simplemode-v1-segment6-postremediation-final/
+artifacts/question_analysis/simplemode-v1-segment6-postaudit-final/
 ├── manifest.json
 ├── state.json
 ├── tables/
@@ -23,9 +23,10 @@ Segment 3 run. `simplemode-v1-postreview`, `simplemode-v1-postreview-p2`, and
 they are not resumed or rewritten. No artificial `simplemode-v1-postreview-p4` checkpoint
 exists. `simplemode-v1-postremediation-final` is the immutable canonical Stage 4 handoff.
 `simplemode-v1-segment5` is the immutable Stage 5 software handoff. Segment 6 executes in the
-locked `simplemode-v1-segment6-postremediation-final` root shown above; the human-gold gate
-remains pending. `simplemode-v1-segment6` is preserved as the immutable pre-audit-remediation
-Stage 6 checkpoint and is never resumed or rewritten.
+locked `simplemode-v1-segment6-postaudit-final` root shown above; the human-gold gate remains
+pending. `simplemode-v1-segment6` is the immutable pre-remediation checkpoint, and
+`simplemode-v1-segment6-postremediation-final` is the immutable six-finding remediation
+checkpoint. Neither historical root is resumed or rewritten.
 
 ## Environment
 
@@ -131,6 +132,11 @@ solvers, three-term CGM covariance and PSD projection, stacked co-primary score 
 sampled/enumerated restricted WCR, full-refit validation, finite-support brackets, and
 two-corner BH adjudication.
 
+The original remediation evidence is in
+[`reports/20-stage-6-statistical-primitives-remediation.md`](reports/20-stage-6-statistical-primitives-remediation.md);
+the post-audit S6R-1–S6R-4 closure is in
+[`reports/21-stage-6-postaudit-p3-remediation.md`](reports/21-stage-6-postaudit-p3-remediation.md).
+
 The committed R fixture uses `fwildclusterboot` 0.14.3 under R 4.4.3 on `linux/amd64`.
 Native `fwildclusterboot` supplies the external raw linear statistic. A separate base-R
 derivation supplies full component meats, raw covariance, the frozen PSD projection, and the
@@ -142,7 +148,10 @@ actual refitted solver/covariance results, while arm/intersection invariance is 
 one-step fixed-score diagnostic. BH bracket adjudication emits the exact
 `BH_INDETERMINATE` analysis flag for every decision that changes between corners.
 Failure disclosure divides sampled failures by `B` and enumerated failures by `S_f`, while
-reporting replenishment attempts separately.
+reporting replenishment attempts separately. Closed exception types distinguish expected
+singular and non-finite replicate failures; unrelated numerical errors fail closed. Numerical
+oracle evidence reports a scale-aware ratio to the combined `atol + rtol * abs(reference)`
+tolerance envelope. The native call metadata is typed and includes `conf_int = false`.
 Regenerate it only with the documented Docker commands:
 
 ```bash
@@ -171,15 +180,15 @@ oracle pass while `outcome_modeling_unlocked=false` until the separate human-gol
 finishes.
 
 The existing `simplemode-v1-segment6` oracle artifact predates the two-layer CGM/PSD oracle
-schema and remains immutable audit evidence. The final root was rematerialized without model
-calls by migrating hash-verified annotation provenance from that checkpoint:
+schema and remains immutable audit evidence. The current root is rematerialized without model
+calls by migrating hash-verified annotation provenance from the prior remediation checkpoint:
 
 ```bash
 UV_NO_ENV_FILE=1 uv run --no-env-file question-suitability join
 UV_NO_ENV_FILE=1 uv run --no-env-file question-suitability features
 UV_NO_ENV_FILE=1 uv run --no-env-file question-suitability annotate-emit
 UV_NO_ENV_FILE=1 uv run --no-env-file question-suitability annotate-run \
-  --migrate-from-root artifacts/question_analysis/simplemode-v1-segment6 \
+  --migrate-from-root artifacts/question_analysis/simplemode-v1-segment6-postremediation-final \
   --resume-only
 UV_NO_ENV_FILE=1 uv run --no-env-file question-suitability annotate-ingest
 UV_NO_ENV_FILE=1 uv run --no-env-file question-suitability oracle

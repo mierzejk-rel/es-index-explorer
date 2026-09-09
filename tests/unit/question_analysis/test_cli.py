@@ -177,6 +177,7 @@ def test_oracle_command_runs_offline_and_records_artifact(tmp_path: Path) -> Non
     assert artifact.is_file()
     verification = json.loads(artifact.read_text(encoding="utf-8"))
     assert verification["passed"]
+    assert verification["schema_version"] == 4
     assert verification["oracle_scope"] == (
         "linear_f6_external_raw_and_independent_r_psd"
     )

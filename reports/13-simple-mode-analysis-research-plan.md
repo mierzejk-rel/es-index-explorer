@@ -1149,7 +1149,9 @@ schedule is persisted with the fixture so Python and R compare the same finite s
 rather than two unrelated Monte Carlo samples. The runner pre-draws that schedule with
 `fwildclusterboot:::get_weights`, resets `dqrng` to the same seed, and then calls
 `boottest(..., conf_int = FALSE)`, so the persisted signs are exactly those consumed by the
-native calculation. Seed = the dedicated value from the master seed's `r_oracle` stream
+native calculation. The native output records this complete call, including
+`conf_int = FALSE`, in a strict typed schema rather than relying on the runner text as the
+only evidence. Seed = the dedicated value from the master seed's `r_oracle` stream
 (§18); tolerance =
 agreement of `p_f` to `1e-4` and of `W_obs` to relative `1e-6`. **R, Docker and
 `fwildclusterboot` are a one-off verification dependency, not a dependency of the analysis
@@ -1234,6 +1236,10 @@ For the sampled regime the combined disclosure rate is
 `(singular_count + non_finite_count) / B`, where `B` is the requested valid-replicate target,
 not the larger attempt count after replenishment; attempted replicates remain a separate
 diagnostic. The strict trigger is `rate > 0.01`, so exactly 1% does not trigger.
+Expected discard failures are represented by closed numerical exception types: singular
+post-PSD `R V*_b R'` and non-finite bootstrap coefficients/statistics. Unrelated numerical
+errors are not inferred from message text or silently counted as discards; they fail the
+family closed.
 **For enumerated-regime families**, the discard-tolerance sensitivity display does not apply,
 since discards there are not resolved by recomputing at a chosen tolerance but by the bracket
 of step 4 above; the two failure counts are still reported, and the same 1% **combined**
@@ -3467,7 +3473,10 @@ alone does not supply.
    path matches the committed base-R reference on every meat component, raw covariance,
    eigenvalues, projected covariance, and raw/projected `W_obs`. Tolerance: `p_f` to `1e-4`;
    raw/projected `W_obs` to relative `1e-6` and absolute `1e-12`; matrices and eigenvalues to
-   relative `1e-8` and absolute `1e-10`. Failure action: the GLM
+   relative `1e-8` and absolute `1e-10`. Persisted diagnostics report the maximum absolute
+   difference, reference magnitude, and the scale-aware maximum ratio to the combined
+   tolerance envelope `atol + rtol * abs(reference)`; a value at most one passes. Failure
+   action: the GLM
    bootstrap implementation is blocked from use on any family until the discrepancy is
    resolved; this is a pre-modelling gate (§19), not a pre-lock one, and may be run at any time
    before the first `fit-layer1` or `fit-families` invocation - it does not have to precede
@@ -3499,7 +3508,10 @@ alone does not supply.
    agreement of `1{W* >= W_obs}` in at least 99% of the subsample. Tolerance: as stated, with
    the secondary `rtol < 0.01` on `W*` itself. The full-refit result retains both solver
    results, its recomputed bread and covariance, and its Wald statistic; a nontrivial synthetic
-   sign schedule is checked against an independent SciPy root solve. Failure action: the family
+   sign schedule is checked against an independent SciPy root solve whose score equations,
+   Bernoulli bread, cluster sums, PSD projection, and Wald calculation do not call production
+   numerical helpers. This is an independent synthetic implementation check, not an external
+   GLM oracle. Failure action: the family
    is re-run with actual full refitting in every replicate (§5.3), at the stated additional
    cost.
 6. **Outcome-field refusal.** Fixture: an annotation response file containing at least one

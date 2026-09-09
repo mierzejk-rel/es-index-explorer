@@ -40,3 +40,11 @@ class NumericalError(AnalysisError):
 
     exit_code = ExitCode.NUMERICAL
     failure_kind = FailureKind.NUMERICAL
+
+
+class SingularRestrictionCovarianceError(NumericalError):
+    """A restricted covariance is singular after the frozen PSD projection."""
+
+
+class NonFiniteBootstrapReplicateError(NumericalError):
+    """A bootstrap replicate produced a non-finite coefficient or statistic."""

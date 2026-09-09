@@ -71,22 +71,61 @@ class OracleContract(BaseModel):
     seed_words_signed: tuple[int, int]
 
 
+class ROracleSmallSampleCorrection(BaseModel):
+    """Validate the frozen native-R small-sample correction."""
+
+    model_config = ConfigDict(extra="forbid", frozen=True)
+
+    adj: Literal[False] = False
+    fixef_K: Literal["none"] = Field(default="none", alias="fixef.K")
+    cluster_adj: Literal[True] = Field(default=True, alias="cluster.adj")
+    cluster_df: Literal["conventional"] = Field(
+        default="conventional",
+        alias="cluster.df",
+    )
+
+
+class ROracleCall(BaseModel):
+    """Validate every frozen argument of the native-R oracle call."""
+
+    model_config = ConfigDict(extra="forbid", frozen=True)
+
+    clustid: tuple[Literal["rubric"], Literal["arm"]]
+    bootcluster: Literal["arm"]
+    B: int = Field(gt=0)
+    type: Literal["rademacher"]
+    impose_null: Literal[True]
+    engine: Literal["R"]
+    sampling: Literal["dqrng"]
+    conf_int: Literal[False]
+    ssc: ROracleSmallSampleCorrection
+
+
 class ROracleOutput(BaseModel):
     """Validate the immutable R output fixture."""
 
     model_config = ConfigDict(extra="forbid", frozen=True)
 
-    schema_version: int = 1
+    schema_version: Literal[2] = 2
     p_f: float = Field(ge=0, le=1)
     t_stat: float
     W_obs: float = Field(ge=0)
-    bootstrap_replicates: int
-    arm_count: int
+    bootstrap_replicates: int = Field(gt=0)
+    arm_count: int = Field(gt=1)
     invalid_t_count: int = Field(ge=0)
     r_version: str
     fwildclusterboot_version: str
     dqrng_version: str
-    call: dict[str, object]
+    call: ROracleCall
+
+    @model_validator(mode="after")
+    def validate_call_contract(self) -> "ROracleOutput":
+        """Require the recorded call to match the reported bootstrap run."""
+        if self.call.B != self.bootstrap_replicates:
+            raise ValueError("R oracle call B does not match bootstrap_replicates")
+        if self.invalid_t_count > self.bootstrap_replicates:
+            raise ValueError("R oracle invalid count exceeds bootstrap_replicates")
+        return self
 
 
 class RClusterCounts(BaseModel):
@@ -209,7 +248,8 @@ class NumericalAgreement(BaseModel):
     model_config = ConfigDict(extra="forbid", frozen=True)
 
     maximum_absolute_difference: float = Field(ge=0)
-    maximum_relative_difference: float = Field(ge=0)
+    maximum_reference_magnitude: float = Field(ge=0)
+    maximum_tolerance_ratio: float = Field(ge=0)
     relative_tolerance: float = Field(ge=0)
     absolute_tolerance: float = Field(ge=0)
     passed: bool
@@ -252,7 +292,7 @@ class OracleVerification(BaseModel):
 
     model_config = ConfigDict(extra="forbid", frozen=True)
 
-    schema_version: int = 3
+    schema_version: int = 4
     passed: bool
     python_p_f: float
     r_p_f: float
@@ -523,18 +563,24 @@ def _numerical_agreement(
     if actual_values.shape != expected_values.shape:
         return NumericalAgreement(
             maximum_absolute_difference=float("inf"),
-            maximum_relative_difference=float("inf"),
+            maximum_reference_magnitude=float("inf"),
+            maximum_tolerance_ratio=float("inf"),
             relative_tolerance=relative_tolerance,
             absolute_tolerance=absolute_tolerance,
             passed=False,
         )
     differences = np.abs(actual_values - expected_values)
-    denominators = np.maximum(np.abs(expected_values), absolute_tolerance)
+    tolerance_limits = absolute_tolerance + relative_tolerance * np.abs(expected_values)
+    with np.errstate(invalid="ignore", divide="ignore"):
+        tolerance_ratios = np.where(
+            tolerance_limits > 0,
+            differences / tolerance_limits,
+            np.where(differences == 0, 0.0, float("inf")),
+        )
     return NumericalAgreement(
         maximum_absolute_difference=float(np.max(differences, initial=0.0)),
-        maximum_relative_difference=float(
-            np.max(differences / denominators, initial=0.0)
-        ),
+        maximum_reference_magnitude=float(np.max(np.abs(expected_values), initial=0.0)),
+        maximum_tolerance_ratio=float(np.max(tolerance_ratios, initial=0.0)),
         relative_tolerance=relative_tolerance,
         absolute_tolerance=absolute_tolerance,
         passed=bool(

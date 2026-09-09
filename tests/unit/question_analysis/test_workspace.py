@@ -28,7 +28,7 @@ pytestmark = pytest.mark.unit
 
 
 def test_default_root_is_segment6_execution_root() -> None:
-    assert DEFAULT_ANALYSIS_ROOT.name == "simplemode-v1-segment6-postremediation-final"
+    assert DEFAULT_ANALYSIS_ROOT.name == "simplemode-v1-segment6-postaudit-final"
 
 
 def _specification(tmp_path: Path) -> Path:
@@ -86,6 +86,7 @@ def test_manifest_round_trip_and_frozen_layout(tmp_path: Path) -> None:
         "segment6_glm_primitives_source",
         "segment6_multiplicity_source",
         "segment6_operations",
+        "segment6_postaudit_remediation",
         "segment6_remediation",
         "segment6_seed_source",
         "segment6_stacked_scores_source",

@@ -92,7 +92,7 @@ write.csv(
 )
 
 output <- list(
-  schema_version = 1L,
+  schema_version = 2L,
   p_f = as.numeric(result$p_val),
   t_stat = as.numeric(result$t_stat),
   W_obs = as.numeric(result$t_stat)^2,
@@ -110,6 +110,7 @@ output <- list(
     impose_null = TRUE,
     engine = "R",
     sampling = "dqrng",
+    conf_int = FALSE,
     ssc = list(
       adj = FALSE,
       fixef.K = "none",

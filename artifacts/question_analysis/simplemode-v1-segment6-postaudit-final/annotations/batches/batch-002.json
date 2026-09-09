@@ -1,0 +1,151 @@
+{
+  "batch_id": "batch-002",
+  "item_ids_sha256": "faeb7b1a64d1262026ed851f7f0183db8dc80a76029622fc4716d0545fa895de",
+  "items": [
+    {
+      "item_id": "expectation_cc8622aa9dbc4ab153c8e0f02284ed95242403a9dbd2c01e3c469f5662ffd032",
+      "item_type": "expectation",
+      "source_text": "Cites Ellingson's claimed estimated costs for potential lawsuits and settlements ($5M).",
+      "text_sha256": "c2928ce5eeccf9d04ad0ea65f831fd3c185a71b1341463575015ccca46bd3cf7"
+    },
+    {
+      "item_id": "variant_519f1680e301d832381d727569a23ba2cde7e9ad9331288328a23d0906ac46bd",
+      "item_type": "question",
+      "source_text": "Was there evidence available to Ellingson that Belford planned to execute a cyberattack before it occurred?",
+      "text_sha256": "fc5ba7b5c553c9e690abdf5e88788ec45d067c06529c461b9f27297eef24b79b"
+    },
+    {
+      "item_id": "expectation_79cc4161781c6990f002a3b38b82a281228463041dbf0c0c8c6a565c9a80378b",
+      "item_type": "expectation",
+      "source_text": "Sales representative reporting on doing a breakfast at Starbucks with two doctors",
+      "text_sha256": "4da27702a7c2e875dcd2f7cd8d4cfaf64f373085a9f8555dcdb384d1680cfbe9"
+    },
+    {
+      "item_id": "variant_2d6def5c3265e9728b324ba3d3d788ccfb1f53c1e82419db2d3c3318a8a3f178",
+      "item_type": "question",
+      "source_text": "What was Belford's plan after hacking Ellingson?",
+      "text_sha256": "7788a81420b4346caf018a7fe0bb3c5ca7b8ce8b118e82be20f17aaf01574836"
+    },
+    {
+      "item_id": "variant_0a5671e446bd2b718c4fb6e76ae17ced04d93fbccba569b748cdce7895f814ac",
+      "item_type": "question",
+      "source_text": "Show me documents where Dr. El-Mohandes discussed Exalgo",
+      "text_sha256": "8ec8787d58d533af041b831cd386e13c44c0637db021f3cb763b1897cf794234"
+    },
+    {
+      "item_id": "variant_0248d20dc9db8059732c5b2e560d782477068122fd0829c8104cb0e88f39f8ce",
+      "item_type": "question",
+      "source_text": "Did Belford communicate with teenage hacker Zer0Cool?",
+      "text_sha256": "96b4ec948500b239b41806419584c4cd9de7cb586d05d1270ee4a66b0e786e9f"
+    },
+    {
+      "item_id": "variant_7eaed907803c0fb1adc7b0eccb7d091cd1d121be5ea3814706bad65e6f716eac",
+      "item_type": "question",
+      "source_text": "There are emails discussing Elmo or Dr. Elmo. Tell me who that is.",
+      "text_sha256": "39ed12d7b3e91d7f808225c360c34827f8b3ae12cb2c613f3fce6967b3a50e8b"
+    },
+    {
+      "item_id": "variant_ddedc0493ee906323e44857a19d224b9a4bd9540d121a16802480f8223aa8ab2",
+      "item_type": "question",
+      "source_text": "Is there evidence that Belford and Wallace were both involved in planning and executing the hack against Ellingson?",
+      "text_sha256": "0f0d0307e0d73d79406e3e32e4b8e4fd8fd82b16542af58022963369995f45d9"
+    },
+    {
+      "item_id": "variant_bb46bec6168e131c1207aed6b406b1fdb9cddde7cbb5ef3a81e2f528945ee260",
+      "item_type": "question",
+      "source_text": "What atypical communications between Ellingson employees exist in the documents?",
+      "text_sha256": "1cbd7ff5fa547c9dadd4b1336b31a75bb79d26a63599c4ae163a9793440be47b"
+    },
+    {
+      "item_id": "variant_f5ac34bb2653003056c78723b986459094a5a4918917b55b2f44e73a774214bf",
+      "item_type": "question",
+      "source_text": "What email did Belford use during the time he was employed at Ellingson?",
+      "text_sha256": "0a036f8f6eaeebc8d630e15f4dec983752144868e74661ea7be7fb3713b88d17"
+    },
+    {
+      "item_id": "expectation_176cc6a34af260b9478a7fcf16ee98ab40c89770555c164cafeff1f70f2da5e8",
+      "item_type": "expectation",
+      "source_text": "In 2010, Dr. Argoff was reported to be on the speakers' bureau for Pfizer Inc. and be a shareholder of Pfizer Inc.",
+      "text_sha256": "a8fb8cbd3ba404f49b886d0b3a4668f91ecf416fa2a5c533de4043ae64218691"
+    },
+    {
+      "item_id": "expectation_08e8c2aa56174d248892265056bc0b74c4480fcca2c4c971f10656bed8bef3f0",
+      "item_type": "expectation",
+      "source_text": "Cites 10/18/95 Belford email to Wallace at her Ellingson address stating, 'The Da Vinci virus will activate at midnight tomorrow', which email monitoring may have flagged.",
+      "text_sha256": "16d2d1719c328ab42284bec68bb8a608402fe6d47599c62b4264cc4140016be6"
+    },
+    {
+      "item_id": "expectation_2e0d68fb5472178a5aa887223a272af420d3efb638b478edd145aaecce140768",
+      "item_type": "expectation",
+      "source_text": "Dr. Chen was in contact with the FBI about the cyberattack.",
+      "text_sha256": "51be806f0c0da2c7a58b3dc2f2336029f6aa98d3c60c2ba55974b6417e530dce"
+    },
+    {
+      "item_id": "expectation_ac77851cd6f4ef9bfe747af00e125e91c2fccd7b6f72fd8a7cec57683fb65e85",
+      "item_type": "expectation",
+      "source_text": "Noting that one sales rep's relationships with prescriber offices are his selling tactic by bringing Starbucks",
+      "text_sha256": "9aa4163e51d5b2ef19bcf1aa4cb40795aacc3d29eed10cd160033c8a02a95e28"
+    },
+    {
+      "item_id": "expectation_3bf37a3d24183a4dda232dd93171b97a15a7d631cbe0b84c38d832c1744c9a04",
+      "item_type": "expectation",
+      "source_text": "Identifies Margo Wallace (margo.wallace@ellingson.com) as having communicated with Belford about the plan.",
+      "text_sha256": "55fa1c07819ccb0bdaa0c7487700c88aa772a8f5b17ab9880f237eb83a8c1cd2"
+    },
+    {
+      "item_id": "expectation_45d9ced331283e8958f492edbc19b1031f6a0d3846b23d04873751bd295d94a7",
+      "item_type": "expectation",
+      "source_text": "Belford referring to having a rabbit's foot USB as an insurance policy",
+      "text_sha256": "1311ca1f852d67aa2d460e4daa7ea4f1b8f4c51647d2ce26b74879620c4268cf"
+    },
+    {
+      "item_id": "expectation_25466da3e82e2dbe01deb7dfe767b2a62508500c075da5b94aabf5abb5c3f8d9",
+      "item_type": "expectation",
+      "source_text": "In an encrypted email to co-conspirator Phantom Phreak, Belford stating that he is expecting a payday of at least $25 million",
+      "text_sha256": "8d9ff6df13e00f5a39400560873a0b6b900ced1a3a961396c44881062a32da26"
+    },
+    {
+      "item_id": "expectation_cabdef77b15b57c62cde508261226c948d6150e7f1f79f01a0cf2b589cd4efe7",
+      "item_type": "expectation",
+      "source_text": "Involved in January 2012 EXALGO Speaker Program with Dr. John Park, MD",
+      "text_sha256": "2b7fc14d7a6a6c98d7bfece62cb31de0b9c405ae25142d8615d36057af882c26"
+    },
+    {
+      "item_id": "expectation_699af19001edf9b185469775d3c3bc026d9717cef0dbe6ee43bbf06b9d49c6ca",
+      "item_type": "expectation",
+      "source_text": "Identifies the email from Belford to CEO Benson requesting an increase in cybersecurity budget for advanced intrusion detection systems and employee training.",
+      "text_sha256": "e3c6866cf7ba1378305f5403e9c837d5c6510c9c40db8bf2060016c472e5ac52"
+    },
+    {
+      "item_id": "variant_cfc65a249907037d5d44a8cac8a11b8099c0d75237d0cc948aa9f4017644537a",
+      "item_type": "question",
+      "source_text": "Did 'Phantom Phreak' who worked with Eugene Belford to plan and execute the cyberattack against Ellingson also work as part of the group of teenage hackers?",
+      "text_sha256": "56bc57b444a0ab85ba6c9a88b7f63ff883f27f900a4a9dab7feb97ce35c2e1be"
+    },
+    {
+      "item_id": "expectation_4f6e2b0b6c6fd324e151a401918688c0ceb3829ef45218758aeb5a3a2c731adb",
+      "item_type": "expectation",
+      "source_text": "Identifies Zer0Cool / Crash Override as Dade Murphy; Acid Burn as Kate Libby; Cereal Killer; Phantom Phreak; and Lord Nikon.",
+      "text_sha256": "9cd0bf0c9be1fb86699796f692bfa0fce902b005ea80076cff48a1531b1a9477"
+    },
+    {
+      "item_id": "expectation_f87e7d4f8508b768c31491c88dd2a3546802696ce0d28379df9f49a898a5d510",
+      "item_type": "expectation",
+      "source_text": "Cites document including CFO proposal to increase cybersecurity budget in light of recent events.",
+      "text_sha256": "5aef18ddacb34e8a4db51a3f1e05bc58c15a64acd7ef36502d993d505876b658"
+    },
+    {
+      "item_id": "variant_60fe9beb6688ad3c0a4d5770c0eccb137fec1aac936346bc0b70d6f8f3d8f70b",
+      "item_type": "question",
+      "source_text": "What evidence shows that Ellingson's cybersecurity protections were not deficient?",
+      "text_sha256": "a6356268a21d28da789b034994821202b0c249c73dbc287d605c163efb74796e"
+    },
+    {
+      "item_id": "variant_3e471143bd965daf55ba0c6af40d847db929262a10a991091bcf2959260e27c0",
+      "item_type": "question",
+      "source_text": "Describe Sarah Chen's role in Eugene Belford's hack.",
+      "text_sha256": "22df23cbeca168d63ff4bfd34d544f239b6114fe26e5f1401bf61ab9044caad2"
+    }
+  ],
+  "schema_version": 1
+}

@@ -1,0 +1,24 @@
+{
+  "metadata": {
+    "agent_id": "agent-54715b90-3bc3-450e-bbd4-a91163a9f929",
+    "attempts": 1,
+    "batch_hash": "7bcb2656f26b08789fd9cc27b320e121d63b77640f0de6ec0de25accb92015d5",
+    "batch_id": "batch-025",
+    "created_at": "2026-09-07T15:00:36.985Z",
+    "duration_ms": 4294,
+    "model_id": "gpt-5.6-sol",
+    "response_sha256": "109cfbbdbc451d5fe02e3611ea11ca37e4b77ea4f620efc9f1e15159ac29b7c1",
+    "run_id": "run-ae1d9170-600d-4dd0-92a7-30ac91625432",
+    "schema_version": 1,
+    "status": "finished",
+    "usage": {
+      "cache_read_tokens": 0,
+      "cache_write_tokens": 4274,
+      "input_tokens": 4277,
+      "output_tokens": 69,
+      "reasoning_tokens": 26,
+      "total_tokens": 8620
+    }
+  },
+  "response": "{\"item_id\":\"item-001\",\"demand_type\":\"relational_claim\",\"specificity\":\"specific\",\"answer_locality\":\"single_passage\",\"answer_locality_missingness\":null}"
+}

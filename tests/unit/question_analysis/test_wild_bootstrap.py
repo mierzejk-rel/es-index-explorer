@@ -15,7 +15,9 @@ from es_index_explorer.question_analysis.cluster_covariance import (
 from es_index_explorer.question_analysis.contracts import AnalysisFlag
 from es_index_explorer.question_analysis.errors import (
     MalformedInputError,
+    NonFiniteBootstrapReplicateError,
     NumericalError,
+    SingularRestrictionCovarianceError,
 )
 from es_index_explorer.question_analysis.glm_primitives import (
     SolverResult,
@@ -184,6 +186,70 @@ def _logit_refit_fixture() -> _LogitRefitFixture:
         evaluator=evaluator,
         problem=problem,
         observed_wald=observed_wald,
+    )
+
+
+def _reference_expit(values: np.ndarray) -> np.ndarray:
+    """Compute logistic means without using the production score helper."""
+    output = np.empty_like(values, dtype=float)
+    nonnegative = values >= 0
+    output[nonnegative] = 1.0 / (1.0 + np.exp(-values[nonnegative]))
+    exponentials = np.exp(values[~nonnegative])
+    output[~nonnegative] = exponentials / (1.0 + exponentials)
+    return output
+
+
+def _reference_cluster_meat(
+    score_rows: np.ndarray,
+    labels: tuple[object, ...],
+) -> np.ndarray:
+    """Build one finite-sample-corrected cluster meat independently."""
+    cluster_sums: dict[object, np.ndarray] = {}
+    for label, score in zip(labels, score_rows, strict=True):
+        cluster_sums[label] = (
+            cluster_sums.get(
+                label,
+                np.zeros(score_rows.shape[1], dtype=float),
+            )
+            + score
+        )
+    cluster_count = len(cluster_sums)
+    outer_sum = np.stack(tuple(cluster_sums.values())).T
+    return cluster_count / (cluster_count - 1) * (outer_sum @ outer_sum.T)
+
+
+def _reference_cgm_psd_wald(
+    coefficients: np.ndarray,
+    bread: np.ndarray,
+    score_rows: np.ndarray,
+    restriction: np.ndarray,
+    rubric: tuple[object, ...],
+    arm: tuple[object, ...],
+) -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray, np.ndarray, float]:
+    """Compute CGM meat, PSD covariance, and Wald without production helpers."""
+    rubric_meat = _reference_cluster_meat(score_rows, rubric)
+    arm_meat = _reference_cluster_meat(score_rows, arm)
+    intersections = tuple(zip(rubric, arm, strict=True))
+    intersection_meat = _reference_cluster_meat(score_rows, intersections)
+    combined_meat = rubric_meat + arm_meat - intersection_meat
+    inverse_bread = np.linalg.inv(bread)
+    raw_covariance = inverse_bread @ combined_meat @ inverse_bread.T
+    raw_covariance = (raw_covariance + raw_covariance.T) / 2.0
+    eigenvalues, eigenvectors = np.linalg.eigh(raw_covariance)
+    projected_covariance = (
+        eigenvectors * np.where(eigenvalues <= 1e-10, 0.0, eigenvalues)
+    ) @ eigenvectors.T
+    projected_covariance = (projected_covariance + projected_covariance.T) / 2.0
+    contrast = restriction @ coefficients
+    restriction_covariance = restriction @ projected_covariance @ restriction.T
+    wald = float(contrast.T @ np.linalg.solve(restriction_covariance, contrast))
+    return (
+        rubric_meat,
+        arm_meat,
+        intersection_meat,
+        raw_covariance,
+        projected_covariance,
+        wald,
     )
 
 
@@ -388,7 +454,7 @@ def test_sampled_replenishment_keeps_attempts_out_of_disclosure_denominator(
         nonlocal call_count
         call_count += 1
         if call_count == 1:
-            raise NumericalError(
+            raise SingularRestrictionCovarianceError(
                 "Restricted covariance is singular after PSD projection"
             )
         return original(current_problem, weights)
@@ -554,11 +620,13 @@ def test_full_refit_rerun_classifies_failures_without_placeholder_meat() -> None
     def evaluator(schedule: Mapping[object, float]) -> FullRefitReplicate:
         kind = int(schedule["kind"])
         if kind == 1:
-            raise NumericalError(
+            raise SingularRestrictionCovarianceError(
                 "Restricted covariance is singular after PSD projection"
             )
         if kind == 2:
-            raise NumericalError("Full-refit Wald statistic is non-finite")
+            raise NonFiniteBootstrapReplicateError(
+                "Full-refit Wald statistic is non-finite"
+            )
         return replace(template, weights_by_arm=dict(schedule))
 
     schedules: tuple[Mapping[object, float], ...] = (
@@ -578,6 +646,109 @@ def test_full_refit_rerun_classifies_failures_without_placeholder_meat() -> None
     assert singular == 1
     assert non_finite == 1
     assert attempted == 3
+
+
+def test_unexpected_numerical_error_is_not_silently_reclassified(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    def fail_unexpectedly(
+        _problem: WildBootstrapProblem,
+        _weights: Mapping[object, float],
+    ) -> BootstrapReplicate:
+        raise NumericalError("Unexpected bootstrap implementation failure")
+
+    monkeypatch.setattr(
+        bootstrap_module,
+        "one_step_replicate",
+        fail_unexpectedly,
+    )
+
+    with pytest.raises(
+        NumericalError,
+        match="Unexpected bootstrap implementation failure",
+    ):
+        run_wild_cluster_bootstrap(
+            _problem(),
+            rng=np.random.default_rng(5),
+            bootstrap_replicates=5,
+        )
+
+    def full_refit_failure(
+        _weights: Mapping[object, float],
+    ) -> FullRefitReplicate:
+        raise NumericalError("Unexpected full-refit implementation failure")
+
+    with pytest.raises(
+        NumericalError,
+        match="Unexpected full-refit implementation failure",
+    ):
+        unexpected_schedules: tuple[Mapping[object, float], ...] = ({"arm": 1.0},)
+        _rerun_with_full_refit(
+            unexpected_schedules,
+            full_refit_failure,
+        )
+
+
+def test_sampled_full_refit_fallback_replenishes_typed_failures() -> None:
+    problem = _problem()
+    weights = {arm: 1.0 for arm in set(problem.arm_clusters)}
+    template = _typed_full_refit(problem, weights, wald=0.0)
+    call_count = 0
+
+    def evaluator(schedule: Mapping[object, float]) -> FullRefitReplicate:
+        nonlocal call_count
+        call_count += 1
+        if call_count == 2:
+            raise NonFiniteBootstrapReplicateError(
+                "Full-refit Wald statistic is non-finite"
+            )
+        return replace(template, weights_by_arm=dict(schedule))
+
+    result = run_wild_cluster_bootstrap(
+        problem,
+        rng=np.random.default_rng(5),
+        bootstrap_replicates=5,
+        validation_rng=np.random.default_rng(7),
+        full_refit=evaluator,
+    )
+
+    assert result.regime == "sampled"
+    assert result.used_full_refit
+    assert result.valid_replicates == 5
+    assert result.attempted_replicates == 6
+    assert result.singular_replicates == 0
+    assert result.non_finite_replicates == 1
+    assert result.failure_disclosure.denominator == 5
+    assert result.failure_disclosure.rate == 0.2
+    assert result.p_value == PValueBracket(1 / 6, 1 / 6)
+
+
+def test_sampled_full_refit_fallback_fails_after_replenishment_cap() -> None:
+    problem = _problem()
+    weights = {arm: 1.0 for arm in set(problem.arm_clusters)}
+    template = _typed_full_refit(problem, weights, wald=0.0)
+    call_count = 0
+
+    def evaluator(schedule: Mapping[object, float]) -> FullRefitReplicate:
+        nonlocal call_count
+        call_count += 1
+        if call_count == 1:
+            return replace(template, weights_by_arm=dict(schedule))
+        raise NonFiniteBootstrapReplicateError(
+            "Full-refit Wald statistic is non-finite"
+        )
+
+    with pytest.raises(
+        NumericalError,
+        match="could not replenish the requested valid replicates",
+    ):
+        run_wild_cluster_bootstrap(
+            problem,
+            rng=np.random.default_rng(5),
+            bootstrap_replicates=5,
+            validation_rng=np.random.default_rng(7),
+            full_refit=evaluator,
+        )
 
 
 def test_full_refit_all_one_signs_reproduces_unperturbed_logit_statistic() -> None:
@@ -614,12 +785,8 @@ def test_nontrivial_full_refit_matches_independent_scipy_root() -> None:
     row_weights = np.asarray([weights[arm] for arm in fixture.arm])
 
     def weighted_score(coefficients: np.ndarray) -> np.ndarray:
-        return bernoulli_score_rows(
-            fixture.design,
-            fixture.response,
-            coefficients,
-            estimating_weights=row_weights,
-        ).sum(axis=0)
+        means = _reference_expit(fixture.design @ coefficients)
+        return fixture.design.T @ (row_weights * (fixture.response - means))
 
     def restricted_equations(parameters: np.ndarray) -> np.ndarray:
         coefficients = parameters[: fixture.design.shape[1]]
@@ -660,27 +827,66 @@ def test_nontrivial_full_refit_matches_independent_scipy_root() -> None:
         rtol=1e-8,
         atol=1e-10,
     )
-    expected_scores = bernoulli_score_rows(
-        fixture.design,
-        fixture.response,
-        unrestricted_reference.x,
-        estimating_weights=row_weights,
+    reference_means = _reference_expit(fixture.design @ unrestricted_reference.x)
+    expected_scores = (
+        fixture.design * (row_weights * (fixture.response - reference_means))[:, None]
     )
-    expected_bread = bernoulli_bread(
-        fixture.design,
-        unrestricted_reference.x,
+    expected_bread = fixture.design.T @ (
+        fixture.design * (reference_means * (1.0 - reference_means))[:, None]
     )
-    expected_covariance = three_term_cluster_covariance(
+    (
+        rubric_meat,
+        arm_meat,
+        intersection_meat,
+        raw_covariance,
+        projected_covariance,
+        expected_wald,
+    ) = _reference_cgm_psd_wald(
+        unrestricted_reference.x,
         expected_bread,
         expected_scores,
+        fixture.restriction,
         fixture.rubric,
         fixture.arm,
     )
-    expected_wald = joint_wald_statistic(
-        unrestricted_reference.x,
-        expected_covariance.covariance,
-        fixture.restriction,
-    ).value
+    np.testing.assert_allclose(replicate.bread, expected_bread, rtol=1e-8)
+    np.testing.assert_allclose(
+        replicate.covariance.meat.rubric,
+        rubric_meat,
+        rtol=1e-8,
+        atol=1e-10,
+    )
+    np.testing.assert_allclose(
+        replicate.covariance.meat.arm,
+        arm_meat,
+        rtol=1e-8,
+        atol=1e-10,
+    )
+    np.testing.assert_allclose(
+        replicate.covariance.meat.intersection,
+        intersection_meat,
+        rtol=1e-8,
+        atol=1e-10,
+    )
+    np.testing.assert_allclose(
+        replicate.covariance.meat.combined,
+        rubric_meat + arm_meat - intersection_meat,
+        rtol=1e-8,
+        atol=1e-10,
+    )
+    np.testing.assert_allclose(
+        replicate.covariance.unprojected_covariance,
+        raw_covariance,
+        rtol=1e-8,
+        atol=1e-10,
+    )
+    np.testing.assert_allclose(
+        replicate.covariance.covariance,
+        projected_covariance,
+        rtol=1e-8,
+        atol=1e-10,
+    )
+    assert replicate.weights_by_arm == weights
     assert replicate.wald == pytest.approx(expected_wald, rel=1e-8)
 
 
@@ -725,6 +931,26 @@ def test_bh_uses_inclusive_step_up_threshold() -> None:
     )
 
     assert rejected == {"F1", "F2"}
+
+
+def test_bh_equal_p_values_are_independent_of_input_order() -> None:
+    forward = {
+        "F1": 0.01,
+        "F2": 0.025,
+        "F3": 0.025,
+        "F4": 0.90,
+    }
+    reverse = dict(reversed(tuple(forward.items())))
+
+    assert benjamini_hochberg(forward) == {"F1", "F2", "F3"}
+    assert benjamini_hochberg(reverse) == {"F1", "F2", "F3"}
+    forward_decisions = adjudicate_bh_brackets(
+        {family: PValueBracket(p_value, p_value) for family, p_value in forward.items()}
+    )
+    reverse_decisions = adjudicate_bh_brackets(
+        {family: PValueBracket(p_value, p_value) for family, p_value in reverse.items()}
+    )
+    assert forward_decisions == reverse_decisions
 
 
 def test_two_corner_bh_marks_spillover_family_indeterminate() -> None:

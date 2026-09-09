@@ -365,6 +365,7 @@ def test_r_oracle_documented_call_matches_runner_and_fixture() -> None:
         "impose_null": True,
         "engine": "R",
         "sampling": "dqrng",
+        "conf_int": False,
         "ssc": {
             "adj": False,
             "fixef.K": "none",

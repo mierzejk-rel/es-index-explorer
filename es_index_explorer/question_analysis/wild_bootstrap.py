@@ -14,7 +14,9 @@ from es_index_explorer.question_analysis.cluster_covariance import (
 )
 from es_index_explorer.question_analysis.errors import (
     MalformedInputError,
+    NonFiniteBootstrapReplicateError,
     NumericalError,
+    SingularRestrictionCovarianceError,
 )
 from es_index_explorer.question_analysis.glm_primitives import (
     SolverResult,
@@ -186,7 +188,7 @@ def one_step_replicate(
         raise NumericalError("One-step restricted bread is singular") from error
     coefficients = problem.restricted_coefficients + update
     if not np.isfinite(coefficients).all():
-        raise NumericalError("One-step coefficients are non-finite")
+        raise NonFiniteBootstrapReplicateError("One-step coefficients are non-finite")
     covariance = three_term_cluster_covariance(
         problem.restricted_bread,
         perturbed_scores,
@@ -197,7 +199,7 @@ def one_step_replicate(
         coefficients, covariance.covariance, problem.restriction
     ).value
     if not np.isfinite(wald):
-        raise NumericalError("One-step Wald statistic is non-finite")
+        raise NonFiniteBootstrapReplicateError("One-step Wald statistic is non-finite")
     return BootstrapReplicate(wald, dict(weights_by_arm), covariance.meat)
 
 
@@ -225,10 +227,6 @@ def _sampled_rademacher_weights(
 ) -> dict[object, float]:
     signs = rng.choice(np.array([-1.0, 1.0]), size=len(arms), replace=True)
     return {arm: float(sign) for arm, sign in zip(arms, signs, strict=True)}
-
-
-def _failure_kind(error: NumericalError) -> str:
-    return "singular" if "covariance is singular" in error.message else "non_finite"
 
 
 def bootstrap_failure_disclosure(
@@ -330,13 +328,14 @@ def _rerun_with_full_refit(
         try:
             replicate = full_refit(weights)
             if not np.isfinite(replicate.wald):
-                raise NumericalError("Full-refit Wald statistic is non-finite")
+                raise NonFiniteBootstrapReplicateError(
+                    "Full-refit Wald statistic is non-finite"
+                )
             valid.append(replicate)
-        except NumericalError as error:
-            if _failure_kind(error) == "singular":
-                singular += 1
-            else:
-                non_finite += 1
+        except SingularRestrictionCovarianceError:
+            singular += 1
+        except NonFiniteBootstrapReplicateError:
+            non_finite += 1
     return valid, singular, non_finite, attempted
 
 
@@ -442,11 +441,10 @@ def run_wild_cluster_bootstrap(
         attempted_schedules.append(weights)
         try:
             valid.append(one_step_replicate(problem, weights))
-        except NumericalError as error:
-            if _failure_kind(error) == "singular":
-                singular += 1
-            else:
-                non_finite += 1
+        except SingularRestrictionCovarianceError:
+            singular += 1
+        except NonFiniteBootstrapReplicateError:
+            non_finite += 1
 
     if regime == "sampled" and len(valid) != bootstrap_replicates:
         raise NumericalError(

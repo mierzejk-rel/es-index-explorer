@@ -1,5 +1,5 @@
 {
-  "schema_version": 1,
+  "schema_version": 2,
   "p_f": 0.88788870703764322,
   "t_stat": -0.15591819069797519,
   "W_obs": 0.024310482190530155,
@@ -17,6 +17,7 @@
     "impose_null": true,
     "engine": "R",
     "sampling": "dqrng",
+    "conf_int": false,
     "ssc": {
       "adj": false,
       "fixef.K": "none",

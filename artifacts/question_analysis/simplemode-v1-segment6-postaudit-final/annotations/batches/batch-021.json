@@ -1,0 +1,151 @@
+{
+  "batch_id": "batch-021",
+  "item_ids_sha256": "bf37a9461589eded1f3db3d4dc51067bde581d6716b456064283fbb3e67ead7f",
+  "items": [
+    {
+      "item_id": "expectation_6311ca199933ebeb876bc2469dff0ff46e98640f28afc451758c60ffbe7ba75e",
+      "item_type": "expectation",
+      "source_text": "internal draft document identifying two instances of Dr. Argoff engaging in promotion of Pennsaid",
+      "text_sha256": "8c7e34e33e1c596c9c6f7c8295195eeaa28aad49be80abab21d5f02bf871b139"
+    },
+    {
+      "item_id": "variant_31eb9ce7c2bf9660ba30bd9874c2cf91f8833d421618f4474d9a30681937535e",
+      "item_type": "question",
+      "source_text": "what email does Sarah Chen use?",
+      "text_sha256": "61c12162fca63ba4e468284180fa907fabf8f51767a8df3a539b56e9b622abb7"
+    },
+    {
+      "item_id": "expectation_1dc2f29bba4c2e28a7be6ebe6bb4413b79df48f793257a1f0bf5a25a706c8beb",
+      "item_type": "expectation",
+      "source_text": "Deborah Moses emailed Matthew Smith (j.matthew.smith@covidien.com) to ask him to share his best practices for success with Exalgo.",
+      "text_sha256": "429b366dd1b8574e9778d94319d2275033063ea1aacd07030f2be782fc6b84a0"
+    },
+    {
+      "item_id": "expectation_a60fa7e16f4e3367b7b2a72c5b8fb4e6d90df346cdf5a09880ccd3af257b9872",
+      "item_type": "expectation",
+      "source_text": "States there is no evidence to suggest that Belford communicated with Cereal Killer, Acid Burn, or Lord Nikon",
+      "text_sha256": "ea59e16b2df87ffa3016f5692772be28e4c8fea2f01121f225a6e9d567fea475"
+    },
+    {
+      "item_id": "expectation_aff91e208ee2b6043ba976f75c959f64f78ef135007d7007fcac5a28621c7b1a",
+      "item_type": "expectation",
+      "source_text": "Cites emergency board meeting called on 10/19 1pm for 9am following day.",
+      "text_sha256": "8712b64b605ad23b09b2b9d52a311222a23cfb55a8796c750418ddb51b65ae75"
+    },
+    {
+      "item_id": "expectation_9a401393419ad8216f4a34f981977a49752dcefca784c1c9691ab49f71717791",
+      "item_type": "expectation",
+      "source_text": "Quarterly Playbook, FY13Q3, Territory 50205 – Brooklyn South",
+      "text_sha256": "fb34d127bbada493bb258f673683468cd948e6fecae2935588db2d07bb7115df"
+    },
+    {
+      "item_id": "expectation_feae90c1068ddbe9e50aa4d3bc4ceb73d3ed176a2a78469aac5c50d4f2b12030",
+      "item_type": "expectation",
+      "source_text": "Email from Dr. El-Mohandes confirming participation in an Exalgo National Broadcast",
+      "text_sha256": "01ca0dea5c13b41a3b6afa3ef22e0ae31c227845d6eaa37f0c11e1a91d68c0b1"
+    },
+    {
+      "item_id": "expectation_4b72f0c284ee9ac36ec00af116a16edbcddb523332c9c01539e4cf4d89a8c94e",
+      "item_type": "expectation",
+      "source_text": "Cites Chen's virus analysis, speculating involvement by 'state-level actors' based on 'level of sophistication,' indicating virus could defeat sufficiently protected systems.",
+      "text_sha256": "535b5c449db754702a26137c98a84440d1199df009bede8043b8c0e43b9d7565"
+    },
+    {
+      "item_id": "variant_4d492e69a04a7649e9201260d31251260bcc68b8c6514911695ee7433ca02a42",
+      "item_type": "question",
+      "source_text": "What did Belford do or plan to do after the Da Vinci hack was executed?",
+      "text_sha256": "aa4d888e4de5670517f190c7858120fc3cd4748e1c3a3ac12680e0b63f514ba1"
+    },
+    {
+      "item_id": "variant_51632d74ecbb39b5a2401f94dbf21d3dc880b0844aced94074fb9a054e81c9ee",
+      "item_type": "question",
+      "source_text": "What are the names and aliases of the young hackers?",
+      "text_sha256": "a323048973c9924f23abf10aaa4566f4ab2fc178295b3b9fbe281a875a382175"
+    },
+    {
+      "item_id": "variant_a52fce510a7fc0ba5f7997f609b38610282da362608a6b2ac475630cf3bb9e42",
+      "item_type": "question",
+      "source_text": "What is Sarah Chen's email address?",
+      "text_sha256": "b28803716358327e9d73d94c925a8a5a4050b8d8829c025076e578f4a0bc92b2"
+    },
+    {
+      "item_id": "expectation_e437db3c671da530683e808f3f91195cfb8942247522433b3bcfa06a51a0ef7e",
+      "item_type": "expectation",
+      "source_text": "Ellingson PR Team (pr.team@ellingson.com)",
+      "text_sha256": "1794ece2d3cea1f5be69981c83e0ced74cad02bbf590fe0e699dca9e42d6a82b"
+    },
+    {
+      "item_id": "expectation_098c614aea2d3a45ea049a23abc7cb883665d9b3d3014c8657a6313a1a785e9d",
+      "item_type": "expectation",
+      "source_text": "Acknowledges that it's unclear if zero.cool@underground.net and zer0cool@mindvirus.org belong to the same person.",
+      "text_sha256": "342858ba43370706bbaf9043a3a4927dbfbd7b04048e92160c54a6a3aa93f13c"
+    },
+    {
+      "item_id": "variant_13f0f04a4f664edae92bb0d6197daebfca6788dbc42afe5a3e2bc52c75ac02eb",
+      "item_type": "question",
+      "source_text": "What documents evidence Ellingson's information security before October 15, 1995?",
+      "text_sha256": "7a05718196e342a43d03563072c01905cd3e3d5cabce6370827c63d2c7679552"
+    },
+    {
+      "item_id": "expectation_e82c75974c88195f21bd880acd01e349ab61291c993312f85fa1102c6e569421",
+      "item_type": "expectation",
+      "source_text": "internal document noting that Dr. Argoff is a media spokesperson for Pennsaid with one instance of that work noted",
+      "text_sha256": "45f434f95eac2163e660cd1013c09140ca92917ba83d572a70fad7de5927a794"
+    },
+    {
+      "item_id": "variant_f6bb04680d8b0ed2c82b0b2183767af357290579738d13ac7f5b425bbc048e99",
+      "item_type": "question",
+      "source_text": "Which Covidien/Mallinckrodt personnel emailed with Dr. El-Mohandes?",
+      "text_sha256": "7ec1c44c3219d5a40eba6b16e4982e4e575248e667bc5732c0ef2f77a33e3ee2"
+    },
+    {
+      "item_id": "expectation_894865117a0a0c6f6bb218bf5ebebc91c35612884aab1ed89b9d41487782e031",
+      "item_type": "expectation",
+      "source_text": "Quarterly Playbook, FY13Q3, for Territory 50210 – Elizabeth",
+      "text_sha256": "9200af60dfac476384407751d13c1e370f2a9e1188dd1f4cddb84f17d7f723f0"
+    },
+    {
+      "item_id": "variant_a23a5dc2fe8d2de8df7bb28b7d2ada4e94cbad638b0fae23b66ed2789ba62325",
+      "item_type": "question",
+      "source_text": "How did Ellingson respond to the da Vinci cyberattack?",
+      "text_sha256": "9f63729e69986ff99516dd043249485ba7fc5405527342c253d914134e2803e6"
+    },
+    {
+      "item_id": "variant_cce343d577dea7bc31785c99118f6c206a0b2538a42590d7e4c093fe72efa221",
+      "item_type": "question",
+      "source_text": "Please provide the documents that are harmful to Ellingson in a lawsuit b into its cybersecurity failures in connection with the Da Vinci hack.",
+      "text_sha256": "5fc061f30234735b7e162fdbdd53a219d545ca1fd44cd5f6c7104a8033d3043d"
+    },
+    {
+      "item_id": "expectation_77b2a675ba1860b2e2f4629e98b7d09ce079b3f6f86c7babfcfa8f6f5b8d5332",
+      "item_type": "expectation",
+      "source_text": "Cites software vendor communication about critical vulnerability needing immediate patching.",
+      "text_sha256": "26d4d97e14bd31121825602ff37f5a431f0741c48ec235a4820141f1bd4c89d7"
+    },
+    {
+      "item_id": "variant_982e0542c948c130832467d7fde0c92afde11f457093db2e2e14cee0b56b0a80",
+      "item_type": "question",
+      "source_text": "List the documents supporting the claim that Ellingson should have known that Eugene Belford was planning a cyberattack against it.",
+      "text_sha256": "19e6ed6f293f78e6e736280c8a8dd64a8d46548a84712c96d5515fe543015e41"
+    },
+    {
+      "item_id": "expectation_5ba33678f0a6438038cc8ea67bffc0c07aa53c318c8f29890ab4c9b5e2e08f1d",
+      "item_type": "expectation",
+      "source_text": "Cites one or more emails from or to Belford which email monitoring may have flagged, and/or his suspicious activities in the weeks prior.",
+      "text_sha256": "c8042eacc40ddc4a3cac2d758d54756dd9296c3607bbe622d38cf8875d6c3791"
+    },
+    {
+      "item_id": "variant_3c45d0d060e20746673abe1446c00b6590fd9b2b59350a885fb9bae8337b31ac",
+      "item_type": "question",
+      "source_text": "What actions did Ellingson take after discovering Belford's cyberattack against it?",
+      "text_sha256": "cbabab90f1ea4528435aeac8282345a28c501105982abf460140049f7cf4bd3d"
+    },
+    {
+      "item_id": "variant_b3d80a49a272baf85a810afb2d5f686f461ee6aa437a9aed840b6da973241a8d",
+      "item_type": "question",
+      "source_text": "What email addresses did Eugene Belford use?",
+      "text_sha256": "fcd631da8218345bc3a06f9ce92ae8ea155aac5688c382885314ca5659cfcd2d"
+    }
+  ],
+  "schema_version": 1
+}

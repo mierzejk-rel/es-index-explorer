@@ -1,0 +1,151 @@
+{
+  "batch_id": "batch-005",
+  "item_ids_sha256": "746453dded48c16ad7bfc99cd26307822091910afcf79312899eb17a38ec21ce",
+  "items": [
+    {
+      "item_id": "variant_d04c2c7f8c471898403dc2a143b899982b3fc52df94adc8188e32b99c4b1e0bd",
+      "item_type": "question",
+      "source_text": "Are there emails involving Dr. El-Mohandes discussing Exalgo, and if so, what are they?",
+      "text_sha256": "3112f82b652b67012728259f98a6c773682b6b57d44fe701dc94ea1021033303"
+    },
+    {
+      "item_id": "expectation_bb4b16642a445c961ac328545452d1022916252067aae5789acb5719bda7519e",
+      "item_type": "expectation",
+      "source_text": "Analyzed the Da Vinci Virus and reported up to CEO Hal Benson and the executive team",
+      "text_sha256": "8f7b5a3ded9690402544790bb0dae1b0a397c13946078f574790c3d7990888d7"
+    },
+    {
+      "item_id": "variant_dd3bf85f8b9c071e9a0f414f86dea937bdce8eb8d8332769e9b2993341b251e1",
+      "item_type": "question",
+      "source_text": "When did Belford execute or activate the Da Vinci virus?",
+      "text_sha256": "3755ffd654281d2f37a2354bae6dd012872d92a6a2142d0f1bf4581428775a1e"
+    },
+    {
+      "item_id": "variant_1142a9e464613569242939cd3497488311d7f88c5bdaedbf40f429d80e0473ea",
+      "item_type": "question",
+      "source_text": "Which doctors were presenters for the October 2012 Exalgo broadcast?",
+      "text_sha256": "a16eaf0e57da3230082e0f2cc6a5de2c139e86a18375b40f16261195dec4b543"
+    },
+    {
+      "item_id": "expectation_d8ff07b56dce12edb320f07e4e6a996ff90ada3d222ebe5b8e9107d6aca1f290",
+      "item_type": "expectation",
+      "source_text": "Quarterly Playbook, FY13Q3, Territory 50203 - Hoboken",
+      "text_sha256": "6a11f7712c4fa4eefdfed3276c2f80a33ee9a0436f5a299ec29f01e884e8fd38"
+    },
+    {
+      "item_id": "variant_18c7b93478a9585aedae3ff2a0fa24b8eaaf103c4dc9601c76a8f5751762102b",
+      "item_type": "question",
+      "source_text": "Create a chronology of what Ellingson did in response to the Belford hack.",
+      "text_sha256": "4a77d154c3d3f2ed6f6135ff032fc44b6b24d98fb8b5f9bfb106ac0dca490d81"
+    },
+    {
+      "item_id": "variant_5fe068e55c4f9cda93f5a6fe671e095f264f64d2313b3f22090e2be7e4f0ccbd",
+      "item_type": "question",
+      "source_text": "What emails were there in August 1995?",
+      "text_sha256": "57ef644818d68eda89c254436e25213da89d5e19bac834cce1834908b17d0163"
+    },
+    {
+      "item_id": "variant_58a1f05ba15516d4b9f626aabbb3b25796630987d26fd7bff04eae29992b5263",
+      "item_type": "question",
+      "source_text": "Did the teenage hacker Phantom Phreak communicate with Belford?",
+      "text_sha256": "71faeabe1d32b092277bcfc07c74c577e96d2bbbad26bd6d0ae91034415ab6be"
+    },
+    {
+      "item_id": "expectation_88999f62181da5c250c32f19181acf47ceb8e47ed36467ee9d80de8f38a97489",
+      "item_type": "expectation",
+      "source_text": "Quarterly Playbook, FY13Q2, Territory 60605 - Beaumont",
+      "text_sha256": "2e2c301044f19bf460ec8af0437517b994c5567085893a96e142d6a35abc49c3"
+    },
+    {
+      "item_id": "expectation_a76447b7dcd0d23df7e4903eb1bc170e3557771c716ac7b705b0fb2f87c9a0ab",
+      "item_type": "expectation",
+      "source_text": "Cites document containing statement to initiate complete security overhaul.",
+      "text_sha256": "2a5d4e41aa3201fe9045ab7cfda00d1c64aea950d37641817bff97f1af783229"
+    },
+    {
+      "item_id": "variant_b3b5fb7308d0ed49d7c3aca57841fac7661c5301f7bae656667e84d7efcadade",
+      "item_type": "question",
+      "source_text": "Besides Covidien/Mallinckrodt, with which drug companies was Dr. Argoff financially affiliated?",
+      "text_sha256": "8bc19a7d49b9363c7c9ee06f9ed4806e84795dde49f9b3bc0e85513b62d5ad4d"
+    },
+    {
+      "item_id": "expectation_c6f058c12e12484aa402f903d3a010cc65a20ce644f2e9ae79aff6363439d4e0",
+      "item_type": "expectation",
+      "source_text": "Cites Wallace email stating she's getting out and going no contact.",
+      "text_sha256": "e9e2dd6557e25254725ae75761752e6b7b1f3d72fada742c1b8cf7c635ebc7e4"
+    },
+    {
+      "item_id": "variant_33d92e2ba59134f0908aaa46976613334e2838e68cee8b116e62ebafae686297",
+      "item_type": "question",
+      "source_text": "Find me Dr. Elmo's email address",
+      "text_sha256": "7d53f1011df6d42de017319e926483d4184d0569aa18c712f96877b333a8e2d7"
+    },
+    {
+      "item_id": "variant_992ee126b6e53ef77d2ec58d39958fdd1fd91672db1df51bf04f7cc347910add",
+      "item_type": "question",
+      "source_text": "When did Wallace split from Belford?",
+      "text_sha256": "4aa3df0e6d7d8edf9ca04257e9269176567babe5b31e8120ac800c7791fbafdc"
+    },
+    {
+      "item_id": "variant_e1fdcf88e49cc10ab485836d452fc2f7229901addd56be8b135597e3ca4bacb0",
+      "item_type": "question",
+      "source_text": "How were Zer0Cool, Acid Burn, and the other teenage hackers involved in the cyberattack against Ellingson?",
+      "text_sha256": "132b36c72f1bfef39079f60289a0667abf5a7af2e213e5646f124a532733b52e"
+    },
+    {
+      "item_id": "expectation_03d987e1144da863fd98b4a6cba15ccdad251fbe2090866af1ff50f4a5d38e02",
+      "item_type": "expectation",
+      "source_text": "Acknowledges that it's not clear from the evidence whether Phantom Phreak who coordinated with Belford (phantom.phreak@undergroundhax0r.net) is same as Phantom Phreak in teenage hacker group (phantomphreak@ghostline.com).",
+      "text_sha256": "2e7dede80b8995ae1b344b633d446098ae1b59b8b44f0bf6ce49804b5c9f12e4"
+    },
+    {
+      "item_id": "variant_c2d6cde17175821591b5c51f39379522f0b246b6884d549d2154095f8a3e261a",
+      "item_type": "question",
+      "source_text": "Show me emails involving Dr. Argoff.",
+      "text_sha256": "ce23ccd56ae0bbae63afddafe6d441d284879ff227b6b419c16d10303d765277"
+    },
+    {
+      "item_id": "expectation_5b2fa509c42966ef5033b66ee0d506147a24fe4d2ca5685a17ad64754030baf4",
+      "item_type": "expectation",
+      "source_text": "Brian Donalty (Brian.Donalty@Covidien.com), Shannon Kelly (Shannon.kelly@covidien.com), and Marin Easley (martin.easley@covidien.com) were CC recipients to emails with Dr. El-Mohandes (AElmohandes@myspinedoctors.com) on October 16, 2012 regarding the October 18, 2012, Covidien Exalgo National Broadcast Event",
+      "text_sha256": "987ded7d6dfc1072d8e2c5a920b47b4ee81a7eebb9e6bece28d22d57e0640640"
+    },
+    {
+      "item_id": "expectation_533dc4b5fd6cfb4fc4dc1b059012bfa6373f8001482636a173b36c74891b4ad6",
+      "item_type": "expectation",
+      "source_text": "Cites communication where Belford cuts ties with Phantom Phreak.",
+      "text_sha256": "b9e8c6f37790b47d6b2e48d82a215b9aca61df2c99020a78d9c0360b51afbb12"
+    },
+    {
+      "item_id": "variant_5dfbc512f19e84d53684b7190953c5cfc2ae525dd349fb1b0d489815c7f4e09f",
+      "item_type": "question",
+      "source_text": "How was Dr. Argoff involved with Covidien/Mallinckrodt?",
+      "text_sha256": "c40a7feacb751266c3d9466d04d661943d7d80f7e67820e4f880d29970eb266a"
+    },
+    {
+      "item_id": "expectation_352f7dc7d3719c0601f565214eb95f2c71eba0b6107edb3972873ca46fed9479",
+      "item_type": "expectation",
+      "source_text": "Cites mandatory security training for all staff.",
+      "text_sha256": "4bf36291db7b17b7e6cbbc5c546398558ef8dfe972d8b8c9d88d0878b72ab34e"
+    },
+    {
+      "item_id": "expectation_df1d4a3ebdd84d6b7343da6eb266b31109a45a92fe024615ebf3892b8f5a24b6",
+      "item_type": "expectation",
+      "source_text": "Cites initiation of complete security overhaul.",
+      "text_sha256": "f897834fb4a8819cde4a41e22215a88f34178854bda0cf079e7ad2d422c1fe4d"
+    },
+    {
+      "item_id": "variant_2132b4c32c813b3c71231f4382d7f1a0cbe67bfc970bcca2a64830d740795a76",
+      "item_type": "question",
+      "source_text": "What evidence points to Sarah Chen being part of Eugene Belford's cyberattack against Ellingson in attempts to carry out the attack?",
+      "text_sha256": "af4ab3c008371d5004007dac11525618f4e70a72507af0a4fd3a7738529d9e0f"
+    },
+    {
+      "item_id": "expectation_fe306a658086f654e580a76e7e9d1f46689daeac0c791d94ccfa181115472228",
+      "item_type": "expectation",
+      "source_text": "Cites intrusion detection systems in place.",
+      "text_sha256": "f43590551c92ea7a5bfbc9946e7a51144a547274e42344350b21e350d2b640d6"
+    }
+  ],
+  "schema_version": 1
+}

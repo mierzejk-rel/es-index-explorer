@@ -1,0 +1,151 @@
+{
+  "batch_id": "batch-011",
+  "item_ids_sha256": "9eaa8ead1d5b0016f9ef4eda3c5dba093f6134ae0c3377e4bcfcbd71e037f979",
+  "items": [
+    {
+      "item_id": "expectation_0f54982a5ad88457f1fa0dddd1d4c3fde603b8a7c5ff3643ab5b5bff7f4a5a26",
+      "item_type": "expectation",
+      "source_text": "If evidence exists, identifies the email from Belford to CEO Benson requesting an increase in cybersecurity budget for advanced intrusion detection systems and employee training. Otherwise, states no evidence exists.",
+      "text_sha256": "7ffc67b0da51fb8d366d10352bd46509cdaf38c79b6ce242018e953af397e71e"
+    },
+    {
+      "item_id": "variant_2ce445f9a51ec65b46ad6d6544cde2a6758bc9ad924f0f6920ce23315ec9b784",
+      "item_type": "question",
+      "source_text": "What steps did Ellingson take to address the harms of the hack and on what timeline?",
+      "text_sha256": "c41eab419a8ff765556cd2f12cea92d45d0a2f5004fd3357f6c3bacf7bda7a51"
+    },
+    {
+      "item_id": "expectation_8d4761078bcef40ceba14059d68bc9ea8ed1c52623665166287b7299a9267ceb",
+      "item_type": "expectation",
+      "source_text": "Provides comprehensive picture covering operational failings, oversight gaps, and reactive reforms, not just external scrutiny.",
+      "text_sha256": "5a7961cbf92497cc4223f44f914b27f7a5060bcd969a1b49ee80e5cc3ac3f6ea"
+    },
+    {
+      "item_id": "expectation_006a25b53de45cbffd9248b716d9c6058b8fbea0c51ebec7b0c3c40dd58f2b45",
+      "item_type": "expectation",
+      "source_text": "Planned speaker programs for EXALGO and Pennsaid",
+      "text_sha256": "b7c98add759a03a2be7668c9304a8e75a1239cf58e1c106fe97b7d1620e29f47"
+    },
+    {
+      "item_id": "variant_0be7e7192147961efae72e2f7917889dbc364f6f5f54bb8f6c15c6d66c542f6e",
+      "item_type": "question",
+      "source_text": "Who is megan.lowrey@theselvagroup.com?",
+      "text_sha256": "148d0a2d14d54f8ad64a591d344f0e9fe9034d56d75dbd96e3d3645932c41eb8"
+    },
+    {
+      "item_id": "expectation_4188746f89aa860b6941fadef2f59b33c1364b7023afbd7b6d4db0230d50c2d3",
+      "item_type": "expectation",
+      "source_text": "Involved in cancellation and potential rescheduling of February 21, 2012 EXALGO Speaker Program with Dr. Zenetos",
+      "text_sha256": "f0f61a9b92317d203d9074c46c96e27b1534000d7d748babf3bd8877104cf9f9"
+    },
+    {
+      "item_id": "variant_cb96c9c2d7c5c317d83b74a711cf1f8cf1efba4e26e0c96e070f6dfff6073e46",
+      "item_type": "question",
+      "source_text": "Are there .xls or .csv files showing Ellingson's damages estimates?",
+      "text_sha256": "f43c63ca46833ad4e624be4ae8a28e03a7f774ec0c7a6b36339c6c21311d0627"
+    },
+    {
+      "item_id": "variant_c5e4e7854f3ff3d24e8ef9d4bc5cd5c40defeae8efb26e43517fdf80b05cc6b9",
+      "item_type": "question",
+      "source_text": "What documents are from 9/1995?",
+      "text_sha256": "f2f65133d026004d92f462d5de72a367befbab44d3e7c1b615f694638825eab9"
+    },
+    {
+      "item_id": "variant_2872d3125fda0467bbc3eb83cf4cd093f0219d729ed53db4f93abbbc0d85e425",
+      "item_type": "question",
+      "source_text": "Please provide the sequence of events Ellingson took to manage the cyberattack against it.",
+      "text_sha256": "15e59f174f458e1ce5567f4dc2e4fc6792d4c1b1f0f5e348fdd6fd105aa2681a"
+    },
+    {
+      "item_id": "expectation_c4ee0a41585f2ee0233b97040300a0ec84e9de72f4daee6dd0d76375e1ae06ca",
+      "item_type": "expectation",
+      "source_text": "Cites email between Wallace and Belford about 'mai tais on a beach while Ellingson burns' and 'if anyone gets suspicious, you know nothing'.",
+      "text_sha256": "0ab0c261cd04bea5c4bdd545ba4344461068ff49650cd55b3ddec08f1d094e4a"
+    },
+    {
+      "item_id": "variant_3bffa1de08922e27fca95803f7ca9a86858e4aed731181d56b4ec22342e5a2c3",
+      "item_type": "question",
+      "source_text": "Did Belford communicate with Phantom Phreak (phantomphreak@ghostline.com)?",
+      "text_sha256": "5b8cacf54f977d53faca4be2643d855a03c385140ab7dc78e34bb5ad72b429f3"
+    },
+    {
+      "item_id": "variant_c87e96faa4784288039a550d2c92ec08bffb2fd0377497cdbbfe100057c39f93",
+      "item_type": "question",
+      "source_text": "How did Ellingson increase its cybersecurity infrastructure after Belford's hack?",
+      "text_sha256": "9cf66bee081cd60e718b70c7398690a6ab51f978a59280fb6e337bbe33acdb60"
+    },
+    {
+      "item_id": "expectation_d4296d17419e0ae351c2b2afa5b5c043ba9c1c1b376d12fe1b85f8a87e001964",
+      "item_type": "expectation",
+      "source_text": "Cites 'Trouble' email with damage control instructions.",
+      "text_sha256": "06019c5cf2985d8fd797a5c4e84175dbde741a7397a55bec9700047b0708311a"
+    },
+    {
+      "item_id": "expectation_07cddbaaec44285963bc7c2dc4219c174ce0f8d25227129cd1e2a75010152b60",
+      "item_type": "expectation",
+      "source_text": "Cites implementation of new security protocols.",
+      "text_sha256": "16d0ce8172208e4c61ba32bce1549a3adb0c2722f46e3d23f390ca7fe05bb6ba"
+    },
+    {
+      "item_id": "variant_457cd45280a1b2154c9e81e75865cbf2d3ac53904c48321169d79bc83a160a4f",
+      "item_type": "question",
+      "source_text": "Did Ellingson have information available to it that Belford was going to execute the Da Vinci virus before it happened?",
+      "text_sha256": "25eae300582f3e6690d99f71ac0b30cad3531623e50334c943b9c63c72d05c03"
+    },
+    {
+      "item_id": "variant_7c76d74fecb55c0eddb4e048042cc321f79960e5b5361f19c83c9e8fa2b85486",
+      "item_type": "question",
+      "source_text": "After the Da Vinci hack, what actions did Ellingson take to ensure it would not be subject to another cyberattack?",
+      "text_sha256": "51288756bdb919af2e34c9c3fcc996bed5b7bf580516153950a33fe56078256b"
+    },
+    {
+      "item_id": "expectation_3a0629752c2dd83b390c7ae4923cb2431a7d83ed02fc8c0691d62b18ceb59612",
+      "item_type": "expectation",
+      "source_text": "Cites email from Wallace to Belford 'getting out' after the TV station hack, telling Belford not to contact her again.",
+      "text_sha256": "adaf61e38e418bc5d54e062df558f5af2cead183e512c7b0deaf1965441fd72e"
+    },
+    {
+      "item_id": "expectation_48b973273832354cfd55d9ce333e5b4f845023fc092f33ac199ff157483aa8b9",
+      "item_type": "expectation",
+      "source_text": "Spreadsheet showing analysis of how the cyberattack impacted Ellingson's stock price",
+      "text_sha256": "afd00f89dbe0e0d6092e3582eb9aea1d25d022af4e69c3e4611e3455b9fa2f00"
+    },
+    {
+      "item_id": "variant_342c0e718678c6f01bad40791998badb96598035777d43c6c6da25925a01d929",
+      "item_type": "question",
+      "source_text": "What documents show what Eugene Belford planned to do after he hacked Ellingson?",
+      "text_sha256": "2247ad23b66eca85cb4abfeaceafbf3290d7e35db90991c5a818e8947ae4a290"
+    },
+    {
+      "item_id": "expectation_7653442a7f571fb5656ac533275a64fbfac3cbda9298558f587cac1ec3cbc883",
+      "item_type": "expectation",
+      "source_text": "Belford reserved a beachfront villa on a private island for an indefinite stay beginning October 25, 1995, with secure satellite internet and a private helicopter transfer",
+      "text_sha256": "a514ede96b737aed5ec47e76014a46501fe4e0274874f4edabf5b24b4693264f"
+    },
+    {
+      "item_id": "variant_560276a20268093f1cab4732685047a72618abc7e53b06e54fef023a499bec30",
+      "item_type": "question",
+      "source_text": "Tell me who is being referred to as Elmo.",
+      "text_sha256": "d5da77522821101eb03026aa2a8efcd6defc55aeb26d50256fac7218b7e923bf"
+    },
+    {
+      "item_id": "variant_c328a2694ce66104a95344474c33fe32ac3d28507102dd95e485586553018a0b",
+      "item_type": "question",
+      "source_text": "Who was Wallace in contact with besides Belford?",
+      "text_sha256": "5ce2f7b05bbdc6503f9420ce6ac26a65af3f22446fb1ebe1aad33369d8258c5d"
+    },
+    {
+      "item_id": "expectation_7ea71f787c7c0770bebe0ade1875f35cf121eb650692fa473d46a9f89bbfade0",
+      "item_type": "expectation",
+      "source_text": "Quarterly Playbook, FY13Q3, Territory 50201 - Bronx",
+      "text_sha256": "b4786cf25e6458f0c47032cef4ce14438387e06cbb7e96ec89779983c11b613f"
+    },
+    {
+      "item_id": "expectation_9275309444d55008c0d229357c8012bf73cfc94c26dafc733510a23ce115213b",
+      "item_type": "expectation",
+      "source_text": "In an email dated October 19, 1995, at 12:30 p.m., Ellingson Acting CTO Sarah Chen noting that Ellingson's intrusion detection systems picked up unusual activity in the Gibson, and warning that it may be a serious breach",
+      "text_sha256": "5507f20c9b7d8898b51f97764c557b49ffcb01702649f9870ed442e07409c657"
+    }
+  ],
+  "schema_version": 1
+}

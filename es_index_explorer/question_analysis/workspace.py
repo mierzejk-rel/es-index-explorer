@@ -40,7 +40,7 @@ DEFAULT_ANALYSIS_ROOT = (
     PROJECT_ROOT
     / "artifacts"
     / "question_analysis"
-    / f"{ANALYSIS_ID}-segment6-postremediation-final"
+    / f"{ANALYSIS_ID}-segment6-postaudit-final"
 )
 DEFAULT_SPECIFICATION = (
     PROJECT_ROOT / "reports" / "13-simple-mode-analysis-research-plan.md"
@@ -206,6 +206,9 @@ DEFAULT_RESOURCES = {
     "segment6_remediation": PROJECT_ROOT
     / "reports"
     / "20-stage-6-statistical-primitives-remediation.md",
+    "segment6_postaudit_remediation": PROJECT_ROOT
+    / "reports"
+    / "21-stage-6-postaudit-p3-remediation.md",
     "segment6_glm_primitives_source": PROJECT_ROOT
     / "es_index_explorer"
     / "question_analysis"

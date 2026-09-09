@@ -8,6 +8,7 @@ import numpy as np
 from es_index_explorer.question_analysis.errors import (
     MalformedInputError,
     NumericalError,
+    SingularRestrictionCovarianceError,
 )
 
 PSD_EIGENVALUE_TOLERANCE = 1e-10
@@ -197,7 +198,9 @@ def joint_wald_statistic(
     restricted_covariance = constraints @ variance @ constraints.T
     rank = int(np.linalg.matrix_rank(restricted_covariance, tol=tolerance))
     if rank != constraints.shape[0]:
-        raise NumericalError("Restricted covariance is singular after PSD projection")
+        raise SingularRestrictionCovarianceError(
+            "Restricted covariance is singular after PSD projection"
+        )
     contrast = constraints @ beta
     try:
         value = float(contrast.T @ np.linalg.solve(restricted_covariance, contrast))
