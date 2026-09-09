@@ -5,6 +5,7 @@ options(warn = 1)
 input_dir <- Sys.getenv("ORACLE_INPUT_DIR", "/input")
 output_dir <- Sys.getenv("ORACLE_OUTPUT_DIR", "/output")
 dir.create(output_dir, recursive = TRUE, showWarnings = FALSE)
+source("/oracle/covariance_reference.R")
 
 contract <- jsonlite::read_json(
   file.path(input_dir, "f6-linear-contract.json"),
@@ -63,6 +64,26 @@ result <- fwildclusterboot::boottest(
   )
 )
 
+covariance_reference <- compute_covariance_reference(
+  fit = fit,
+  data = data,
+  design_columns = design_columns,
+  restriction_column = contract$restriction_column
+)
+native_raw_wald <- as.numeric(result$t_stat)^2
+raw_wald_denominator <- abs(native_raw_wald)
+raw_wald_relative_difference <- if (raw_wald_denominator > 0) {
+  abs(covariance_reference$raw_W_obs - native_raw_wald) / raw_wald_denominator
+} else if (covariance_reference$raw_W_obs == native_raw_wald) {
+  0
+} else {
+  Inf
+}
+if (!is.finite(raw_wald_relative_difference) ||
+    raw_wald_relative_difference > 1e-6) {
+  stop("Independent R raw Wald does not reproduce fwildclusterboot")
+}
+
 write.csv(
   weight_matrix[, -1, drop = FALSE],
   file.path(output_dir, "f6-linear-rademacher-weights.csv"),
@@ -103,4 +124,12 @@ jsonlite::write_json(
   auto_unbox = TRUE,
   pretty = TRUE,
   digits = 17
+)
+jsonlite::write_json(
+  covariance_reference,
+  file.path(output_dir, "f6-linear-r-covariance-reference.json"),
+  auto_unbox = TRUE,
+  pretty = TRUE,
+  digits = 17,
+  matrix = "rowmajor"
 )

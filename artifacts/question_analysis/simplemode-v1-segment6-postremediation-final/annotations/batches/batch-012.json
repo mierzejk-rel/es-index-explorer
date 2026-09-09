@@ -1,0 +1,151 @@
+{
+  "batch_id": "batch-012",
+  "item_ids_sha256": "22ebe27975e5459fa1ce522df5a6c9d55cd5906b369671ac8de809ded4357d9b",
+  "items": [
+    {
+      "item_id": "variant_41cd5e4bd7bf747ab253628281380996f6466501cf1ab44cc61e23be4de192a9",
+      "item_type": "question",
+      "source_text": "List the individuals who are part of the group of teenage hackers, giving their names and aliases.",
+      "text_sha256": "76d228bb8cb9e545428b141106d15c371ccc4781e02a3fed6f5bd3eb4df3736e"
+    },
+    {
+      "item_id": "expectation_a56d09001fd14618ec56bd429fba87925f93324ac27bc30f5d31175b23272105",
+      "item_type": "expectation",
+      "source_text": "In 2010, Dr. Argoff was reported to be a paid consultant for King and on the speakers' bureau for King.",
+      "text_sha256": "7f9976c9fda6a7f3512a4ef90b78f215c396f6b919b0263bbda5e7e78324267f"
+    },
+    {
+      "item_id": "variant_c372c67a2552881dc92d1aae917e9174c496f75e593697fe5d55b4c937d7c437",
+      "item_type": "question",
+      "source_text": "Did Ellingson have evidence that Belford was planning the Da Vinci attack before October 19, 1995?",
+      "text_sha256": "dc81c7f0a2f38dda8b27001d76bdeda8a9c491f022aaecb748ee972f35d41f4d"
+    },
+    {
+      "item_id": "variant_86786730fcc2da800883df79dd468fd5dc29fc5fac2688e574f1adc6ea228012",
+      "item_type": "question",
+      "source_text": "What are the identities or aliases of each of the group of hackers that Ellingson hired to consult?",
+      "text_sha256": "93ac46eca0081b8d95a84bcedf760aae119031c02dffcde3c55413a7539cea5a"
+    },
+    {
+      "item_id": "expectation_0b470a18f22c31ddf848f8ccf3a5b7d9f481b67ffa9cba4ca23e496a4e052bce",
+      "item_type": "expectation",
+      "source_text": "Involved in February 1, 2012 EXALGO Speaker Program in Las Vegas, NV",
+      "text_sha256": "f2090d8a080be212f45802389b4fb73ec6b46b0970bd6a9429ba4d3fd3ee3594"
+    },
+    {
+      "item_id": "expectation_d00061f5503ab7050b7802681441e3fe5a02b44f711af5433402cd7957fd21e2",
+      "item_type": "expectation",
+      "source_text": " Identified Belford's suspicious activities and potential involvement in the cyberattack.",
+      "text_sha256": "b13e1aec466ce53114fe66152d7648da2a5730d701db5066771c9b19d70941e3"
+    },
+    {
+      "item_id": "expectation_a837fbf4e947a837d28a55567856c4c77be0f78b9303d2f28183dad164970039",
+      "item_type": "expectation",
+      "source_text": "On March 13, 2014, Mallinckrodt Manager of Compliance, Debbie LaVelle (Debbie.lavelle@mallinckrodt.com) disseminated new, specific guidelines for health care provider meals: breakfast/lunch/snack/coffee should not be brought into a provider's office more than once a week, and should not be brought in on two consecutive sales calls to the same office.",
+      "text_sha256": "2e359b0a8cfadd611efcc059316d931e9710dede6e0b7a437937107f1ee24de3"
+    },
+    {
+      "item_id": "expectation_c1d4985f78a485c14cbeac09905f610f2924147c57d855468562abc8fccdd806",
+      "item_type": "expectation",
+      "source_text": "An Exalgo lunch program was scheduled for Tuesday, January 10, 2012, with Dr. El-Mohandes, but it did not occur and was canceled.",
+      "text_sha256": "7b269a2d65af1f38384f728a5a17d7a3db8583a8b7f94ef7f579f57e5b7c9ec5"
+    },
+    {
+      "item_id": "variant_913d7332e2d189001df1e0ab32a2532c1f4a7392c85a0170d4c3f8885fbadc5f",
+      "item_type": "question",
+      "source_text": "Should Ellingson have known that Eugene Belford was planning a cyberattack against it?",
+      "text_sha256": "7d7ca453c5648dfcf33033af436a479d636d2034c53bffab6e3192b56a12e13a"
+    },
+    {
+      "item_id": "expectation_7b52b947ea12ef6793c0fc3a47248a00810170d7caec14182eb141f9f309bb3c",
+      "item_type": "expectation",
+      "source_text": "Notes that Belford does not have any emails to or from teenage hacker Dade Murphy aka Zer0Cool at the email address zer0cool@mindvirus.org.",
+      "text_sha256": "7907b97c13b52c957909e3186d94218c599e2a8eec57e95fa18e4be7985ca02d"
+    },
+    {
+      "item_id": "variant_23da7b2ecabaca847854815e61ae700e3de38799fef3079c0c18a79daf877016",
+      "item_type": "question",
+      "source_text": "Provide the timeline of Ellingson's response to the cyberattack.",
+      "text_sha256": "752c68a939e9e088183b48c5e751757348406a585c0ddc48faf11cc41672c52a"
+    },
+    {
+      "item_id": "variant_e918590ddb179c983e2f84b96f979afdde85d1f3fa0a9d4f059146cb8e327100",
+      "item_type": "question",
+      "source_text": "Tell me Mallinckrodt/Covidien's guidelines for frequency of meals for health care providers and what were communications after they were issued or clarified.",
+      "text_sha256": "83101aaf846c23190a76fb7c3855ce47d018af2b211dff19be1a7651ea82cbc2"
+    },
+    {
+      "item_id": "variant_19acd42f767c9f190da05d840d5054f9830407d24f7bd20df909504c45f5d5fb",
+      "item_type": "question",
+      "source_text": "Show me all the playbooks that are in the documents",
+      "text_sha256": "14d5d2d21cf3669c199da3d5a26aa47d625723ecea9cb8960875884d09cfb0c0"
+    },
+    {
+      "item_id": "variant_847f7ce96a4bce51fed8287219a48170022301ca5fd61aac73a544c63761d5f0",
+      "item_type": "question",
+      "source_text": "With whom did Belford email about the plan to execute a cyberattack against Ellingson?",
+      "text_sha256": "b9fac6dec1373c5df0d4d3b576b35559f68261091a58da193ab8ee80283cdb2a"
+    },
+    {
+      "item_id": "expectation_be5af1cbac878c9a234fdb494989b1c83a621a69f9c7bdef2f200e70a3d125b4",
+      "item_type": "expectation",
+      "source_text": "States Eugene Belford used the address eugene.belford@offshore-secure.net.",
+      "text_sha256": "35b322cbcc7c2af92568ce3efd86f987fb1690d5524dafae8523f8ef3ff758c8"
+    },
+    {
+      "item_id": "expectation_2837e674dfb277368d93f97c4c0ab5105579e7a21d2698295265e5fd825f9f80",
+      "item_type": "expectation",
+      "source_text": "Cites Belford's encoded message regarding Interesting opportunity.",
+      "text_sha256": "e4e9af4f08b0cc6faab1651f7b5d6979719db2777b418b3e459eb21420877c37"
+    },
+    {
+      "item_id": "variant_e2acc6d06bce8b9b0dc5cef90f613144ddfc6e573e23b2c4158134977e937fa8",
+      "item_type": "question",
+      "source_text": "What evidence shows that Ellingson's cybersecurity posture was deficient?",
+      "text_sha256": "3767ac96c79f2853da3cfbb0216ac24d7175a7585f096f3891b158ba6c9b47d1"
+    },
+    {
+      "item_id": "expectation_8ad3312665e174480468e3c3e96bb8fbb8963d99bec94610949d47604223c8e8",
+      "item_type": "expectation",
+      "source_text": "Ellingson Board of Directors (board.of.directors@ellingson.com)",
+      "text_sha256": "0b19d20108c99ea711bb849bbe5e012a4063f947f31b6d379cfc5afa9b745642"
+    },
+    {
+      "item_id": "expectation_546185a98eede70c7c3a5ada87999754329506059587e73163a86675caeaa85f",
+      "item_type": "expectation",
+      "source_text": "Made recommendation to CEO Benson to replace the Gibson supercomputer amidst hack to maintain operations",
+      "text_sha256": "05ad4a6350801a0b56e403a5aab5ec20eaf4341399d506b36df9dbcd694a682e"
+    },
+    {
+      "item_id": "expectation_a4c2522b006c62c975c7524d45dd2e732acbc2ed9ad4cdfe6a14620bf2f69bd7",
+      "item_type": "expectation",
+      "source_text": "Cites company valuation/stock price decrease of approximately 22%.",
+      "text_sha256": "5008b5c166fdaf5dc0a23ee2eb272d5514d51ffdd9b96ad769dcef1dfdcbf68e"
+    },
+    {
+      "item_id": "expectation_f2aefdd839e2b10699fef3a1317c4ed9febee0661f589d0effacda46c1c16cf4",
+      "item_type": "expectation",
+      "source_text": "Belford refers to an escape plan he discussed with Margo Wallace, and later instructs Wallace to use the escape plan",
+      "text_sha256": "843a75821390ec615aefa4f94f9e2b87961dbac2ecf7685f207677c212430d24"
+    },
+    {
+      "item_id": "variant_d912212e2b92ebb96503dcb443fa5589ace0f460ecc2e32fb5b5c2835f98505e",
+      "item_type": "question",
+      "source_text": "Who is Megan Lowrey?",
+      "text_sha256": "8c2138b42b49686cda85b959df1c5db1a8337d101c2967c93ff8a9d3cc30c1c4"
+    },
+    {
+      "item_id": "expectation_6e9c9024745a5b534b82c2289ef2fbe7f90ecbeaf1b3dead8a389047c8d0dd99",
+      "item_type": "expectation",
+      "source_text": "Cites Ellingson's claimed costs for hiring external cybersecurity experts ($1M).",
+      "text_sha256": "e0e946ed4677848abda5cf01ea74025914e50af9049695740cccfc3feca506f1"
+    },
+    {
+      "item_id": "variant_7e923f1c3ed33610391215efb0105389ee7947651c3083f3d2321ab08d2a8b8b",
+      "item_type": "question",
+      "source_text": "Did Ellingson have information available to it before October 19, 1995, that Belford was going to execute the Da Vinci virus?",
+      "text_sha256": "1791d3e83fd314db9b2554056b35ada000781391aa819666d2494d7ad2ac58da"
+    }
+  ],
+  "schema_version": 1
+}

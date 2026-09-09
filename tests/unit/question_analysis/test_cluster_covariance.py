@@ -8,6 +8,7 @@ import pytest
 from es_index_explorer.question_analysis.cluster_covariance import (
     joint_wald_statistic,
     project_psd,
+    three_term_cluster_covariance,
     three_term_cluster_meat,
 )
 from es_index_explorer.question_analysis.errors import (
@@ -65,9 +66,93 @@ def test_psd_projection_symmetrizes_and_clips_negative_eigenvalue() -> None:
     result = project_psd(np.array([[1.0, 2.0 + 1e-12], [2.0, 1.0]]))
 
     assert result.projection_applied
+    assert result.materially_indefinite
     np.testing.assert_allclose(result.matrix, result.matrix.T)
     assert np.linalg.eigvalsh(result.matrix).min() >= -1e-12
     assert result.eigenvalues_after.min() == 0.0
+
+
+@pytest.mark.parametrize(
+    ("matrix", "projection_applied", "materially_indefinite"),
+    (
+        (np.diag([1.0, 2.0]), False, False),
+        (np.diag([1.0, 0.0]), False, False),
+        (np.diag([1.0, -5e-11]), True, False),
+        (np.diag([1.0, -1e-3]), True, True),
+        (np.eye(2), False, False),
+    ),
+)
+def test_psd_projection_reports_clipping_and_material_indefiniteness(
+    matrix: np.ndarray,
+    projection_applied: bool,
+    materially_indefinite: bool,
+) -> None:
+    result = project_psd(matrix)
+
+    assert result.projection_applied is projection_applied
+    assert result.materially_indefinite is materially_indefinite
+    np.testing.assert_array_equal(result.symmetrized_input, matrix)
+    np.testing.assert_allclose(result.matrix, result.matrix.T, atol=1e-15)
+    assert np.linalg.eigvalsh(result.matrix).min() >= -1e-15
+
+
+def test_psd_projection_symmetrizes_asymmetric_input() -> None:
+    matrix = np.array([[1.0, 2.0], [0.0, 1.0]])
+
+    result = project_psd(matrix)
+
+    assert result.projection_applied
+    assert not result.materially_indefinite
+    np.testing.assert_array_equal(
+        result.symmetrized_input,
+        np.array([[1.0, 1.0], [1.0, 1.0]]),
+    )
+
+
+def test_psd_projection_uses_frozen_positive_eigenvalue_threshold() -> None:
+    clipped = project_psd(np.diag([1e-10, 1.0]))
+    retained = project_psd(np.diag([1.1e-10, 1.0]))
+
+    assert clipped.eigenvalues_after[0] == 0.0
+    assert clipped.projection_applied
+    assert retained.eigenvalues_after[0] == pytest.approx(1.1e-10)
+    assert not retained.projection_applied
+
+
+def test_psd_projection_rejects_invalid_tolerance() -> None:
+    with pytest.raises(MalformedInputError, match="finite and non-negative"):
+        project_psd(np.eye(2), tolerance=-1.0)
+    with pytest.raises(MalformedInputError, match="finite and non-negative"):
+        project_psd(np.eye(2), tolerance=np.nan)
+
+
+@pytest.mark.parametrize(
+    "matrix",
+    (
+        np.ones(2),
+        np.ones((2, 3)),
+        np.array([[np.nan]]),
+    ),
+)
+def test_psd_projection_rejects_invalid_matrix(matrix: np.ndarray) -> None:
+    with pytest.raises(MalformedInputError, match="finite square matrix"):
+        project_psd(matrix)
+
+
+def test_cluster_covariance_exposes_raw_and_projected_matrices() -> None:
+    scores = np.array([[1.0], [2.0], [3.0], [5.0], [7.0]])
+    result = three_term_cluster_covariance(
+        np.array([[2.0]]),
+        scores,
+        ["r1", "r1", "r2", "r2", "r2"],
+        ["a1", "a2", "a1", "a2", "a3"],
+    )
+
+    np.testing.assert_array_equal(
+        result.unprojected_covariance,
+        result.psd.symmetrized_input,
+    )
+    np.testing.assert_array_equal(result.covariance, result.psd.matrix)
 
 
 def test_singular_restricted_covariance_is_non_computable() -> None:
@@ -202,3 +287,10 @@ def test_cluster_covariance_input_contracts_fail_closed() -> None:
         three_term_cluster_meat(np.ones((2, 1)), ("r1",), ("a1", "a2"))
     with pytest.raises(NumericalError, match="at least two realised"):
         three_term_cluster_meat(np.ones((2, 1)), ("r1", "r1"), ("a1", "a2"))
+    with pytest.raises(NumericalError, match="bread is singular"):
+        three_term_cluster_covariance(
+            np.zeros((1, 1)),
+            np.ones((4, 1)),
+            ("r1", "r1", "r2", "r2"),
+            ("a1", "a2", "a1", "a2"),
+        )

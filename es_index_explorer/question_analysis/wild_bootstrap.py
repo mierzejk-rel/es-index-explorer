@@ -7,6 +7,7 @@ from itertools import product
 import numpy as np
 
 from es_index_explorer.question_analysis.cluster_covariance import (
+    ClusterCovariance,
     ClusterMeat,
     joint_wald_statistic,
     three_term_cluster_covariance,
@@ -16,6 +17,7 @@ from es_index_explorer.question_analysis.errors import (
     NumericalError,
 )
 from es_index_explorer.question_analysis.glm_primitives import (
+    SolverResult,
     bernoulli_bread,
     bernoulli_score_rows,
     solve_restricted_logit,
@@ -31,7 +33,7 @@ FULL_REFIT_INDICATOR_AGREEMENT = 0.99
 FULL_REFIT_MAX_RELATIVE_DISCREPANCY = 0.01
 INVARIANT_BLOCK_RTOL = 1e-9
 
-FullRefitStatistic = Callable[[Mapping[object, float]], float]
+FullRefitEvaluator = Callable[[Mapping[object, float]], "FullRefitReplicate"]
 
 
 def family_bootstrap_rngs(
@@ -73,6 +75,18 @@ class BootstrapReplicate:
 
 
 @dataclass(frozen=True, slots=True)
+class FullRefitReplicate:
+    """Store one actual restricted-then-unrestricted full-refit result."""
+
+    wald: float
+    weights_by_arm: Mapping[object, float]
+    restricted_solution: SolverResult
+    unrestricted_solution: SolverResult
+    bread: np.ndarray
+    covariance: ClusterCovariance
+
+
+@dataclass(frozen=True, slots=True)
 class FullRefitValidation:
     """Store the one-step/full-refit validation outcome."""
 
@@ -80,6 +94,18 @@ class FullRefitValidation:
     indicator_agreement: float
     maximum_relative_discrepancy: float
     passed: bool
+
+
+@dataclass(frozen=True, slots=True)
+class BootstrapFailureDisclosure:
+    """Store the frozen combined bootstrap-failure disclosure calculation."""
+
+    singular_count: int
+    non_finite_count: int
+    combined_count: int
+    denominator: int
+    rate: float
+    triggered: bool
 
 
 @dataclass(frozen=True, slots=True)
@@ -95,8 +121,8 @@ class WildBootstrapResult:
     arm_cluster_count: int
     attainable_support: int
     attainable_grid: tuple[float, ...]
-    disclosure_triggered: bool
-    invariant_blocks_passed: bool
+    failure_disclosure: BootstrapFailureDisclosure
+    one_step_invariant_blocks_passed: bool
     full_refit_validation: FullRefitValidation | None
     used_full_refit: bool
 
@@ -205,6 +231,29 @@ def _failure_kind(error: NumericalError) -> str:
     return "singular" if "covariance is singular" in error.message else "non_finite"
 
 
+def bootstrap_failure_disclosure(
+    *,
+    singular_count: int,
+    non_finite_count: int,
+    denominator: int,
+) -> BootstrapFailureDisclosure:
+    """Compute the strict one-percent combined bootstrap-failure disclosure."""
+    if singular_count < 0 or non_finite_count < 0:
+        raise MalformedInputError("Bootstrap failure counts must be non-negative")
+    if denominator <= 0:
+        raise MalformedInputError("Bootstrap failure denominator must be positive")
+    combined_count = singular_count + non_finite_count
+    rate = combined_count / denominator
+    return BootstrapFailureDisclosure(
+        singular_count=singular_count,
+        non_finite_count=non_finite_count,
+        combined_count=combined_count,
+        denominator=denominator,
+        rate=rate,
+        triggered=rate > 0.01,
+    )
+
+
 def _invariant_blocks(replicates: Sequence[BootstrapReplicate]) -> bool:
     if not replicates:
         return False
@@ -228,7 +277,7 @@ def _invariant_blocks(replicates: Sequence[BootstrapReplicate]) -> bool:
 
 def _validate_full_refit(
     replicates: Sequence[BootstrapReplicate],
-    full_refit: FullRefitStatistic,
+    full_refit: FullRefitEvaluator,
     validation_rng: np.random.Generator,
     observed_wald: float,
 ) -> FullRefitValidation:
@@ -238,7 +287,7 @@ def _validate_full_refit(
     discrepancies: list[float] = []
     for index in indices:
         replicate = replicates[int(index)]
-        full_wald = float(full_refit(replicate.weights_by_arm))
+        full_wald = full_refit(replicate.weights_by_arm).wald
         if not np.isfinite(full_wald):
             raise NumericalError("Full-refit Wald statistic is non-finite")
         agreements.append(
@@ -266,24 +315,29 @@ def _validate_full_refit(
 
 def _rerun_with_full_refit(
     schedules: Sequence[Mapping[object, float]],
-    full_refit: FullRefitStatistic,
-    diagnostic_meat: ClusterMeat,
-) -> tuple[list[BootstrapReplicate], int, int]:
-    valid: list[BootstrapReplicate] = []
+    full_refit: FullRefitEvaluator,
+    *,
+    target_valid: int | None = None,
+) -> tuple[list[FullRefitReplicate], int, int, int]:
+    valid: list[FullRefitReplicate] = []
     singular = 0
     non_finite = 0
+    attempted = 0
     for weights in schedules:
+        if target_valid is not None and len(valid) == target_valid:
+            break
+        attempted += 1
         try:
-            wald = float(full_refit(weights))
-            if not np.isfinite(wald):
+            replicate = full_refit(weights)
+            if not np.isfinite(replicate.wald):
                 raise NumericalError("Full-refit Wald statistic is non-finite")
-            valid.append(BootstrapReplicate(wald, dict(weights), diagnostic_meat))
+            valid.append(replicate)
         except NumericalError as error:
             if _failure_kind(error) == "singular":
                 singular += 1
             else:
                 non_finite += 1
-    return valid, singular, non_finite
+    return valid, singular, non_finite, attempted
 
 
 def logit_full_refit_statistic(
@@ -295,8 +349,8 @@ def logit_full_refit_statistic(
     *,
     unrestricted_initial: np.ndarray,
     restricted_initial: np.ndarray,
-) -> FullRefitStatistic:
-    """Build the frozen restricted-then-unrestricted perturbed-score refit."""
+) -> FullRefitEvaluator:
+    """Build the frozen restricted-then-unrestricted perturbed-score evaluator."""
     matrix = np.asarray(design, dtype=float)
     outcome = np.asarray(response, dtype=float)
     constraints = np.asarray(restriction, dtype=float)
@@ -305,9 +359,9 @@ def logit_full_refit_statistic(
     arms = tuple(arm_clusters)
     rubrics = tuple(rubric_clusters)
 
-    def statistic(weights_by_arm: Mapping[object, float]) -> float:
+    def statistic(weights_by_arm: Mapping[object, float]) -> FullRefitReplicate:
         row_weights = _row_weights(arms, weights_by_arm)
-        solve_restricted_logit(
+        restricted = solve_restricted_logit(
             matrix,
             outcome,
             constraints,
@@ -330,9 +384,17 @@ def logit_full_refit_statistic(
         # not the Bernoulli information definition.
         bread = bernoulli_bread(matrix, unrestricted.coefficients)
         covariance = three_term_cluster_covariance(bread, score_rows, rubrics, arms)
-        return joint_wald_statistic(
+        wald = joint_wald_statistic(
             unrestricted.coefficients, covariance.covariance, constraints
         ).value
+        return FullRefitReplicate(
+            wald=wald,
+            weights_by_arm=dict(weights_by_arm),
+            restricted_solution=restricted,
+            unrestricted_solution=unrestricted,
+            bread=bread,
+            covariance=covariance,
+        )
 
     return statistic
 
@@ -343,7 +405,7 @@ def run_wild_cluster_bootstrap(
     rng: np.random.Generator,
     bootstrap_replicates: int = DEFAULT_BOOTSTRAP_REPLICATES,
     validation_rng: np.random.Generator | None = None,
-    full_refit: FullRefitStatistic | None = None,
+    full_refit: FullRefitEvaluator | None = None,
 ) -> WildBootstrapResult:
     """Run the frozen sampled-or-enumerated arm-clustered restricted WCR."""
     arms = _validate_problem(problem)
@@ -391,8 +453,15 @@ def run_wild_cluster_bootstrap(
             f"Wild bootstrap could not replenish {bootstrap_replicates} valid replicates"
         )
 
+    one_step_invariant = _invariant_blocks(valid)
+    if valid and not one_step_invariant:
+        raise NumericalError(
+            "Arm or intersection covariance block varied across replicates"
+        )
+
     validation: FullRefitValidation | None = None
     used_full_refit = False
+    final_walds = [replicate.wald for replicate in valid]
     if full_refit is not None:
         if validation_rng is None:
             raise MalformedInputError("Full-refit validation requires a dedicated RNG")
@@ -400,46 +469,48 @@ def run_wild_cluster_bootstrap(
             valid, full_refit, validation_rng, problem.observed_wald
         )
         if not validation.passed:
-            invariant_before_fallback = _invariant_blocks(valid)
-            if not invariant_before_fallback:
-                raise NumericalError(
-                    "Arm or intersection covariance block varied across replicates"
-                )
-            diagnostic_meat = valid[0].meat
             schedules_for_full = (
                 list(schedules) if regime == "enumerated" else list(attempted_schedules)
             )
-            valid, singular, non_finite = _rerun_with_full_refit(
-                schedules_for_full, full_refit, diagnostic_meat
+            full_refit_valid, singular, non_finite, full_attempts = (
+                _rerun_with_full_refit(
+                    schedules_for_full,
+                    full_refit,
+                    target_valid=bootstrap_replicates if regime == "sampled" else None,
+                )
             )
-            full_attempts = len(schedules_for_full)
             while (
                 regime == "sampled"
-                and len(valid) < bootstrap_replicates
+                and len(full_refit_valid) < bootstrap_replicates
                 and full_attempts < MAX_REPLENISHMENT_MULTIPLIER * bootstrap_replicates
             ):
                 weights = _sampled_rademacher_weights(arms, rng)
-                full_attempts += 1
-                additional, failed_singular, failed_non_finite = _rerun_with_full_refit(
-                    (weights,), full_refit, diagnostic_meat
+                additional, failed_singular, failed_non_finite, attempted = (
+                    _rerun_with_full_refit(
+                        (weights,),
+                        full_refit,
+                        target_valid=1,
+                    )
                 )
-                valid.extend(additional)
+                full_attempts += attempted
+                full_refit_valid.extend(additional)
                 singular += failed_singular
                 non_finite += failed_non_finite
             attempts = full_attempts
-            if regime == "sampled" and len(valid) != bootstrap_replicates:
+            if regime == "sampled" and len(full_refit_valid) != bootstrap_replicates:
                 raise NumericalError(
                     "Full-refit bootstrap could not replenish the requested valid replicates"
                 )
+            final_walds = [replicate.wald for replicate in full_refit_valid]
             used_full_refit = True
 
-    exceedances = sum(replicate.wald >= problem.observed_wald for replicate in valid)
+    exceedances = sum(wald >= problem.observed_wald for wald in final_walds)
     if regime == "enumerated":
-        discarded = support - len(valid)
+        discarded = support - len(final_walds)
         lower = exceedances / support
         upper = (exceedances + discarded) / support
         grid = tuple(index / support for index in range(1, support + 1))
-        denominator = support
+        failure_denominator = support
         if discarded == support:
             raise NumericalError("Every enumerated bootstrap vector was non-computable")
     else:
@@ -448,28 +519,25 @@ def run_wild_cluster_bootstrap(
             index / (bootstrap_replicates + 1)
             for index in range(1, bootstrap_replicates + 2)
         )
-        denominator = attempts
+        failure_denominator = bootstrap_replicates
 
-    combined_failure_rate = (
-        (singular + non_finite) / denominator if denominator else 1.0
+    failure_disclosure = bootstrap_failure_disclosure(
+        singular_count=singular,
+        non_finite_count=non_finite,
+        denominator=failure_denominator,
     )
-    invariant = _invariant_blocks(valid)
-    if not invariant:
-        raise NumericalError(
-            "Arm or intersection covariance block varied across replicates"
-        )
     return WildBootstrapResult(
         regime=regime,
         p_value=PValueBracket(lower, upper),
-        valid_replicates=len(valid),
+        valid_replicates=len(final_walds),
         attempted_replicates=attempts,
         singular_replicates=singular,
         non_finite_replicates=non_finite,
         arm_cluster_count=len(arms),
         attainable_support=support,
         attainable_grid=grid,
-        disclosure_triggered=combined_failure_rate > 0.01,
-        invariant_blocks_passed=invariant,
+        failure_disclosure=failure_disclosure,
+        one_step_invariant_blocks_passed=one_step_invariant,
         full_refit_validation=validation,
         used_full_refit=used_full_refit,
     )

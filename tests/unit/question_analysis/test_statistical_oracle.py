@@ -3,6 +3,7 @@
 import json
 from pathlib import Path
 
+import numpy as np
 import pandas as pd
 import pytest
 
@@ -13,14 +14,19 @@ from es_index_explorer.question_analysis.errors import (
 )
 from es_index_explorer.question_analysis.statistical_oracle import (
     CONTRACT_FILE,
+    COVARIANCE_REFERENCE_FILE,
+    COVARIANCE_REFERENCE_SOURCE,
     INPUT_FILE,
     OUTPUT_FILE,
     WEIGHTS_FILE,
     OracleContract,
+    RCovarianceReference,
     ROracleOutput,
+    _numerical_agreement,
     build_f6_linear_fixture,
     compute_python_linear_oracle,
     verify_fixture_provenance,
+    verify_production_covariance,
     verify_r_oracle_fixture,
 )
 
@@ -51,9 +57,95 @@ def test_python_linear_special_case_reproduces_r_reference() -> None:
 
     assert verification.passed
     assert verification.p_f_absolute_difference == 0.0
-    assert verification.W_obs_relative_difference < 1e-12
+    assert verification.raw_W_obs_relative_difference < 1e-12
     assert verification.python_invalid_t_count == verification.r_invalid_t_count == 223
-    assert verification.oracle_scope == "linear_f6_special_case_only"
+    assert verification.oracle_scope == "linear_f6_external_raw_and_independent_r_psd"
+    assert verification.schema_version == 3
+    assert verification.external_p_value_convention == (
+        "fwildclusterboot_valid_only_strict_no_plus_one"
+    )
+    assert (
+        verification.production_sampled_p_value_convention
+        == "replenish_to_B_then_plus_one"
+    )
+    assert verification.production_enumerated_p_value_convention == (
+        "full_support_bracket_no_plus_one"
+    )
+
+
+def test_native_r_and_production_p_value_conventions_are_intentionally_distinct() -> (
+    None
+):
+    contract = OracleContract.model_validate_json(CONTRACT_FILE.read_text())
+    native_output = ROracleOutput.model_validate_json(OUTPUT_FILE.read_text())
+    replay = compute_python_linear_oracle(
+        pd.read_csv(INPUT_FILE),
+        contract,
+        pd.read_csv(WEIGHTS_FILE).to_numpy(dtype=float),
+    )
+    exceedances = int(np.count_nonzero(replay.bootstrap_wald >= replay.W_obs))
+    production_formula_without_replenishment = (1 + exceedances) / (
+        contract.bootstrap_replicates + 1
+    )
+
+    assert replay.invalid_t_count == native_output.invalid_t_count == 223
+    assert replay.p_f == native_output.p_f
+    assert production_formula_without_replenishment == pytest.approx(0.8681)
+    assert abs(production_formula_without_replenishment - native_output.p_f) > 1e-4
+
+
+def test_production_cgm_psd_and_wald_match_independent_r_reference() -> None:
+    contract = OracleContract.model_validate_json(CONTRACT_FILE.read_text())
+    r_output = ROracleOutput.model_validate_json(OUTPUT_FILE.read_text())
+    reference = RCovarianceReference.model_validate_json(
+        COVARIANCE_REFERENCE_FILE.read_text()
+    )
+
+    verification = verify_production_covariance(
+        pd.read_csv(INPUT_FILE),
+        contract,
+        r_output,
+        reference,
+    )
+
+    assert verification.passed
+    assert verification.cluster_counts_match
+    assert verification.projection_flags_match
+    assert verification.symmetry_passed
+    assert verification.projected_psd_passed
+    assert verification.external_raw_wald.passed
+    assert verification.production_raw_wald.passed
+    assert verification.production_projected_wald.passed
+    assert all(
+        agreement.passed
+        for _field_name, agreement in verification
+        if hasattr(agreement, "passed")
+    )
+    assert verification.materially_indefinite
+    assert verification.projection_applied
+    assert verification.relative_projection_shift == pytest.approx(0.10885542293567473)
+    assert verification.python_raw_W_obs != pytest.approx(
+        verification.python_projected_W_obs,
+        rel=1e-3,
+    )
+
+
+def test_covariance_reference_has_complete_f6_contract() -> None:
+    reference = RCovarianceReference.model_validate_json(
+        COVARIANCE_REFERENCE_FILE.read_text()
+    )
+
+    assert reference.row_count == 36_623
+    assert reference.parameter_count == 64
+    assert reference.cluster_counts.model_dump() == {
+        "rubric": 63,
+        "arm": 28,
+        "intersection": 1_764,
+    }
+    assert len(reference.bread) == reference.parameter_count
+    assert len(reference.projected_covariance) == reference.parameter_count
+    assert min(reference.eigenvalues_before) < -reference.psd_tolerance
+    assert min(reference.eigenvalues_after) == 0.0
 
 
 def test_fixture_provenance_covers_every_reference_file() -> None:
@@ -65,6 +157,8 @@ def test_fixture_provenance_covers_every_reference_file() -> None:
     assert provenance.fwildclusterboot_remote_sha == (
         "336bb574eba169ac0183317f01d0564791d8122f"
     )
+    assert len(provenance.covariance_reference_source_sha256) == 64
+    assert len(provenance.covariance_reference_output_sha256) == 64
 
 
 def test_canonical_linear_input_rebuilds_identically() -> None:
@@ -96,6 +190,101 @@ def test_python_oracle_rejects_misaligned_weight_fixture() -> None:
         )
 
 
+@pytest.mark.parametrize(
+    "reference_update",
+    (
+        {"raw_W_obs": 1.0},
+        {"projected_W_obs": 1.0},
+    ),
+)
+def test_raw_or_projected_covariance_mismatch_blocks_production_gate(
+    reference_update: dict[str, float],
+) -> None:
+    contract = OracleContract.model_validate_json(CONTRACT_FILE.read_text())
+    r_output = ROracleOutput.model_validate_json(OUTPUT_FILE.read_text())
+    reference = RCovarianceReference.model_validate_json(
+        COVARIANCE_REFERENCE_FILE.read_text()
+    ).model_copy(update=reference_update)
+
+    verification = verify_production_covariance(
+        pd.read_csv(INPUT_FILE),
+        contract,
+        r_output,
+        reference,
+    )
+
+    assert not verification.passed
+    if "raw_W_obs" in reference_update:
+        assert not verification.external_raw_wald.passed
+        assert not verification.production_raw_wald.passed
+    else:
+        assert not verification.production_projected_wald.passed
+
+
+def test_covariance_reference_rejects_non_psd_projection() -> None:
+    payload = json.loads(COVARIANCE_REFERENCE_FILE.read_text())
+    payload["projected_covariance"][0][0] = -1.0
+
+    with pytest.raises(ValueError, match="not positive semidefinite"):
+        RCovarianceReference.model_validate(payload)
+
+
+@pytest.mark.parametrize(
+    ("case", "message"),
+    (
+        ("dimensions", "dimensions are inconsistent"),
+        ("matrix_shape", "matrices are not square and aligned"),
+        ("finite", "values must be finite"),
+        ("symmetric", "matrices must be symmetric"),
+    ),
+)
+def test_covariance_reference_rejects_invalid_numerical_contract(
+    case: str,
+    message: str,
+) -> None:
+    payload = json.loads(COVARIANCE_REFERENCE_FILE.read_text())
+    if case == "dimensions":
+        payload["design_columns"].pop()
+    elif case == "matrix_shape":
+        payload["bread"].pop()
+    elif case == "finite":
+        payload["coefficients"][0] = float("nan")
+    else:
+        payload["bread"][0][1] += 1.0
+
+    with pytest.raises(ValueError, match=message):
+        RCovarianceReference.model_validate(payload)
+
+
+def test_production_gate_rejects_reference_contract_mismatch() -> None:
+    contract = OracleContract.model_validate_json(CONTRACT_FILE.read_text())
+    r_output = ROracleOutput.model_validate_json(OUTPUT_FILE.read_text())
+    reference = RCovarianceReference.model_validate_json(
+        COVARIANCE_REFERENCE_FILE.read_text()
+    ).model_copy(update={"row_count": contract.row_count + 1})
+
+    with pytest.raises(GateFailureError, match="does not match the F6 contract"):
+        verify_production_covariance(
+            pd.read_csv(INPUT_FILE),
+            contract,
+            r_output,
+            reference,
+        )
+
+
+def test_numerical_agreement_rejects_shape_mismatch() -> None:
+    agreement = _numerical_agreement(
+        [1.0],
+        [1.0, 2.0],
+        relative_tolerance=1e-8,
+        absolute_tolerance=1e-10,
+    )
+
+    assert not agreement.passed
+    assert agreement.maximum_absolute_difference == float("inf")
+    assert agreement.maximum_relative_difference == float("inf")
+
+
 def test_provenance_tampering_fails_closed(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
@@ -105,6 +294,7 @@ def test_provenance_tampering_fails_closed(
         ("INPUT_FILE", INPUT_FILE),
         ("CONTRACT_FILE", CONTRACT_FILE),
         ("OUTPUT_FILE", OUTPUT_FILE),
+        ("COVARIANCE_REFERENCE_FILE", COVARIANCE_REFERENCE_FILE),
         ("WEIGHTS_FILE", WEIGHTS_FILE),
     ):
         target = tmp_path / source.name
@@ -113,10 +303,21 @@ def test_provenance_tampering_fails_closed(
         copied[name] = target
     oracle_root = tmp_path / "oracle"
     oracle_root.mkdir()
-    for filename in ("Dockerfile", ".dockerignore", "renv.lock", "run_reference.R"):
+    for filename in (
+        "Dockerfile",
+        ".dockerignore",
+        "renv.lock",
+        "run_reference.R",
+        "covariance_reference.R",
+    ):
         source = oracle_module.ORACLE_ROOT / filename
         (oracle_root / filename).write_bytes(source.read_bytes())
     monkeypatch.setattr(oracle_module, "ORACLE_ROOT", oracle_root)
+    monkeypatch.setattr(
+        oracle_module,
+        "COVARIANCE_REFERENCE_SOURCE",
+        oracle_root / COVARIANCE_REFERENCE_SOURCE.name,
+    )
     copied["INPUT_FILE"].write_text("tampered\n", encoding="utf-8")
 
     with pytest.raises(GateFailureError, match="provenance mismatch"):

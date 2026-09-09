@@ -173,7 +173,22 @@ def test_oracle_command_runs_offline_and_records_artifact(tmp_path: Path) -> Non
     assert exit_code == 0
     assert error_output.getvalue() == ""
     assert "oracle: completed" in output.getvalue()
-    assert (root / "statistics" / "r_oracle_verification.json").is_file()
+    artifact = root / "statistics" / "r_oracle_verification.json"
+    assert artifact.is_file()
+    verification = json.loads(artifact.read_text(encoding="utf-8"))
+    assert verification["passed"]
+    assert verification["oracle_scope"] == (
+        "linear_f6_external_raw_and_independent_r_psd"
+    )
+    assert verification["production_covariance"]["passed"]
+    assert verification["production_covariance"]["materially_indefinite"]
+    assert verification["production_covariance"]["relative_projection_shift"] > 0.10
+    assert verification["external_p_value_convention"] == (
+        "fwildclusterboot_valid_only_strict_no_plus_one"
+    )
+    assert verification["production_sampled_p_value_convention"] == (
+        "replenish_to_B_then_plus_one"
+    )
 
 
 def test_malformed_arguments_use_locked_exit_code() -> None:

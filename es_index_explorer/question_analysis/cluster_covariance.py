@@ -30,9 +30,11 @@ class ClusterMeat:
 class PsdProjection:
     """Store a symmetric positive-semidefinite projection and diagnostics."""
 
+    symmetrized_input: np.ndarray
     matrix: np.ndarray
     eigenvalues_before: np.ndarray
     eigenvalues_after: np.ndarray
+    materially_indefinite: bool
     projection_applied: bool
 
 
@@ -40,6 +42,7 @@ class PsdProjection:
 class ClusterCovariance:
     """Store a two-way covariance and its component diagnostics."""
 
+    unprojected_covariance: np.ndarray
     covariance: np.ndarray
     meat: ClusterMeat
     psd: PsdProjection
@@ -117,16 +120,26 @@ def project_psd(
         or not np.isfinite(values).all()
     ):
         raise MalformedInputError("PSD projection requires a finite square matrix")
+    if not np.isfinite(tolerance) or tolerance < 0:
+        raise MalformedInputError(
+            "PSD projection tolerance must be finite and non-negative"
+        )
     symmetric = (values + values.T) / 2.0
     eigenvalues, eigenvectors = np.linalg.eigh(symmetric)
     clipped = np.where(eigenvalues <= tolerance, 0.0, eigenvalues)
     projected = (eigenvectors * clipped) @ eigenvectors.T
     projected = (projected + projected.T) / 2.0
+    materially_indefinite = bool(np.any(eigenvalues < -tolerance))
+    projection_applied = bool(
+        not np.array_equal(values, symmetric) or np.any(clipped != eigenvalues)
+    )
     return PsdProjection(
+        symmetrized_input=symmetric,
         matrix=projected,
         eigenvalues_before=eigenvalues,
         eigenvalues_after=clipped,
-        projection_applied=bool(np.any(eigenvalues < -tolerance)),
+        materially_indefinite=materially_indefinite,
+        projection_applied=projection_applied,
     )
 
 
@@ -153,7 +166,12 @@ def three_term_cluster_covariance(
     except np.linalg.LinAlgError as error:
         raise NumericalError("Cluster covariance bread is singular") from error
     psd = project_psd(covariance)
-    return ClusterCovariance(covariance=psd.matrix, meat=meat, psd=psd)
+    return ClusterCovariance(
+        unprojected_covariance=psd.symmetrized_input,
+        covariance=psd.matrix,
+        meat=meat,
+        psd=psd,
+    )
 
 
 def joint_wald_statistic(

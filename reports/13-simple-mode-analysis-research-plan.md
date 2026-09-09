@@ -1063,25 +1063,29 @@ fixed and recomputed bread is one of the things the 99% indicator-agreement crit
 is measuring. The bread choice is therefore not merely asserted; it fails loudly if it
 matters, and the consequence is the same full-refit fallback.
 
-**Which blocks of `V*_b` actually vary, stated exactly, because it is not obvious and it has
-consequences.** Under an arm-clustered DGP every observation in arm `h` receives the same
-sign `z_h`, so for the arm block the cluster sum becomes `z_h * S_h` and its outer product
-is `z_h^2 * S_h S_h' = S_h S_h'`. The same cancellation applies to each rubric-by-arm
-intersection cell, since every observation in a cell shares one arm sign. Therefore, **in
-every replicate**:
+**Which blocks of the one-step `V*_b` actually vary, stated exactly, because it is not obvious
+and it has consequences.** In the fixed-score, fixed-bread one-step phase, every observation
+in arm `h` receives the same sign `z_h`, so for the arm block the cluster sum becomes
+`z_h * S_h` and its outer product is `z_h^2 * S_h S_h' = S_h S_h'`. The same cancellation
+applies to each rubric-by-arm intersection cell, since every observation in a cell shares one
+arm sign. Therefore, **in every one-step replicate**:
 
 `V*_arm = V_arm` and `V*_intersection = V_intersection`, **exactly**, while only `V*_rubric`
 varies, because a rubric's cluster sum `sum over h of z_h * S_gh` mixes several arm signs.
 
 Three consequences, all pre-specified. **Correctness**: the two invariant blocks are
-computed once and reused, and any implementation in which they drift across replicates has a
-bug - this is a useful unit test rather than a curiosity. **Interpretation**: with the bread
-fixed, *all* replicate-to-replicate variation in the studentisation comes from the rubric
-block, so if that block is small relative to the others the procedure behaves close to a
-fixed-covariance bootstrap and the asymptotic refinement from studentisation is
-correspondingly weaker. **Reporting**: the share of `V_3` attributable to each of the three
-blocks, and the coefficient of variation of `V*_rubric` across replicates, are reported per
-family so that this degeneracy is visible rather than hidden.
+computed once and reused in the one-step phase, and any implementation in which they drift
+there has a bug - this is a useful unit test rather than a curiosity. A full-refit fallback
+re-estimates coefficients and bread for every sign schedule, so its score rows and covariance
+blocks are genuine refit outputs and are **not** subject to this fixed-score invariant; the
+one-step invariant result is retained separately rather than attaching placeholder one-step
+meat to full-refit replicates. **Interpretation**: with the bread fixed, *all* one-step
+replicate-to-replicate variation in the studentisation comes from the rubric block, so if that
+block is small relative to the others the procedure behaves close to a fixed-covariance
+bootstrap and the asymptotic refinement from studentisation is correspondingly weaker.
+**Reporting**: the share of `V_3` attributable to each of the three blocks, and the coefficient
+of variation of one-step `V*_rubric` across replicates, are reported per family so that this
+degeneracy is visible rather than hidden.
 
 **Why a DGP that does not reproduce two-way dependence is still valid**, stated so this is
 not re-litigated: MNW prove asymptotic validity for variants that fail to replicate the
@@ -1142,14 +1146,19 @@ factors without an additional `(N-1)/(N-k)` multiplier. The environment is
 `fwildclusterboot` 0.14.3 and all transitive packages frozen in `renv.lock`. The 64-bit
 `r_oracle` seed is passed losslessly as two 32-bit words, and the R-generated auxiliary sign
 schedule is persisted with the fixture so Python and R compare the same finite set of draws
-rather than two unrelated Monte Carlo samples. Seed = the dedicated value from the master
-seed's `r_oracle` stream (§18); tolerance =
+rather than two unrelated Monte Carlo samples. The runner pre-draws that schedule with
+`fwildclusterboot:::get_weights`, resets `dqrng` to the same seed, and then calls
+`boottest(..., conf_int = FALSE)`, so the persisted signs are exactly those consumed by the
+native calculation. Seed = the dedicated value from the master seed's `r_oracle` stream
+(§18); tolerance =
 agreement of `p_f` to `1e-4` and of `W_obs` to relative `1e-6`. **R, Docker and
 `fwildclusterboot` are a one-off verification dependency, not a dependency of the analysis
 programme**: the reference run is executed once inside the pinned image, its `(y, X, seed)`
-input and its output `p_f` and `W_obs` are committed to the repository as a fixture, and the
-Python test suite replays that fixture without invoking Docker or R again, so the analysis run
-itself requires neither R, Docker, nor `fwildclusterboot` installed.
+input, native output `p_f` and unprojected `W_obs`, independent base-R component
+meats/covariances/eigenvalues, projected `W_obs`, and auxiliary weights are committed to the
+repository as fixtures. The Python test suite replays those fixtures without invoking Docker
+or R again, so the analysis run itself requires neither R, Docker, nor `fwildclusterboot`
+installed.
 
 **Architecture decision.** The canonical reference is deliberately fixed to `linux/amd64`,
 even though the pinned Rocker OCI index also publishes a `linux/arm64` image suitable for
@@ -1164,15 +1173,33 @@ An arm64 run may be used as a non-canonical compatibility check, but cannot repl
 the canonical fixture unless it independently satisfies the same `p_f`, `W_obs`, and
 invalid-statistic-count comparisons and is explicitly re-locked.
 
-The claim this earns must not be inflated. **The R oracle reproduction validates the linear
+The claim this earns must not be inflated. **The two-layer R oracle validates the linear
 special case; it is a regression-test oracle for the shared numerical components, not
-validation of the GLM extension.** Specifically it does cover: the three-term CRVE assembly,
-the PSD step, the restricted-estimate bootstrap DGP, the arm-clustered weight assignment,
-the Wald and p-value machinery, and the seeding. It does **not** cover: the GLM score
+validation of the GLM extension.** Native `fwildclusterboot` validates the unprojected scalar
+linear statistic, its own restricted-estimate bootstrap DGP, the arm-clustered weight
+assignment, its native p-value calculation, and the seeding. It does **not** construct or
+PSD-project the full coefficient covariance matrix: its reported `W_obs` is the unprojected
+linear statistic. A separate base-R derivation, sharing no Python numerical helpers, constructs
+all three corrected meat matrices, the full unprojected `V_3`, the frozen eigenvalue-clipping
+map, and the projected Wald statistic. The offline Python gate calls the production
+`three_term_cluster_covariance()` and `joint_wald_statistic()` paths and requires their
+component meats, raw covariance, eigenvalues, projected covariance, and raw/projected Wald
+statistics to agree with that independent R reference. Both raw and projected values are
+persisted; a material difference between them is a PSD diagnostic, not an oracle failure.
+
+Together these two independent paths cover the linear three-term CRVE assembly, PSD step,
+Wald machinery, and external-package bootstrap schedule. They do **not** cover: the GLM score
 construction, the one-step GLM update, the fixed-bread studentisation, or the stacked
 two-outcome score of §11. Those four are exercised only by internal consistency checks - the
 full-refit agreement criterion, the invariant-block unit test above, and simulation from the
 fitted model - and they remain the declared extension.
+
+Native `fwildclusterboot`'s p-value is also not the production sampled-GLM convention. The
+external package drops non-finite statistics and computes a strict valid-only exceedance mean;
+production replenishes to exactly `B` valid replicates, counts `W*_b >= W_obs`, and applies
+`(1 + E)/(B + 1)`. The offline artifact names both conventions, and a regression test proves
+they intentionally differ on the committed F6 schedule. Agreement with native R is evidence
+for faithful external replay, never an acceptance criterion that replaces production §5.3.
 
 **Numerical validation of the one-step approximation, with a consequence.** "The comparison
 is reported" is not a criterion, since it degrades into "the approximation looked fine". The
@@ -1203,6 +1230,10 @@ a documented investigation rather than automatic rejection, because frequent sin
 usually **diagnostic** - it typically indicates a predictor nearly collinear with a cluster
 dimension, which is information about the design rather than noise to be discarded - while
 frequent non-finite replicates more often indicate near-collinearity in `A(beta_tilde)` itself.
+For the sampled regime the combined disclosure rate is
+`(singular_count + non_finite_count) / B`, where `B` is the requested valid-replicate target,
+not the larger attempt count after replenishment; attempted replicates remain a separate
+diagnostic. The strict trigger is `rate > 0.01`, so exactly 1% does not trigger.
 **For enumerated-regime families**, the discard-tolerance sensitivity display does not apply,
 since discards there are not resolved by recomputing at a chosen tolerance but by the bracket
 of step 4 above; the two failure counts are still reported, and the same 1% **combined**
@@ -2163,6 +2194,9 @@ compared against - the same spillover mechanism already documented for F3's coar
    rather than a definite rejected or not-rejected outcome. `BH_INDETERMINATE` is disclosed
    exactly like `MONTE_CARLO_INDETERMINATE` (§5.1): a distinct status, never silently folded
    into "not rejected".
+   The Stage 6 adjudication result emits one deterministic typed decision per family; every
+   symmetric-difference family carries the exact `AnalysisFlag.BH_INDETERMINATE` token, while
+   definite rejected and definite non-rejected families carry no indeterminacy flag.
 4. **Two evaluations suffice regardless of how many families are simultaneously bracketed**,
    and this is asserted rather than merely hoped for: BH's step-up statistic `k = max{j :
    p_(j) <= j * 0.05 / 10}` is monotone non-increasing in each input p-value taken in
@@ -3428,18 +3462,25 @@ alone does not supply.
    frozen in §5.3), then replayed by Python without Docker. Stata `boottest` is not used: it
    is not available locally, and
    Python `wildboottest`/PyFixest are not substitutes because both explicitly lack multiway
-   clustering support. Invariant: Python-computed `p_f` and `W_obs` match the committed R
-   output. Tolerance: `p_f` to `1e-4`, `W_obs` to relative `1e-6`. Failure action: the GLM
+   clustering support. Invariant: the parallel Python linear calculation matches native
+   `fwildclusterboot` on `p_f` and raw `W_obs`; independently, the production Python CGM/PSD
+   path matches the committed base-R reference on every meat component, raw covariance,
+   eigenvalues, projected covariance, and raw/projected `W_obs`. Tolerance: `p_f` to `1e-4`;
+   raw/projected `W_obs` to relative `1e-6` and absolute `1e-12`; matrices and eigenvalues to
+   relative `1e-8` and absolute `1e-10`. Failure action: the GLM
    bootstrap implementation is blocked from use on any family until the discrepancy is
    resolved; this is a pre-modelling gate (§19), not a pre-lock one, and may be run at any time
    before the first `fit-layer1` or `fit-families` invocation - it does not have to precede
    independent, outcome-blind annotation work. Once the reference fixture is committed, the
    Python test suite replays it without invoking Docker or R again, so the analysis run itself
    requires neither R nor `fwildclusterboot` installed at runtime.
-3. **Invariant-block unit test.** Fixture: any one confirmatory family's bootstrap run.
-   Invariant: `V*_arm` and `V*_intersection` are bit-identical (or within floating-point
-   `allclose` at `rtol=1e-9`) across all `B` replicates. Tolerance: as stated. Failure action:
-   the bootstrap implementation has a bug and the family's `p_f` is not reported until fixed.
+3. **Invariant-block unit test.** Fixture: the one-step phase of any one confirmatory family's
+   bootstrap run. Invariant: `V*_arm` and `V*_intersection` are bit-identical (or within
+   floating-point `allclose` at `rtol=1e-9`) across all one-step replicates. A subsequent
+   full-refit fallback retains this one-step diagnostic separately and reports its own
+   re-estimated covariance objects; it does not fabricate invariant full-refit blocks.
+   Tolerance: as stated. Failure action: the bootstrap implementation has a bug and the
+   family's `p_f` is not reported until fixed.
 4. **Off-diagonal meat test.** Fixture: a committed synthetic stacked-score matrix, not a
    live GLM fit. Draw `n = 400` pairs `(s_i^R, s_i^C)` from a bivariate normal with mean
    `0`, variances `1`, and correlation `rho = 0.5`, using `numpy.random.default_rng` seeded
@@ -3456,8 +3497,11 @@ alone does not supply.
 5. **One-step versus full-refit indicator agreement.** Fixture: the 2% full-refit validation
    subsample, selected once per family from the `glm_bootstrap` seed stream (§18.2). Invariant:
    agreement of `1{W* >= W_obs}` in at least 99% of the subsample. Tolerance: as stated, with
-   the secondary `rtol < 0.01` on `W*` itself. Failure action: the family is re-run with full
-   refitting in every replicate (§5.3), at the stated additional cost.
+   the secondary `rtol < 0.01` on `W*` itself. The full-refit result retains both solver
+   results, its recomputed bread and covariance, and its Wald statistic; a nontrivial synthetic
+   sign schedule is checked against an independent SciPy root solve. Failure action: the family
+   is re-run with actual full refitting in every replicate (§5.3), at the stated additional
+   cost.
 6. **Outcome-field refusal.** Fixture: an annotation response file containing at least one
    outcome-adjacent field name (`rubric_v2`, `pass_rate`, `grade`, `ordinal_grade`, `tier`, or
    any column present in `trace_pfu_table.parquet` or `recommendation_table_*`). Invariant: the ingest

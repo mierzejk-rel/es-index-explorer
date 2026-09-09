@@ -28,7 +28,7 @@ pytestmark = pytest.mark.unit
 
 
 def test_default_root_is_segment6_execution_root() -> None:
-    assert DEFAULT_ANALYSIS_ROOT.name == "simplemode-v1-segment6"
+    assert DEFAULT_ANALYSIS_ROOT.name == "simplemode-v1-segment6-postremediation-final"
 
 
 def _specification(tmp_path: Path) -> Path:
@@ -50,6 +50,8 @@ def test_manifest_round_trip_and_frozen_layout(tmp_path: Path) -> None:
         "ordinal_grade_oracle",
         "ordinal_grade_oracle_provenance",
         "r_oracle_contract",
+        "r_oracle_covariance_reference_output",
+        "r_oracle_covariance_reference_source",
         "r_oracle_dockerignore",
         "r_oracle_dockerfile",
         "r_oracle_input",
@@ -84,6 +86,7 @@ def test_manifest_round_trip_and_frozen_layout(tmp_path: Path) -> None:
         "segment6_glm_primitives_source",
         "segment6_multiplicity_source",
         "segment6_operations",
+        "segment6_remediation",
         "segment6_seed_source",
         "segment6_stacked_scores_source",
         "segment6_statistical_oracle_source",

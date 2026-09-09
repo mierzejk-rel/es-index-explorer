@@ -10,7 +10,9 @@ is authoritative in `reports/13-simple-mode-analysis-research-plan.md` §§5.2�
 Segment 6 implements numerical primitives and pre-modelling oracles only. It does not fit
 Layer 1, fit any confirmatory family, inspect outcome-model results, or change the human-gold
 gate. The R comparison validates the linear F6 special case; it does not externally validate
-the binomial-GLM or stacked-outcome extensions.
+the binomial-GLM or stacked-outcome extensions. Native `fwildclusterboot` validates its raw
+scalar linear statistic; a separate base-R derivation validates the production full-matrix
+CGM covariance, PSD map, and projected Wald statistic.
 
 ## Environment
 
@@ -20,6 +22,8 @@ Host R and RStudio are not required. The oracle image is defined by
 - `rocker/r-ver:4.4.3` at the Dockerfile's OCI digest;
 - the `linux/amd64` platform for a single cross-host reference;
 - `fwildclusterboot` 0.14.3 and transitive packages from the committed `renv.lock`;
+- a pure base-R covariance reference in `covariance_reference.R`, separate from the Python
+  production implementation;
 - a read-only fixture input mount and a dedicated writable output mount.
 
 The Dockerfile and `renv.lock` are the infrastructure-as-code boundary. Docker Compose and a
@@ -79,8 +83,27 @@ identity. The generator stages container output outside the fixture directory, v
 every output, and atomically replaces the repository fixture only when all checks pass. The
 container cannot write anywhere except its output mount.
 
-Run the generator twice from identical inputs. The input, output, auxiliary-weight, and
-provenance hashes must be identical.
+Run the generator twice from identical inputs. The input, native output, independent
+covariance-reference output, auxiliary-weight, and provenance hashes must be identical.
+
+## Two-layer oracle boundary
+
+`fwildclusterboot` computes the raw linear statistic directly from its add-add-subtract
+cluster terms. It does not construct and eigendecompose the full coefficient covariance, so
+its `W_obs` must not be described as PSD-projected. The independent base-R reference:
+
+1. forms the unrestricted OLS row scores;
+2. independently aggregates rubric, arm, and non-empty intersection cluster sums;
+3. applies the realised `G/(G-1)`, `H/(H-1)`, and `GH/(GH-1)` factors;
+4. constructs and symmetrises raw `V_3`;
+5. applies the frozen `1e-10` eigenvalue rule; and
+6. records both raw and projected `W_obs`.
+
+The container rejects generation unless the base-R raw statistic agrees with native
+`fwildclusterboot` to relative `1e-6`. The offline gate then runs the production Python
+`three_term_cluster_covariance()` and `joint_wald_statistic()` paths against every persisted
+R matrix and statistic. This triangulates the external package, the independent mathematical
+derivation, and production code.
 
 ## Frozen R call
 
@@ -88,17 +111,28 @@ The runner uses resolved-only criterion outcomes, F6 `token_count` plus rubric f
 rubric and arm clustering, and the token-count null restriction. Its call fixes:
 
 ```r
-fwildclusterboot::boottest(
+dqrng::dqset.seed(seed_words)
+weight_matrix <- fwildclusterboot:::get_weights(
+  type = "rademacher",
+  full_enumeration = FALSE,
+  N_G_bootcluster = arm_count,
+  boot_iter = as.integer(contract$bootstrap_replicates),
+  sampling = "dqrng"
+)
+
+# Reset so boottest consumes the exact persisted schedule.
+dqrng::dqset.seed(seed_words)
+result <- fwildclusterboot::boottest(
   fit,
-  param = "token_count",
+  param = contract$restriction_column,
   clustid = c("rubric", "arm"),
   bootcluster = "arm",
-  B = 9999,
+  B = as.integer(contract$bootstrap_replicates),
   type = "rademacher",
   impose_null = TRUE,
   engine = "R",
   sampling = "dqrng",
-  getauxweights = TRUE,
+  conf_int = FALSE,
   ssc = fwildclusterboot::boot_ssc(
     adj = FALSE,
     fixef.K = "none",
@@ -109,7 +143,9 @@ fwildclusterboot::boottest(
 ```
 
 The 64-bit `r_oracle` stream seed is split into two signed 32-bit R words without passing
-through a floating-point representation.
+through a floating-point representation. The deliberate private `get_weights()` call persists
+the auxiliary schedule before the seed reset; `boottest()` itself does not retain a second
+copy of those weights.
 
 ## Offline workflow verification
 
@@ -117,24 +153,69 @@ After the reference exists, ordinary verification requires neither Docker nor R:
 
 ```bash
 UV_NO_ENV_FILE=1 uv run --no-env-file question-suitability \
-  --analysis-root artifacts/question_analysis/simplemode-v1-segment6 \
+  --analysis-root artifacts/question_analysis/simplemode-v1-segment6-postremediation-final \
   oracle
 ```
 
-The command validates fixture provenance and hashes, runs the Python linear special case with
-the same auxiliary signs, and requires:
+The command validates fixture provenance and hashes, runs both Python paths, and requires:
 
 - absolute `p_f` difference at most `1e-4`;
-- relative `W_obs` difference at most `1e-6`.
+- relative raw and projected `W_obs` differences at most `1e-6`, with absolute tolerance
+  `1e-12`;
+- component-meat, covariance, and eigenvalue agreement at relative `1e-8` and absolute
+  `1e-10`;
+- exact realised cluster counts and PSD diagnostic flags.
 
 It writes `statistics/r_oracle_verification.json` and records the `oracle` workflow step only
-after both tolerances pass. A mismatch is a blocking gate failure.
+after every required comparison passes. A mismatch is a blocking gate failure.
+
+The F6 raw covariance is materially indefinite. The canonical fixture therefore records raw
+`W_obs` near `0.0243104822`, projected `W_obs` near `0.0216641544`, and a relative projection
+shift near `0.1088554`. That shift is expected diagnostic evidence and must remain visible; it
+is not resolved by removing the frozen PSD map or substituting the native raw statistic.
+
+## Audit-remediation lineage
+
+`simplemode-v1-segment6` remains the immutable pre-remediation Stage 6 checkpoint; its
+schema-v1 oracle artifact is historical evidence and is not rewritten.
+`simplemode-v1-segment6-postremediation-final` is the single final Stage 6 checkpoint. It
+rematerializes deterministic tables and hash-verified annotation provenance, records the
+schema-v3 two-layer oracle, and stops while the human-data gate remains locked. No per-finding
+temporary root is a canonical checkpoint.
 
 The reference package reports and drops non-finite linear-reference statistics according to
 its own documented implementation; the committed run records 223 such draws and Python
 reproduces that count exactly. This is part of reproducing the external oracle, not the
 production GLM discard policy. The custom sampled WCR engine separately follows §5.3 by
 replenishing to exactly 9,999 valid replicates.
+
+The verification artifact names these as distinct contracts:
+
+- `fwildclusterboot_valid_only_strict_no_plus_one` for the native replay;
+- `replenish_to_B_then_plus_one` for production sampled WCR; and
+- `full_support_bracket_no_plus_one` for production enumeration.
+
+The committed F6 schedule intentionally demonstrates that the first convention is not the
+second. The external p-value is never substituted for a production family p-value.
+
+## Full-refit and BH diagnostics
+
+The one-step invariant check applies only while restricted scores and bread are fixed. If the
+99% indicator-agreement or 1% Wald-discrepancy criterion fails, each fallback replicate stores
+the actual restricted and unrestricted solver results, recomputed bread and covariance, and
+full-refit Wald statistic. The p-value is rebuilt from those full-refit Wald values. No
+one-step meat is attached to a full-refit replicate, and no fixed-score invariant is claimed
+for re-estimated covariance blocks.
+
+Two-corner BH adjudication emits one deterministic decision per family. Every family in the
+lower/upper rejection-set symmetric difference, including an unaffected family whose decision
+changes through threshold spillover, carries `AnalysisFlag.BH_INDETERMINATE` exactly.
+
+Bootstrap failure disclosure retains singular and non-finite counts separately and also
+persists their combined count, denominator, rate, and strict one-percent trigger. Sampled WCR
+uses the requested valid target `B` as the denominator even when replenishment makes
+`attempted_replicates > B`; enumeration uses the full attainable support `S_f`. Exactly 1%
+does not trigger because the frozen comparison is `rate > 0.01`.
 
 ## Failure recovery
 

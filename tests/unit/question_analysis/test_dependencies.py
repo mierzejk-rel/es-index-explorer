@@ -321,9 +321,57 @@ def test_r_oracle_base_image_is_digest_pinned() -> None:
     assert lock["R"]["Version"] == "4.4.3"
     assert lock["Packages"]["fwildclusterboot"]["Version"] == "0.14.3"
     assert lock["Packages"]["jsonlite"]["Version"] == "2.0.0"
-    assert "fwildclusterboot" in (oracle_root / "run_reference.R").read_text(
+    runner = (oracle_root / "run_reference.R").read_text(encoding="utf-8")
+    covariance_reference = (oracle_root / "covariance_reference.R").read_text(
         encoding="utf-8"
     )
+    assert "fwildclusterboot" in runner
+    assert "compute_covariance_reference" in runner
+    assert "cluster_meat_component" in covariance_reference
+    assert "eigen(symmetrized_covariance, symmetric = TRUE)" in covariance_reference
+
+
+def test_r_oracle_documented_call_matches_runner_and_fixture() -> None:
+    oracle_root = PROJECT_ROOT / "tests" / "oracles" / "fwildclusterboot"
+    runner = (oracle_root / "run_reference.R").read_text(encoding="utf-8")
+    operations = (
+        PROJECT_ROOT / "reports" / "19-segment-6-statistical-oracle-operations.md"
+    ).read_text(encoding="utf-8")
+    documented_call = operations.split("## Frozen R call", maxsplit=1)[1].split(
+        "## Offline workflow verification",
+        maxsplit=1,
+    )[0]
+    output = json.loads(
+        (oracle_root / "fixtures" / "f6-linear-r-output.json").read_text(
+            encoding="utf-8"
+        )
+    )
+    contract = json.loads(
+        (oracle_root / "fixtures" / "f6-linear-contract.json").read_text(
+            encoding="utf-8"
+        )
+    )
+
+    for source in (runner, documented_call):
+        assert "fwildclusterboot:::get_weights" in source
+        assert source.count("dqrng::dqset.seed(seed_words)") == 2
+        assert "conf_int = FALSE" in source
+        assert "getauxweights" not in source
+    assert output["call"] == {
+        "clustid": ["rubric", "arm"],
+        "bootcluster": "arm",
+        "B": contract["bootstrap_replicates"],
+        "type": "rademacher",
+        "impose_null": True,
+        "engine": "R",
+        "sampling": "dqrng",
+        "ssc": {
+            "adj": False,
+            "fixef.K": "none",
+            "cluster.adj": True,
+            "cluster.df": "conventional",
+        },
+    }
 
 
 def test_annotation_constants_match_locked_specification() -> None:

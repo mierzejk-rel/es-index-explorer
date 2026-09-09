@@ -5,9 +5,13 @@ import subprocess
 import tempfile
 from pathlib import Path
 
+import numpy as np
+
 from es_index_explorer.question_analysis.errors import GateFailureError
 from es_index_explorer.question_analysis.statistical_oracle import (
     CONTRACT_FILE,
+    COVARIANCE_REFERENCE_FILE,
+    COVARIANCE_REFERENCE_SOURCE,
     FIXTURE_ROOT,
     INPUT_FILE,
     ORACLE_ROOT,
@@ -15,6 +19,8 @@ from es_index_explorer.question_analysis.statistical_oracle import (
     PROVENANCE_FILE,
     WEIGHTS_FILE,
     OracleProvenance,
+    RCovarianceReference,
+    ROracleOutput,
     build_f6_linear_fixture,
     fixture_csv_bytes,
 )
@@ -49,11 +55,16 @@ def generate_r_reference(
 ) -> OracleProvenance:
     """Generate the one-off Docker-backed R fixture and its provenance."""
     fixture, contract = build_f6_linear_fixture(analysis_root)
-    FIXTURE_ROOT.mkdir(parents=True, exist_ok=True)
-    atomic_write_bytes(INPUT_FILE, fixture_csv_bytes(fixture))
-    atomic_write_bytes(CONTRACT_FILE, canonical_json_bytes(contract))
     with tempfile.TemporaryDirectory(prefix="simplemode-r-oracle-") as temporary:
-        output_dir = Path(temporary)
+        staging_root = Path(temporary)
+        input_dir = staging_root / "input"
+        output_dir = staging_root / "output"
+        input_dir.mkdir()
+        output_dir.mkdir()
+        staged_input = input_dir / INPUT_FILE.name
+        staged_contract = input_dir / CONTRACT_FILE.name
+        staged_input.write_bytes(fixture_csv_bytes(fixture))
+        staged_contract.write_bytes(canonical_json_bytes(contract))
         command = [
             "docker",
             "run",
@@ -61,7 +72,7 @@ def generate_r_reference(
             "--platform",
             DOCKER_PLATFORM,
             "--mount",
-            f"type=bind,src={FIXTURE_ROOT},dst=/input,readonly",
+            f"type=bind,src={input_dir},dst=/input,readonly",
             "--mount",
             f"type=bind,src={output_dir},dst=/output",
             image,
@@ -79,14 +90,40 @@ def generate_r_reference(
                 else "unknown error"
             )
             raise GateFailureError(f"R oracle container failed: {message}")
+        generated_outputs: dict[Path, bytes] = {}
         for filename, target in (
             ("f6-linear-r-output.json", OUTPUT_FILE),
+            (
+                "f6-linear-r-covariance-reference.json",
+                COVARIANCE_REFERENCE_FILE,
+            ),
             ("f6-linear-rademacher-weights.csv", WEIGHTS_FILE),
         ):
             source = output_dir / filename
             if not source.is_file():
                 raise GateFailureError(f"R oracle did not produce {filename}")
-            atomic_write_bytes(target, source.read_bytes())
+            if target == OUTPUT_FILE:
+                ROracleOutput.model_validate_json(source.read_text(encoding="utf-8"))
+            elif target == COVARIANCE_REFERENCE_FILE:
+                RCovarianceReference.model_validate_json(
+                    source.read_text(encoding="utf-8")
+                )
+            generated_outputs[target] = source.read_bytes()
+        weight_matrix = np.loadtxt(
+            output_dir / WEIGHTS_FILE.name,
+            delimiter=",",
+            skiprows=1,
+        )
+        if weight_matrix.shape != (
+            len(contract.arm_order),
+            contract.bootstrap_replicates,
+        ) or set(np.unique(weight_matrix)) != {-1.0, 1.0}:
+            raise GateFailureError("R oracle produced an invalid weight schedule")
+        FIXTURE_ROOT.mkdir(parents=True, exist_ok=True)
+        atomic_write_bytes(INPUT_FILE, staged_input.read_bytes())
+        atomic_write_bytes(CONTRACT_FILE, staged_contract.read_bytes())
+        for target, content in generated_outputs.items():
+            atomic_write_bytes(target, content)
     inspect = subprocess.run(
         ["docker", "image", "inspect", image, "--format", "{{.Id}}"],
         check=False,
@@ -103,9 +140,11 @@ def generate_r_reference(
         dockerignore_sha256=sha256_file(ORACLE_ROOT / ".dockerignore"),
         renv_lock_sha256=sha256_file(ORACLE_ROOT / "renv.lock"),
         runner_sha256=sha256_file(ORACLE_ROOT / "run_reference.R"),
+        covariance_reference_source_sha256=sha256_file(COVARIANCE_REFERENCE_SOURCE),
         input_sha256=sha256_file(INPUT_FILE),
         contract_sha256=sha256_file(CONTRACT_FILE),
         output_sha256=sha256_file(OUTPUT_FILE),
+        covariance_reference_output_sha256=sha256_file(COVARIANCE_REFERENCE_FILE),
         weights_sha256=sha256_file(WEIGHTS_FILE),
         source_analysis_root=analysis_root.name,
         fwildclusterboot_source_sha256=FWILDCLUSTERBOOT_SOURCE_SHA256,

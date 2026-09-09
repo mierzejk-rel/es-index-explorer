@@ -1,0 +1,151 @@
+{
+  "batch_id": "batch-014",
+  "item_ids_sha256": "487992c7edce60053bad49481d1375c04e93036b9d26e4e084dbd514baf247df",
+  "items": [
+    {
+      "item_id": "expectation_c3785a9cdb26549e904526e818dc31ae1af1769d0cb9db0a282c255c354b2f78",
+      "item_type": "expectation",
+      "source_text": "Dr. Sarah Chen was the Acting CTO at Ellingson Mineral Company during.",
+      "text_sha256": "30a9c92096b46a3bfdd44a0cc66c5842116fd17d686e1776fad002a98cb1fa73"
+    },
+    {
+      "item_id": "expectation_441bada2bc5ad1f02a4167a8bc4b8fdb912f9803f4dbf1274b54d1a73a9b5b9c",
+      "item_type": "expectation",
+      "source_text": "Ellingson Acting CTO Sarah Chen (sarah.chen@ellingson-it.com)",
+      "text_sha256": "58f719e13e21267399622583fde73f50ebab781033e03441155719097708d157"
+    },
+    {
+      "item_id": "expectation_a8b24a5dd06d0834eefa2f5a020eba0c9ad384a10338f0908058a2e9aeab9fc6",
+      "item_type": "expectation",
+      "source_text": "Cites Chen noting young hackers have skills the current team lacks with respect to handling vulnerabilities.",
+      "text_sha256": "a58d6f622b86c94e2c6c44851e7e6f4a2db786888e838f220e6ec91624e40a67"
+    },
+    {
+      "item_id": "variant_c8da0bccac3503a84eb13f7481b47d3c189b9047e8e4afc1d43a80b058e2e36c",
+      "item_type": "question",
+      "source_text": "Did Phantom Phreak the teenage hacker collaborate with Belford on the Da Vinci hack?",
+      "text_sha256": "a66c3c9f63b3c9ecb2d4497929c7c2e41dd29917c79139beab23339f75cd290c"
+    },
+    {
+      "item_id": "expectation_7bf29710dec735bde1c7a1b14a07f371d283e6dc12a6fb55592062101e3d0627",
+      "item_type": "expectation",
+      "source_text": "Cites Dade Murphy/Zer0 Cool/Crash Override and others planning to address the Gibson issue/hack at Ellingson.",
+      "text_sha256": "156d074cf540cb3c8e0dd88ab4bd833771e4a3a166b2da82e21772ee5e5799c1"
+    },
+    {
+      "item_id": "variant_352dbbdc394b2af210e25f8013f8ba15e3d0629ffb2fcd2f9ee7813c09825fc9",
+      "item_type": "question",
+      "source_text": "Whom did J.Matthew.Smith@covidien.com communicate with most often?",
+      "text_sha256": "00847ba2bf1ce013da81e38f2edd033c9def934a090d7737d68f35f876a401fa"
+    },
+    {
+      "item_id": "expectation_3ce63af01efcf9ac97eaaa32cd5a3d4dab159ae3eff5f9e42f1f68aba0ec8c27",
+      "item_type": "expectation",
+      "source_text": "Cites 10/4/95 Belford email from his Ellingson address to Wallace at her Ellingson address about 'the package', a 'test run' before 'the real fun begins next week', and her 'exit strategy', which email monitoring may have flagged.",
+      "text_sha256": "0296b1b1c72a80f484b665272338ef9a15a6deb0b213fbabb3f813c1757312c4"
+    },
+    {
+      "item_id": "variant_1ca4716319a139cd7d8f24264d964e808d56b38bd1a7908614287159564aa4b9",
+      "item_type": "question",
+      "source_text": "What communications between Ellingson employees are unusual?",
+      "text_sha256": "65a97437c6dc0dc6494401732cbd08f728564f9c1c6ac6273902863d6cd6629a"
+    },
+    {
+      "item_id": "variant_deb61947e1aa4c434a65bb05bdb5d6f6f80853f41632f16bd327ef2ce24aa667",
+      "item_type": "question",
+      "source_text": "Who is Elmo?",
+      "text_sha256": "4a4535261df566e25212bb08f1b1114751c06925015473dcfd1ccc786d51b7c5"
+    },
+    {
+      "item_id": "variant_fe12ce8371c529ca5aa341ad9e9e7b5389929ae21ece56018097951d58ff1f0a",
+      "item_type": "question",
+      "source_text": "Are 'Phantom Phreak' the teenage hacker and 'Phantom Phreak' who communicated with Belford the same person?",
+      "text_sha256": "cdc11bbfdd75cda123fcb7de60e67dadce37d27140970af032eee55a2fb9c443"
+    },
+    {
+      "item_id": "variant_879d3010a3b90b7736432c49b1a80851f23f4608ece3a881008da875a99a43d7",
+      "item_type": "question",
+      "source_text": "Is there evidence that Dr. Elmo was involved with Pennsaid?",
+      "text_sha256": "c3620b33b7a43436ed2d161287e33d59b62865415db22725dc5bdd8888eb2a10"
+    },
+    {
+      "item_id": "expectation_9b820e05726a6a41722c83c07f39e560db0e62a657e97a1932735dabb9ac48af",
+      "item_type": "expectation",
+      "source_text": "Spreadsheet showing estimated damages for preliminary cyber insurance claim",
+      "text_sha256": "83a022048a4969e9aec1f2e46dc35ebd38faa95788033c684c8a5d2844abe230"
+    },
+    {
+      "item_id": "variant_c6a00286566afa61312056f69cedb9bcfa7e151b6e8774b0931dc53b48ffd914",
+      "item_type": "question",
+      "source_text": "What harm did Eugene Belford's hack cause to Ellingson?",
+      "text_sha256": "0d8e161315e586c45e3a976cb18c0b765093cce628164b6745a8dd54018a06cc"
+    },
+    {
+      "item_id": "variant_0756fca2cfa6d464bb84a598dc5ac581083a3d5b2c512be3f1a73d04d36f4b3b",
+      "item_type": "question",
+      "source_text": "List the emails between Belford and Phantom Phreak regarding the hack of Ellingson.",
+      "text_sha256": "185bb353afe52159a43912155bd84e1790e382df10edcda28a769f71b8914c72"
+    },
+    {
+      "item_id": "expectation_5b0589da6309293fab245755921d2e5e48a62c66fb0e1ca2975250bec0191847",
+      "item_type": "expectation",
+      "source_text": "Cites press release drafted at 10/19 6:45pm to maintain shareholder and public confidence.",
+      "text_sha256": "8cb66ca6f1973aa4d0f321b4020d0969cc608a7ce68bd5b82df9693706e04d8a"
+    },
+    {
+      "item_id": "expectation_3a8ae5033c570bc6c06e8d43766e92122b7d061f5acb7343a6b7b66ebe1faad6",
+      "item_type": "expectation",
+      "source_text": "Cites Ellingson statement about investing heavily in cybersecurity to prevent future incidents and developing long-term strategy including CISO consideration.",
+      "text_sha256": "97a5f5b6cffe61c40c5a45d496d1f004fa3c9597d0cb00f90ac36635a1672776"
+    },
+    {
+      "item_id": "expectation_0e45f1296f60feaed7f206236ab36328fc667516728fd8d34e6d3631bcaa6be9",
+      "item_type": "expectation",
+      "source_text": "Quarterly Playbook, FY13Q3, Territory 50206 – Queens South",
+      "text_sha256": "fdc0981ec77d155c57ad617bf6ad068f9537aeef2d6ecbe6dcfedaabbe6e22d4"
+    },
+    {
+      "item_id": "variant_9d05621046dab71cd9f3c652987ecc86725b0c8fb7fb9da72f9488f8f24a87ab",
+      "item_type": "question",
+      "source_text": "Tell me who Dr. Elmo emailed with at Covidien.",
+      "text_sha256": "9a7b646848f4ecec0ddcf16679f1fae23d57ef6ec47624085f5cb3e3da60cef0"
+    },
+    {
+      "item_id": "variant_12a1f36524b9bcb646a8fa4d529f91836fb074e32c3002e6992857db60012aa6",
+      "item_type": "question",
+      "source_text": "How were Dade Murphy, Kate Libby, and the rest of their crew of hackers involved in the cyberattack against Ellingson?",
+      "text_sha256": "cf1da3b6991e255b17404af9ba08826b90da4e8df4d3fcf82ad1bcc9643d4759"
+    },
+    {
+      "item_id": "variant_b3a73041f14d3bae9b1f8133ec282e8148f8905b95ada35d4622cdc5be73d8ea",
+      "item_type": "question",
+      "source_text": "List the Ellingson IT department employees involved in identifying, monitoring, and containing the effects of Belford's hack.",
+      "text_sha256": "26ae3a1baf83a837e8f4a4dc8df16430c92bdeb74d9a3f979dd2a4fdf7e1347d"
+    },
+    {
+      "item_id": "expectation_61f6e9fabb86f924ab7b2c488dcb90478064971d2ae14c9f68900c19d8f31832",
+      "item_type": "expectation",
+      "source_text": "Quarterly Playbook, FY13Q3, Territory 70305 – El Paso",
+      "text_sha256": "db369672c22b2497a6e3c462d69d0531380b630d146bd358932558b61c58ba86"
+    },
+    {
+      "item_id": "expectation_1ba4addbc5ad1d2d344523336813a33fc4cbaae2cec47e07d213366260ddb9fa",
+      "item_type": "expectation",
+      "source_text": "Smith forwarded Moses's email to Brian Donalty (Brian.Donalty@covidien.com). In response, Donalty told Smith to be very cautious.",
+      "text_sha256": "607e5bef9e613fbaa797451d4cd118058a648e2cb6281e1f22a9240d3b7b9672"
+    },
+    {
+      "item_id": "expectation_59b83de933691b2b075cd900b75b7739d5b62b466a7189c696c4ba94f257f26f",
+      "item_type": "expectation",
+      "source_text": "Dr. Sarah Chen uses the email addressess Sarah.Chen@ellingson-it.com and Sarah.Chen@secure-ellingson.com.",
+      "text_sha256": "546644a0554789b662809e49d7f92649950b48137dc467d1075b84e012968063"
+    },
+    {
+      "item_id": "expectation_92fc8724b1e38391157496da177080b64ba042a0d3c0e5f053aa39bc5e4ad83b",
+      "item_type": "expectation",
+      "source_text": "Quarterly Playbook, FY13Q3, Territory 50211 - Newark",
+      "text_sha256": "f4701d5c246d7624ff428fd1665b3135a90425b5b24af0321ab71be0ea60ad07"
+    }
+  ],
+  "schema_version": 1
+}

@@ -5,7 +5,7 @@ The pipeline implements the analysis contract in
 existing MLflow snapshot CLI and writes only under:
 
 ```text
-artifacts/question_analysis/simplemode-v1-segment6/
+artifacts/question_analysis/simplemode-v1-segment6-postremediation-final/
 ├── manifest.json
 ├── state.json
 ├── tables/
@@ -23,7 +23,9 @@ Segment 3 run. `simplemode-v1-postreview`, `simplemode-v1-postreview-p2`, and
 they are not resumed or rewritten. No artificial `simplemode-v1-postreview-p4` checkpoint
 exists. `simplemode-v1-postremediation-final` is the immutable canonical Stage 4 handoff.
 `simplemode-v1-segment5` is the immutable Stage 5 software handoff. Segment 6 executes in the
-freshly locked `simplemode-v1-segment6` root shown above; the human-gold gate remains pending.
+locked `simplemode-v1-segment6-postremediation-final` root shown above; the human-gold gate
+remains pending. `simplemode-v1-segment6` is preserved as the immutable pre-audit-remediation
+Stage 6 checkpoint and is never resumed or rewritten.
 
 ## Environment
 
@@ -130,6 +132,17 @@ sampled/enumerated restricted WCR, full-refit validation, finite-support bracket
 two-corner BH adjudication.
 
 The committed R fixture uses `fwildclusterboot` 0.14.3 under R 4.4.3 on `linux/amd64`.
+Native `fwildclusterboot` supplies the external raw linear statistic. A separate base-R
+derivation supplies full component meats, raw covariance, the frozen PSD projection, and the
+projected Wald statistic. The offline gate calls the production Python CGM/PSD path and
+requires it to match that second reference; both raw and projected values remain visible.
+The native valid-only strict p-value is labeled separately from production sampled
+replenishment/`+1` and enumerated full-support-bracket conventions. Full-refit fallback uses
+actual refitted solver/covariance results, while arm/intersection invariance is explicitly a
+one-step fixed-score diagnostic. BH bracket adjudication emits the exact
+`BH_INDETERMINATE` analysis flag for every decision that changes between corners.
+Failure disclosure divides sampled failures by `B` and enumerated failures by `S_f`, while
+reporting replenishment attempts separately.
 Regenerate it only with the documented Docker commands:
 
 ```bash
@@ -157,8 +170,22 @@ No model audit or outcome fit is part of this stage. The canonical Segment 6 roo
 oracle pass while `outcome_modeling_unlocked=false` until the separate human-gold workflow
 finishes.
 
-Implementation verification prepares the Segment 6 root through `annotate-ingest`, records the
-independent oracle pass, and stops.
+The existing `simplemode-v1-segment6` oracle artifact predates the two-layer CGM/PSD oracle
+schema and remains immutable audit evidence. The final root was rematerialized without model
+calls by migrating hash-verified annotation provenance from that checkpoint:
+
+```bash
+UV_NO_ENV_FILE=1 uv run --no-env-file question-suitability join
+UV_NO_ENV_FILE=1 uv run --no-env-file question-suitability features
+UV_NO_ENV_FILE=1 uv run --no-env-file question-suitability annotate-emit
+UV_NO_ENV_FILE=1 uv run --no-env-file question-suitability annotate-run \
+  --migrate-from-root artifacts/question_analysis/simplemode-v1-segment6 \
+  --resume-only
+UV_NO_ENV_FILE=1 uv run --no-env-file question-suitability annotate-ingest
+UV_NO_ENV_FILE=1 uv run --no-env-file question-suitability oracle
+```
+
+Implementation verification stops after the independent oracle pass.
 The user starts the live gate explicitly:
 
 ```bash

@@ -1,0 +1,151 @@
+{
+  "batch_id": "batch-019",
+  "item_ids_sha256": "ca8854fe180b61dd0372ec097e8ab32067834554f623583af99376998767f5aa",
+  "items": [
+    {
+      "item_id": "variant_4bc2cea01ea7929b29d529f54de3af6d2391211bfdde21852b8d736af50367cd",
+      "item_type": "question",
+      "source_text": "What did Ellingson do after it discovered the Belford hack?",
+      "text_sha256": "3852f1325dd2bb5a36d779e54a196af4c50c89c7cc8412803dcdcf58db5e5c74"
+    },
+    {
+      "item_id": "expectation_4514f2944a7ac81f0aebbfadccf01e18f4437ab7d8f4147fa29b8d831f0c2ef4",
+      "item_type": "expectation",
+      "source_text": "Identifies August 18, 1995, email from Eugene Belford (eugent.belford@ellingson.com) to Phantom Phreak (phantom.phreak@undergroundhax0r.net) with the subject \"Interesting opportunity\"",
+      "text_sha256": "5bbaaee39804c95addbe6f355ac5c587ba4045b3e5d868e5451b107207950076"
+    },
+    {
+      "item_id": "variant_99fceea1f88f4f4eb484971a5846fdadd02b46f425ac90f55f0b2e65f22d55d5",
+      "item_type": "question",
+      "source_text": "What was Dr. Charles Argoff's involvement with Mallinckrodt/Covidien?",
+      "text_sha256": "0c590929ef6a37326e13fee48e75552141b5df008942f8ec0cee47148d5fea9e"
+    },
+    {
+      "item_id": "expectation_0b4f3d9844920fdef2894e5ddfdcbe26b86e7b8e917099fb30f72149aed412c4",
+      "item_type": "expectation",
+      "source_text": "Belford states the money has been transferred to an offshore account",
+      "text_sha256": "75dd5b25f7032f3a7fd37ab4ed8dd36f65945d93c32f259573e40c104ad6f851"
+    },
+    {
+      "item_id": "expectation_fbc834796cb9f5b51f74492cec836e3050d5c18013d20648c954cddaa0861024",
+      "item_type": "expectation",
+      "source_text": "Cites documents where Chen characterizes the virus as sophisticated, ' This is the most sophisticated malware I've ever encountered,' potentially with 'military-grade components', indicating virus could defeat sufficiently protected systems.",
+      "text_sha256": "238dd1cd75d92ae63e33d5984093c707c2dc5731b5c6f48e907bed7436548463"
+    },
+    {
+      "item_id": "expectation_7059960f6f053dee3a8e1c67ff27c8b08d0d8467faa662e1419260aadf56710a",
+      "item_type": "expectation",
+      "source_text": "Answers in the affirmative ('yes') that communications exist between Belford and Wallace about the Da Vinci attack.",
+      "text_sha256": "7dda582e208a7139e9b900c33db4a97ec36980f7de61a5b61d793dba58518b29"
+    },
+    {
+      "item_id": "variant_d6603ef630e4370d2495748257433d3cc67f634a8d06099bae088b1af66d3d56",
+      "item_type": "question",
+      "source_text": "Why was Matt Smith cautious about emailing Deborah Moses?",
+      "text_sha256": "de58eccfe33f2165e31cacfea9de13a8c5d09f94cf5b91e27a67b45dc8ab4784"
+    },
+    {
+      "item_id": "expectation_fcddfbe66ca6c2fcd728ea8099c7a1ff6043b4912461d77f6c7c1be4ee46e1f7",
+      "item_type": "expectation",
+      "source_text": "Cites CEO Benson calling emergency board meeting at 1pm on 10/19/1995.",
+      "text_sha256": "61dd87f943d6b9bdf2bd0ea67e59e1a99c7929521d09b58ec7ae757bf58b4c86"
+    },
+    {
+      "item_id": "variant_47744318f94f2bdc3caee018ea4417d015ac824360daa9e380a390a30a4f0f1a",
+      "item_type": "question",
+      "source_text": "Who did Matt Smith communicate with most?",
+      "text_sha256": "a74ecc798d60400bf69681a87c393548c091c1e27a148c823397739b885b51ff"
+    },
+    {
+      "item_id": "variant_3a4b8c6aa21f55ca7f076d16cbbeca8e9a8ce3ea955088d3861acdc3327f57f9",
+      "item_type": "question",
+      "source_text": "Please list the playbooks for Texas",
+      "text_sha256": "9f5791505bf364ae8bd3db3b16bfab74e28ae386ba4cdb1f4d2c57a69bde2ab0"
+    },
+    {
+      "item_id": "expectation_d5ec1f6e8db407dc4d0ce7bda0c307afdf97694c27444a24641c0b95a96072a5",
+      "item_type": "expectation",
+      "source_text": "Provides coherent narrative summary showing progression of conspiracy from planning through execution to damage control.",
+      "text_sha256": "9e3b3b912e4a5bd848dc486792baedcf5035495ad573e223b80435663ccf4f36"
+    },
+    {
+      "item_id": "expectation_e3c4ddfed254e94e6f65b925d7f8329fbe42c0806d1d4b443e3df80c4543bc7c",
+      "item_type": "expectation",
+      "source_text": "Ellingson HR Director (hr.director@ellingson.com)",
+      "text_sha256": "7d2d2950655bc311e95bbbc0a4ccffa404533c3860217faaa7ffedeb5376ac00"
+    },
+    {
+      "item_id": "variant_b3c440501ed18a442a1e20827564d9b656d0aff3d8b87e9087560bf1d1f1e790",
+      "item_type": "question",
+      "source_text": "What was Dr. Argoff's email?",
+      "text_sha256": "fc10e11f8c2561449d4ac1627704088ecdf32b81a6d39cd605e79230a456709f"
+    },
+    {
+      "item_id": "variant_e123c771074471f3ccc5b8cda918e3d3e1c2be9668f941c9a87262830b3b7409",
+      "item_type": "question",
+      "source_text": "What were Belford's email addresses?",
+      "text_sha256": "11cdaa7b293f3ff090495cfe5907e1a2513780d0cf662a0b0a8526f1f9547427"
+    },
+    {
+      "item_id": "expectation_75f7ae7cbc0ed316fffea56670470e7c2f1d07891df36d800c99825c171b2322",
+      "item_type": "expectation",
+      "source_text": "Dr. Sarah Chen is the Acting CTO at Ellingson Mineral Company.",
+      "text_sha256": "6128d983a4b4c56f88956ff108bad55cccebce98436042d07cad757114e0df72"
+    },
+    {
+      "item_id": "variant_3f9a606124c74a17520f47956ec45459fbcfe39553596364aee8e72f18bf26eb",
+      "item_type": "question",
+      "source_text": "What evidence shows collaboration between Belford and Phantom Phreak in the Ellingson hack?",
+      "text_sha256": "73727e85febd5950daad3b78a295a72d8d2a3063f2d360b44c3ac0c48373d5fd"
+    },
+    {
+      "item_id": "variant_ce77033f689143ae3100faab2ae92724c696373b2b88e9b4854c072b5cb3e239",
+      "item_type": "question",
+      "source_text": "How did Charles Argoff work with Covidien/Mallinckrodt?",
+      "text_sha256": "e8c03dba0136ff95edf3eed22d856b36d53d4b7a1a8f67141ef7aed8e2e90fcb"
+    },
+    {
+      "item_id": "variant_c6a9cf4b6a8dbff3334ee133572bc6bdfc52a3aa20bf9bc1dfdd35a1cb3fdf6e",
+      "item_type": "question",
+      "source_text": "Is there evidence suggesting Sarah Chen might have worked with Belford to carry out the Da Vinci attack against Ellingson?",
+      "text_sha256": "bebd6b3fe0e6719d451e337f2006d565781152debbb720f6732352b097c6a436"
+    },
+    {
+      "item_id": "variant_4eae191031d9912df0c93c952cab87bb50d1bcbc022a27474cd7afff4bd35681",
+      "item_type": "question",
+      "source_text": "Are there spreadsheets or other documents showing Ellingson's internal risk calculations?",
+      "text_sha256": "c439f7953aff199fad5740b3e30a956ab4dd425527f20201627d428da95e2d3a"
+    },
+    {
+      "item_id": "variant_91056c0a0c61115fa09ba91f644573e9685f8184209c475876b7f68a30864f79",
+      "item_type": "question",
+      "source_text": "Which Covidien/Mallinckrodt speaker series events was Megan Lowrey involved in?",
+      "text_sha256": "74f04675fc7436e96183b02a61a86d945cdfd591cc153a0c3f65d2c808eefc3f"
+    },
+    {
+      "item_id": "variant_d298795f2b8207c6c36bc8d1c9d8db8e9d9ac0cbf54a824714ee4387026b7894",
+      "item_type": "question",
+      "source_text": "Provide a summary of Belford and Wallace's communications with each other.",
+      "text_sha256": "f51666eafd2c9590482a516fd9b039f2855e03f1090ed2fa375c28cf50ec7902"
+    },
+    {
+      "item_id": "expectation_6a58d1aedca091b2856d148bbc73dbd65ae84760f299b126db37c44d27298cec",
+      "item_type": "expectation",
+      "source_text": "Anecdote from a sales rep about bringing their top Pennsaid writer Starbucks Frappuccinos every Tuesday they go in",
+      "text_sha256": "a94345488abedaf415b9f15880f6dce14f82e2d5cbc65d7162adf6429fc5ad10"
+    },
+    {
+      "item_id": "expectation_a104d2901ce4aec066e2da89108d67db791f73cc6e62f37ff555ecf1ac86a3e8",
+      "item_type": "expectation",
+      "source_text": "Wrote an article with Mallinckrodt/Covidien for Pain Practitioner regarding pain treatment options",
+      "text_sha256": "89e34494f081a22895cec7d2bb63c7a102ab1622f707663961a4c988f29ca71d"
+    },
+    {
+      "item_id": "expectation_731c6a65c3b93708f454d83433eb044f1ae56a510488cbcc445d3a79d48678ac",
+      "item_type": "expectation",
+      "source_text": "Cites document stating implementation of new security protocols.",
+      "text_sha256": "7cf7a64f6cad5a0cbc79b3723464c7e737c41a6b6ae57a3be4e3cc733467b3ee"
+    }
+  ],
+  "schema_version": 1
+}

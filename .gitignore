@@ -252,3 +252,6 @@ __marimo__/
 
 !/artifacts/question_analysis/simplemode-v1-segment6/
 !/artifacts/question_analysis/simplemode-v1-segment6/**
+
+!/artifacts/question_analysis/simplemode-v1-segment6-postremediation-final/
+!/artifacts/question_analysis/simplemode-v1-segment6-postremediation-final/**

@@ -1,0 +1,151 @@
+{
+  "batch_id": "batch-008",
+  "item_ids_sha256": "7d5ad7c86ba69eca2a813caa333697c03e787c323d8015c347e8e800c30ea34a",
+  "items": [
+    {
+      "item_id": "expectation_2548b31332af1e61c3aa3e9575452e986c9b3386cc9c06456a9f3049eaa1d124",
+      "item_type": "expectation",
+      "source_text": "Responds that there is no evidence in the documents that Dr. Charles Argoff (cargoff@nycap.rr.com) sent or received email to or from a Covidien/Mallinckrodt executive.",
+      "text_sha256": "c07aefc9c04e097c9356719f0f6c1db63898c60007e38a0301dff64dd7a2637c"
+    },
+    {
+      "item_id": "variant_993aff504ba96b327f08fbdfffc46f15919bfa97bcd1f0d506a2204babbac41a",
+      "item_type": "question",
+      "source_text": "Is there evidence suggesting Sarah.Chen@ellingson.com might have worked with Belford on the Da Vinci attack against Ellingson?",
+      "text_sha256": "d767876ce3cd8e3b36f670b643b95150196e51ad8ba28da6ace347a78a3a7f3f"
+    },
+    {
+      "item_id": "expectation_69d4f848a51e0c1b042eb11fdf07bd8f81d369cb70aacc6d19fc8ce430ba7ac2",
+      "item_type": "expectation",
+      "source_text": "Cites revocation of Belford's access credentials as of 10/20 2:30pm.",
+      "text_sha256": "67d0d0315fad8aa9d183052e77f8f4163c4e181dbc8e08a2c15d5bbd428650c9"
+    },
+    {
+      "item_id": "variant_043310b69597e100009f656b7185a2197e343de9bbf1b6ab10966c84643902ae",
+      "item_type": "question",
+      "source_text": "What documents support the allegation that Ellingson's cybersecurity posture was insufficient to prevent a cyberattack?",
+      "text_sha256": "f367d9c16e2033a9f2934a86993ed18363f1c3f46595718a00be3e8adcd9ed39"
+    },
+    {
+      "item_id": "variant_bb8cdc001b45b86b51570d0b28aaec918d0b9165b018121664596b295bf2ad83",
+      "item_type": "question",
+      "source_text": "Show me documents from August 1-31, 1995",
+      "text_sha256": "628cc4577cdb4430e436c4bdd6b18786f146180836d26d5c905830545b3a7c94"
+    },
+    {
+      "item_id": "expectation_f6759018afcf0a9fc655ce301b07f4f1e0137123488ac6801c1506da42f78031",
+      "item_type": "expectation",
+      "source_text": "Does not confidently assert the two Zero Cools are the same person without evidence, recognizing they have different email addresses.",
+      "text_sha256": "2c661bbd7f2e901937845cc5dc84be061a3838bf69231f0c2237fb5327b42ea8"
+    },
+    {
+      "item_id": "variant_200abfa9339f9a515888facd0c1ec1dd593836ef50bd8ee1d9a9a2371221e7a3",
+      "item_type": "question",
+      "source_text": "Provide a summary of the group of young hackers' involvement in the Da Vinci cyberattack.",
+      "text_sha256": "310b3c2753195a70ef297ecb63605b992a59c35e926e12592151f768c3e01396"
+    },
+    {
+      "item_id": "variant_b4b78ba37900bb93ccc472b2e8602610fbe7d87ac9a594d679b0c6cfb4258c2b",
+      "item_type": "question",
+      "source_text": "What evidence shows collaboration between eugene.Belford@ellingson.com aka eugene.belford@offshore-secure.net and phantom.phreak@undergroundhax0r.net in the Ellingson hack?",
+      "text_sha256": "d52e2c109be97b2b518c1ca11097b4658106a76a0d8be40a039690721ce92245"
+    },
+    {
+      "item_id": "variant_f8b7b7cde5d485e2dd4cc2f423e5ec5b0774d1e8f1f724ca1c901c27a219a42a",
+      "item_type": "question",
+      "source_text": "When did Belford execute the hack?",
+      "text_sha256": "80ce9398244a59fc177ae58a4cc09f47d75147a05752d430f50cb6cfab732df2"
+    },
+    {
+      "item_id": "variant_a9ced76c6aebd01c7d439db14ead024f557a947b3ad5d131454edbb4ca392a82",
+      "item_type": "question",
+      "source_text": "Did Belford communicate with Phantom Phreak, member of the group of teenage hackers?",
+      "text_sha256": "4a02ba314cacdaae1ca50c3662c8bf4dd80807f2703fa3e2d8ae37d5e09c98a7"
+    },
+    {
+      "item_id": "variant_36620b6603f80bc3541d1e53b59985a14e7b549075c0dde697901d22f532b6cf",
+      "item_type": "question",
+      "source_text": "Did Belford communicate with any of the teenage hackers: Zer0 Cool, Phantom Phreak, Cereal Killer, Acid Burn, or Lord Nikon",
+      "text_sha256": "ea8a85e8e27f0a4e61f2c3fd45c30e8e1274835ff700fa95ac048cc78e030fa3"
+    },
+    {
+      "item_id": "variant_eab3d1a7d55bd09c98782e9678e562ed568b5e49cf3c994ed2fdee5d13e39e2b",
+      "item_type": "question",
+      "source_text": "Who did Belford communicate with about the plan to execute a cyberattack against Ellingson?",
+      "text_sha256": "3e2b9f2204b1f505e6dcc449f10ead65f891fd290939784e4e8e98f9c16f6e48"
+    },
+    {
+      "item_id": "variant_0006aefbaeac3eb08af5272eeb390b6d3387ef076c0152aa324131e2891697bd",
+      "item_type": "question",
+      "source_text": "Did Belford communicate with any of the teenage hackers?",
+      "text_sha256": "2224b412a80e401716fe45d9976103973eb5c8b2fd10710949f931cdc98f8e73"
+    },
+    {
+      "item_id": "expectation_b3273a7907b780fa10ba1abdab421807bd3f24f0cc43afa9deafdebe689bcceb",
+      "item_type": "expectation",
+      "source_text": "Cites email about package being ready and test run on 10/4/1995.",
+      "text_sha256": "fb19f2bd5ef1526f8d67c581425463ff49cd4b469c509d42baf76907321f805b"
+    },
+    {
+      "item_id": "variant_39a4a8a838c8e1412c5da71557eaad3e5a38d4b7e12d7cad509f82ee7880f1ce",
+      "item_type": "question",
+      "source_text": "Please provide evidence of collaboration between Eugene Belford and Phantom Phreak about the Da Vinci cyberattack.",
+      "text_sha256": "bdcee3670eb71f4ac3c1edaa2c715207e67b497556753793415672fce094eb48"
+    },
+    {
+      "item_id": "expectation_34659ac247d51dc918805cef50c61d860bae656d9b736d421244efdb75e19ab1",
+      "item_type": "expectation",
+      "source_text": "Cites initiation of complete security overhaul.",
+      "text_sha256": "f897834fb4a8819cde4a41e22215a88f34178854bda0cf079e7ad2d422c1fe4d"
+    },
+    {
+      "item_id": "expectation_cd6e3d6347d2284dd4480cf3a191d86bfdd5c9b53f0c6f7fe5e6690391d5e8d4",
+      "item_type": "expectation",
+      "source_text": "Cites email where Wallace reports 'No one suspects a thing' about routine maintenance story.",
+      "text_sha256": "9219cc8ebc55fd255bff6118b8ad6851707802ae41270f4593fa4dc175681b6b"
+    },
+    {
+      "item_id": "expectation_e0739793ba4bd62c2f1aaabc3acb4f182bbce97f19e92049940d610a67fe5920",
+      "item_type": "expectation",
+      "source_text": "Belford, as The Plague, email soliciting buyer for a powerful tool with virtually unlimited potential for a price beginning at $10 million",
+      "text_sha256": "55ab8c778c12e0952c6ba21663438b21b72aa4feafb989626f5bd0f90f26e964"
+    },
+    {
+      "item_id": "expectation_7ca503091546f909f23fdc930f3d0ac045b731e11a5f1ead35c2320ab3e08dfc",
+      "item_type": "expectation",
+      "source_text": "Identifies Phantom Phreak.",
+      "text_sha256": "4fe23f3bd37803273ec527d1c537a2e6334a7038d0bf24c15c353bb3314fac05"
+    },
+    {
+      "item_id": "expectation_b0208d6ae217fa9f284c5bceaa7ec4978255845a5004b01c6878dc4f5d2eb02a",
+      "item_type": "expectation",
+      "source_text": "Recognizing that the exact timing of the cyber attack is unclear in light of Belford's statements and Ellingson leadership's recognition of the breach, but identifying it occurring at some point between October 18 at 5:20 a.m. and October 19 at 12:30 p.m.",
+      "text_sha256": "f4bef336dcd843e41f7d211c794e4589f39205a404e5fee820bf795d4932858d"
+    },
+    {
+      "item_id": "expectation_2c8c0e49390e3ef4da4531ae033df9f333ad83cf4b550904aeec98f144b5b302",
+      "item_type": "expectation",
+      "source_text": "Federal Bureau of Investigation (FBI), Special Agent Johnson",
+      "text_sha256": "f81dc3c74776987dd7ee2e72d6150209bfbfc58a47e7ebda7b74c0251af03ace"
+    },
+    {
+      "item_id": "variant_ba060adb83ad8933e9969ee9ba37a99f2e76ab246b4f804ff645bafa9abfdb04",
+      "item_type": "question",
+      "source_text": "Was there a point at which Wallace broke off from Belford's plan, and if so, what was it?",
+      "text_sha256": "45c93142a38a09b119a4f8ae7aee421388d65d529986089d25bc59f3db61d492"
+    },
+    {
+      "item_id": "expectation_5f71055e61ac0055c2bf6b481c3058dec9c29209e0db32ef7a434ceadaf5e408",
+      "item_type": "expectation",
+      "source_text": "Brought in young hackers as external consultants to assist with Ellingson's cybersecurity situation",
+      "text_sha256": "00a61b5201f9097aaca2274ca1dbc60f7e8f419a9c429b9a49de3aad4b6046ab"
+    },
+    {
+      "item_id": "expectation_1ddbe2bb54456644fd3a5d20883dd1f49a53ae7b389fe24639639baebf5b6b05",
+      "item_type": "expectation",
+      "source_text": "Cites revised budget proposal increasing cybersecurity budget by 311.11%.",
+      "text_sha256": "74b928ba29877fd8a4833ecfbcb1f4a60b32fc59fe1034a1e6ab6b5bef641ac6"
+    }
+  ],
+  "schema_version": 1
+}

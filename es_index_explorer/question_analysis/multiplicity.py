@@ -5,6 +5,7 @@ from dataclasses import dataclass
 
 import numpy as np
 
+from es_index_explorer.question_analysis.contracts import AnalysisFlag
 from es_index_explorer.question_analysis.errors import MalformedInputError
 
 
@@ -17,6 +18,15 @@ class PValueBracket:
 
 
 @dataclass(frozen=True, slots=True)
+class BhFamilyDecision:
+    """Store one deterministic family-level BH decision and diagnostic flag."""
+
+    family_id: str
+    rejected: bool | None
+    analysis_flag: AnalysisFlag | None
+
+
+@dataclass(frozen=True, slots=True)
 class BhAdjudication:
     """Store lower/upper-corner BH results and indeterminate families."""
 
@@ -25,6 +35,7 @@ class BhAdjudication:
     definite_rejections: frozenset[str]
     definite_non_rejections: frozenset[str]
     indeterminate: frozenset[str]
+    family_decisions: tuple[BhFamilyDecision, ...]
 
 
 def benjamini_hochberg(
@@ -75,10 +86,25 @@ def adjudicate_bh_brackets(
     )
     indeterminate = lower_rejections.symmetric_difference(upper_rejections)
     families = frozenset(brackets)
+    definite_rejections = lower_rejections & upper_rejections
+    definite_non_rejections = families - (lower_rejections | upper_rejections)
+    family_decisions = tuple(
+        BhFamilyDecision(
+            family_id=family,
+            rejected=(
+                None if family in indeterminate else family in definite_rejections
+            ),
+            analysis_flag=(
+                AnalysisFlag.BH_INDETERMINATE if family in indeterminate else None
+            ),
+        )
+        for family in sorted(families)
+    )
     return BhAdjudication(
         lower_rejections=lower_rejections,
         upper_rejections=upper_rejections,
-        definite_rejections=lower_rejections & upper_rejections,
-        definite_non_rejections=families - (lower_rejections | upper_rejections),
+        definite_rejections=definite_rejections,
+        definite_non_rejections=definite_non_rejections,
         indeterminate=indeterminate,
+        family_decisions=family_decisions,
     )

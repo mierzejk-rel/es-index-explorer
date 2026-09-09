@@ -2,11 +2,18 @@
 
 from dataclasses import dataclass
 from pathlib import Path
+from typing import Literal
 
 import numpy as np
 import pandas as pd
-from pydantic import BaseModel, ConfigDict, Field
+from numpy.typing import ArrayLike
+from pydantic import BaseModel, ConfigDict, Field, model_validator
 
+from es_index_explorer.question_analysis.cluster_covariance import (
+    ClusterCovariance,
+    joint_wald_statistic,
+    three_term_cluster_covariance,
+)
 from es_index_explorer.question_analysis.contracts import WorkflowCommand
 from es_index_explorer.question_analysis.errors import (
     GateFailureError,
@@ -15,6 +22,7 @@ from es_index_explorer.question_analysis.errors import (
 )
 from es_index_explorer.question_analysis.glm_primitives import (
     linear_bread,
+    linear_score_rows,
     solve_unrestricted_linear,
 )
 from es_index_explorer.question_analysis.seeds import derive_stream_seed
@@ -33,10 +41,17 @@ FIXTURE_ROOT = ORACLE_ROOT / "fixtures"
 INPUT_FILE = FIXTURE_ROOT / "f6-linear-input.csv"
 CONTRACT_FILE = FIXTURE_ROOT / "f6-linear-contract.json"
 OUTPUT_FILE = FIXTURE_ROOT / "f6-linear-r-output.json"
+COVARIANCE_REFERENCE_FILE = FIXTURE_ROOT / "f6-linear-r-covariance-reference.json"
+COVARIANCE_REFERENCE_SOURCE = ORACLE_ROOT / "covariance_reference.R"
 WEIGHTS_FILE = FIXTURE_ROOT / "f6-linear-rademacher-weights.csv"
 PROVENANCE_FILE = FIXTURE_ROOT / "f6-linear-provenance.json"
 P_VALUE_TOLERANCE = 1e-4
 WALD_RELATIVE_TOLERANCE = 1e-6
+WALD_ABSOLUTE_TOLERANCE = 1e-12
+MATRIX_RELATIVE_TOLERANCE = 1e-8
+MATRIX_ABSOLUTE_TOLERANCE = 1e-10
+SYMMETRY_ABSOLUTE_TOLERANCE = 1e-12
+PSD_EIGENVALUE_TOLERANCE = 1e-10
 
 
 class OracleContract(BaseModel):
@@ -74,12 +89,102 @@ class ROracleOutput(BaseModel):
     call: dict[str, object]
 
 
+class RClusterCounts(BaseModel):
+    """Validate realised cluster counts in the independent R reference."""
+
+    model_config = ConfigDict(extra="forbid", frozen=True)
+
+    rubric: int = Field(gt=1)
+    arm: int = Field(gt=1)
+    intersection: int = Field(gt=1)
+
+
+class RMeatReference(BaseModel):
+    """Validate the four independent R cluster-meat matrices."""
+
+    model_config = ConfigDict(extra="forbid", frozen=True)
+
+    rubric: tuple[tuple[float, ...], ...]
+    arm: tuple[tuple[float, ...], ...]
+    intersection: tuple[tuple[float, ...], ...]
+    combined: tuple[tuple[float, ...], ...]
+
+
+class RCovarianceReference(BaseModel):
+    """Validate the independent base-R CGM, PSD, and Wald reference."""
+
+    model_config = ConfigDict(extra="forbid", frozen=True)
+
+    schema_version: int = 1
+    row_count: int = Field(gt=0)
+    parameter_count: int = Field(gt=0)
+    design_columns: tuple[str, ...]
+    restriction_column: str
+    psd_tolerance: float = Field(ge=0)
+    cluster_counts: RClusterCounts
+    coefficients: tuple[float, ...]
+    bread: tuple[tuple[float, ...], ...]
+    meat: RMeatReference
+    unprojected_covariance: tuple[tuple[float, ...], ...]
+    eigenvalues_before: tuple[float, ...]
+    eigenvalues_after: tuple[float, ...]
+    projected_covariance: tuple[tuple[float, ...], ...]
+    materially_indefinite: bool
+    projection_applied: bool
+    raw_W_obs: float = Field(ge=0)
+    projected_W_obs: float = Field(ge=0)
+    relative_projection_shift: float = Field(ge=0)
+
+    @model_validator(mode="after")
+    def validate_numerical_contract(self) -> "RCovarianceReference":
+        """Require complete, finite, symmetric, and PSD reference objects."""
+        width = self.parameter_count
+        if (
+            len(self.design_columns) != width
+            or len(self.coefficients) != width
+            or len(self.eigenvalues_before) != width
+            or len(self.eigenvalues_after) != width
+            or self.restriction_column not in self.design_columns
+        ):
+            raise ValueError("R covariance reference dimensions are inconsistent")
+        matrices = (
+            self.bread,
+            self.meat.rubric,
+            self.meat.arm,
+            self.meat.intersection,
+            self.meat.combined,
+            self.unprojected_covariance,
+            self.projected_covariance,
+        )
+        arrays = tuple(np.asarray(matrix, dtype=float) for matrix in matrices)
+        vectors = (
+            np.asarray(self.coefficients, dtype=float),
+            np.asarray(self.eigenvalues_before, dtype=float),
+            np.asarray(self.eigenvalues_after, dtype=float),
+        )
+        if any(array.shape != (width, width) for array in arrays):
+            raise ValueError(
+                "R covariance reference matrices are not square and aligned"
+            )
+        if not all(np.isfinite(value).all() for value in (*arrays, *vectors)):
+            raise ValueError("R covariance reference values must be finite")
+        if not all(
+            np.allclose(array, array.T, rtol=0.0, atol=SYMMETRY_ABSOLUTE_TOLERANCE)
+            for array in arrays
+        ):
+            raise ValueError("R covariance reference matrices must be symmetric")
+        projected_minimum = float(np.linalg.eigvalsh(arrays[-1]).min())
+        if projected_minimum < -PSD_EIGENVALUE_TOLERANCE:
+            raise ValueError("R projected covariance is not positive semidefinite")
+        return self
+
+
 class OracleProvenance(BaseModel):
     """Record immutable identities for every R reference component."""
 
     model_config = ConfigDict(extra="forbid", frozen=True)
 
-    schema_version: int = 1
+    schema_version: int = 2
     docker_platform: str
     docker_image: str
     docker_image_id: str
@@ -87,13 +192,59 @@ class OracleProvenance(BaseModel):
     dockerignore_sha256: str
     renv_lock_sha256: str
     runner_sha256: str
+    covariance_reference_source_sha256: str
     input_sha256: str
     contract_sha256: str
     output_sha256: str
+    covariance_reference_output_sha256: str
     weights_sha256: str
     source_analysis_root: str
     fwildclusterboot_source_sha256: str
     fwildclusterboot_remote_sha: str
+
+
+class NumericalAgreement(BaseModel):
+    """Persist one numerical oracle comparison and its tolerances."""
+
+    model_config = ConfigDict(extra="forbid", frozen=True)
+
+    maximum_absolute_difference: float = Field(ge=0)
+    maximum_relative_difference: float = Field(ge=0)
+    relative_tolerance: float = Field(ge=0)
+    absolute_tolerance: float = Field(ge=0)
+    passed: bool
+
+
+class ProductionCovarianceVerification(BaseModel):
+    """Persist production-versus-R CGM, PSD, and Wald comparisons."""
+
+    model_config = ConfigDict(extra="forbid", frozen=True)
+
+    cluster_counts_match: bool
+    projection_flags_match: bool
+    symmetry_passed: bool
+    projected_psd_passed: bool
+    coefficients: NumericalAgreement
+    bread: NumericalAgreement
+    rubric_meat: NumericalAgreement
+    arm_meat: NumericalAgreement
+    intersection_meat: NumericalAgreement
+    combined_meat: NumericalAgreement
+    unprojected_covariance: NumericalAgreement
+    eigenvalues_before: NumericalAgreement
+    eigenvalues_after: NumericalAgreement
+    projected_covariance: NumericalAgreement
+    external_raw_wald: NumericalAgreement
+    production_raw_wald: NumericalAgreement
+    production_projected_wald: NumericalAgreement
+    r_raw_W_obs: float = Field(ge=0)
+    python_raw_W_obs: float = Field(ge=0)
+    r_projected_W_obs: float = Field(ge=0)
+    python_projected_W_obs: float = Field(ge=0)
+    relative_projection_shift: float = Field(ge=0)
+    materially_indefinite: bool
+    projection_applied: bool
+    passed: bool
 
 
 class OracleVerification(BaseModel):
@@ -101,20 +252,30 @@ class OracleVerification(BaseModel):
 
     model_config = ConfigDict(extra="forbid", frozen=True)
 
-    schema_version: int = 1
+    schema_version: int = 3
     passed: bool
     python_p_f: float
     r_p_f: float
     p_f_absolute_difference: float
     p_f_tolerance: float
-    python_W_obs: float
-    r_W_obs: float
-    W_obs_relative_difference: float
-    W_obs_relative_tolerance: float
+    python_parallel_raw_W_obs: float
+    fwildclusterboot_raw_W_obs: float
+    raw_W_obs_relative_difference: float
+    raw_W_obs_relative_tolerance: float
     python_invalid_t_count: int
     r_invalid_t_count: int
+    production_covariance: ProductionCovarianceVerification
     fixture_hashes: dict[str, str]
-    oracle_scope: str = "linear_f6_special_case_only"
+    oracle_scope: str = "linear_f6_external_raw_and_independent_r_psd"
+    external_p_value_convention: Literal[
+        "fwildclusterboot_valid_only_strict_no_plus_one"
+    ] = "fwildclusterboot_valid_only_strict_no_plus_one"
+    production_sampled_p_value_convention: Literal["replenish_to_B_then_plus_one"] = (
+        "replenish_to_B_then_plus_one"
+    )
+    production_enumerated_p_value_convention: Literal[
+        "full_support_bracket_no_plus_one"
+    ] = "full_support_bracket_no_plus_one"
 
 
 @dataclass(frozen=True, slots=True)
@@ -125,6 +286,17 @@ class PythonOracleResult:
     W_obs: float
     bootstrap_wald: np.ndarray
     invalid_t_count: int
+
+
+@dataclass(frozen=True, slots=True)
+class ProductionLinearCovarianceResult:
+    """Store the production linear CGM, PSD, and Wald calculation."""
+
+    coefficients: np.ndarray
+    bread: np.ndarray
+    covariance: ClusterCovariance
+    raw_wald: float
+    projected_wald: float
 
 
 def _signed_seed_words(seed: int) -> tuple[int, int]:
@@ -229,7 +401,11 @@ def compute_python_linear_oracle(
     contract: OracleContract,
     weight_matrix: np.ndarray,
 ) -> PythonOracleResult:
-    """Compute the linear special case using the persisted R sign schedule."""
+    """Replay native R's valid-only strict p-value on its persisted sign schedule.
+
+    This function reproduces ``fwildclusterboot`` and intentionally does not
+    implement production WCR replenishment or the sampled ``+1`` convention.
+    """
     design = input_frame[list(contract.design_columns)].to_numpy(dtype=float)
     response = input_frame["y"].to_numpy(dtype=float)
     rubric = input_frame["rubric"].astype(str).tolist()
@@ -302,6 +478,196 @@ def compute_python_linear_oracle(
     )
 
 
+def compute_production_linear_covariance(
+    input_frame: pd.DataFrame,
+    contract: OracleContract,
+) -> ProductionLinearCovarianceResult:
+    """Compute the F6 linear covariance through the production CGM and PSD path."""
+    design = input_frame[list(contract.design_columns)].to_numpy(dtype=float)
+    response = input_frame["y"].to_numpy(dtype=float)
+    rubric = input_frame["rubric"].astype(str).tolist()
+    arm = input_frame["arm"].astype(str).tolist()
+    restriction = _restriction(contract)
+    unrestricted = solve_unrestricted_linear(design, response)
+    bread = linear_bread(design)
+    scores = linear_score_rows(design, response, unrestricted.coefficients)
+    covariance = three_term_cluster_covariance(bread, scores, rubric, arm)
+    raw_wald = joint_wald_statistic(
+        unrestricted.coefficients,
+        covariance.unprojected_covariance,
+        restriction,
+    ).value
+    projected_wald = joint_wald_statistic(
+        unrestricted.coefficients,
+        covariance.covariance,
+        restriction,
+    ).value
+    return ProductionLinearCovarianceResult(
+        coefficients=unrestricted.coefficients,
+        bread=bread,
+        covariance=covariance,
+        raw_wald=raw_wald,
+        projected_wald=projected_wald,
+    )
+
+
+def _numerical_agreement(
+    actual: ArrayLike,
+    expected: ArrayLike,
+    *,
+    relative_tolerance: float,
+    absolute_tolerance: float,
+) -> NumericalAgreement:
+    actual_values = np.asarray(actual, dtype=float)
+    expected_values = np.asarray(expected, dtype=float)
+    if actual_values.shape != expected_values.shape:
+        return NumericalAgreement(
+            maximum_absolute_difference=float("inf"),
+            maximum_relative_difference=float("inf"),
+            relative_tolerance=relative_tolerance,
+            absolute_tolerance=absolute_tolerance,
+            passed=False,
+        )
+    differences = np.abs(actual_values - expected_values)
+    denominators = np.maximum(np.abs(expected_values), absolute_tolerance)
+    return NumericalAgreement(
+        maximum_absolute_difference=float(np.max(differences, initial=0.0)),
+        maximum_relative_difference=float(
+            np.max(differences / denominators, initial=0.0)
+        ),
+        relative_tolerance=relative_tolerance,
+        absolute_tolerance=absolute_tolerance,
+        passed=bool(
+            np.allclose(
+                actual_values,
+                expected_values,
+                rtol=relative_tolerance,
+                atol=absolute_tolerance,
+            )
+        ),
+    )
+
+
+def verify_production_covariance(
+    input_frame: pd.DataFrame,
+    contract: OracleContract,
+    r_output: ROracleOutput,
+    reference: RCovarianceReference,
+) -> ProductionCovarianceVerification:
+    if (
+        reference.row_count != contract.row_count
+        or reference.parameter_count != len(contract.design_columns)
+        or reference.design_columns != contract.design_columns
+        or reference.restriction_column != contract.restriction_column
+        or reference.psd_tolerance != PSD_EIGENVALUE_TOLERANCE
+    ):
+        raise GateFailureError("R covariance reference does not match the F6 contract")
+    production = compute_production_linear_covariance(input_frame, contract)
+    covariance = production.covariance
+    meat = covariance.meat
+    psd = covariance.psd
+    matrix_arguments = {
+        "relative_tolerance": MATRIX_RELATIVE_TOLERANCE,
+        "absolute_tolerance": MATRIX_ABSOLUTE_TOLERANCE,
+    }
+    wald_arguments = {
+        "relative_tolerance": WALD_RELATIVE_TOLERANCE,
+        "absolute_tolerance": WALD_ABSOLUTE_TOLERANCE,
+    }
+    agreements = {
+        "coefficients": _numerical_agreement(
+            production.coefficients, reference.coefficients, **matrix_arguments
+        ),
+        "bread": _numerical_agreement(
+            production.bread, reference.bread, **matrix_arguments
+        ),
+        "rubric_meat": _numerical_agreement(
+            meat.rubric, reference.meat.rubric, **matrix_arguments
+        ),
+        "arm_meat": _numerical_agreement(
+            meat.arm, reference.meat.arm, **matrix_arguments
+        ),
+        "intersection_meat": _numerical_agreement(
+            meat.intersection, reference.meat.intersection, **matrix_arguments
+        ),
+        "combined_meat": _numerical_agreement(
+            meat.combined, reference.meat.combined, **matrix_arguments
+        ),
+        "unprojected_covariance": _numerical_agreement(
+            covariance.unprojected_covariance,
+            reference.unprojected_covariance,
+            **matrix_arguments,
+        ),
+        "eigenvalues_before": _numerical_agreement(
+            psd.eigenvalues_before,
+            reference.eigenvalues_before,
+            **matrix_arguments,
+        ),
+        "eigenvalues_after": _numerical_agreement(
+            psd.eigenvalues_after,
+            reference.eigenvalues_after,
+            **matrix_arguments,
+        ),
+        "projected_covariance": _numerical_agreement(
+            covariance.covariance,
+            reference.projected_covariance,
+            **matrix_arguments,
+        ),
+        "external_raw_wald": _numerical_agreement(
+            reference.raw_W_obs, r_output.W_obs, **wald_arguments
+        ),
+        "production_raw_wald": _numerical_agreement(
+            production.raw_wald, reference.raw_W_obs, **wald_arguments
+        ),
+        "production_projected_wald": _numerical_agreement(
+            production.projected_wald,
+            reference.projected_W_obs,
+            **wald_arguments,
+        ),
+    }
+    cluster_counts_match = (
+        meat.rubric_cluster_count == reference.cluster_counts.rubric
+        and meat.arm_cluster_count == reference.cluster_counts.arm
+        and meat.intersection_cluster_count == reference.cluster_counts.intersection
+    )
+    projection_flags_match = (
+        psd.materially_indefinite == reference.materially_indefinite
+        and psd.projection_applied == reference.projection_applied
+    )
+    symmetry_passed = all(
+        np.allclose(matrix, matrix.T, rtol=0.0, atol=SYMMETRY_ABSOLUTE_TOLERANCE)
+        for matrix in (
+            covariance.unprojected_covariance,
+            covariance.covariance,
+        )
+    )
+    projected_psd_passed = bool(
+        np.linalg.eigvalsh(covariance.covariance).min() >= -PSD_EIGENVALUE_TOLERANCE
+    )
+    passed = (
+        cluster_counts_match
+        and projection_flags_match
+        and symmetry_passed
+        and projected_psd_passed
+        and all(agreement.passed for agreement in agreements.values())
+    )
+    return ProductionCovarianceVerification(
+        cluster_counts_match=cluster_counts_match,
+        projection_flags_match=projection_flags_match,
+        symmetry_passed=symmetry_passed,
+        projected_psd_passed=projected_psd_passed,
+        **agreements,
+        r_raw_W_obs=reference.raw_W_obs,
+        python_raw_W_obs=production.raw_wald,
+        r_projected_W_obs=reference.projected_W_obs,
+        python_projected_W_obs=production.projected_wald,
+        relative_projection_shift=reference.relative_projection_shift,
+        materially_indefinite=psd.materially_indefinite,
+        projection_applied=psd.projection_applied,
+        passed=passed,
+    )
+
+
 def _read_model[T: BaseModel](path: Path, model: type[T]) -> T:
     if not path.is_file():
         raise MalformedInputError(f"Required oracle fixture is missing: {path.name}")
@@ -319,9 +685,11 @@ def verify_fixture_provenance() -> OracleProvenance:
         ORACLE_ROOT / ".dockerignore": provenance.dockerignore_sha256,
         ORACLE_ROOT / "renv.lock": provenance.renv_lock_sha256,
         ORACLE_ROOT / "run_reference.R": provenance.runner_sha256,
+        COVARIANCE_REFERENCE_SOURCE: provenance.covariance_reference_source_sha256,
         INPUT_FILE: provenance.input_sha256,
         CONTRACT_FILE: provenance.contract_sha256,
         OUTPUT_FILE: provenance.output_sha256,
+        COVARIANCE_REFERENCE_FILE: provenance.covariance_reference_output_sha256,
         WEIGHTS_FILE: provenance.weights_sha256,
     }
     for path, expected_hash in expected.items():
@@ -335,9 +703,16 @@ def verify_r_oracle_fixture() -> OracleVerification:
     verify_fixture_provenance()
     contract = _read_model(CONTRACT_FILE, OracleContract)
     r_output = _read_model(OUTPUT_FILE, ROracleOutput)
+    covariance_reference = _read_model(COVARIANCE_REFERENCE_FILE, RCovarianceReference)
     input_frame = pd.read_csv(INPUT_FILE)
     weights = pd.read_csv(WEIGHTS_FILE).to_numpy(dtype=float)
     python = compute_python_linear_oracle(input_frame, contract, weights)
+    production_covariance = verify_production_covariance(
+        input_frame,
+        contract,
+        r_output,
+        covariance_reference,
+    )
     p_difference = abs(python.p_f - r_output.p_f)
     wald_denominator = abs(r_output.W_obs)
     wald_difference = (
@@ -349,6 +724,7 @@ def verify_r_oracle_fixture() -> OracleVerification:
         p_difference <= P_VALUE_TOLERANCE
         and wald_difference <= WALD_RELATIVE_TOLERANCE
         and python.invalid_t_count == r_output.invalid_t_count
+        and production_covariance.passed
     )
     verification = OracleVerification(
         passed=passed,
@@ -356,15 +732,22 @@ def verify_r_oracle_fixture() -> OracleVerification:
         r_p_f=r_output.p_f,
         p_f_absolute_difference=p_difference,
         p_f_tolerance=P_VALUE_TOLERANCE,
-        python_W_obs=python.W_obs,
-        r_W_obs=r_output.W_obs,
-        W_obs_relative_difference=wald_difference,
-        W_obs_relative_tolerance=WALD_RELATIVE_TOLERANCE,
+        python_parallel_raw_W_obs=python.W_obs,
+        fwildclusterboot_raw_W_obs=r_output.W_obs,
+        raw_W_obs_relative_difference=wald_difference,
+        raw_W_obs_relative_tolerance=WALD_RELATIVE_TOLERANCE,
         python_invalid_t_count=python.invalid_t_count,
         r_invalid_t_count=r_output.invalid_t_count,
+        production_covariance=production_covariance,
         fixture_hashes={
             path.name: sha256_file(path)
-            for path in (INPUT_FILE, CONTRACT_FILE, OUTPUT_FILE, WEIGHTS_FILE)
+            for path in (
+                INPUT_FILE,
+                CONTRACT_FILE,
+                OUTPUT_FILE,
+                COVARIANCE_REFERENCE_FILE,
+                WEIGHTS_FILE,
+            )
         },
     )
     if not passed:

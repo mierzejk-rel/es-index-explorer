@@ -1,0 +1,114 @@
+{
+  "applicability_failures": {},
+  "blocking_failures": [],
+  "clause_type_counts": {
+    "closed_interrogative": 49,
+    "declarative_request": 1,
+    "directive_imperative": 70,
+    "open_interrogative": 143
+  },
+  "expected_missingness": {
+    "clause_type": 314,
+    "complex_nominals_per_clause": 54,
+    "expectation_document_count": 263,
+    "mean_dependency_length": 0,
+    "subordinate_clause_ratio": 54
+  },
+  "invalid_complex_nominal_ratio_count": 0,
+  "invalid_subordinate_ratio_count": 0,
+  "item_counts": {
+    "expectation": 314,
+    "question": 263
+  },
+  "mandatory_missingness": {
+    "clause_count": 0,
+    "coordination_count": 0,
+    "dependency_tree_depth": 0,
+    "named_entity_count": 0,
+    "temporal_expression_present": 0,
+    "token_count": 0
+  },
+  "numeric_distributions": {
+    "clause_count": {
+      "count": 577,
+      "max": 12.0,
+      "median": 1.0,
+      "min": 0.0
+    },
+    "complex_nominals_per_clause": {
+      "count": 523,
+      "max": 9.0,
+      "median": 1.3333333333333333,
+      "min": 0.0
+    },
+    "coordination_count": {
+      "count": 577,
+      "max": 9.0,
+      "median": 0.0,
+      "min": 0.0
+    },
+    "dependency_tree_depth": {
+      "count": 577,
+      "max": 11.0,
+      "median": 4.0,
+      "min": 1.0
+    },
+    "expectation_count": {
+      "count": 577,
+      "max": 21.0,
+      "median": 7.0,
+      "min": 1.0
+    },
+    "expectation_document_count": {
+      "count": 314,
+      "max": 79.0,
+      "median": 1.0,
+      "min": 0.0
+    },
+    "mean_dependency_length": {
+      "count": 577,
+      "max": 4.935483870967742,
+      "median": 2.3,
+      "min": 1.0
+    },
+    "named_entity_count": {
+      "count": 577,
+      "max": 10.0,
+      "median": 2.0,
+      "min": 0.0
+    },
+    "subordinate_clause_ratio": {
+      "count": 523,
+      "max": 1.0,
+      "median": 0.5,
+      "min": 0.0
+    },
+    "token_count": {
+      "count": 577,
+      "max": 71.0,
+      "median": 12.0,
+      "min": 2.0
+    },
+    "variant_count": {
+      "count": 577,
+      "max": 7.0,
+      "median": 4.0,
+      "min": 2.0
+    }
+  },
+  "outcome_columns_loaded": [],
+  "parser_manifest_mismatch_count": 0,
+  "parser_manifest_sha256": "b47153e46a4031938a98f417fdff14c224a973ec02026632bd327030e48011e8",
+  "passed": true,
+  "question_clause_type_missing_count": 0,
+  "schema_version": 1,
+  "stanza_item_count": 577,
+  "stanza_token_rows": 8877,
+  "temporal_expression_counts": {
+    "false": 474,
+    "true": 103
+  },
+  "total_items": 577,
+  "unexpected_clause_types": [],
+  "unique_item_count": 577
+}

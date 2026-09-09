@@ -16,8 +16,9 @@ The environment is reproducible at three levels:
 
 - `Dockerfile` pins Rocker R 4.4.3 by OCI digest;
 - `renv.lock` pins `fwildclusterboot` 0.14.3 and all transitive R packages;
-- `fixtures/` records the F6 linear input, Rademacher signs, R output, and
-  provenance hashes.
+- `covariance_reference.R` independently derives the full CGM covariance and frozen PSD map;
+- `fixtures/` records the F6 linear input, Rademacher signs, native package output,
+  independent covariance output, and provenance hashes.
 
 Build the image from the repository root:
 
@@ -43,8 +44,18 @@ The generator gives the container read-only fixture inputs and a temporary
 writable output mount. It validates outputs before atomically replacing the
 reference and provenance. Run it twice and require identical hashes.
 
+The R runner seeds `dqrng`, pre-draws the auxiliary Rademacher schedule with
+`fwildclusterboot:::get_weights`, resets the same seed, and then invokes
+`boottest(..., conf_int = FALSE)`. This guarantees that the signs written to
+`f6-linear-rademacher-weights.csv` are exactly the schedule consumed by the
+native reference calculation; `boottest` does not retain a separate copy.
+
 The normal `question-suitability oracle` command does not invoke Docker. It
-replays the committed fixture in Python and records the pass only when `p_f`
-agrees to `1e-4` and `W_obs` agrees to relative `1e-6`. See
+replays the committed fixtures in Python. Native `fwildclusterboot` validates
+the unprojected scalar statistic; it does not apply the project's full-matrix
+PSD map. The base-R reference separately records all three meat components,
+raw covariance, eigenvalues, projected covariance, and raw/projected Wald
+statistics. The gate calls the production Python CGM/PSD path and records a
+pass only when every corresponding object agrees at its frozen tolerance. See
 `reports/19-segment-6-statistical-oracle-operations.md` for full operations and
 failure recovery.

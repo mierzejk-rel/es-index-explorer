@@ -37,7 +37,10 @@ from es_index_explorer.question_analysis.workflow import (
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
 DEFAULT_ANALYSIS_ROOT = (
-    PROJECT_ROOT / "artifacts" / "question_analysis" / f"{ANALYSIS_ID}-segment6"
+    PROJECT_ROOT
+    / "artifacts"
+    / "question_analysis"
+    / f"{ANALYSIS_ID}-segment6-postremediation-final"
 )
 DEFAULT_SPECIFICATION = (
     PROJECT_ROOT / "reports" / "13-simple-mode-analysis-research-plan.md"
@@ -63,6 +66,11 @@ DEFAULT_RESOURCES = {
     / "oracles"
     / "fwildclusterboot"
     / "run_reference.R",
+    "r_oracle_covariance_reference_source": PROJECT_ROOT
+    / "tests"
+    / "oracles"
+    / "fwildclusterboot"
+    / "covariance_reference.R",
     "r_oracle_input": PROJECT_ROOT
     / "tests"
     / "oracles"
@@ -81,6 +89,12 @@ DEFAULT_RESOURCES = {
     / "fwildclusterboot"
     / "fixtures"
     / "f6-linear-r-output.json",
+    "r_oracle_covariance_reference_output": PROJECT_ROOT
+    / "tests"
+    / "oracles"
+    / "fwildclusterboot"
+    / "fixtures"
+    / "f6-linear-r-covariance-reference.json",
     "r_oracle_weights": PROJECT_ROOT
     / "tests"
     / "oracles"
@@ -189,6 +203,9 @@ DEFAULT_RESOURCES = {
     "segment6_operations": PROJECT_ROOT
     / "reports"
     / "19-segment-6-statistical-oracle-operations.md",
+    "segment6_remediation": PROJECT_ROOT
+    / "reports"
+    / "20-stage-6-statistical-primitives-remediation.md",
     "segment6_glm_primitives_source": PROJECT_ROOT
     / "es_index_explorer"
     / "question_analysis"

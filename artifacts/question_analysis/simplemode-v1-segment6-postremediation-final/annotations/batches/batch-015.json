@@ -1,0 +1,151 @@
+{
+  "batch_id": "batch-015",
+  "item_ids_sha256": "4d5b6ec72208cbed55108a61444c7de31d2b0b529651939c2255cb80bfea4068",
+  "items": [
+    {
+      "item_id": "variant_5e428b8e9607c7d86236af830491df350e0a9ed620eef45bc03cffef36ed1022",
+      "item_type": "question",
+      "source_text": "Tell me whom Matt Smith most frequently emailed with.",
+      "text_sha256": "2d474d753fd5fb90f4152a9c4efd964c23d82816819a34b9fb712ed6d24e5acc"
+    },
+    {
+      "item_id": "expectation_65fafff78ce57be91e4912452ee07d9e35fc7ce54affc8b4df78ab7310481839",
+      "item_type": "expectation",
+      "source_text": "Cites email from Belford to Zero Cool acknowledging him as worthy opponent.",
+      "text_sha256": "c71e850b737bf554e93cec081f36b11bf59309ac18beb000f0d8672add7193c8"
+    },
+    {
+      "item_id": "expectation_883f6bf73377633ac58a189fe68ebd7d01e56d4ebca7b18e523990cf210bf78a",
+      "item_type": "expectation",
+      "source_text": "Speaker for Covidien EXALGO Satellite Broadcast, Oct. 18, 2012",
+      "text_sha256": "9b8e639e0b4d838cfe437047826f8939a614d378a41057a020808808ea55c97e"
+    },
+    {
+      "item_id": "expectation_96c80428a623da37096ce5472216a9bcb72d7a9ba4db5154e8d7e6df4946a129",
+      "item_type": "expectation",
+      "source_text": "States there is no direct evidence suggesting Chen was involved as nefarious actor or collaborated with Belford.",
+      "text_sha256": "38e31e1f9dbb49c52faa8bd732a5be606c10df1bd62743a3eed4792e32ec269e"
+    },
+    {
+      "item_id": "expectation_b253b03d1178410cabccce86f3342b0552051c0255418a1357175104f79dedbb",
+      "item_type": "expectation",
+      "source_text": "Cites Ellingson's claimed costs for managing company reputation post-attack ($500K).",
+      "text_sha256": "446265d205f8154e340f5f618f5c166cb2700bed87cef89cdc8223a39f5e0bfe"
+    },
+    {
+      "item_id": "expectation_fe5d6345851b5c591807965960f463d28ec344218b90610c9cdb078e93d197b3",
+      "item_type": "expectation",
+      "source_text": "Cites Chen detecting unusual activity and directing IT team to refocus on issue immediately as of 10/19 12:30pm.",
+      "text_sha256": "4dd03cabd2a1fc74f44977872176f26a3a662836466981dfd51dd6d99316fede"
+    },
+    {
+      "item_id": "expectation_44379d68f22d7937472e4568f9da936389d3a176347cf33b5cf5be4fe44e30b6",
+      "item_type": "expectation",
+      "source_text": "Dr. Sarah Chen uses the email addresses Sarah.Chen@ellingson-it.com and Sarah.Chen@secure-ellingson.com.",
+      "text_sha256": "30edd65b96a3beeacb9d8aeb196ab8826020c9c1612399cf5882cf8bdce9f46b"
+    },
+    {
+      "item_id": "expectation_710960ae18a327a1503ebcdee025fb2afe7b516cbe273505daf8f8dec4985995",
+      "item_type": "expectation",
+      "source_text": "In an email dated October 19, 1995, at 1:00 p.m., Ellingson CEO calling an emergency board meeting in light of the recent cyber attack on Ellingson's systems",
+      "text_sha256": "88bfed075920add80c8685046c60164daae087d94796adcbff7d36fa49518b03"
+    },
+    {
+      "item_id": "variant_f04c3c9391440d33c31bf37b62d76bea81f6955dd147d06b49859da26e273709",
+      "item_type": "question",
+      "source_text": "Who was Dr. El-Mohandes in contact with at Mallinckrodt/Covidien?",
+      "text_sha256": "9dc2ec916c12234136862d186595103fefbefb5a2a85d09fcaa130169c68d9c9"
+    },
+    {
+      "item_id": "variant_da4eadce9c097114db5a51dadd15bcb74783862236f78a36621756df270bc2b1",
+      "item_type": "question",
+      "source_text": "Who was Hal Benson in contact with regarding the Da Vinci virus?",
+      "text_sha256": "713736cea802854efb9c46d7834f51d9cc4c6e98868b78599e5153004791af68"
+    },
+    {
+      "item_id": "expectation_cb8839ab6de5b9db8b55985480b5a8919e41f017122fd37eab6d3904ba33ffd5",
+      "item_type": "expectation",
+      "source_text": "Cites email from Wallace to Belford confirming everything's set and no suspicions exist; asking about timing",
+      "text_sha256": "d9850b38a20374f721acb8813061e152a1bf1458eeed738062ccc6f6775ef1f0"
+    },
+    {
+      "item_id": "expectation_f5631919f10633ab1ee5b406b1f7eb409c6e503c63e7b6a71bb4335ad9d07090",
+      "item_type": "expectation",
+      "source_text": "Cites email instructing Wallace to act surprised when Da Vinci virus activates.",
+      "text_sha256": "c60959ec93bb58bd32fd36118758be67d7c483dfc116df00c69efc57b4ffc864"
+    },
+    {
+      "item_id": "variant_ccbaf11319e82f87ce3d61388a3f56d5efb93e9e1c0a801c9cb62e03fc467b6e",
+      "item_type": "question",
+      "source_text": "What was Belford's exit plan?",
+      "text_sha256": "77d1577e989bdc662769d92096fe39e3cfe857cb28184402f258dc962133c2f6"
+    },
+    {
+      "item_id": "expectation_0d6f62135719998c2814914b4111bd72877f29cd3fd77e1fa3352b050d2b28d6",
+      "item_type": "expectation",
+      "source_text": "Cites email from Wallace to Belford stating IT is asking questions; asking what she should tell them.",
+      "text_sha256": "0a12a1d12f460854a8027cd5c8b53521227bf479ac98c09cd55024ecc939f364"
+    },
+    {
+      "item_id": "variant_27afbf602ff2fc74aa3307db1aebe512e0ba2daaea1f9c38285713fd59754119",
+      "item_type": "question",
+      "source_text": "Tell me about the Debbie.Lavelle@mallinckrodt.com compliance email about health care provider meals and the subsequent discussions or communications regarding that email.",
+      "text_sha256": "ba6ac2c07b1ef32bf1528b5f5418d5177865516d55f443e83524f4c7b41b3db0"
+    },
+    {
+      "item_id": "variant_77b0188c6697586c97684fae8e979b97aa03746421e9e7cfe8fb1b8b41f44048",
+      "item_type": "question",
+      "source_text": "Show me all the playbooks",
+      "text_sha256": "bee6240e783bb4f052a87bcd0538274d8fcb2e5d3c96a056428201444731d1ee"
+    },
+    {
+      "item_id": "expectation_7f2cd65725ebe70b303f1280697b7693866573889249fbfb7334ed903b4a973b",
+      "item_type": "expectation",
+      "source_text": "Following Lavelle's emails, Jeff Yuska (Jeffrey.Yuska@mallinckrodt.com) checked with Pharmaceutical Specialist, Kim Gallegos (Kimberly.gallegos@mallinckrodt.com), about whether new HCP meal guidelines would affect her practice of regularly bringing Starbucks to pain offices. Kim responded that her situation likely fit the exception for offices that will only meet over food. Jeff replied that this made sense and said it was good to have a plan in case the activity was being monitored.",
+      "text_sha256": "4af044be66fdc953d71c72d4eec6aa0e865a3c0e85a1ec6e1fecee8f27c02d6c"
+    },
+    {
+      "item_id": "expectation_71d343aa4325569cb387be586d9a9e7ff10b932a4b58387ebabf12ecc04ebd2e",
+      "item_type": "expectation",
+      "source_text": "Limits discussion to events that occurred on October 19, 1995 or later as a result of the cyberattack and Ellingson's efforts to address it.",
+      "text_sha256": "e5a50bba1a63b974301e70bcd2cb67ba0a597a5ba5f2cc20a9cd3a7a938dd111"
+    },
+    {
+      "item_id": "expectation_20eddbb986d91a7b247aa31350bcaacb8fdb8d7773cb8f5c7ece3b2441e5f33f",
+      "item_type": "expectation",
+      "source_text": "States Eugene Belford used the address eugene.belford@ellingson.com.",
+      "text_sha256": "867ac14023f67332341e4f609a5c17910d64d6cc5f73f94ca3bff3754243e750"
+    },
+    {
+      "item_id": "variant_1064d322d415e691bc4f5af5fc474348dd84268a5a5463ca07786d8c2ce2ac44",
+      "item_type": "question",
+      "source_text": "Which documents support the claim that Ellingson's cybersecurity protections were deficient?",
+      "text_sha256": "3c95571784ca82edef5319ba6deb5334e15b4cf586a9189bbb0277d90bfb4e09"
+    },
+    {
+      "item_id": "variant_892c7de6bbae848d6cb6135f1130fcfaf4cecaf4563cb7e352f85547277bc298",
+      "item_type": "question",
+      "source_text": "Who is Dr. Elmo?",
+      "text_sha256": "81f6e34d6df89e258aa25b1942f2eecb450cf610d1defdddee9d9b18b82a2afe"
+    },
+    {
+      "item_id": "expectation_a9f19b8a8c503f1957c836c62504b08fcb16f6d3e5167f04713571f6919c6948",
+      "item_type": "expectation",
+      "source_text": "Quarterly Playbook, FY13Q2, Territory 60610 - Austin",
+      "text_sha256": "15cdb07283f4803b0522c08454c7015ea8e2f79bf33e629d1eb0fe89b7c85792"
+    },
+    {
+      "item_id": "variant_8301d6634a5a402488b85c0fa6f7c3da583275d57a30fa772666ee47cb5881f8",
+      "item_type": "question",
+      "source_text": "Tell me about Debbie Lavelle's compliance email about health care provider meals and the subsequent discussions or communications regarding that email.",
+      "text_sha256": "8eff2c925806dbe6547736d560a76776ecf31dc0a24124a2aa39e17abec5843f"
+    },
+    {
+      "item_id": "variant_7e85b50d95411639e9ed3aac9c58ef5d875d70a41fab66b809e3e500c02d0f98",
+      "item_type": "question",
+      "source_text": "Are 'Phantom Phreak' (phantomphreak@ghostline.com) the teenage hacker and 'Phantom Phreak' (phantom.phreak@undergroundhax0r.net) who communicated with Belford the same person?",
+      "text_sha256": "6df715850b1db57786d0b3cd6f77a22cd4657f0d68eae7b427e39c10e50ec773"
+    }
+  ],
+  "schema_version": 1
+}

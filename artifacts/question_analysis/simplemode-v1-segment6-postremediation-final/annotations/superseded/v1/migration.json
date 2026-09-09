@@ -1,0 +1,12 @@
+{
+  "reason": "Replaced long model-facing hash IDs with deterministic batch-local keys",
+  "schema_version": 1,
+  "superseded_paths": [
+    "annotations/raw/claude-opus-5/batch-001.jsonl",
+    "annotations/raw/claude-opus-5/batch-002.jsonl",
+    "annotations/raw/claude-opus-5/batch-003.jsonl",
+    "annotations/attempts/claude-opus-5/batch-001.json",
+    "annotations/attempts/claude-opus-5/batch-002.json",
+    "annotations/attempts/claude-opus-5/batch-003.json"
+  ]
+}

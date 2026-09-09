@@ -1,0 +1,13 @@
+{
+  "attempt_count": 50,
+  "model_calls_allowed": false,
+  "provenance_file_count": 10,
+  "raw_response_count": 50,
+  "schema_version": 1,
+  "source_annotation_manifest_sha256": "b4605f0380bc353e97fb1c0b8774ab5e44ad4c5904c669e5b2b71c1eb0239e33",
+  "source_files_sha256": "97400bb1eca56e9b7d957748e44bd74cd59e88fa8d4dc8213b4b45d1d6a55584",
+  "source_manifest_sha256": "dcb38a7fcaf6a641877f5972223dc74d78523aa184b57b8f69679f62558cc7a6",
+  "source_preflight_sha256": "10500d28a4d8e16e81fa52719d3754a5dd3093577c62d9d01918f10fe0d7c08f",
+  "source_root": "/Users/krzysztof.mierzejewski/PycharmProjects/es-index-explorer/artifacts/question_analysis/simplemode-v1-segment6",
+  "source_state_sha256": "622550e054530e13058d0beb9bbc5b3492785114ee4d9adbe9107eaf748571c7"
+}

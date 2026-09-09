@@ -16,5 +16,6 @@ RUN R -e 'renv::restore(lockfile = "/oracle/renv.lock", library = .libPaths()[1]
 RUN R -e 'description <- utils::packageDescription("fwildclusterboot"); stopifnot(as.character(utils::packageVersion("fwildclusterboot")) == "0.14.3", description$RemoteSha == "336bb574eba169ac0183317f01d0564791d8122f")'
 
 COPY run_reference.R /oracle/run_reference.R
+COPY covariance_reference.R /oracle/covariance_reference.R
 
 ENTRYPOINT ["Rscript", "/oracle/run_reference.R"]

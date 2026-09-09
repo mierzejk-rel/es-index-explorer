@@ -1,0 +1,151 @@
+{
+  "batch_id": "batch-006",
+  "item_ids_sha256": "13b99bc33ff859c5eea8364eaa3a4d4c9620e1cb99633166855b2edfb8e503f4",
+  "items": [
+    {
+      "item_id": "expectation_11f844784b6db16109979e3485c83b892180ba95684756f0105daa69363d958f",
+      "item_type": "expectation",
+      "source_text": "Cites email where Wallace tells Belford 'No one suspects a thing' regarding routine maintenance story.",
+      "text_sha256": "35419a8c67ebad9f8bf7b70ca0799ff4ed7c6fa2637c6a8822aeda08e954a2f8"
+    },
+    {
+      "item_id": "expectation_0634289d46f4bb646c494346cfd3b84c974237b923d9d847e182f0f5f7ec8ce1",
+      "item_type": "expectation",
+      "source_text": "Margo Wallace emailed Eugene Belford on October 22, 1995, with the subject, I'm out, informing him that she is getting out while she still can, and instructing Belford not to try to contact her again.",
+      "text_sha256": "37185580858052bda5091b7ed37f12b055201031e4d653bc9c6a23bf46fbee0e"
+    },
+    {
+      "item_id": "variant_fd598957e698b08e045db9d3bd52259bcdefb3813304de2d82ecbb22e7663208",
+      "item_type": "question",
+      "source_text": "What documents show Dr. Argoff's involvement in promoting Pennsaid?",
+      "text_sha256": "cc65703aeebbe910d96eca2b97cc34bfa626e7f1d84b84318fbed12b3dc9ba23"
+    },
+    {
+      "item_id": "expectation_7644c1e919a36f1f0a0fed0202b3996e2aa5bd13e122ef1a5c46c4cf1eac7c1e",
+      "item_type": "expectation",
+      "source_text": "Cites Belford statement that FBI is closing in and instructing to use the escape plan.",
+      "text_sha256": "7e0958b353faa98ee57c5b5bf0d42dbfb601bb2ab0d6d5d91919ce38b56fff23"
+    },
+    {
+      "item_id": "variant_4354888c9135192163a4ebf1c2c70069ae0928c707d818e305a3ae34207f5416",
+      "item_type": "question",
+      "source_text": "Who at Covidien did Matt Smith email with most often?",
+      "text_sha256": "c5dc4b588cd15cba7e540745d50fc075ccfccd3b0c0c42e5b58e28396d061a53"
+    },
+    {
+      "item_id": "variant_ec8c7908ef94e6ff3daf1e1a2743e21ec56959390e5d23ee1002348885c5b22e",
+      "item_type": "question",
+      "source_text": "Summarize the emails between eugene.Belford@ellingson.com aka eugene.belford@offshore-secure.net and margo.Wallace@ellingson.com.",
+      "text_sha256": "325550bfa8237ad84174ef42db750d0896bd68f1856fed1a0763277f68d8f40d"
+    },
+    {
+      "item_id": "variant_ea95da73e23c92e55c782c67c2c540f358073e65742db344267fc2c3cc996c83",
+      "item_type": "question",
+      "source_text": "Was Belford in email contact with teenage hacker Phantom Phreak?",
+      "text_sha256": "1f6ca04499d27c2b3c726d80f17b18309fc69d693d2e63160853bf062f7ba646"
+    },
+    {
+      "item_id": "variant_5cca50f340a35efed63d42531bbcf95871b03e7f3d77fd26befb9e0f5dc51b49",
+      "item_type": "question",
+      "source_text": "What was Dr. Mohandes's email?",
+      "text_sha256": "cd71702cb04bf481948d2effd50cdc17326a404fb2653faed190e3664ed08e41"
+    },
+    {
+      "item_id": "expectation_7a0b861164a5d5eb7672835b76a77dc601f80f633f3997d936709417e16a3701",
+      "item_type": "expectation",
+      "source_text": "Identifies the Q3 financial review showing increased cybersecurity investments pre-Belford hack.",
+      "text_sha256": "aa95a4bc5733bfe4b49509578ec3bbde306e0e96b755de72434c5c71fca8d5f4"
+    },
+    {
+      "item_id": "expectation_dd4409bc37977af2d058482de453ec50de83909984bed6ea62026c102cc592df",
+      "item_type": "expectation",
+      "source_text": "Belford email to self with reminders to activate failsafe if cornered, destroy local devices, use emergency passport and funds in Cayman safe deposit box, use secure channels for lawyer contact, invoke right to silence if captured.",
+      "text_sha256": "fd4f804b12c3608923a68ee391a421361283917b44904ff9490297b4e513be14"
+    },
+    {
+      "item_id": "expectation_3a874adbd108b8829e11775f0165526bace757d0b647cf900fdfc79b750f7dfd",
+      "item_type": "expectation",
+      "source_text": "Answers in the affirmative: yes",
+      "text_sha256": "1bcaeda50e3c991089a0325ca26667b50b8bffe1e578e3077ef5846213de084d"
+    },
+    {
+      "item_id": "expectation_d401d3202d55de1e360fe7ac24630b3a2140c494a3c11d4abe4c2adab33bad16",
+      "item_type": "expectation",
+      "source_text": "As of June 2012, Dr. Argoff was one of Covidien's faculty members and involved in CARES lectures",
+      "text_sha256": "9543804c24f96b80d5564f584d753cae2a245c51e51354bb1a5808138181fe91"
+    },
+    {
+      "item_id": "expectation_92fb1bdfbc97ab6f245c519020833596540dca62bc6210512d84d90fed3b784a",
+      "item_type": "expectation",
+      "source_text": "Cites document containing Chen noting team skill gaps in handling vulnerabilities.",
+      "text_sha256": "c1aa54c3fa4a3f59d714e538dcc5ea4618f58c1597ec88b1ab9ff9001e200c27"
+    },
+    {
+      "item_id": "expectation_3190542d21d462d05ae578af79a0e194d504c1955205ed058ab94582abfe82b2",
+      "item_type": "expectation",
+      "source_text": "Faculty/paid consultant presenting on behalf of Covidien for Exalgo program: Important Considerations in Customizing Pain Management: A National Broadcast Event, 2012",
+      "text_sha256": "bd4d68adc78d6f421eb2df4ad2aa742091e13ea8e2a102c20e614b22fdd85c90"
+    },
+    {
+      "item_id": "expectation_d23584f703be4b027a5d79753e70386978c02aff267bcd7090803b26e34cb54b",
+      "item_type": "expectation",
+      "source_text": "Cites email address AElmohandes@myspinedoctors.com for Dr. Ali El-Mohandes, MD",
+      "text_sha256": "882aa785dc4d556e0e2b54697a320a85ea0ad59105658c4ae0b41179fb66ceed"
+    },
+    {
+      "item_id": "variant_0296b8131cdcdd2d7204086e20e41ef37256225ba777c49edb73de9b52d03c62",
+      "item_type": "question",
+      "source_text": "What emails did cargoff@nycap.rr.com exchange with Covidien/Mallinckrodt executives?",
+      "text_sha256": "8f9a273e80a13eca7585e3ee399ad40f14c0720649b966d480d9540e779d8cdb"
+    },
+    {
+      "item_id": "expectation_6acfc19de4b14f8ac8bd86a2038d7328ef3db69d4e55d035165e9e8cf585a69b",
+      "item_type": "expectation",
+      "source_text": "Cites analysis of legal implications of breach on 10/19/1995.",
+      "text_sha256": "9819f3fdd14e4fe13a5faa3d1c291afb4a4b97042260624f873ad962e9d55d44"
+    },
+    {
+      "item_id": "variant_51bda8d372d5ce88ae6e54852035f60c58bfdc3cb5ecee59e8624a23ffd50963",
+      "item_type": "question",
+      "source_text": "What damages did Ellingson suffer as a result of the Belford hack?",
+      "text_sha256": "70c62978ff298eb82e023115cbd78c43cdea318804bc0f931062e9abe1fa0aff"
+    },
+    {
+      "item_id": "variant_2b397b2c8d21efed891555a80883f5e6cbbac7b69341d68e8571f43b4e18462a",
+      "item_type": "question",
+      "source_text": "Find me evidence relating to sales reps purchasing Starbucks for potential prescribers",
+      "text_sha256": "e121c21a7d59165d0f0b6e893e53903147955902ed975b3c82727a521ea8c7c8"
+    },
+    {
+      "item_id": "variant_8f8d8d6529ca680fb0a24a695f76304b8719a79e1757fdcf5e88a0d1ab6ad847",
+      "item_type": "question",
+      "source_text": "What is Sarah Chen's title?",
+      "text_sha256": "3dbfade16474d07bce702385e35781b166f128a9afb9a45ae4290aa19df025d2"
+    },
+    {
+      "item_id": "expectation_104da3422f5150e4efe31765f20fc09dcffd5887e4afb91e81f55d8e0f0f9dc1",
+      "item_type": "expectation",
+      "source_text": "Quarterly Playbook, FY13Q3, Territory 70401 – Salt Lake City",
+      "text_sha256": "84966348e202d00145e79291d2923bcbb359560c93816378ff4ae0dabc865b11"
+    },
+    {
+      "item_id": "variant_14dcd8822e2bfc006a61631c9628096852238fb2118ab31f078f903f65ee51ee",
+      "item_type": "question",
+      "source_text": "List the most harmful evidence to Ellingson in an investigation into its cybersecurity failures in connection with the Da Vinci hack.",
+      "text_sha256": "a9da44b0028bcca390838a4b6e775507a4ff3b21efec82517ac36cba4a3dba53"
+    },
+    {
+      "item_id": "expectation_4578566dd03db44c17caef507ea8d2a5197a35f233f2d4b6010a0b35a2e13a65",
+      "item_type": "expectation",
+      "source_text": "Cites email about progress and securing USB device 'rabbit's foot'.",
+      "text_sha256": "6f46ca545a491f902d2c4086e852feec218ecf3b0282201f66a191b3c46de86e"
+    },
+    {
+      "item_id": "expectation_df2ed3dea35e0242003e49fb3eb691700b51fd77175d6ac96fc7cd56390f41b4",
+      "item_type": "expectation",
+      "source_text": "Dr. El-Mohandes responding in an email chain about a set maximum number of Exalgo pills, opining that there should not be a maximum as it limits patient management.",
+      "text_sha256": "a77cd043f8964e60deadfcb797a100c32bafc855e7ec1b4a58ed16444650a2d8"
+    }
+  ],
+  "schema_version": 1
+}

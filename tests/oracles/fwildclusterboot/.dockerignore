@@ -2,3 +2,4 @@
 !Dockerfile
 !renv.lock
 !run_reference.R
+!covariance_reference.R
