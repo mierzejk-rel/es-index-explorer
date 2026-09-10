@@ -280,7 +280,7 @@ def test_shared_keys_use_global_attempt_not_local_retained_index() -> None:
     }
 
 
-def test_frozen_synthetic_fixture_recovers_moments_within_contract() -> None:
+def test_frozen_single_synthetic_fixture_is_a_finite_non_gating_smoke() -> None:
     contract = json.loads(SYNTHETIC_CONTRACT.read_text(encoding="utf-8"))
     datasets = tuple(contract["dataset_offsets"])
     hyperparameters = Layer1Hyperparameters(
@@ -328,24 +328,13 @@ def test_frozen_synthetic_fixture_recovers_moments_within_contract() -> None:
         ),
     )
     recovered = method_of_moments_start(simulated).hyperparameters
-    acceptance = contract["acceptance"]
 
-    assert (
-        np.max(np.abs(recovered.mu0 - hyperparameters.mu0))
-        <= acceptance["dataset_mean_alr_max_abs_error"]
-    )
-    assert (
-        abs(recovered.phi - hyperparameters.phi) / hyperparameters.phi
-        <= acceptance["phi_relative_error"]
-    )
-    for actual, expected in (
-        (recovered.sigma_within, hyperparameters.sigma_within),
-        (recovered.sigma_between, hyperparameters.sigma_between),
-    ):
-        assert (
-            np.linalg.norm(actual - expected) / np.linalg.norm(expected)
-            <= acceptance["covariance_relative_frobenius_error"]
-        )
+    assert contract["calibration"]["single_realization_is_gating"] is False
+    assert contract["calibration"]["replicate_count"] == 12
+    assert np.isfinite(recovered.phi)
+    assert np.isfinite(recovered.mu0).all()
+    assert np.linalg.eigvalsh(recovered.sigma_within).min() > 0
+    assert np.linalg.eigvalsh(recovered.sigma_between).min() > 0
 
 
 def test_frozen_synthetic_decision_references_replay_within_tolerance() -> None:

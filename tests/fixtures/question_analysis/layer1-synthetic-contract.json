@@ -1,6 +1,17 @@
 {
-  "schema_version": 1,
+  "schema_version": 2,
   "generation_child_stream": "diagnostic_resampling:layer1-synthetic-recovery",
+  "calibration": {
+    "replicate_count": 12,
+    "child_key_template": "layer1-synthetic-recovery:{replicate}",
+    "aggregation": "mean_fitted_identified_parameters",
+    "single_realization_is_gating": false,
+    "all_replicates_require_three_start_equivalence": true,
+    "blocking_design_file": "layer1-synthetic-production-design.json",
+    "blocking_design_sha256": "da9e7c496a765ca3e592a9fae667ffd36d07c708666f11bbf3846b557dbf48ad",
+    "blocking_rubric_count": 63,
+    "small_fixture_rubric_count": 24
+  },
   "reference_probability_seed": 987654,
   "rubric_count": 24,
   "rubrics_per_dataset": 8,

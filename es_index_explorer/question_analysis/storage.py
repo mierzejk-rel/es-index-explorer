@@ -34,6 +34,7 @@ ARTIFACT_DIRECTORIES = (
     "figures",
     "partial_reports",
     "logs",
+    "checkpoints",
 )
 
 

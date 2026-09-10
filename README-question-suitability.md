@@ -195,6 +195,15 @@ completed human validation, `outcome_modeling_unlocked=true`, and the Stage 6 or
 Until then, `status` reports the blockers and `fit-layer1` exits with the locked prerequisite
 category.
 
+When unlocked, `fit-layer1` defaults to hardware-sensitive `--workers auto`,
+one native numerical thread per worker, visible stderr progress, and compatible
+checkpoint resume. Use `--workers N` to override scheduling without changing
+the statistical result, `--progress-interval SECONDS` to control display
+cadence, or `--fresh` to discard only this root's Layer 1 checkpoint. Internal
+checkpoints live under `checkpoints/fit-layer1/`; scientific artifacts are
+registered only after complete promotion. Profiling and calibration commands
+are documented in report 22.
+
 The existing `simplemode-v1-segment6` oracle artifact predates the two-layer CGM/PSD oracle
 schema and remains immutable audit evidence. The Segment 7 working root is rematerialized
 without model calls by migrating hash-verified annotation provenance from the Stage 6 handoff:

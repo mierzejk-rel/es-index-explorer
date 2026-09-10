@@ -14,9 +14,10 @@ from es_index_explorer.question_analysis.layer1_model import (
     Layer1Mode,
     Layer1MomentStart,
     Layer1RubricData,
+    build_hyperparameter_context,
     find_rubric_mode,
-    inverse_alr,
-    rubric_log_density_derivatives,
+    inverse_alr_batch,
+    rubric_log_density_batch,
 )
 
 INNER_DRAWS_PER_OUTER = 40
@@ -81,13 +82,8 @@ def draw_rubric_v2(
         check_valid="raise",
     )
     eta_draws = latent_draws[:, 2:].reshape(draw_count, len(rubric.variants), 2)
-    rubric_v2 = np.empty((draw_count, len(rubric.variants)), dtype=float)
-    for draw_index in range(draw_count):
-        for variant_index in range(len(rubric.variants)):
-            probabilities = inverse_alr(eta_draws[draw_index, variant_index])
-            rubric_v2[draw_index, variant_index] = (
-                probabilities[0] + 0.5 * probabilities[2]
-            )
+    probabilities = inverse_alr_batch(eta_draws)
+    rubric_v2 = probabilities[..., 0] + 0.5 * probabilities[..., 2]
     if not np.isfinite(rubric_v2).all():
         raise Layer1ModeError("Conditional RubricV2 draws are non-finite")
     return rubric_v2
@@ -144,19 +140,24 @@ def importance_resampling_diagnostic(
     """Compare the conditional Laplace approximation with self-importance sampling."""
     if particle_count <= 1:
         raise MalformedInputError("Importance particle count must exceed one")
-    mode = conditional_mode(rubric, hyperparameters, moments)
+    context = build_hyperparameter_context(hyperparameters)
+    try:
+        initial = moments.rubric_latent_starts[rubric.rubric_id]
+    except KeyError as error:
+        raise MalformedInputError("Missing Layer 1 rubric moment start") from error
+    mode = find_rubric_mode(
+        rubric,
+        hyperparameters,
+        initial,
+        context=context,
+    )
     particles = rng.multivariate_normal(
         mode.value,
         mode.covariance,
         size=particle_count,
         check_valid="raise",
     )
-    target_log = np.asarray(
-        [
-            rubric_log_density_derivatives(rubric, hyperparameters, particle)[0]
-            for particle in particles
-        ]
-    )
+    target_log = rubric_log_density_batch(rubric, context, particles)
     proposal_log = _multivariate_normal_logpdf(particles, mode.value, mode.covariance)
     log_weights = target_log - proposal_log
     shifted = log_weights - float(np.max(log_weights))

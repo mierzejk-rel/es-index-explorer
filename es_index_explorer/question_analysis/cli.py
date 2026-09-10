@@ -168,6 +168,30 @@ def build_parser() -> argparse.ArgumentParser:
                 action="store_true",
                 help="Expose only the next seeded-order feature dossier without completing validation.",
             )
+        elif command is WorkflowCommand.FIT_LAYER1:
+            command_parser.add_argument(
+                "--workers",
+                default="auto",
+                help="Layer 1 worker count or 'auto' (default: auto).",
+            )
+            checkpoint = command_parser.add_mutually_exclusive_group()
+            checkpoint.add_argument(
+                "--resume",
+                action="store_true",
+                default=True,
+                help="Resume a compatible Layer 1 checkpoint (default).",
+            )
+            checkpoint.add_argument(
+                "--fresh",
+                action="store_true",
+                help="Discard this root's Layer 1 checkpoint and restart.",
+            )
+            command_parser.add_argument(
+                "--progress-interval",
+                type=float,
+                default=5.0,
+                help="Minimum seconds between Layer 1 terminal progress updates.",
+            )
         elif command is WorkflowCommand.STATUS:
             command_parser.add_argument("--json", action="store_true", dest="as_json")
     return parser
@@ -309,9 +333,34 @@ def _production_handler(
 
         return run_oracle
     if command is WorkflowCommand.FIT_LAYER1:
+        from es_index_explorer.question_analysis.layer1_execution import (
+            Layer1ExecutionConfig,
+        )
         from es_index_explorer.question_analysis.layer1_pipeline import run_fit_layer1
 
-        return run_fit_layer1
+        worker_count: int | None
+        if args.workers == "auto":
+            worker_count = None
+        else:
+            try:
+                worker_count = int(args.workers)
+            except ValueError as error:
+                raise MalformedInputError(
+                    "--workers must be 'auto' or a positive integer"
+                ) from error
+            if worker_count <= 0:
+                raise MalformedInputError("--workers must be positive")
+        execution_config = Layer1ExecutionConfig(
+            worker_mode="auto" if worker_count is None else "process",
+            worker_count=worker_count,
+            progress_interval_seconds=args.progress_interval,
+        )
+        return lambda workspace: run_fit_layer1(
+            workspace,
+            execution_config=execution_config,
+            resume=not args.fresh,
+            fresh=args.fresh,
+        )
     return None
 
 
@@ -354,6 +403,7 @@ def _show_status(root: Path, *, as_json: bool, output: TextIO) -> int:
         fit_layer1_blockers.append("outcome-modeling-unlock")
     if state.steps[WorkflowCommand.FIT_LAYER1].status is StepStatus.COMPLETED:
         fit_layer1_blockers.append("already-completed")
+    checkpoint_status, latest_progress = _layer1_runtime_status(workspace.root)
     payload = {
         "analysis_root": workspace.root.as_posix(),
         "status": "initialized",
@@ -365,6 +415,8 @@ def _show_status(root: Path, *, as_json: bool, output: TextIO) -> int:
         ),
         "fit_layer1_runnable": not fit_layer1_blockers,
         "fit_layer1_blockers": fit_layer1_blockers,
+        "fit_layer1_checkpoint_status": checkpoint_status,
+        "fit_layer1_progress": latest_progress,
         "steps": steps,
     }
     if as_json:
@@ -386,7 +438,35 @@ def _show_status(root: Path, *, as_json: bool, output: TextIO) -> int:
                 f"Fit Layer 1 blockers: {', '.join(fit_layer1_blockers)}",
                 file=output,
             )
+        if checkpoint_status is not None:
+            print(f"Fit Layer 1 checkpoint: {checkpoint_status}", file=output)
     return 0
+
+
+def _layer1_runtime_status(
+    root: Path,
+) -> tuple[str | None, dict[str, object] | None]:
+    checkpoint_path = root / "checkpoints" / "fit-layer1" / "manifest.json"
+    progress_path = root / "logs" / "layer1-progress.jsonl"
+    checkpoint_status: str | None = None
+    latest_progress: dict[str, object] | None = None
+    if checkpoint_path.is_file():
+        try:
+            checkpoint_payload = json.loads(checkpoint_path.read_text(encoding="utf-8"))
+            value = checkpoint_payload.get("status")
+            checkpoint_status = str(value) if value is not None else "invalid"
+        except (OSError, ValueError):
+            checkpoint_status = "invalid"
+    if progress_path.is_file():
+        try:
+            lines = progress_path.read_text(encoding="utf-8").splitlines()
+            if lines:
+                candidate = json.loads(lines[-1])
+                if isinstance(candidate, dict):
+                    latest_progress = candidate
+        except (OSError, ValueError):
+            latest_progress = {"status": "invalid"}
+    return checkpoint_status, latest_progress
 
 
 def entrypoint() -> None:

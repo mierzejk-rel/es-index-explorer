@@ -27,6 +27,7 @@ analysis = [
     "matplotlib>=3.11.1",
     "numpy>=2.4.6",
     "pandas>=3.0.3",
+    "psutil>=7.0",
     "pyarrow>=25.0.0",
     "scipy>=1.17.1",
     "seaborn>=0.13.2",

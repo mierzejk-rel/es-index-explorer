@@ -408,6 +408,16 @@ def run_full_leave_out_refits(
     estimator: Layer1TierEstimator,
 ) -> Mapping[str, Mapping[str, SuitabilityTier]]:
     """Fully invoke the Layer 1 estimator for each observed arm and stage removal."""
+    return {
+        comparison_id: estimator(reduced)
+        for comparison_id, reduced in layer1_leave_out_datasets(data).items()
+    }
+
+
+def layer1_leave_out_datasets(
+    data: Layer1Dataset,
+) -> Mapping[str, Layer1Dataset]:
+    """Construct each observed arm/stage removal for an independent full refit."""
     arms = sorted(
         {
             arm
@@ -424,11 +434,9 @@ def run_full_leave_out_refits(
             for stage in variant.stages
         }
     )
-    results: dict[str, Mapping[str, SuitabilityTier]] = {}
+    results: dict[str, Layer1Dataset] = {}
     for arm in arms:
-        results[f"arm:{arm}"] = estimator(_filter_layer1_design(data, excluded_arm=arm))
+        results[f"arm:{arm}"] = _filter_layer1_design(data, excluded_arm=arm)
     for stage in stages:
-        results[f"stage:{stage}"] = estimator(
-            _filter_layer1_design(data, excluded_stage=stage)
-        )
+        results[f"stage:{stage}"] = _filter_layer1_design(data, excluded_stage=stage)
     return results

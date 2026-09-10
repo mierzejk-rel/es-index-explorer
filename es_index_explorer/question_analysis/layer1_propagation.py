@@ -25,6 +25,7 @@ from es_index_explorer.question_analysis.layer1_model import (
     fit_layer1_mml,
     inverse_alr,
 )
+from es_index_explorer.question_analysis.layer1_packed import compress_pfu_counts
 from es_index_explorer.question_analysis.seeds import derive_child_seed
 
 BASE_OUTER_DRAWS = 500
@@ -77,6 +78,15 @@ class EventMonteCarloSummary:
     refinement_triggered: bool
 
 
+@dataclass(frozen=True, slots=True)
+class Layer1Simulation:
+    """Store one simulated dataset and its known latent generating values."""
+
+    data: Layer1Dataset
+    rubric_latents: Mapping[str, np.ndarray]
+    variant_latents: Mapping[str, np.ndarray]
+
+
 def simulate_layer1_dataset(
     design: Layer1Dataset,
     hyperparameters: Layer1Hyperparameters,
@@ -84,7 +94,23 @@ def simulate_layer1_dataset(
     rng: np.random.Generator,
 ) -> Layer1Dataset:
     """Simulate raw PFU counts while holding the observed hierarchy design fixed."""
+    return simulate_layer1_dataset_with_truth(
+        design,
+        hyperparameters,
+        rng=rng,
+    ).data
+
+
+def simulate_layer1_dataset_with_truth(
+    design: Layer1Dataset,
+    hyperparameters: Layer1Hyperparameters,
+    *,
+    rng: np.random.Generator,
+) -> Layer1Simulation:
+    """Simulate PFU counts and retain latent truth for recovery calibration."""
     rubrics: list[Layer1RubricData] = []
+    rubric_latents: dict[str, np.ndarray] = {}
+    variant_latents: dict[str, np.ndarray] = {}
     for rubric in design.rubrics:
         rubric_mean = (
             hyperparameters.mu0 + hyperparameters.dataset_offsets[rubric.dataset]
@@ -94,6 +120,7 @@ def simulate_layer1_dataset(
             hyperparameters.sigma_between,
             check_valid="raise",
         )
+        rubric_latents[rubric.rubric_id] = rubric_latent
         variants: list[Layer1VariantData] = []
         for variant in rubric.variants:
             variant_latent = rng.multivariate_normal(
@@ -101,6 +128,7 @@ def simulate_layer1_dataset(
                 hyperparameters.sigma_within,
                 check_valid="raise",
             )
+            variant_latents[variant.variant_id] = variant_latent
             variant_probability = inverse_alr(variant_latent)
             counts = np.empty_like(variant.counts, dtype=int)
             for trace_index in range(len(variant.arm_ids)):
@@ -116,6 +144,7 @@ def simulate_layer1_dataset(
                     counts=counts,
                     arm_ids=variant.arm_ids,
                     stages=variant.stages,
+                    compressed_counts=compress_pfu_counts(counts),
                 )
             )
         rubrics.append(
@@ -127,7 +156,14 @@ def simulate_layer1_dataset(
                 variants=tuple(variants),
             )
         )
-    return Layer1Dataset(rubrics=tuple(rubrics), dataset_levels=design.dataset_levels)
+    return Layer1Simulation(
+        data=Layer1Dataset(
+            rubrics=tuple(rubrics),
+            dataset_levels=design.dataset_levels,
+        ),
+        rubric_latents=rubric_latents,
+        variant_latents=variant_latents,
+    )
 
 
 def generate_outer_sequence(

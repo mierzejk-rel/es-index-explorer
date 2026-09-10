@@ -1,18 +1,29 @@
 """Layer 1 transforms, hierarchy density, starts, and marginal fitting."""
 
-from collections.abc import Mapping, Sequence
+from collections.abc import Callable, Mapping, Sequence
 from dataclasses import dataclass, replace
 from math import log
 
 import numpy as np
 from scipy.optimize import OptimizeResult, minimize
-from scipy.special import digamma, gammaln, logsumexp, polygamma
+from scipy.special import digamma, gammaln, polygamma
 
 from es_index_explorer.question_analysis.errors import (
     Layer1InitialiserSensitiveError,
     Layer1ModeError,
     MalformedInputError,
     NumericalError,
+)
+from es_index_explorer.question_analysis.layer1_execution import (
+    SequentialExecutor,
+    SpawnProcessExecutor,
+    TaskReference,
+    WorkUnit,
+    WorkUnitKind,
+)
+from es_index_explorer.question_analysis.layer1_packed import (
+    CompressedPfuCounts,
+    compress_pfu_counts,
 )
 
 ALR_EPSILON = 0.5
@@ -33,6 +44,7 @@ START_OBJECTIVE_TOLERANCE = 1e-6
 START_PARAMETER_TOLERANCE = 1e-5
 OUTER_DIFFERENCE_STEP = 1e-5
 OUTER_DIFFERENCE_MAX_HALVINGS = 12
+OBJECTIVE_CACHE_MAX_ENTRIES = 256
 LOG_2PI = log(2.0 * np.pi)
 
 
@@ -44,6 +56,7 @@ class Layer1VariantData:
     counts: np.ndarray
     arm_ids: tuple[str, ...]
     stages: tuple[str, ...] = ()
+    compressed_counts: CompressedPfuCounts | None = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -74,6 +87,17 @@ class Layer1Hyperparameters:
     dataset_offsets: Mapping[str, np.ndarray]
     sigma_within: np.ndarray
     sigma_between: np.ndarray
+
+
+@dataclass(frozen=True, slots=True)
+class HyperparameterEvaluationContext:
+    """Store reusable covariance algebra for one exact hyperparameter vector."""
+
+    hyperparameters: Layer1Hyperparameters
+    within_precision: np.ndarray
+    between_precision: np.ndarray
+    within_log_determinant: float
+    between_log_determinant: float
 
 
 @dataclass(frozen=True, slots=True)
@@ -123,6 +147,20 @@ class Layer1MmlFit:
     starts: tuple[Layer1StartFit, ...]
 
 
+@dataclass(frozen=True, slots=True)
+class MarginalEvaluationPayload:
+    """Store one pickleable exact marginal-objective evaluation request."""
+
+    data: Layer1Dataset
+    latent_starts: Mapping[str, np.ndarray]
+    vector: np.ndarray
+
+
+ModelTaskExecutor = SequentialExecutor | SpawnProcessExecutor
+MmlIterationCallback = Callable[[float, int, float, float], None]
+MmlStartCallback = Callable[[Layer1StartFit], None]
+
+
 def alr_from_counts(
     counts: Sequence[float] | np.ndarray,
 ) -> tuple[np.ndarray, bool]:
@@ -157,8 +195,27 @@ def inverse_alr(eta: Sequence[float] | np.ndarray) -> np.ndarray:
     values = np.asarray(eta, dtype=float)
     if values.shape != (2,) or not np.isfinite(values).all():
         raise MalformedInputError("ALR coordinates must be a finite two-vector")
-    logits = np.array([values[0], 0.0, values[1]], dtype=float)
-    return np.exp(logits - logsumexp(logits))
+    return inverse_alr_batch(values)
+
+
+def inverse_alr_batch(eta: np.ndarray) -> np.ndarray:
+    """Back-transform an arbitrary batch of finite FAIL-reference ALR coordinates."""
+    values = np.asarray(eta, dtype=float)
+    if values.ndim < 1 or values.shape[-1] != 2 or not np.isfinite(values).all():
+        raise MalformedInputError("Batched ALR coordinates must end in dimension two")
+    maximum = np.maximum(np.maximum(values[..., 0], 0.0), values[..., 1])
+    pass_weight = np.exp(values[..., 0] - maximum)
+    fail_weight = np.exp(-maximum)
+    undetermined_weight = np.exp(values[..., 1] - maximum)
+    denominator = pass_weight + fail_weight + undetermined_weight
+    return np.stack(
+        (
+            pass_weight / denominator,
+            fail_weight / denominator,
+            undetermined_weight / denominator,
+        ),
+        axis=-1,
+    )
 
 
 def log_cholesky_to_covariance(
@@ -227,6 +284,13 @@ def validate_layer1_dataset(
                 or len(set(variant.arm_ids)) != len(variant.arm_ids)
             ):
                 raise MalformedInputError("Layer 1 variant contract is invalid")
+            if (
+                variant.compressed_counts is not None
+                and variant.compressed_counts.trace_count != len(counts)
+            ):
+                raise MalformedInputError(
+                    "Compressed Layer 1 counts do not match raw trace count"
+                )
             if require_balance and len(variant.arm_ids) != 28:
                 raise MalformedInputError(
                     "Layer 1 requires exactly 28 arms per variant"
@@ -377,78 +441,69 @@ def unpack_hyperparameters(
 
 
 def dirichlet_multinomial_logpmf(
-    counts: np.ndarray,
+    counts: np.ndarray | CompressedPfuCounts,
     eta: Sequence[float] | np.ndarray,
     phi: float,
 ) -> float:
     """Evaluate the raw-count Dirichlet-multinomial log probability."""
-    observations = np.asarray(counts, dtype=float)
-    if (
-        observations.ndim != 2
-        or observations.shape[1] != 3
-        or not np.isfinite(observations).all()
-        or np.any(observations < 0)
-        or phi <= 0
-        or not np.isfinite(phi)
-    ):
+    compressed = (
+        counts
+        if isinstance(counts, CompressedPfuCounts)
+        else compress_pfu_counts(counts)
+    )
+    if phi <= 0 or not np.isfinite(phi):
         raise MalformedInputError("Dirichlet-multinomial inputs are invalid")
+    observations = compressed.patterns.astype(float, copy=False)
+    multiplicities = compressed.multiplicities.astype(float, copy=False)
     theta = inverse_alr(eta)
     alpha = phi * theta
     totals = observations.sum(axis=1)
     values = (
-        gammaln(totals + 1.0)
-        - gammaln(observations + 1.0).sum(axis=1)
+        compressed.combinatorial_log_terms
         + gammaln(phi)
         - gammaln(totals + phi)
         + (gammaln(observations + alpha) - gammaln(alpha)).sum(axis=1)
     )
-    return float(values.sum())
+    return float(values @ multiplicities)
 
 
 def _softmax_derivatives(
     eta: np.ndarray,
 ) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
     theta = inverse_alr(eta)
-    positions = (0, 2)
-    jacobian = np.empty((3, 2), dtype=float)
-    hessians = np.empty((3, 2, 2), dtype=float)
-    for component in range(3):
-        for first, first_position in enumerate(positions):
-            first_delta = float(component == first_position)
-            jacobian[component, first] = theta[component] * (
-                first_delta - theta[first_position]
-            )
-            for second, second_position in enumerate(positions):
-                second_delta = float(component == second_position)
-                cross_delta = float(first_position == second_position)
-                hessians[component, first, second] = theta[component] * (
-                    (first_delta - theta[first_position])
-                    * (second_delta - theta[second_position])
-                    - theta[second_position] * (cross_delta - theta[first_position])
-                )
+    indicator = np.array([[1.0, 0.0], [0.0, 0.0], [0.0, 1.0]])
+    centered = indicator - theta[[0, 2]]
+    jacobian = theta[:, None] * centered
+    selected_jacobian = jacobian[[0, 2]]
+    hessians = theta[:, None, None] * (
+        centered[:, :, None] * centered[:, None, :] - selected_jacobian[None, :, :]
+    )
     return theta, jacobian, hessians
 
 
 def _variant_likelihood_derivatives(
-    counts: np.ndarray,
+    counts: np.ndarray | CompressedPfuCounts,
     eta: np.ndarray,
     phi: float,
 ) -> tuple[float, np.ndarray, np.ndarray]:
-    observations = np.asarray(counts, dtype=float)
+    compressed = (
+        counts
+        if isinstance(counts, CompressedPfuCounts)
+        else compress_pfu_counts(counts)
+    )
+    observations = compressed.patterns.astype(float, copy=False)
+    multiplicities = compressed.multiplicities.astype(float, copy=False)
     theta, jacobian, theta_hessians = _softmax_derivatives(eta)
     alpha = phi * theta
-    first_theta = np.zeros(3)
-    second_theta = np.zeros(3)
-    for observation in observations:
-        first_theta += phi * (digamma(observation + alpha) - digamma(alpha))
-        second_theta += phi**2 * (
-            polygamma(1, observation + alpha) - polygamma(1, alpha)
-        )
+    first_terms = phi * (digamma(observations + alpha) - digamma(alpha))
+    second_terms = phi**2 * (polygamma(1, observations + alpha) - polygamma(1, alpha))
+    first_theta = multiplicities @ first_terms
+    second_theta = multiplicities @ second_terms
     gradient = jacobian.T @ first_theta
     hessian = jacobian.T @ np.diag(second_theta) @ jacobian
     hessian += np.tensordot(first_theta, theta_hessians, axes=(0, 0))
     return (
-        dirichlet_multinomial_logpmf(observations, eta, phi),
+        dirichlet_multinomial_logpmf(compressed, eta, phi),
         gradient,
         hessian,
     )
@@ -457,26 +512,140 @@ def _variant_likelihood_derivatives(
 def _normal_log_density(
     value: np.ndarray,
     mean: np.ndarray,
-    covariance: np.ndarray,
+    precision: np.ndarray,
+    log_determinant: float,
 ) -> float:
-    sign, log_determinant = np.linalg.slogdet(covariance)
-    if sign <= 0 or not np.isfinite(log_determinant):
-        raise NumericalError("Layer 1 Gaussian covariance is not positive definite")
     difference = value - mean
     return float(
         -0.5
-        * (
-            len(value) * LOG_2PI
-            + log_determinant
-            + difference @ np.linalg.solve(covariance, difference)
+        * (len(value) * LOG_2PI + log_determinant + difference @ precision @ difference)
+    )
+
+
+def build_hyperparameter_context(
+    hyperparameters: Layer1Hyperparameters,
+) -> HyperparameterEvaluationContext:
+    """Factor reusable Gaussian covariance terms once for an exact psi."""
+    within = np.asarray(hyperparameters.sigma_within, dtype=float)
+    between = np.asarray(hyperparameters.sigma_between, dtype=float)
+    try:
+        within_cholesky = np.linalg.cholesky(within)
+        between_cholesky = np.linalg.cholesky(between)
+        within_precision = np.linalg.solve(within, np.eye(2))
+        between_precision = np.linalg.solve(between, np.eye(2))
+    except np.linalg.LinAlgError as error:
+        raise NumericalError("Layer 1 Gaussian covariance is singular") from error
+    return HyperparameterEvaluationContext(
+        hyperparameters=hyperparameters,
+        within_precision=within_precision,
+        between_precision=between_precision,
+        within_log_determinant=float(2.0 * np.log(np.diag(within_cholesky)).sum()),
+        between_log_determinant=float(2.0 * np.log(np.diag(between_cholesky)).sum()),
+    )
+
+
+def rubric_log_density(
+    rubric: Layer1RubricData,
+    context: HyperparameterEvaluationContext,
+    latent: Sequence[float] | np.ndarray,
+) -> float:
+    """Evaluate one rubric conditional log density without unused derivatives."""
+    values = np.asarray(latent, dtype=float)
+    dimension = 2 * (len(rubric.variants) + 1)
+    if values.shape != (dimension,) or not np.isfinite(values).all():
+        raise MalformedInputError("Layer 1 latent vector has wrong shape")
+    hyperparameters = context.hyperparameters
+    mu = values[:2]
+    etas = values[2:].reshape(len(rubric.variants), 2)
+    dataset_mean = hyperparameters.mu0 + hyperparameters.dataset_offsets[rubric.dataset]
+    total = _normal_log_density(
+        mu,
+        dataset_mean,
+        context.between_precision,
+        context.between_log_determinant,
+    )
+    for variant, eta in zip(rubric.variants, etas, strict=True):
+        total += dirichlet_multinomial_logpmf(
+            variant.compressed_counts or variant.counts,
+            eta,
+            hyperparameters.phi,
+        )
+        total += _normal_log_density(
+            eta,
+            mu,
+            context.within_precision,
+            context.within_log_determinant,
+        )
+    return float(total)
+
+
+def rubric_log_density_batch(
+    rubric: Layer1RubricData,
+    context: HyperparameterEvaluationContext,
+    latent: np.ndarray,
+) -> np.ndarray:
+    """Evaluate a batch of rubric conditional log densities without derivatives."""
+    values = np.asarray(latent, dtype=float)
+    dimension = 2 * (len(rubric.variants) + 1)
+    if (
+        values.ndim != 2
+        or values.shape[1] != dimension
+        or not np.isfinite(values).all()
+    ):
+        raise MalformedInputError("Layer 1 latent batch has wrong shape")
+    hyperparameters = context.hyperparameters
+    mu = values[:, :2]
+    etas = values[:, 2:].reshape(len(values), len(rubric.variants), 2)
+    dataset_mean = hyperparameters.mu0 + hyperparameters.dataset_offsets[rubric.dataset]
+    difference_between = mu - dataset_mean
+    total = -0.5 * (
+        2 * LOG_2PI
+        + context.between_log_determinant
+        + np.einsum(
+            "ni,ij,nj->n",
+            difference_between,
+            context.between_precision,
+            difference_between,
         )
     )
+    for variant_index, variant in enumerate(rubric.variants):
+        eta = etas[:, variant_index]
+        probabilities = inverse_alr_batch(eta)
+        alpha = hyperparameters.phi * probabilities
+        compressed = variant.compressed_counts or compress_pfu_counts(variant.counts)
+        patterns = compressed.patterns.astype(float, copy=False)
+        multiplicities = compressed.multiplicities.astype(float, copy=False)
+        totals = patterns.sum(axis=1)
+        likelihood_terms = (
+            compressed.combinatorial_log_terms[None, :]
+            + gammaln(hyperparameters.phi)
+            - gammaln(totals[None, :] + hyperparameters.phi)
+            + (
+                gammaln(patterns[None, :, :] + alpha[:, None, :])
+                - gammaln(alpha[:, None, :])
+            ).sum(axis=2)
+        )
+        total += likelihood_terms @ multiplicities
+        difference = eta - mu
+        total += -0.5 * (
+            2 * LOG_2PI
+            + context.within_log_determinant
+            + np.einsum(
+                "ni,ij,nj->n",
+                difference,
+                context.within_precision,
+                difference,
+            )
+        )
+    return np.asarray(total, dtype=float)
 
 
 def rubric_log_density_derivatives(
     rubric: Layer1RubricData,
     hyperparameters: Layer1Hyperparameters,
     latent: Sequence[float] | np.ndarray,
+    *,
+    context: HyperparameterEvaluationContext | None = None,
 ) -> tuple[float, np.ndarray, np.ndarray]:
     """Evaluate one rubric's joint conditional log density, gradient, and Hessian."""
     values = np.asarray(latent, dtype=float)
@@ -485,13 +654,16 @@ def rubric_log_density_derivatives(
         raise MalformedInputError("Layer 1 latent vector has wrong shape")
     mu = values[:2]
     etas = values[2:].reshape(len(rubric.variants), 2)
-    try:
-        within_precision = np.linalg.inv(hyperparameters.sigma_within)
-        between_precision = np.linalg.inv(hyperparameters.sigma_between)
-    except np.linalg.LinAlgError as error:
-        raise NumericalError("Layer 1 Gaussian covariance is singular") from error
+    selected_context = context or build_hyperparameter_context(hyperparameters)
+    within_precision = selected_context.within_precision
+    between_precision = selected_context.between_precision
     dataset_mean = hyperparameters.mu0 + hyperparameters.dataset_offsets[rubric.dataset]
-    log_density = _normal_log_density(mu, dataset_mean, hyperparameters.sigma_between)
+    log_density = _normal_log_density(
+        mu,
+        dataset_mean,
+        between_precision,
+        selected_context.between_log_determinant,
+    )
     gradient = np.zeros(dimension)
     hessian = np.zeros((dimension, dimension))
     difference_between = mu - dataset_mean
@@ -499,12 +671,19 @@ def rubric_log_density_derivatives(
     hessian[:2, :2] -= between_precision
     for index, (variant, eta) in enumerate(zip(rubric.variants, etas, strict=True)):
         likelihood, likelihood_gradient, likelihood_hessian = (
-            _variant_likelihood_derivatives(variant.counts, eta, hyperparameters.phi)
+            _variant_likelihood_derivatives(
+                variant.compressed_counts or variant.counts,
+                eta,
+                hyperparameters.phi,
+            )
         )
         eta_slice = slice(2 + 2 * index, 4 + 2 * index)
         difference = eta - mu
         log_density += likelihood + _normal_log_density(
-            eta, mu, hyperparameters.sigma_within
+            eta,
+            mu,
+            within_precision,
+            selected_context.within_log_determinant,
         )
         gradient[eta_slice] += likelihood_gradient - within_precision @ difference
         gradient[:2] += within_precision @ difference
@@ -531,17 +710,65 @@ def _accepted_curvature(hessian: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
     return curvature, covariance
 
 
+def solve_arrowhead_curvature(
+    curvature: np.ndarray,
+    right_hand_side: np.ndarray,
+    variant_count: int,
+) -> np.ndarray:
+    """Solve the exact rubric-mean/variant arrowhead system by block elimination."""
+    matrix = np.asarray(curvature, dtype=float)
+    right = np.asarray(right_hand_side, dtype=float)
+    dimension = 2 * (variant_count + 1)
+    if (
+        variant_count <= 0
+        or matrix.shape != (dimension, dimension)
+        or right.shape != (dimension,)
+        or not np.isfinite(matrix).all()
+        or not np.isfinite(right).all()
+    ):
+        raise MalformedInputError("Layer 1 arrowhead system has invalid dimensions")
+    schur = matrix[:2, :2].copy()
+    reduced_right = right[:2].copy()
+    solved_variant_right: list[np.ndarray] = []
+    solved_variant_cross: list[np.ndarray] = []
+    for variant_index in range(variant_count):
+        variant_slice = slice(2 + 2 * variant_index, 4 + 2 * variant_index)
+        block = matrix[variant_slice, variant_slice]
+        cross = matrix[:2, variant_slice]
+        solved_right = np.linalg.solve(block, right[variant_slice])
+        solved_cross = np.linalg.solve(block, cross.T)
+        solved_variant_right.append(solved_right)
+        solved_variant_cross.append(solved_cross)
+        schur -= cross @ solved_cross
+        reduced_right -= cross @ solved_right
+    rubric_solution = np.linalg.solve(schur, reduced_right)
+    solution = np.empty(dimension, dtype=float)
+    solution[:2] = rubric_solution
+    for variant_index, (solved_right, solved_cross) in enumerate(
+        zip(solved_variant_right, solved_variant_cross, strict=True)
+    ):
+        variant_slice = slice(2 + 2 * variant_index, 4 + 2 * variant_index)
+        solution[variant_slice] = solved_right - solved_cross @ rubric_solution
+    return solution
+
+
 def find_rubric_mode(
     rubric: Layer1RubricData,
     hyperparameters: Layer1Hyperparameters,
     initial: Sequence[float] | np.ndarray,
+    *,
+    context: HyperparameterEvaluationContext | None = None,
 ) -> Layer1Mode:
     """Find one conditional mode using the frozen Newton-Armijo contract."""
     value = np.asarray(initial, dtype=float).copy()
+    selected_context = context or build_hyperparameter_context(hyperparameters)
     previous_log_density: float | None = None
     for iteration in range(1, INNER_MAX_ITERATIONS + 1):
         log_density, gradient, hessian = rubric_log_density_derivatives(
-            rubric, hyperparameters, value
+            rubric,
+            hyperparameters,
+            value,
+            context=selected_context,
         )
         gradient_maximum = float(np.max(np.abs(gradient)))
         if (
@@ -560,7 +787,11 @@ def find_rubric_mode(
             )
         curvature = -hessian
         try:
-            direction = np.linalg.solve(curvature, gradient)
+            direction = solve_arrowhead_curvature(
+                curvature,
+                gradient,
+                len(rubric.variants),
+            )
         except np.linalg.LinAlgError as error:
             raise Layer1ModeError("Layer 1 Newton curvature is singular") from error
         directional_derivative = float(gradient @ direction)
@@ -569,9 +800,9 @@ def find_rubric_mode(
         for _ in range(INNER_MAX_HALVINGS + 1):
             candidate = value + step * direction
             if np.isfinite(candidate).all():
-                candidate_density = rubric_log_density_derivatives(
-                    rubric, hyperparameters, candidate
-                )[0]
+                candidate_density = rubric_log_density(
+                    rubric, selected_context, candidate
+                )
                 roundoff_slack = INNER_ARMIJO_ROUNDOFF_TOLERANCE * max(
                     1.0, abs(log_density)
                 )
@@ -597,12 +828,18 @@ def laplace_log_marginal(
     """Approximate the Layer 1 marginal log likelihood by nested Laplace."""
     modes: dict[str, Layer1Mode] = {}
     total = 0.0
+    context = build_hyperparameter_context(hyperparameters)
     for rubric in data.rubrics:
         try:
             initial = latent_starts[rubric.rubric_id]
         except KeyError as error:
             raise MalformedInputError("Missing rubric latent start") from error
-        mode = find_rubric_mode(rubric, hyperparameters, initial)
+        mode = find_rubric_mode(
+            rubric,
+            hyperparameters,
+            initial,
+            context=context,
+        )
         sign, log_determinant = np.linalg.slogdet(mode.curvature)
         if sign <= 0:
             raise Layer1ModeError("Layer 1 Laplace curvature determinant is invalid")
@@ -614,11 +851,28 @@ def laplace_log_marginal(
     return total, modes
 
 
+def evaluate_marginal_work_unit(unit: WorkUnit) -> object:
+    """Evaluate one exact marginal objective in a spawn-safe worker."""
+    if not isinstance(unit.payload, MarginalEvaluationPayload):
+        raise MalformedInputError("Marginal work unit payload is invalid")
+    payload = unit.payload
+    hyperparameters = unpack_hyperparameters(
+        payload.vector, payload.data.dataset_levels
+    )
+    return -laplace_log_marginal(
+        payload.data,
+        hyperparameters,
+        payload.latent_starts,
+    )[0]
+
+
 def fit_mml_start(
     data: Layer1Dataset,
     moments: Layer1MomentStart,
     *,
     phi_multiplier: float,
+    executor: ModelTaskExecutor | None = None,
+    iteration_callback: MmlIterationCallback | None = None,
 ) -> Layer1StartFit:
     """Fit one frozen Layer 1 marginal-likelihood start."""
     initial_hyperparameters = replace(
@@ -634,14 +888,33 @@ def fit_mml_start(
     initial = pack_hyperparameters(initial_hyperparameters, data.dataset_levels)
     history: list[float] = []
     gradient_failure = False
+    latest_gradient_maximum = float("inf")
+    objective_cache: dict[bytes, float] = {}
+    cache_order: list[bytes] = []
+
+    def cache_value(vector: np.ndarray, value: float) -> None:
+        key = np.ascontiguousarray(vector, dtype=np.float64).tobytes()
+        if key in objective_cache:
+            return
+        objective_cache[key] = value
+        cache_order.append(key)
+        if len(cache_order) > OBJECTIVE_CACHE_MAX_ENTRIES:
+            expired = cache_order.pop(0)
+            objective_cache.pop(expired, None)
 
     def evaluate(vector: np.ndarray) -> float:
+        key = np.ascontiguousarray(vector, dtype=np.float64).tobytes()
+        cached = objective_cache.get(key)
+        if cached is not None:
+            return cached
         hyperparameters = unpack_hyperparameters(vector, data.dataset_levels)
-        return float(
+        value = float(
             -laplace_log_marginal(data, hyperparameters, moments.rubric_latent_starts)[
                 0
             ]
         )
+        cache_value(vector, value)
+        return value
 
     numerical_exceptions = (
         NumericalError,
@@ -658,12 +931,18 @@ def fit_mml_start(
             return float(1e50 + displacement @ displacement)
 
     def numerical_gradient(vector: np.ndarray) -> np.ndarray:
-        nonlocal gradient_failure
+        nonlocal gradient_failure, latest_gradient_maximum
         try:
             baseline = evaluate(vector)
         except numerical_exceptions:
             displacement = np.clip(vector - initial, -1e20, 1e20)
-            return 2.0 * displacement
+            result = 2.0 * displacement
+            latest_gradient_maximum = float(np.max(np.abs(result)))
+            return result
+        if executor is not None and isinstance(executor, SpawnProcessExecutor):
+            result = parallel_numerical_gradient(vector, baseline)
+            latest_gradient_maximum = float(np.max(np.abs(result)))
+            return result
         result = np.empty_like(vector)
         for index in range(len(vector)):
             step = OUTER_DIFFERENCE_STEP * max(1.0, abs(float(vector[index])))
@@ -694,10 +973,101 @@ def fit_mml_start(
                 result[index] = 0.0
             else:
                 result[index] = derivative
+        latest_gradient_maximum = float(np.max(np.abs(result)))
+        return result
+
+    def parallel_numerical_gradient(
+        vector: np.ndarray,
+        baseline: float,
+    ) -> np.ndarray:
+        nonlocal gradient_failure
+        if not isinstance(executor, SpawnProcessExecutor):
+            raise TypeError("Parallel gradient requires a process executor")
+        result = np.zeros_like(vector)
+        unresolved = {
+            index: OUTER_DIFFERENCE_STEP * max(1.0, abs(float(vector[index])))
+            for index in range(len(vector))
+        }
+        reference = TaskReference(
+            module=__name__,
+            function="evaluate_marginal_work_unit",
+        )
+        for halving in range(OUTER_DIFFERENCE_MAX_HALVINGS + 1):
+            units: list[WorkUnit] = []
+            candidates: dict[str, np.ndarray] = {}
+            for index, step in unresolved.items():
+                for side, sign in (("plus", 1.0), ("minus", -1.0)):
+                    candidate = vector.copy()
+                    candidate[index] += sign * step
+                    task_id = f"fd:{index}:{side}:{halving}"
+                    candidates[task_id] = candidate
+                    units.append(
+                        WorkUnit(
+                            task_id=task_id,
+                            kind=WorkUnitKind.OBJECTIVE_GRADIENT_PERTURBATION,
+                            payload=MarginalEvaluationPayload(
+                                data=data,
+                                latent_starts=moments.rubric_latent_starts,
+                                vector=candidate,
+                            ),
+                        )
+                    )
+            outcomes = {
+                outcome.task_id: outcome
+                for outcome in executor.execute(reference, tuple(units))
+            }
+            next_unresolved: dict[int, float] = {}
+            for index, step in unresolved.items():
+                plus_id = f"fd:{index}:plus:{halving}"
+                minus_id = f"fd:{index}:minus:{halving}"
+                plus_outcome = outcomes.get(plus_id)
+                minus_outcome = outcomes.get(minus_id)
+                plus_value = plus_outcome.value if plus_outcome is not None else None
+                minus_value = minus_outcome.value if minus_outcome is not None else None
+                plus = (
+                    float(plus_value)
+                    if plus_outcome is not None
+                    and plus_outcome.succeeded
+                    and isinstance(plus_value, (int, float, np.floating))
+                    else None
+                )
+                minus = (
+                    float(minus_value)
+                    if minus_outcome is not None
+                    and minus_outcome.succeeded
+                    and isinstance(minus_value, (int, float, np.floating))
+                    else None
+                )
+                if plus is not None:
+                    cache_value(candidates[plus_id], plus)
+                if minus is not None:
+                    cache_value(candidates[minus_id], minus)
+                if plus is not None and minus is not None:
+                    result[index] = (plus - minus) / (2.0 * step)
+                elif plus is not None:
+                    result[index] = (plus - baseline) / step
+                elif minus is not None:
+                    result[index] = (baseline - minus) / step
+                else:
+                    next_unresolved[index] = step / 2.0
+            unresolved = next_unresolved
+            if not unresolved:
+                break
+        if unresolved:
+            gradient_failure = True
+            for index in unresolved:
+                result[index] = 0.0
         return result
 
     def callback(intermediate: np.ndarray) -> None:
         history.append(objective(intermediate))
+        if iteration_callback is not None:
+            iteration_callback(
+                phi_multiplier,
+                len(history) - 1,
+                history[-1],
+                latest_gradient_maximum,
+            )
 
     history.append(objective(initial))
     result: OptimizeResult = minimize(
@@ -708,7 +1078,7 @@ def fit_mml_start(
         callback=callback,
         options={
             "maxiter": OUTER_MAX_ITERATIONS,
-            "ftol": 1e-12,
+            "ftol": 0.0,
             "gtol": OUTER_GRADIENT_TOLERANCE,
             "maxls": 20,
         },
@@ -766,13 +1136,30 @@ def _starts_equivalent(starts: Sequence[Layer1StartFit]) -> bool:
 def fit_layer1_mml(
     data: Layer1Dataset,
     moments: Layer1MomentStart | None = None,
+    *,
+    executor: ModelTaskExecutor | None = None,
+    completed_starts: Mapping[float, Layer1StartFit] | None = None,
+    start_callback: MmlStartCallback | None = None,
+    iteration_callback: MmlIterationCallback | None = None,
 ) -> Layer1MmlFit:
     """Fit and verify the frozen three-start Layer 1 marginal likelihood."""
     start = moments or method_of_moments_start(data)
-    fits = tuple(
-        fit_mml_start(data, start, phi_multiplier=multiplier)
-        for multiplier in (0.5, 1.0, 2.0)
-    )
+    existing = completed_starts or {}
+    fits_list: list[Layer1StartFit] = []
+    for multiplier in (0.5, 1.0, 2.0):
+        current = existing.get(multiplier)
+        if current is None:
+            current = fit_mml_start(
+                data,
+                start,
+                phi_multiplier=multiplier,
+                executor=executor,
+                iteration_callback=iteration_callback,
+            )
+            if start_callback is not None:
+                start_callback(current)
+        fits_list.append(current)
+    fits = tuple(fits_list)
     if not _starts_equivalent(fits):
         raise Layer1InitialiserSensitiveError(
             "Layer 1 starts did not converge to an equivalent optimum"

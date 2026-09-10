@@ -139,6 +139,59 @@ def test_gold_ingest_and_validation_parsers_require_manual_gate_inputs(
     assert validation_arguments.decisions_dir == tmp_path / "decisions"
 
 
+def test_fit_layer1_parser_accepts_operational_execution_controls() -> None:
+    arguments = build_parser().parse_args(
+        [
+            "fit-layer1",
+            "--workers",
+            "4",
+            "--fresh",
+            "--progress-interval",
+            "2.5",
+        ]
+    )
+
+    assert arguments.workers == "4"
+    assert arguments.fresh is True
+    assert arguments.progress_interval == 2.5
+
+
+@pytest.mark.parametrize("workers", ("invalid", "0", "-2"))
+def test_fit_layer1_rejects_invalid_worker_override(
+    tmp_path: Path,
+    workers: str,
+) -> None:
+    error_output = StringIO()
+
+    exit_code = main(
+        [
+            "--analysis-root",
+            str(tmp_path / workers),
+            "--specification",
+            str(_specification(tmp_path)),
+            "fit-layer1",
+            "--workers",
+            workers,
+        ],
+        stderr=error_output,
+    )
+
+    assert exit_code == ExitCode.MALFORMED_INPUT
+    assert "--workers" in error_output.getvalue()
+
+
+def test_fit_layer1_resume_and_fresh_are_mutually_exclusive() -> None:
+    error_output = StringIO()
+
+    exit_code = main(
+        ["fit-layer1", "--resume", "--fresh"],
+        stderr=error_output,
+    )
+
+    assert exit_code == ExitCode.MALFORMED_INPUT
+    assert "not allowed with argument" in error_output.getvalue()
+
+
 def test_status_is_read_only_for_uninitialized_root(tmp_path: Path) -> None:
     root = tmp_path / "missing"
     output = StringIO()
@@ -174,6 +227,64 @@ def test_status_distinguishes_default_working_root_from_layer1_readiness(
         "oracle",
         "outcome-modeling-unlock",
     ]
+    assert payload["fit_layer1_checkpoint_status"] is None
+    assert payload["fit_layer1_progress"] is None
+
+
+def test_status_exposes_layer1_checkpoint_and_latest_progress(
+    tmp_path: Path,
+) -> None:
+    root = tmp_path / "analysis"
+    specification = _specification(tmp_path)
+    AnalysisWorkspace.initialize(root, specification)
+    checkpoint = root / "checkpoints" / "fit-layer1" / "manifest.json"
+    checkpoint.parent.mkdir(parents=True)
+    checkpoint.write_text('{"status":"interrupted"}\n', encoding="utf-8")
+    progress = root / "logs" / "layer1-progress.jsonl"
+    progress.write_text(
+        '{"phase":"primary_mml","iteration":7}\n'
+        '{"phase":"interrupted","schema_version":1}\n',
+        encoding="utf-8",
+    )
+    output = StringIO()
+
+    exit_code = main(
+        ["--analysis-root", str(root), "status", "--json"],
+        stdout=output,
+    )
+
+    assert exit_code == 0
+    payload = json.loads(output.getvalue())
+    assert payload["fit_layer1_checkpoint_status"] == "interrupted"
+    assert payload["fit_layer1_progress"] == {
+        "phase": "interrupted",
+        "schema_version": 1,
+    }
+
+
+def test_status_reports_invalid_layer1_runtime_metadata(
+    tmp_path: Path,
+) -> None:
+    root = tmp_path / "analysis"
+    specification = _specification(tmp_path)
+    AnalysisWorkspace.initialize(root, specification)
+    checkpoint = root / "checkpoints" / "fit-layer1" / "manifest.json"
+    checkpoint.parent.mkdir(parents=True)
+    checkpoint.write_text("not-json", encoding="utf-8")
+    progress = root / "logs" / "layer1-progress.jsonl"
+    progress.write_text("not-json\n", encoding="utf-8")
+    output = StringIO()
+
+    assert (
+        main(
+            ["--analysis-root", str(root), "status", "--json"],
+            stdout=output,
+        )
+        == 0
+    )
+    payload = json.loads(output.getvalue())
+    assert payload["fit_layer1_checkpoint_status"] == "invalid"
+    assert payload["fit_layer1_progress"] == {"status": "invalid"}
 
 
 def test_oracle_command_runs_offline_and_records_artifact(tmp_path: Path) -> None:

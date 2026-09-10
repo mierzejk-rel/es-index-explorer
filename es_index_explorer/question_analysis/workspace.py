@@ -260,11 +260,51 @@ DEFAULT_RESOURCES = {
     / "es_index_explorer"
     / "question_analysis"
     / "layer1_pipeline.py",
+    "segment7_packed_source": PROJECT_ROOT
+    / "es_index_explorer"
+    / "question_analysis"
+    / "layer1_packed.py",
+    "segment7_execution_source": PROJECT_ROOT
+    / "es_index_explorer"
+    / "question_analysis"
+    / "layer1_execution.py",
+    "segment7_checkpoint_source": PROJECT_ROOT
+    / "es_index_explorer"
+    / "question_analysis"
+    / "layer1_checkpoint.py",
     "segment7_synthetic_contract": PROJECT_ROOT
     / "tests"
     / "fixtures"
     / "question_analysis"
     / "layer1-synthetic-contract.json",
+    "segment7_reference_source": PROJECT_ROOT
+    / "tests"
+    / "oracles"
+    / "layer1"
+    / "reference.py",
+    "segment7_reference_sha256": PROJECT_ROOT
+    / "tests"
+    / "oracles"
+    / "layer1"
+    / "reference.sha256",
+    "segment7_profile_script": PROJECT_ROOT / "scripts" / "profile_layer1.py",
+    "segment7_synthetic_production_design": PROJECT_ROOT
+    / "tests"
+    / "fixtures"
+    / "question_analysis"
+    / "layer1-synthetic-production-design.json",
+    "segment7_synthetic_design_generator": PROJECT_ROOT
+    / "scripts"
+    / "generate_layer1_synthetic_design.py",
+    "segment7_synthetic_recovery_runner": PROJECT_ROOT
+    / "scripts"
+    / "run_layer1_synthetic_recovery.py",
+    "segment7_synthetic_calibration_runner": PROJECT_ROOT
+    / "scripts"
+    / "run_layer1_synthetic_calibration.py",
+    "segment7_synthetic_diagnosis": PROJECT_ROOT
+    / "scripts"
+    / "diagnose_layer1_synthetic_optimum.py",
 }
 
 
@@ -302,6 +342,7 @@ def _tool_versions() -> dict[str, str]:
         "pandas",
         "pyarrow",
         "pydantic",
+        "psutil",
         "scipy",
         "seaborn",
         "spacy",

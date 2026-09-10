@@ -1,40 +1,71 @@
 """Gated Layer 1 fitting, artifact construction, and persistence."""
 
 import json
+import platform
+import sys
+import time
 from collections.abc import Callable, Mapping
 from dataclasses import dataclass, replace
+from importlib.metadata import version
 from pathlib import Path
 
 import numpy as np
 import pandas as pd
+from pydantic import BaseModel, ConfigDict
 
 from es_index_explorer.question_analysis.contracts import (
     RUBRIC_RECOMMENDATION_COLUMNS,
     VARIANT_RECOMMENDATION_COLUMNS,
+    FailureKind,
     Layer1EventKind,
     SuitabilityTier,
     WorkflowCommand,
 )
 from es_index_explorer.question_analysis.errors import (
+    AnalysisError,
     GateFailureError,
     Layer1ModeError,
     Layer1ReplenishmentExhaustedError,
     MalformedInputError,
     NumericalError,
 )
+from es_index_explorer.question_analysis.layer1_checkpoint import (
+    Layer1CheckpointCompatibilityIdentity,
+    Layer1CheckpointSession,
+    Layer1ExecutionProvenance,
+    Layer1TaskFailure,
+    Layer1TaskLedgerEntry,
+    Layer1TaskStatus,
+)
 from es_index_explorer.question_analysis.layer1_decisions import (
     TIER_FLOORS,
     PrimaryEvent,
     build_primary_events,
+    layer1_leave_out_datasets,
     leave_out_tier_changes,
     pooled_mean_tier,
     proportion_diagnostic,
-    run_full_leave_out_refits,
     score_band_probabilities,
     shrunken_variant_means,
     tier_for_events,
     tier_from_probabilities,
     uncertain_flag,
+)
+from es_index_explorer.question_analysis.layer1_execution import (
+    AutoTuneResult,
+    Layer1ExecutionConfig,
+    ProgressEvent,
+    RateLimitedProgressWriter,
+    ShutdownToken,
+    SpawnProcessExecutor,
+    TaskReference,
+    WorkUnit,
+    WorkUnitKind,
+    aggregate_rss_bytes,
+    auto_select_worker_count,
+    discover_worker_candidates,
+    resolve_worker_count,
+    signal_shutdown_context,
 )
 from es_index_explorer.question_analysis.layer1_laplace import (
     CONDITIONAL_DRAW_COUNT,
@@ -54,10 +85,17 @@ from es_index_explorer.question_analysis.layer1_model import (
     Layer1MmlFit,
     Layer1MomentStart,
     Layer1RubricData,
+    Layer1StartFit,
     Layer1VariantData,
+    MarginalEvaluationPayload,
+    ModelTaskExecutor,
+    evaluate_marginal_work_unit,
     fit_layer1_mml,
     method_of_moments_start,
+    pack_hyperparameters,
+    unpack_hyperparameters,
 )
+from es_index_explorer.question_analysis.layer1_packed import compress_pfu_counts
 from es_index_explorer.question_analysis.layer1_propagation import (
     ADAPTIVE_DEPTHS,
     ELEVATED_FAILURE_RATE,
@@ -87,6 +125,12 @@ LAYER1_REPORT = "partial_reports/05-suitability-estimates.md"
 FLOOR_SUFFIX = {0.75: "0_75", 0.60: "0_60", 0.50: "0_50"}
 
 Layer1Refitter = Callable[[Layer1Dataset], Layer1MmlFit]
+Layer1ProgressCallback = Callable[[ProgressEvent], None]
+OuterAttemptCallback = Callable[[int, Layer1Hyperparameters | None, str | None], None]
+RubricBlockCallback = Callable[[str, int, RubricDrawBlock | None, str | None], None]
+ConditionalCallback = Callable[[str, np.ndarray], None]
+ImportanceCallback = Callable[[ImportanceDiagnostic], None]
+LeaveOutCallback = Callable[[str, Mapping[str, SuitabilityTier]], None]
 
 
 @dataclass(frozen=True, slots=True)
@@ -118,6 +162,528 @@ class Layer1Execution:
     rubric_recommendations: pd.DataFrame
     variant_recommendations: pd.DataFrame
     report: str
+
+
+class _HyperparametersCheckpoint(BaseModel):
+    model_config = ConfigDict(extra="ignore")
+
+    phi: float
+    mu0: list[float]
+    dataset_offsets: dict[str, list[float]]
+    sigma_within: list[list[float]]
+    sigma_between: list[list[float]]
+
+
+class _StartCheckpoint(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    phi_multiplier: float
+    vector: list[float]
+    hyperparameters: _HyperparametersCheckpoint | None = None
+    objective: float
+    gradient_maximum: float
+    iterations: int
+    converged: bool
+    message: str
+
+
+class _FitCheckpoint(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    schema_version: int
+    objective: float
+    vector: list[float]
+    hyperparameters: _HyperparametersCheckpoint
+    starts: list[_StartCheckpoint]
+
+
+class _BlockCheckpoint(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    schema_version: int
+    variant_ids: list[str]
+    rubric_retained_index: int
+
+
+class _ImportanceCheckpoint(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    rubric_id: str
+    particle_count: int
+    effective_sample_size: float
+    effective_sample_size_ratio: float
+    adequate: bool
+    laplace_mean: list[float]
+    importance_mean: list[float]
+    laplace_covariance: list[list[float]]
+    importance_covariance: list[list[float]]
+
+
+class _LeaveOutCheckpoint(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    comparison_id: str
+    tiers: dict[str, str]
+
+
+@dataclass(frozen=True, slots=True)
+class OuterAttemptPayload:
+    """Store one spawn-safe parametric-bootstrap outer attempt."""
+
+    data: Layer1Dataset
+    fitted: Layer1Hyperparameters
+    global_outer_attempt_id: int
+
+
+@dataclass(frozen=True, slots=True)
+class ConditionalBlockPayload:
+    """Store one spawn-safe rubric conditional block request."""
+
+    rubric: Layer1RubricData
+    hyperparameters: Layer1Hyperparameters
+    moments: Layer1MomentStart
+    global_outer_attempt_id: int
+    draw_count: int
+
+
+@dataclass(frozen=True, slots=True)
+class ConditionalBlockValue:
+    """Return a conditional block before parent-ordered retained indexing."""
+
+    rubric_id: str
+    variant_ids: tuple[str, ...]
+    global_outer_attempt_id: int
+    rubric_v2_draws: np.ndarray
+
+
+@dataclass(frozen=True, slots=True)
+class LeaveOutRefitPayload:
+    """Store one spawn-safe full leave-out Layer 1 refit."""
+
+    comparison_id: str
+    data: Layer1Dataset
+    config: Layer1RunConfig
+
+
+def execute_outer_attempt_work_unit(unit: WorkUnit) -> object:
+    """Simulate and fully refit one independent global outer attempt."""
+    if not isinstance(unit.payload, OuterAttemptPayload):
+        raise MalformedInputError("Outer-attempt work unit payload is invalid")
+    payload = unit.payload
+    rng = np.random.default_rng(
+        derive_child_seed(
+            "layer1_bootstrap",
+            f"outer:{payload.global_outer_attempt_id}",
+        )
+    )
+    simulated = simulate_layer1_dataset(payload.data, payload.fitted, rng=rng)
+    return fit_layer1_mml(simulated).hyperparameters
+
+
+def execute_conditional_block_work_unit(unit: WorkUnit) -> object:
+    """Compute one rubric conditional block in a spawn-safe worker."""
+    if not isinstance(unit.payload, ConditionalBlockPayload):
+        raise MalformedInputError("Conditional-block work unit payload is invalid")
+    payload = unit.payload
+    rng = np.random.default_rng(
+        derive_child_seed(
+            "laplace_draws",
+            f"{payload.rubric.rubric_id}:outer:{payload.global_outer_attempt_id}",
+        )
+    )
+    mode = conditional_mode(
+        payload.rubric,
+        payload.hyperparameters,
+        payload.moments,
+    )
+    return ConditionalBlockValue(
+        rubric_id=payload.rubric.rubric_id,
+        variant_ids=tuple(variant.variant_id for variant in payload.rubric.variants),
+        global_outer_attempt_id=payload.global_outer_attempt_id,
+        rubric_v2_draws=draw_rubric_v2(
+            payload.rubric,
+            mode,
+            rng=rng,
+            draw_count=payload.draw_count,
+        ),
+    )
+
+
+def execute_leave_out_work_unit(unit: WorkUnit) -> object:
+    """Run one complete leave-out fit without nested leave-out recursion."""
+    if not isinstance(unit.payload, LeaveOutRefitPayload):
+        raise MalformedInputError("Leave-out work unit payload is invalid")
+    payload = unit.payload
+    execution = _execute_layer1(
+        payload.data,
+        config=replace(payload.config, run_leave_out_stability=False),
+    )
+    return {
+        str(row["rubric_id"]): SuitabilityTier(str(row["tier"]))
+        for row in execution.rubric_recommendations.to_dict(orient="records")
+    }
+
+
+def _checkpoint_identity(
+    workspace: AnalysisWorkspace,
+    run_config: Layer1RunConfig,
+) -> Layer1CheckpointCompatibilityIdentity:
+    manifest = workspace.load_manifest()
+    state = workspace.load_state()
+    required_inputs = (
+        "tables/trace_pfu_table.parquet",
+        "statistics/r_oracle_verification.json",
+        "validation_unlock.json",
+    )
+    missing = [name for name in required_inputs if name not in state.artifacts]
+    if missing:
+        raise GateFailureError(
+            f"Layer 1 checkpoint identity is missing artifacts: {missing}"
+        )
+    numpy_configuration = getattr(np.__config__, "CONFIG", {})
+    return Layer1CheckpointCompatibilityIdentity(
+        specification_sha256=manifest.specification.sha256,
+        input_sha256s={name: state.artifacts[name].sha256 for name in required_inputs},
+        resource_sha256s={
+            name: fingerprint.sha256
+            for name, fingerprint in sorted(manifest.resources.items())
+        },
+        numerical_contract_version="layer1-v1",
+        statistical_run_config={
+            "mandatory_prefix_depth": run_config.mandatory_prefix_depth,
+            "prefix_diagnostic_depths": list(run_config.prefix_diagnostic_depths),
+            "adaptive_depths": list(run_config.adaptive_depths),
+            "inner_draw_count": run_config.inner_draw_count,
+            "conditional_draw_count": run_config.conditional_draw_count,
+            "importance_particles": run_config.importance_particles,
+            "maximum_depth": run_config.maximum_depth,
+            "run_leave_out_stability": run_config.run_leave_out_stability,
+        },
+        seed_contract={
+            name: manifest.stream_seeds[name]
+            for name in (
+                "layer1_bootstrap",
+                "laplace_draws",
+                "diagnostic_resampling",
+            )
+        },
+        numerical_backend="adaptive-finite-difference-v1",
+        architecture=platform.machine(),
+        float_abi=f"{np.dtype(np.float64).str}:{sys.byteorder}",
+        python_version=platform.python_version(),
+        numpy_version=version("numpy"),
+        scipy_version=version("scipy"),
+        blas_lapack_identity=json.dumps(
+            numpy_configuration,
+            sort_keys=True,
+            default=str,
+        ),
+    )
+
+
+def _execution_provenance(
+    execution_config: Layer1ExecutionConfig,
+    worker_count: int,
+    auto_tune: AutoTuneResult | None,
+) -> Layer1ExecutionProvenance:
+    return Layer1ExecutionProvenance(
+        cpu_model=platform.processor() or platform.machine(),
+        os_details=platform.platform(),
+        executor_type=execution_config.worker_mode,
+        worker_count=worker_count,
+        max_in_flight=execution_config.max_in_flight or max(1, 2 * worker_count),
+        progress_interval_seconds=max(execution_config.progress_interval_seconds, 1e-9),
+        auto_tuning_samples=(
+            {
+                "selected_worker_count": auto_tune.selected_worker_count,
+                "candidates": list(auto_tune.candidates),
+                "samples": [
+                    {
+                        "worker_count": sample.worker_count,
+                        "elapsed_seconds": list(sample.elapsed_seconds),
+                        "median_elapsed_seconds": sample.median_elapsed_seconds,
+                        "peak_rss_bytes": sample.peak_rss_bytes,
+                        "memory_eligible": sample.memory_eligible,
+                    }
+                    for sample in auto_tune.samples
+                ],
+            }
+            if auto_tune is not None
+            else {}
+        ),
+    )
+
+
+def _start_payload(start: Layer1StartFit) -> dict[str, object]:
+    return {
+        "phi_multiplier": start.phi_multiplier,
+        "vector": start.vector.tolist(),
+        "hyperparameters": _hyperparameters_payload(start.hyperparameters),
+        "objective": start.objective,
+        "gradient_maximum": start.gradient_maximum,
+        "iterations": start.iterations,
+        "converged": start.converged,
+        "message": start.message,
+    }
+
+
+def _hyperparameters_from_payload(
+    payload: Mapping[str, object],
+) -> Layer1Hyperparameters:
+    validated = _HyperparametersCheckpoint.model_validate(payload)
+    offsets = {
+        str(name): np.asarray(value, dtype=float)
+        for name, value in validated.dataset_offsets.items()
+    }
+    return Layer1Hyperparameters(
+        phi=validated.phi,
+        mu0=np.asarray(validated.mu0, dtype=float),
+        dataset_offsets=offsets,
+        sigma_within=np.asarray(validated.sigma_within, dtype=float),
+        sigma_between=np.asarray(validated.sigma_between, dtype=float),
+    )
+
+
+def _start_from_payload(payload: Mapping[str, object]) -> Layer1StartFit:
+    validated = _StartCheckpoint.model_validate(payload)
+    if validated.hyperparameters is None:
+        raise MalformedInputError("Primary start checkpoint is missing hyperparameters")
+    return Layer1StartFit(
+        phi_multiplier=validated.phi_multiplier,
+        vector=np.asarray(validated.vector, dtype=float),
+        hyperparameters=_hyperparameters_from_payload(
+            validated.hyperparameters.model_dump()
+        ),
+        objective=validated.objective,
+        gradient_maximum=validated.gradient_maximum,
+        iterations=validated.iterations,
+        converged=validated.converged,
+        message=validated.message,
+    )
+
+
+def _load_propagation_checkpoint(
+    checkpoint: Layer1CheckpointSession,
+    data: Layer1Dataset,
+) -> tuple[
+    tuple[OuterHyperparameterDraw, ...],
+    dict[str, tuple[RubricDrawBlock, ...]],
+    dict[str, int],
+    int,
+    dict[str, int],
+    int,
+]:
+    outer_draws: list[OuterHyperparameterDraw] = []
+    blocks: dict[str, list[RubricDrawBlock]] = {
+        rubric.rubric_id: [] for rubric in data.rubrics
+    }
+    processed = {rubric.rubric_id: 0 for rubric in data.rubrics}
+    local_failures = {rubric.rubric_id: 0 for rubric in data.rubrics}
+    global_failures = 0
+    attempt_id = 0
+    for entry in sorted(
+        checkpoint.manifest.task_ledger,
+        key=lambda current: (current.admission_group, current.admission_index),
+    ):
+        if entry.admission_group == "global-outer":
+            attempt_id = max(attempt_id, entry.admission_index)
+            if entry.status is Layer1TaskStatus.REJECTED:
+                global_failures += 1
+                continue
+            payload = checkpoint.read_json_state(
+                f"outer/attempt_{entry.admission_index:06d}.json"
+            )
+            if payload is None:
+                raise MalformedInputError(
+                    f"Missing retained outer checkpoint {entry.task_id}"
+                )
+            outer_draws.append(
+                OuterHyperparameterDraw(
+                    global_outer_attempt_id=entry.admission_index,
+                    hyperparameters=_hyperparameters_from_payload(payload),
+                )
+            )
+            continue
+        if not entry.admission_group.startswith("rubric-block:"):
+            continue
+        rubric_id = entry.admission_group.removeprefix("rubric-block:")
+        if rubric_id not in blocks:
+            raise MalformedInputError(f"Checkpoint contains unknown rubric {rubric_id}")
+        processed[rubric_id] += 1
+        if entry.status is Layer1TaskStatus.REJECTED:
+            local_failures[rubric_id] += 1
+            continue
+        safe_id = _safe_rubric_filename(rubric_id)
+        metadata = checkpoint.read_json_state(
+            f"blocks/{safe_id}/outer_{entry.admission_index:06d}.json"
+        )
+        values = checkpoint.read_npy_state(
+            f"blocks/{safe_id}/outer_{entry.admission_index:06d}.npy"
+        )
+        if metadata is None or values is None:
+            raise MalformedInputError(
+                f"Missing retained rubric-block checkpoint {entry.task_id}"
+            )
+        validated_metadata = _BlockCheckpoint.model_validate(metadata)
+        variant_ids = tuple(validated_metadata.variant_ids)
+        blocks[rubric_id].append(
+            RubricDrawBlock(
+                rubric_id=rubric_id,
+                variant_ids=variant_ids,
+                global_outer_attempt_id=entry.admission_index,
+                rubric_retained_index=validated_metadata.rubric_retained_index,
+                rubric_v2_draws=values,
+            )
+        )
+    return (
+        tuple(
+            sorted(
+                outer_draws,
+                key=lambda current: current.global_outer_attempt_id,
+            )
+        ),
+        {
+            rubric_id: tuple(
+                sorted(
+                    values,
+                    key=lambda current: current.global_outer_attempt_id,
+                )
+            )
+            for rubric_id, values in blocks.items()
+        },
+        processed,
+        global_failures,
+        local_failures,
+        attempt_id,
+    )
+
+
+def _importance_payload(
+    diagnostic: ImportanceDiagnostic,
+) -> dict[str, object]:
+    return {
+        "rubric_id": diagnostic.rubric_id,
+        "particle_count": diagnostic.particle_count,
+        "effective_sample_size": diagnostic.effective_sample_size,
+        "effective_sample_size_ratio": diagnostic.effective_sample_size_ratio,
+        "adequate": diagnostic.adequate,
+        "laplace_mean": diagnostic.laplace_mean.tolist(),
+        "importance_mean": diagnostic.importance_mean.tolist(),
+        "laplace_covariance": diagnostic.laplace_covariance.tolist(),
+        "importance_covariance": diagnostic.importance_covariance.tolist(),
+    }
+
+
+def _load_diagnostic_checkpoint(
+    checkpoint: Layer1CheckpointSession,
+    data: Layer1Dataset,
+) -> tuple[
+    dict[str, np.ndarray],
+    dict[str, ImportanceDiagnostic],
+    dict[str, Mapping[str, SuitabilityTier]],
+]:
+    conditional: dict[str, np.ndarray] = {}
+    importance: dict[str, ImportanceDiagnostic] = {}
+    leave_outs: dict[str, Mapping[str, SuitabilityTier]] = {}
+    for rubric in data.rubrics:
+        safe_id = _safe_rubric_filename(rubric.rubric_id)
+        values = checkpoint.read_npy_state(f"diagnostics/conditional_{safe_id}.npy")
+        if values is not None:
+            conditional[rubric.rubric_id] = values
+        payload = checkpoint.read_json_state(f"diagnostics/importance_{safe_id}.json")
+        if payload is not None:
+            validated = _ImportanceCheckpoint.model_validate(payload)
+            importance[rubric.rubric_id] = ImportanceDiagnostic(
+                rubric_id=validated.rubric_id,
+                particle_count=validated.particle_count,
+                effective_sample_size=validated.effective_sample_size,
+                effective_sample_size_ratio=validated.effective_sample_size_ratio,
+                adequate=validated.adequate,
+                laplace_mean=np.asarray(validated.laplace_mean, dtype=float),
+                importance_mean=np.asarray(validated.importance_mean, dtype=float),
+                laplace_covariance=np.asarray(
+                    validated.laplace_covariance, dtype=float
+                ),
+                importance_covariance=np.asarray(
+                    validated.importance_covariance, dtype=float
+                ),
+            )
+    for shard in checkpoint.manifest.scientific_state_shards:
+        if not shard.path.startswith("state/leave_out/") or not shard.path.endswith(
+            ".json"
+        ):
+            continue
+        relative_path = shard.path.removeprefix("state/")
+        payload = checkpoint.read_json_state(relative_path)
+        if payload is None:
+            continue
+        tiers = _LeaveOutCheckpoint.model_validate(payload)
+        leave_outs[tiers.comparison_id] = {
+            rubric_id: SuitabilityTier(tier) for rubric_id, tier in tiers.tiers.items()
+        }
+    return conditional, importance, leave_outs
+
+
+def _auto_tune_model_executor(
+    data: Layer1Dataset,
+    moments: Layer1MomentStart,
+    execution_config: Layer1ExecutionConfig,
+) -> AutoTuneResult:
+    import psutil
+
+    candidates = discover_worker_candidates()
+    subset = Layer1Dataset(
+        rubrics=data.rubrics[: min(24, len(data.rubrics))],
+        dataset_levels=data.dataset_levels,
+    )
+    vector = pack_hyperparameters(moments.hyperparameters, data.dataset_levels)
+    reference = TaskReference(
+        module=evaluate_marginal_work_unit.__module__,
+        function=evaluate_marginal_work_unit.__name__,
+    )
+    units = tuple(
+        WorkUnit(
+            task_id=f"autotune:{index}:{side}",
+            kind=WorkUnitKind.OBJECTIVE_GRADIENT_PERTURBATION,
+            payload=MarginalEvaluationPayload(
+                data=subset,
+                latent_starts=moments.rubric_latent_starts,
+                vector=vector
+                + np.eye(len(vector))[index]
+                * sign
+                * (1e-5 * max(1.0, abs(float(vector[index])))),
+            ),
+        )
+        for index in range(len(vector))
+        for side, sign in (("plus", 1.0), ("minus", -1.0))
+    )
+
+    def benchmark(worker_count: int) -> float:
+        started = time.perf_counter()
+        with SpawnProcessExecutor(
+            worker_count,
+            max_in_flight=execution_config.max_in_flight,
+        ) as executor:
+            results = executor.execute(reference, units)
+        if not all(result.succeeded for result in results):
+            return float("inf")
+        return time.perf_counter() - started
+
+    parent_rss = max(1, aggregate_rss_bytes())
+
+    def memory(worker_count: int) -> int:
+        return parent_rss * (worker_count + 1)
+
+    return auto_select_worker_count(
+        candidates,
+        benchmark_probe=benchmark,
+        memory_probe=memory,
+        memory_limit_bytes=max(
+            parent_rss,
+            int(psutil.virtual_memory().available * 0.80),
+        ),
+        explicit_worker_count=execution_config.worker_count,
+    )
 
 
 def load_layer1_dataset(workspace: AnalysisWorkspace) -> Layer1Dataset:
@@ -156,12 +722,14 @@ def load_layer1_dataset(workspace: AnalysisWorkspace) -> Layer1Dataset:
         for variant_id, variant_frame in rubric_frame.groupby(
             "variant_id", sort=False, dropna=False
         ):
+            counts = variant_frame[["P", "F", "U"]].to_numpy(dtype=int)
             variants.append(
                 Layer1VariantData(
                     variant_id=str(variant_id),
-                    counts=variant_frame[["P", "F", "U"]].to_numpy(dtype=int),
+                    counts=counts,
                     arm_ids=tuple(variant_frame["arm_id"].astype(str)),
                     stages=tuple(variant_frame["stage"].astype(str)),
+                    compressed_counts=compress_pfu_counts(counts),
                 )
             )
         rubrics.append(
@@ -206,6 +774,7 @@ def _fit_payload(fit: Layer1MmlFit) -> Mapping[str, object]:
     return {
         "schema_version": 1,
         "objective": fit.objective,
+        "vector": fit.vector.tolist(),
         "hyperparameters": _hyperparameters_payload(fit.hyperparameters),
         "starts": [
             {
@@ -220,6 +789,43 @@ def _fit_payload(fit: Layer1MmlFit) -> Mapping[str, object]:
             for start in fit.starts
         ],
     }
+
+
+def _fit_from_payload(
+    payload: Mapping[str, object],
+    dataset_levels: tuple[str, ...],
+) -> Layer1MmlFit:
+    validated = _FitCheckpoint.model_validate(payload)
+    starts = tuple(
+        Layer1StartFit(
+            phi_multiplier=start.phi_multiplier,
+            vector=np.asarray(start.vector, dtype=float),
+            hyperparameters=_hyperparameters_from_payload(
+                start.hyperparameters.model_dump()
+                if start.hyperparameters is not None
+                else _hyperparameters_payload(
+                    unpack_hyperparameters(
+                        np.asarray(start.vector, dtype=float),
+                        dataset_levels,
+                    )
+                )
+            ),
+            objective=start.objective,
+            gradient_maximum=start.gradient_maximum,
+            iterations=start.iterations,
+            converged=start.converged,
+            message=start.message,
+        )
+        for start in validated.starts
+    )
+    return Layer1MmlFit(
+        hyperparameters=_hyperparameters_from_payload(
+            validated.hyperparameters.model_dump()
+        ),
+        vector=np.asarray(validated.vector, dtype=float),
+        objective=validated.objective,
+        starts=starts,
+    )
 
 
 def _conditional_draws(
@@ -260,6 +866,24 @@ def _execute_layer1(
     *,
     config: Layer1RunConfig | None = None,
     refitter: Layer1Refitter = fit_layer1_mml,
+    model_executor: ModelTaskExecutor | None = None,
+    moments_override: Layer1MomentStart | None = None,
+    fit_override: Layer1MmlFit | None = None,
+    progress_callback: Layer1ProgressCallback | None = None,
+    outer_attempt_callback: OuterAttemptCallback | None = None,
+    rubric_block_callback: RubricBlockCallback | None = None,
+    preloaded_outer_draws: tuple[OuterHyperparameterDraw, ...] = (),
+    preloaded_blocks: Mapping[str, tuple[RubricDrawBlock, ...]] | None = None,
+    preloaded_processed_outer: Mapping[str, int] | None = None,
+    preloaded_global_failures: int = 0,
+    preloaded_local_failures: Mapping[str, int] | None = None,
+    preloaded_attempt_id: int = 0,
+    preloaded_conditional: Mapping[str, np.ndarray] | None = None,
+    preloaded_importance: Mapping[str, ImportanceDiagnostic] | None = None,
+    preloaded_leave_outs: Mapping[str, Mapping[str, SuitabilityTier]] | None = None,
+    conditional_callback: ConditionalCallback | None = None,
+    importance_callback: ImportanceCallback | None = None,
+    leave_out_callback: LeaveOutCallback | None = None,
 ) -> Layer1Execution:
     selected_config = config or Layer1RunConfig()
     if (
@@ -275,22 +899,33 @@ def _execute_layer1(
         or selected_config.maximum_depth != selected_config.adaptive_depths[-1]
     ):
         raise MalformedInputError("Layer 1 run depths are inconsistent")
-    moments = method_of_moments_start(data)
-    fit = refitter(data)
+    moments = moments_override or method_of_moments_start(data)
+    fit = fit_override or (
+        fit_layer1_mml(data, moments, executor=model_executor)
+        if refitter is fit_layer1_mml
+        else refitter(data)
+    )
     rubric_by_id = {rubric.rubric_id: rubric for rubric in data.rubrics}
     blocks: dict[str, list[RubricDrawBlock]] = {
-        rubric.rubric_id: [] for rubric in data.rubrics
+        rubric.rubric_id: list((preloaded_blocks or {}).get(rubric.rubric_id, ()))
+        for rubric in data.rubrics
     }
-    local_failures = {rubric.rubric_id: 0 for rubric in data.rubrics}
-    processed_outer_draws = {rubric.rubric_id: 0 for rubric in data.rubrics}
-    outer_draws: list[OuterHyperparameterDraw] = []
-    global_failures = 0
+    local_failures = {
+        rubric.rubric_id: (preloaded_local_failures or {}).get(rubric.rubric_id, 0)
+        for rubric in data.rubrics
+    }
+    processed_outer_draws = {
+        rubric.rubric_id: (preloaded_processed_outer or {}).get(rubric.rubric_id, 0)
+        for rubric in data.rubrics
+    }
+    outer_draws: list[OuterHyperparameterDraw] = list(preloaded_outer_draws)
+    global_failures = preloaded_global_failures
     target_depths = {
         rubric.rubric_id: selected_config.mandatory_prefix_depth
         for rubric in data.rubrics
     }
     cap = MAXIMUM_REPLENISHMENT_MULTIPLIER * selected_config.maximum_depth
-    attempt_id = 0
+    attempt_id = preloaded_attempt_id
 
     def process_available_outer_draws(rubric_id: str) -> None:
         rubric = rubric_by_id[rubric_id]
@@ -318,8 +953,101 @@ def _execute_layer1(
                 )
             except Layer1ModeError:
                 local_failures[rubric_id] += 1
+                if rubric_block_callback is not None:
+                    rubric_block_callback(
+                        rubric_id,
+                        outer.global_outer_attempt_id,
+                        None,
+                        "Layer1ModeError",
+                    )
                 continue
             blocks[rubric_id].append(block)
+            if rubric_block_callback is not None:
+                rubric_block_callback(
+                    rubric_id,
+                    outer.global_outer_attempt_id,
+                    block,
+                    None,
+                )
+
+    def process_all_available_outer_draws() -> None:
+        if not isinstance(model_executor, SpawnProcessExecutor):
+            for rubric_id in target_depths:
+                process_available_outer_draws(rubric_id)
+            return
+        tasks: list[WorkUnit] = []
+        task_positions: dict[str, tuple[str, int]] = {}
+        for rubric_id, target in target_depths.items():
+            if len(blocks[rubric_id]) >= target:
+                continue
+            start = processed_outer_draws[rubric_id]
+            stop = len(outer_draws)
+            for position in range(start, stop):
+                outer = outer_draws[position]
+                task_id = f"block:{rubric_id}:outer:{outer.global_outer_attempt_id}"
+                task_positions[task_id] = (rubric_id, position)
+                tasks.append(
+                    WorkUnit(
+                        task_id=task_id,
+                        kind=WorkUnitKind.RUBRIC_CONDITIONAL_BLOCK,
+                        payload=ConditionalBlockPayload(
+                            rubric=rubric_by_id[rubric_id],
+                            hyperparameters=outer.hyperparameters,
+                            moments=moments,
+                            global_outer_attempt_id=outer.global_outer_attempt_id,
+                            draw_count=selected_config.inner_draw_count,
+                        ),
+                    )
+                )
+            processed_outer_draws[rubric_id] = stop
+        if not tasks:
+            return
+        outcomes = model_executor.execute(
+            TaskReference(
+                module=execute_conditional_block_work_unit.__module__,
+                function=execute_conditional_block_work_unit.__name__,
+            ),
+            tuple(tasks),
+        )
+        grouped: dict[str, list[ConditionalBlockValue]] = {
+            rubric_id: [] for rubric_id in target_depths
+        }
+        for outcome in outcomes:
+            rubric_id, _ = task_positions[outcome.task_id]
+            if not outcome.succeeded or not isinstance(
+                outcome.value, ConditionalBlockValue
+            ):
+                local_failures[rubric_id] += 1
+                if rubric_block_callback is not None:
+                    _, position = task_positions[outcome.task_id]
+                    rubric_block_callback(
+                        rubric_id,
+                        outer_draws[position].global_outer_attempt_id,
+                        None,
+                        outcome.error_type or "Layer1ModeError",
+                    )
+                continue
+            grouped[rubric_id].append(outcome.value)
+        for rubric_id in target_depths:
+            for value in sorted(
+                grouped[rubric_id],
+                key=lambda current: current.global_outer_attempt_id,
+            ):
+                block = RubricDrawBlock(
+                    rubric_id=value.rubric_id,
+                    variant_ids=value.variant_ids,
+                    global_outer_attempt_id=value.global_outer_attempt_id,
+                    rubric_retained_index=len(blocks[rubric_id]) + 1,
+                    rubric_v2_draws=value.rubric_v2_draws,
+                )
+                blocks[rubric_id].append(block)
+                if rubric_block_callback is not None:
+                    rubric_block_callback(
+                        rubric_id,
+                        value.global_outer_attempt_id,
+                        block,
+                        None,
+                    )
 
     def extend_targets() -> None:
         nonlocal attempt_id, global_failures
@@ -327,15 +1055,13 @@ def _execute_layer1(
             len(blocks[rubric_id]) < target
             for rubric_id, target in target_depths.items()
         ):
-            for rubric_id in target_depths:
-                process_available_outer_draws(rubric_id)
+            process_all_available_outer_draws()
             if all(
                 len(blocks[rubric_id]) >= target
                 for rubric_id, target in target_depths.items()
             ):
                 return
-            attempt_id += 1
-            if attempt_id > cap:
+            if attempt_id >= cap:
                 unresolved = {
                     rubric_id: {
                         "target": target_depths[rubric_id],
@@ -349,6 +1075,69 @@ def _execute_layer1(
                     f"scope={json.dumps(unresolved, sort_keys=True)} "
                     f"attempted={cap}"
                 )
+            if (
+                isinstance(model_executor, SpawnProcessExecutor)
+                and refitter is fit_layer1_mml
+            ):
+                batch_size = min(
+                    model_executor.max_in_flight,
+                    cap - attempt_id,
+                )
+                attempt_ids = tuple(range(attempt_id + 1, attempt_id + batch_size + 1))
+                units = tuple(
+                    WorkUnit(
+                        task_id=f"outer:{current_attempt}",
+                        kind=WorkUnitKind.GLOBAL_OUTER_ATTEMPT,
+                        payload=OuterAttemptPayload(
+                            data=data,
+                            fitted=fit.hyperparameters,
+                            global_outer_attempt_id=current_attempt,
+                        ),
+                    )
+                    for current_attempt in attempt_ids
+                )
+                outcomes = model_executor.execute(
+                    TaskReference(
+                        module=execute_outer_attempt_work_unit.__module__,
+                        function=execute_outer_attempt_work_unit.__name__,
+                    ),
+                    units,
+                )
+                attempt_id = attempt_ids[-1]
+                for current_attempt, outcome in zip(attempt_ids, outcomes, strict=True):
+                    if not outcome.succeeded or not isinstance(
+                        outcome.value, Layer1Hyperparameters
+                    ):
+                        global_failures += 1
+                        if outer_attempt_callback is not None:
+                            outer_attempt_callback(
+                                current_attempt,
+                                None,
+                                outcome.error_type or "NumericalError",
+                            )
+                    else:
+                        outer = OuterHyperparameterDraw(
+                            global_outer_attempt_id=current_attempt,
+                            hyperparameters=outcome.value,
+                        )
+                        outer_draws.append(outer)
+                        if outer_attempt_callback is not None:
+                            outer_attempt_callback(
+                                current_attempt,
+                                outer.hyperparameters,
+                                None,
+                            )
+                    if progress_callback is not None:
+                        progress_callback(
+                            ProgressEvent(
+                                phase="outer_attempt",
+                                work_unit_id=f"outer:{current_attempt}",
+                                retained_attempts=len(outer_draws),
+                                failed_attempts=global_failures,
+                            )
+                        )
+                continue
+            attempt_id += 1
             outer_rng = np.random.default_rng(
                 derive_child_seed("layer1_bootstrap", f"outer:{attempt_id}")
             )
@@ -357,14 +1146,35 @@ def _execute_layer1(
             )
             try:
                 outer_fit = refitter(simulated)
-            except NumericalError:
+            except NumericalError as error:
                 global_failures += 1
-                continue
-            outer = OuterHyperparameterDraw(
-                global_outer_attempt_id=attempt_id,
-                hyperparameters=outer_fit.hyperparameters,
-            )
-            outer_draws.append(outer)
+                if outer_attempt_callback is not None:
+                    outer_attempt_callback(
+                        attempt_id,
+                        None,
+                        type(error).__name__,
+                    )
+            else:
+                outer = OuterHyperparameterDraw(
+                    global_outer_attempt_id=attempt_id,
+                    hyperparameters=outer_fit.hyperparameters,
+                )
+                outer_draws.append(outer)
+                if outer_attempt_callback is not None:
+                    outer_attempt_callback(
+                        attempt_id,
+                        outer.hyperparameters,
+                        None,
+                    )
+            if progress_callback is not None:
+                progress_callback(
+                    ProgressEvent(
+                        phase="outer_attempt",
+                        work_unit_id=f"outer:{attempt_id}",
+                        retained_attempts=len(outer_draws),
+                        failed_attempts=global_failures,
+                    )
+                )
 
     extend_targets()
     decision_depths: dict[str, int] = {}
@@ -426,15 +1236,35 @@ def _execute_layer1(
             depth = next_depth
         decision_depths[rubric.rubric_id] = depth
         final_events[rubric.rubric_id] = events
+        if progress_callback is not None:
+            progress_callback(
+                ProgressEvent(
+                    phase="adaptive_depth",
+                    work_unit_id=f"rubric:{rubric.rubric_id}",
+                    completed=len(decision_depths),
+                    total=len(data.rubrics),
+                )
+            )
 
     importance_ids = set(select_importance_rubrics(data))
-    importance_diagnostics: dict[str, ImportanceDiagnostic] = {}
-    conditional_draws: dict[str, np.ndarray] = {}
+    importance_diagnostics: dict[str, ImportanceDiagnostic] = dict(
+        preloaded_importance or {}
+    )
+    conditional_draws: dict[str, np.ndarray] = dict(preloaded_conditional or {})
     for rubric in data.rubrics:
-        conditional_draws[rubric.rubric_id] = _conditional_draws(
-            rubric, fit, moments, selected_config.conditional_draw_count
-        )
-        if rubric.rubric_id in importance_ids:
+        if rubric.rubric_id not in conditional_draws:
+            conditional_draws[rubric.rubric_id] = _conditional_draws(
+                rubric, fit, moments, selected_config.conditional_draw_count
+            )
+            if conditional_callback is not None:
+                conditional_callback(
+                    rubric.rubric_id,
+                    conditional_draws[rubric.rubric_id],
+                )
+        if (
+            rubric.rubric_id in importance_ids
+            and rubric.rubric_id not in importance_diagnostics
+        ):
             importance_diagnostics[rubric.rubric_id] = importance_resampling_diagnostic(
                 rubric,
                 fit.hyperparameters,
@@ -446,6 +1276,17 @@ def _execute_layer1(
                     )
                 ),
                 particle_count=selected_config.importance_particles,
+            )
+            if importance_callback is not None:
+                importance_callback(importance_diagnostics[rubric.rubric_id])
+        if progress_callback is not None:
+            progress_callback(
+                ProgressEvent(
+                    phase="conditional_diagnostics",
+                    work_unit_id=f"rubric:{rubric.rubric_id}",
+                    completed=len(conditional_draws),
+                    total=len(data.rubrics),
+                )
             )
 
     event_rows: list[dict[str, object]] = []
@@ -699,7 +1540,59 @@ def _execute_layer1(
                 )
             }
 
-        alternatives = run_full_leave_out_refits(data, refit_tiers)
+        alternatives: dict[str, Mapping[str, SuitabilityTier]] = dict(
+            preloaded_leave_outs or {}
+        )
+        reduced_datasets = {
+            comparison_id: reduced
+            for comparison_id, reduced in layer1_leave_out_datasets(data).items()
+            if comparison_id not in alternatives
+        }
+        if (
+            isinstance(model_executor, SpawnProcessExecutor)
+            and refitter is fit_layer1_mml
+        ):
+            units = tuple(
+                WorkUnit(
+                    task_id=f"leave-out:{comparison_id}",
+                    kind=WorkUnitKind.LEAVE_OUT_REFIT,
+                    payload=LeaveOutRefitPayload(
+                        comparison_id=comparison_id,
+                        data=reduced,
+                        config=selected_config,
+                    ),
+                )
+                for comparison_id, reduced in sorted(reduced_datasets.items())
+            )
+            outcomes = model_executor.execute(
+                TaskReference(
+                    module=execute_leave_out_work_unit.__module__,
+                    function=execute_leave_out_work_unit.__name__,
+                ),
+                units,
+            )
+            failed = [outcome for outcome in outcomes if not outcome.succeeded]
+            if failed:
+                first = failed[0]
+                raise NumericalError(
+                    "Layer 1 leave-out refit failed: "
+                    f"{first.task_id} {first.error_type}: {first.error_message}"
+                )
+            for outcome in outcomes:
+                if not isinstance(outcome.value, Mapping):
+                    continue
+                comparison_id = outcome.task_id.removeprefix("leave-out:")
+                alternatives[comparison_id] = outcome.value
+                if leave_out_callback is not None:
+                    leave_out_callback(comparison_id, outcome.value)
+        else:
+            for comparison_id, reduced in sorted(reduced_datasets.items()):
+                alternatives[comparison_id] = refit_tiers(reduced)
+                if leave_out_callback is not None:
+                    leave_out_callback(
+                        comparison_id,
+                        alternatives[comparison_id],
+                    )
         changed = leave_out_tier_changes(primary_tiers, alternatives)
         stability_rows = [
             {
@@ -809,10 +1702,10 @@ def _safe_rubric_filename(rubric_id: str) -> str:
     )
 
 
-def run_fit_layer1(workspace: AnalysisWorkspace) -> StepExecutionResult:
-    """Run the gated Layer 1 engine and atomically register complete artifacts."""
-    _verify_layer1_gate_artifacts(workspace)
-    execution = _execute_layer1(load_layer1_dataset(workspace))
+def _persist_layer1_execution(
+    workspace: AnalysisWorkspace,
+    execution: Layer1Execution,
+) -> StepExecutionResult:
     artifacts = [
         workspace.store.write_json(
             LAYER1_FIT_ARTIFACT,
@@ -874,3 +1767,315 @@ def run_fit_layer1(workspace: AnalysisWorkspace) -> StepExecutionResult:
             )
         )
     return StepExecutionResult(artifacts=tuple(artifacts))
+
+
+def run_fit_layer1(
+    workspace: AnalysisWorkspace,
+    *,
+    execution_config: Layer1ExecutionConfig | None = None,
+    resume: bool = True,
+    fresh: bool = False,
+    _checkpoint_enabled: bool = True,
+) -> StepExecutionResult:
+    """Run the gated Layer 1 engine and atomically register complete artifacts."""
+    _verify_layer1_gate_artifacts(workspace)
+    data = load_layer1_dataset(workspace)
+    if not _checkpoint_enabled:
+        return _persist_layer1_execution(workspace, _execute_layer1(data))
+    run_config = Layer1RunConfig()
+    moments = method_of_moments_start(data)
+    selected_execution = execution_config or Layer1ExecutionConfig()
+    auto_tune = (
+        _auto_tune_model_executor(data, moments, selected_execution)
+        if selected_execution.worker_mode == "auto"
+        else None
+    )
+    worker_count = resolve_worker_count(
+        selected_execution,
+        auto_tune_result=auto_tune,
+    )
+    checkpoint = Layer1CheckpointSession.open(
+        workspace.root,
+        _checkpoint_identity(workspace, run_config),
+        _execution_provenance(selected_execution, worker_count, auto_tune),
+        resume=resume,
+        fresh=fresh,
+    )
+    checkpoint.commit_json_state(
+        "primary/moments.json",
+        {
+            "schema_version": 1,
+            "smoothed_variant_count": moments.smoothed_variant_count,
+            "retained_phi_components": moments.retained_phi_components,
+            "hyperparameters": _hyperparameters_payload(moments.hyperparameters),
+        },
+        task_id="primary:moments",
+    )
+    progress = RateLimitedProgressWriter(
+        jsonl_path=workspace.store.path_for("logs/layer1-progress.jsonl"),
+        interval_seconds=selected_execution.progress_interval_seconds,
+    )
+    shutdown = ShutdownToken()
+
+    def stop_if_requested() -> None:
+        interruption = shutdown.interruption
+        if interruption is None:
+            return
+        checkpoint.mark_interrupted(interruption.exit_code)
+        progress.write(
+            ProgressEvent(
+                phase="interrupted",
+                checkpoint_path=checkpoint.root.as_posix(),
+            ),
+            force=True,
+        )
+        raise SystemExit(interruption.exit_code)
+
+    def report_iteration(
+        multiplier: float,
+        iteration: int,
+        objective: float,
+        gradient_maximum: float,
+    ) -> None:
+        progress.write(
+            ProgressEvent(
+                phase="primary_mml",
+                work_unit_id=f"start:{multiplier}",
+                iteration=iteration,
+                objective=objective,
+                gradient_maximum=gradient_maximum,
+                checkpoint_path=checkpoint.root.as_posix(),
+            )
+        )
+        stop_if_requested()
+
+    def commit_start(start: Layer1StartFit) -> None:
+        checkpoint.commit_json_state(
+            f"primary/start_{str(start.phi_multiplier).replace('.', '_')}.json",
+            _start_payload(start),
+            task_id=f"primary:start:{start.phi_multiplier}",
+        )
+        progress.write(
+            ProgressEvent(
+                phase="primary_start_complete",
+                work_unit_id=f"start:{start.phi_multiplier}",
+                checkpoint_path=checkpoint.root.as_posix(),
+            ),
+            force=True,
+        )
+        stop_if_requested()
+
+    def report_progress(event: ProgressEvent) -> None:
+        progress.write(event)
+        stop_if_requested()
+
+    def commit_outer_attempt(
+        current_attempt: int,
+        hyperparameters: Layer1Hyperparameters | None,
+        failure_type: str | None,
+    ) -> None:
+        task_id = f"outer:{current_attempt}"
+        if hyperparameters is None:
+            checkpoint.upsert_task(
+                Layer1TaskLedgerEntry(
+                    task_id=task_id,
+                    admission_group="global-outer",
+                    admission_index=current_attempt,
+                    status=Layer1TaskStatus.REJECTED,
+                    failure=Layer1TaskFailure(
+                        failure_kind=FailureKind.NUMERICAL,
+                        failure_type=failure_type or "NumericalError",
+                        message="Global outer attempt was numerically non-computable.",
+                    ),
+                )
+            )
+        else:
+            checkpoint.commit_json_state(
+                f"outer/attempt_{current_attempt:06d}.json",
+                dict(_hyperparameters_payload(hyperparameters)),
+                task_id=task_id,
+            )
+            checkpoint.upsert_task(
+                Layer1TaskLedgerEntry(
+                    task_id=task_id,
+                    admission_group="global-outer",
+                    admission_index=current_attempt,
+                    status=Layer1TaskStatus.ADMITTED_RETAINED,
+                )
+            )
+        stop_if_requested()
+
+    def commit_rubric_block(
+        rubric_id: str,
+        current_attempt: int,
+        block: RubricDrawBlock | None,
+        failure_type: str | None,
+    ) -> None:
+        task_id = f"block:{rubric_id}:outer:{current_attempt}"
+        admission_group = f"rubric-block:{rubric_id}"
+        if block is None:
+            checkpoint.upsert_task(
+                Layer1TaskLedgerEntry(
+                    task_id=task_id,
+                    admission_group=admission_group,
+                    admission_index=current_attempt,
+                    status=Layer1TaskStatus.REJECTED,
+                    failure=Layer1TaskFailure(
+                        failure_kind=FailureKind.NUMERICAL,
+                        failure_type=failure_type or "Layer1ModeError",
+                        message="Rubric conditional block was numerically non-computable.",
+                    ),
+                )
+            )
+        else:
+            safe_id = _safe_rubric_filename(rubric_id)
+            checkpoint.commit_npy_state(
+                f"blocks/{safe_id}/outer_{current_attempt:06d}.npy",
+                block.rubric_v2_draws,
+                task_id=task_id,
+            )
+            checkpoint.commit_json_state(
+                f"blocks/{safe_id}/outer_{current_attempt:06d}.json",
+                {
+                    "schema_version": 1,
+                    "variant_ids": list(block.variant_ids),
+                    "rubric_retained_index": block.rubric_retained_index,
+                },
+                task_id=task_id,
+            )
+            checkpoint.upsert_task(
+                Layer1TaskLedgerEntry(
+                    task_id=task_id,
+                    admission_group=admission_group,
+                    admission_index=current_attempt,
+                    status=Layer1TaskStatus.ADMITTED_RETAINED,
+                )
+            )
+        stop_if_requested()
+
+    def commit_conditional(rubric_id: str, values: np.ndarray) -> None:
+        checkpoint.commit_npy_state(
+            f"diagnostics/conditional_{_safe_rubric_filename(rubric_id)}.npy",
+            values,
+            task_id=f"conditional:{rubric_id}",
+        )
+        stop_if_requested()
+
+    def commit_importance(diagnostic: ImportanceDiagnostic) -> None:
+        checkpoint.commit_json_state(
+            f"diagnostics/importance_{_safe_rubric_filename(diagnostic.rubric_id)}.json",
+            _importance_payload(diagnostic),
+            task_id=f"importance:{diagnostic.rubric_id}",
+        )
+        stop_if_requested()
+
+    def commit_leave_out(
+        comparison_id: str,
+        tiers: Mapping[str, SuitabilityTier],
+    ) -> None:
+        checkpoint.commit_json_state(
+            f"leave_out/{_safe_rubric_filename(comparison_id)}.json",
+            {
+                "comparison_id": comparison_id,
+                "tiers": {
+                    rubric_id: tier.value for rubric_id, tier in sorted(tiers.items())
+                },
+            },
+            task_id=f"leave-out:{comparison_id}",
+        )
+        stop_if_requested()
+
+    completed_starts: dict[float, Layer1StartFit] = {}
+    for multiplier in (0.5, 1.0, 2.0):
+        payload = checkpoint.read_json_state(
+            f"primary/start_{str(multiplier).replace('.', '_')}.json"
+        )
+        if payload is not None:
+            completed_starts[multiplier] = _start_from_payload(payload)
+    persisted_fit = checkpoint.read_json_state("primary/fit.json")
+    fit = (
+        _fit_from_payload(persisted_fit, data.dataset_levels)
+        if persisted_fit is not None
+        else None
+    )
+    (
+        preloaded_outer_draws,
+        preloaded_blocks,
+        preloaded_processed_outer,
+        preloaded_global_failures,
+        preloaded_local_failures,
+        preloaded_attempt_id,
+    ) = _load_propagation_checkpoint(checkpoint, data)
+    (
+        preloaded_conditional,
+        preloaded_importance,
+        preloaded_leave_outs,
+    ) = _load_diagnostic_checkpoint(checkpoint, data)
+
+    def execute(model_executor: ModelTaskExecutor | None) -> Layer1Execution:
+        nonlocal fit
+        if fit is None:
+            fit = fit_layer1_mml(
+                data,
+                moments,
+                executor=model_executor,
+                completed_starts=completed_starts,
+                start_callback=commit_start,
+                iteration_callback=report_iteration,
+            )
+            checkpoint.commit_json_state(
+                "primary/fit.json",
+                dict(_fit_payload(fit)),
+                task_id="primary:fit",
+            )
+        return _execute_layer1(
+            data,
+            config=run_config,
+            model_executor=model_executor,
+            moments_override=moments,
+            fit_override=fit,
+            progress_callback=report_progress,
+            outer_attempt_callback=commit_outer_attempt,
+            rubric_block_callback=commit_rubric_block,
+            preloaded_outer_draws=preloaded_outer_draws,
+            preloaded_blocks=preloaded_blocks,
+            preloaded_processed_outer=preloaded_processed_outer,
+            preloaded_global_failures=preloaded_global_failures,
+            preloaded_local_failures=preloaded_local_failures,
+            preloaded_attempt_id=preloaded_attempt_id,
+            preloaded_conditional=preloaded_conditional,
+            preloaded_importance=preloaded_importance,
+            preloaded_leave_outs=preloaded_leave_outs,
+            conditional_callback=commit_conditional,
+            importance_callback=commit_importance,
+            leave_out_callback=commit_leave_out,
+        )
+
+    try:
+        with signal_shutdown_context(shutdown):
+            if selected_execution.worker_mode == "sequential":
+                execution = execute(None)
+            else:
+                with SpawnProcessExecutor(
+                    worker_count,
+                    max_in_flight=selected_execution.max_in_flight,
+                ) as model_executor:
+                    execution = execute(model_executor)
+    except SystemExit:
+        raise
+    except AnalysisError:
+        checkpoint.mark_failed()
+        raise
+    checkpoint.commit_json_state(
+        "final/ready.json",
+        {
+            "schema_version": 1,
+            "compatibility_sha256": checkpoint.manifest.compatibility_sha256,
+            "rubric_rows": len(execution.rubric_recommendations),
+            "variant_rows": len(execution.variant_recommendations),
+        },
+        task_id="final:ready",
+    )
+    result = _persist_layer1_execution(workspace, execution)
+    checkpoint.mark_completed()
+    return result
