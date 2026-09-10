@@ -498,7 +498,84 @@ here in full.
   parameterisation, from the method-of-moments start; converged when the change in marginal
   log-likelihood between iterations is below `1e-6` **and** the maximum absolute gradient
   component is below `1e-4`; capped at 200 iterations, with non-convergence at the cap
-  recorded as a failed fit under the retention protocol below.
+  recorded as a failed fit under the retention protocol below. The outer gradient uses a
+  deterministic component-wise central difference with initial step
+  `1e-5*max(1,abs(psi_j))`; if one side is non-computable it uses the computable one-sided
+  difference, halving the step up to 12 times before declaring that gradient component
+  non-computable. The library's internal relative-function stopping tolerance is `1e-12`, so
+  it cannot terminate before the explicit gradient criterion above is checked.
+
+**Layer 1 numerical execution contract.** The statistical model above is unchanged; this
+paragraph freezes the numerical choices required to execute it reproducibly.
+
+- **Inner Newton rule.** Let `ell(z)` be a rubric's conditional log density, `g(z)` its exact
+  gradient, `H(z)` its exact observed Hessian and `K(z) = -H(z)`. Starting from the smoothed-ALR
+  method-of-moments point, solve `K delta = g` and use `z_new = z + alpha*delta`. Begin with
+  `alpha = 1`; while the Armijo condition
+  `ell(z_new) >= ell(z) + 1e-4*alpha*g'delta` is false, halve `alpha`, for at most 20
+  halvings. The floating-point comparison alone permits an additive slack of
+  `1e-12*max(1,abs(ell(z)))`; this is a roundoff allowance, not objective damping.
+  Failure to obtain an acceptable finite step by `alpha = 2^-20` is a failed mode,
+  never permission to damp or replace the Hessian. Convergence requires both
+  `max(abs(g)) < 1e-8` and `abs(ell(z_new)-ell(z)) < 1e-10`; the cap is 100 Newton
+  iterations.
+- **Curvature acceptance.** At a reported mode, `K = -H` must be finite and satisfy
+  `lambda_min(K) > 1e-10 * max(1, lambda_max(K))`; a Cholesky factorisation must also succeed.
+  A singular, semidefinite, indefinite or tolerance-failing `K` is a failed conditional
+  approximation. The expected Hessian, eigenvalue clipping and diagonal damping are not
+  substitutes.
+- **Three-start equivalence.** Each of the `0.5*phi_init`, `phi_init` and `2*phi_init` starts
+  must independently satisfy the L-BFGS criteria above and return finite positive-definite
+  covariance matrices; a library success flag alone is insufficient. No post-hoc polishing
+  is applied. For every pair of starts, the absolute marginal-log-likelihood difference must
+  be at most `1e-6`, and every unconstrained hyperparameter component must satisfy
+  `abs(x_j-y_j) / max(1, abs(x_j), abs(y_j)) <= 1e-5`. Otherwise the fit is
+  `INITIALISER_SENSITIVE`. This fails the primary `fit-layer1` run; in a parametric-bootstrap
+  re-estimation it rejects the outer attempt globally and is counted and replenished.
+- **Replenishment cap and terminal state.** The one global attempted-outer sequence may contain
+  at most `10 * B_target` attempts, where `B_target` is the largest retained depth requested
+  by the run (1,000 for the mandatory fixed-prefix diagnostic and up to 4,000 after adaptive
+  refinement). A failed outer MML/PD/three-start check rejects that attempt globally. For a
+  globally retained `psi*`, a conditional-mode or curvature failure rejects the attempt only
+  for that rubric. If the global sequence or any required rubric has fewer than `B_target`
+  usable draws at the cap, the command records `LAYER1_REPLENISHMENT_EXHAUSTED` with scope,
+  target, attempted and valid counts and fails without recommendation tables.
+- **Global and local draw identity.** `global_outer_attempt_id` is never renumbered after a
+  failure. `rubric_retained_index` is local to one rubric and cannot be used to synchronize
+  rubrics. Every eligible variant is a primary recommendation unit and is drawn jointly with
+  its rubric siblings at one `rubric_decision_depth`. A trigger from any rubric or constituent
+  variant event extends the whole joint rubric block. Cross-rubric comparisons use only the
+  intersection of exact `(global_outer_attempt_id, inner_index)` keys; fewer than 250 shared
+  outer-attempt IDs is reported as `NOT_COMPARABLE_SHARED_DRAWS`.
+- **Outer-batch MCSE.** For one event and one rubric-local retained outer draw, the batch value
+  is the arithmetic mean of its 40 inner indicators. `Pi_prop` is the arithmetic mean of the
+  `B_psi` batch values and
+  `MCSE = sample_sd(batch_values, ddof=1) / sqrt(B_psi)`. A primary event is keyed explicitly
+  as `(rubric_id, WORST_VARIANT, c)`, `(variant_id, SINGLE_VARIANT, c)`, or
+  `(rubric_id, PROPORTION_KAPPA_0_75, c)` for every `c` in `{0.75, 0.60, 0.50}`.
+  The proportion event requires `ceil(0.75*V_r)` variants to clear `c`. Its closed
+  `[Pi_prop-2*MCSE, Pi_prop+2*MCSE]` interval triggers rubric-wide refinement when it contains
+  `gamma`, including equality at either endpoint.
+- **Importance-resampling purposive subset.** Select the stable-ID union of four rubric
+  selectors: smallest `V_r`; smallest `N_r`; smallest observed rubric performance; and largest
+  observed rubric performance. Observed performance is the equal-variant mean of each
+  variant's equal-trace mean recomputed `RubricV2`. Break every selector tie by
+  `(rubric_order, rubric_id)` and retain the first; overlaps reduce the realised set size.
+- **Synthetic-recovery fixture.** Use a committed seed-derived fixture with 24 rubrics split
+  equally across the three datasets, four variants per rubric, 28 traces per variant and
+  `N_r = 12`, generated from finite interior parameters recorded with the fixture. Acceptance
+  requires all three starts to agree, maximum absolute dataset-mean ALR error at most `0.25`,
+  relative `phi` error at most `0.35`, relative Frobenius error at most `0.40` for each
+  covariance matrix, latent-mean RMSE at most `0.35`, and absolute error at most `0.05` for
+  the fixture's predeclared decision-event probabilities. These thresholds are test
+  tolerances, not estimand changes, and are never tuned against observed Simple Mode outcomes.
+
+**Exact ALR boundary operation.** For any ALR input count vector `x = (P,F,U)` with
+`n = P+F+U`, if any component is zero, add `eps = 0.5` to all three components and use
+`(x+eps)/(n+3*eps)` before computing
+`(log(theta_P/theta_F), log(theta_U/theta_F))`. Thus a zero FAIL reference is handled by the
+same finite rule. If all components are positive, use `x/n`. The raw Dirichlet-multinomial
+likelihood always receives the original unsmoothed counts.
 
 **The Laplace step in the propagation loop conditions on the observed data `D`, never on a
 simulated dataset, and this is stated because the two readings give different `Pi_prop`
@@ -521,16 +598,19 @@ theta_rv*)` for each trace (with `theta_rv*` the back-transform of `eta_rv*`), a
 procedure above, from the identical method-of-moments initialisation computed on `D_b*`.
 
 **Retention protocol for every failure mode in the fitting and approximation chain, stated
-once and reused everywhere below.** Three failure classes can occur - the outer marginal
+once and reused everywhere below.** Two replenished failure classes can occur - the outer marginal
 maximum-likelihood fit fails to converge or returns a non-positive-definite `Sigma_within` or
 `Sigma_between`; the inner Laplace mode-finding fails to converge or its Hessian is not
-positive-definite at the mode (§5.1 Laplace step); the importance-resampling adequacy check
-below fails its effective-sample-size rule. In every case the failure is **counted and
+positive-definite at the mode (§5.1 Laplace step). In either case the failure is **counted and
 reported**, the affected draw is **discarded and replenished** by drawing a fresh outer
 `psi*_b` (never a silent drop, since dropping conditions the hybrid distribution on numerical
 success), and if the replenishment rate for a rubric exceeds 5% of attempted draws, that
 rubric's `Pi_prop` is reported as **computed under elevated numerical-failure conditions**
 rather than silently on a smaller effective `B_psi`.
+
+The separate importance-resampling check is performed once at `psi_hat` on the purposive
+subset defined above. Failure of its ESS rule adds an explicit approximation caveat and does
+not discard an outer draw, trigger replenishment or change a tier.
 
 **Uncertainty computation, with hyperparameter uncertainty propagated rather than
 ignored.** A plug-in empirical-Bayes scheme treats `psi_hat` as known and so **understates
@@ -3350,13 +3430,21 @@ schematised artefact or artefact family, not an implicit in-memory structure:
   restriction already applied.
 - **`restriction_matrix_<family>`** - `R_f` as a literal matrix keyed to `design_matrix_<family>`'s
   columns, generated from the §11.1 table, not hand-maintained separately from it.
-- **`pi_prop_draws`** - one archive per rubric: the pooled `(b, m)` draws of `R_rv` for every
-  variant, **required to persist** rather than being discarded after computing `Pi_prop`, since
-  leave-one-arm-out comparisons and rank-reversal frequency (§6.4) both require access to the
-  underlying draws, not merely the summary probability.
+- **`pi_prop_draws`** - one versioned Parquet archive per rubric: the pooled draws of `R_rv`
+  for every eligible variant, keyed by stable rubric/variant identity,
+  `global_outer_attempt_id`, rubric-local retained index, inner index and refinement depth.
+  These archives are **required to persist** rather than being discarded after computing
+  `Pi_prop`, since leave-one-arm-out comparisons and rank-reversal frequency (§6.4) both
+  require access to the underlying draws, not merely the summary probability.
 - **`recommendation_table_rubric`** and **`recommendation_table_variant`** - the two §6.3
   deliverables, columns: unit identifier, `tier`, `UNCERTAIN` flag, `V_r` (rubric table only),
   score-band probabilities, `MONTE_CARLO_INDETERMINATE` flag where applicable.
+- **Partial-report family 04 and Layer 1 report 05.** `04-feature-validation.md` is the
+  primary Segment 5 report and `04-supplement-exploratory-p4-evidence.md` is its explicitly
+  ordered supplement; the numeric prefix identifies that report family, while the full
+  filename is the artifact identity. `05-suitability-estimates.md` is reserved for Segment 7
+  Layer 1. Consumers use this declared order and never infer report identity or order from a
+  glob or lexical sort.
 - **`bootstrap_results_<family>`** - `W_obs`, `p_f`, `H_f`, attainable support and grid,
   singular- and non-finite-replicate counts, and the one-step/full-refit validation outcome.
 
@@ -3401,9 +3489,9 @@ frozen subcommand set, in release-sequence order (§19):
    at any point before `fit-layer1` or `fit-families`, per §19's oracle-order note, but not
    after either. Grade-fixture generation, lookup and integrity belong to `join` (§18.4), not
    this statistical-oracle command.
-13. `fit-layer1` - the empirical-Bayes hierarchy of §5.1-§5.2 and the tier decisions of §6;
+13. `fit-layer1` - the empirical-Bayes hierarchy of §5.1 and the tier decisions of §6;
     refuses to run unless annotation, gold, feature-validation and the oracle check are all
-    recorded complete.
+    recorded complete. Section 5.2 belongs to `fit-families`; it is not part of this command.
 14. `fit-families` - the ten confirmatory families of §5.3-§5.6/§11; the same unlock check as
     `fit-layer1`, enforced independently since either command may be re-run on its own.
 15. `robustness` - the aggregation-robustness (§7), sensitivity matrix (§14) and secondary

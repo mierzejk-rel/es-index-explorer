@@ -37,10 +37,7 @@ from es_index_explorer.question_analysis.workflow import (
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
 DEFAULT_ANALYSIS_ROOT = (
-    PROJECT_ROOT
-    / "artifacts"
-    / "question_analysis"
-    / f"{ANALYSIS_ID}-segment6-postaudit-final"
+    PROJECT_ROOT / "artifacts" / "question_analysis" / f"{ANALYSIS_ID}-segment7"
 )
 DEFAULT_SPECIFICATION = (
     PROJECT_ROOT / "reports" / "13-simple-mode-analysis-research-plan.md"
@@ -240,6 +237,34 @@ DEFAULT_RESOURCES = {
     "segment6_fixture_generator": PROJECT_ROOT
     / "scripts"
     / "generate_fwildclusterboot_fixture.py",
+    "segment7_operations": PROJECT_ROOT
+    / "reports"
+    / "22-segment-7-layer1-operations.md",
+    "segment7_model_source": PROJECT_ROOT
+    / "es_index_explorer"
+    / "question_analysis"
+    / "layer1_model.py",
+    "segment7_laplace_source": PROJECT_ROOT
+    / "es_index_explorer"
+    / "question_analysis"
+    / "layer1_laplace.py",
+    "segment7_propagation_source": PROJECT_ROOT
+    / "es_index_explorer"
+    / "question_analysis"
+    / "layer1_propagation.py",
+    "segment7_decisions_source": PROJECT_ROOT
+    / "es_index_explorer"
+    / "question_analysis"
+    / "layer1_decisions.py",
+    "segment7_pipeline_source": PROJECT_ROOT
+    / "es_index_explorer"
+    / "question_analysis"
+    / "layer1_pipeline.py",
+    "segment7_synthetic_contract": PROJECT_ROOT
+    / "tests"
+    / "fixtures"
+    / "question_analysis"
+    / "layer1-synthetic-contract.json",
 }
 
 

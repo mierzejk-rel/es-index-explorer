@@ -131,6 +131,76 @@ EXPLICIT_OUTCOME_FIELD_NAMES = frozenset(
 FROZEN_RECOMMENDATION_FIELD_NAMES = frozenset(
     {"tier", "uncertain", "v_r", "monte_carlo_indeterminate"}
 )
+RUBRIC_RECOMMENDATION_COLUMNS = (
+    "rubric_id",
+    "rubric_order",
+    "eval_dataset",
+    "tier",
+    "uncertain",
+    "v_r",
+    "monte_carlo_indeterminate",
+    "rubric_decision_depth",
+    "pi_min_ge_0_75",
+    "mcse_min_ge_0_75",
+    "pi_min_ge_0_60",
+    "mcse_min_ge_0_60",
+    "pi_min_ge_0_50",
+    "mcse_min_ge_0_50",
+    "pi_proportion_ge_0_75",
+    "pi_proportion_ge_0_60",
+    "pi_proportion_ge_0_50",
+    "pi_cond_min_ge_0_75",
+    "mcse_cond_min_ge_0_75",
+    "pi_prop_cond_gap_0_75",
+    "pi_cond_min_ge_0_60",
+    "mcse_cond_min_ge_0_60",
+    "pi_prop_cond_gap_0_60",
+    "pi_cond_min_ge_0_50",
+    "mcse_cond_min_ge_0_50",
+    "pi_prop_cond_gap_0_50",
+    "pooled_mean_tier",
+    "shrunken_variant_minimum",
+    "proportion_binding_count",
+    "proportion_grid_json",
+    "proportion_uninformative",
+    "score_band_below_0_50",
+    "score_band_0_50_to_0_60",
+    "score_band_0_60_to_0_75",
+    "score_band_0_75_to_1_00",
+    "elevated_numerical_failure_conditions",
+    "laplace_adequate",
+)
+VARIANT_RECOMMENDATION_COLUMNS = (
+    "variant_id",
+    "rubric_id",
+    "variant_index",
+    "tier",
+    "uncertain",
+    "monte_carlo_indeterminate",
+    "rubric_decision_depth",
+    "pi_ge_0_75",
+    "mcse_ge_0_75",
+    "pi_ge_0_60",
+    "mcse_ge_0_60",
+    "pi_ge_0_50",
+    "mcse_ge_0_50",
+    "pi_cond_ge_0_75",
+    "mcse_cond_ge_0_75",
+    "pi_prop_cond_gap_0_75",
+    "pi_cond_ge_0_60",
+    "mcse_cond_ge_0_60",
+    "pi_prop_cond_gap_0_60",
+    "pi_cond_ge_0_50",
+    "mcse_cond_ge_0_50",
+    "pi_prop_cond_gap_0_50",
+    "shrunken_mean",
+    "score_band_below_0_50",
+    "score_band_0_50_to_0_60",
+    "score_band_0_60_to_0_75",
+    "score_band_0_75_to_1_00",
+    "elevated_numerical_failure_conditions",
+    "laplace_adequate",
+)
 TRACE_SHARED_STRUCTURAL_FIELD_NAMES = frozenset(
     {
         "rubric_id",
@@ -142,7 +212,11 @@ TRACE_SHARED_STRUCTURAL_FIELD_NAMES = frozenset(
     }
 )
 OUTCOME_ARTIFACT_SCHEMAS = MappingProxyType(
-    {"trace_pfu_table.parquet": TRACE_PFU_TABLE_COLUMNS}
+    {
+        "trace_pfu_table.parquet": TRACE_PFU_TABLE_COLUMNS,
+        "recommendation_table_rubric.parquet": RUBRIC_RECOMMENDATION_COLUMNS,
+        "recommendation_table_variant.parquet": VARIANT_RECOMMENDATION_COLUMNS,
+    }
 )
 _REGISTERED_OUTCOME_ARTIFACT_FIELD_NAMES = frozenset(
     field_name.casefold()
@@ -255,6 +329,24 @@ class AnalysisFlag(StrEnum):
     MONTE_CARLO_INDETERMINATE = "MONTE_CARLO_INDETERMINATE"
     BH_INDETERMINATE = "BH_INDETERMINATE"
     DISPUTED = "DISPUTED"
+
+
+class SuitabilityTier(StrEnum):
+    """Layer 1 recommendation tiers and numerical indeterminacy state."""
+
+    SUITABLE = "SUITABLE"
+    PROMISING = "PROMISING"
+    BORDERLINE = "BORDERLINE"
+    NOT_SUITABLE = "NOT_SUITABLE"
+    MONTE_CARLO_INDETERMINATE = "MONTE_CARLO_INDETERMINATE"
+
+
+class Layer1EventKind(StrEnum):
+    """Primary Layer 1 event kinds used for adaptive refinement."""
+
+    WORST_VARIANT = "WORST_VARIANT"
+    SINGLE_VARIANT = "SINGLE_VARIANT"
+    PROPORTION_KAPPA_0_75 = "PROPORTION_KAPPA_0_75"
 
 
 class FrozenModel(BaseModel):

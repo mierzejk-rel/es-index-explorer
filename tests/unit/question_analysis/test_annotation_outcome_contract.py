@@ -17,6 +17,7 @@ from es_index_explorer.question_analysis.annotations import (
 )
 from es_index_explorer.question_analysis.contracts import (
     ANNOTATION_RESPONSE_FIELD_DENYLIST,
+    OUTCOME_ARTIFACT_SCHEMAS,
     PRE_OUTCOME_INPUT_FIELD_DENYLIST,
     PROTECTED_RECOMMENDATION_ARTIFACT_NAMES,
     TRACE_PFU_TABLE_COLUMNS,
@@ -156,14 +157,27 @@ def test_trace_pfu_parquet_must_match_registered_schema(tmp_path: Path) -> None:
 @pytest.mark.parametrize(
     "artifact_name", sorted(PROTECTED_RECOMMENDATION_ARTIFACT_NAMES)
 )
-def test_future_recommendation_parquet_requires_registered_schema(
+def test_recommendation_parquet_requires_its_registered_schema(
     artifact_name: str, tmp_path: Path
 ) -> None:
     store = ArtifactStore(tmp_path)
+    valid = pd.DataFrame(
+        columns=[
+            "artifact_schema_version",
+            *OUTCOME_ARTIFACT_SCHEMAS[artifact_name],
+        ]
+    )
 
-    with pytest.raises(MalformedInputError, match="schema is not registered"):
+    metadata = store.write_parquet(
+        f"tables/{artifact_name}",
+        valid,
+        created_by=WorkflowCommand.FIT_LAYER1,
+    )
+
+    assert metadata.path == f"tables/{artifact_name}"
+    with pytest.raises(MalformedInputError, match="schema mismatch"):
         store.write_parquet(
             f"tables/{artifact_name}",
-            pd.DataFrame({"artifact_schema_version": [1], "tier": ["Full"]}),
-            created_by=WorkflowCommand.REPORT,
+            valid.drop(columns=OUTCOME_ARTIFACT_SCHEMAS[artifact_name][-1]),
+            created_by=WorkflowCommand.FIT_LAYER1,
         )

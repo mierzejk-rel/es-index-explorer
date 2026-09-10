@@ -51,7 +51,7 @@ VALIDATION_UNLOCK_ARTIFACT = "validation_unlock.json"
 UNRESOLVED_VALIDATION_ARTIFACT = "unresolved_validation_items.json"
 FEATURE_VALIDATION_REPORT = "partial_reports/04-feature-validation.md"
 EXPLORATORY_EVIDENCE_TABLE = "tables/exploratory_p4_evidence.parquet"
-EXPLORATORY_EVIDENCE_REPORT = "partial_reports/05-exploratory-p4-evidence.md"
+EXPLORATORY_EVIDENCE_REPORT = "partial_reports/04-supplement-exploratory-p4-evidence.md"
 
 FEATURE_KINDS: Mapping[str, str] = {
     "qdmr_step_count": "numeric",

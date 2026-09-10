@@ -7,7 +7,7 @@ from collections.abc import Mapping, Sequence
 from pathlib import Path
 from typing import NoReturn, TextIO
 
-from es_index_explorer.question_analysis.contracts import WorkflowCommand
+from es_index_explorer.question_analysis.contracts import StepStatus, WorkflowCommand
 from es_index_explorer.question_analysis.errors import (
     AnalysisError,
     MalformedInputError,
@@ -308,6 +308,10 @@ def _production_handler(
         from es_index_explorer.question_analysis.statistical_oracle import run_oracle
 
         return run_oracle
+    if command is WorkflowCommand.FIT_LAYER1:
+        from es_index_explorer.question_analysis.layer1_pipeline import run_fit_layer1
+
+        return run_fit_layer1
     return None
 
 
@@ -338,6 +342,18 @@ def _show_status(root: Path, *, as_json: bool, output: TextIO) -> int:
             if record.failure is not None
             else None,
         }
+    fit_layer1_blockers: list[str] = []
+    if (
+        state.steps[WorkflowCommand.VALIDATE_FEATURES].status
+        is not StepStatus.COMPLETED
+    ):
+        fit_layer1_blockers.append("validate-features")
+    if state.steps[WorkflowCommand.ORACLE].status is not StepStatus.COMPLETED:
+        fit_layer1_blockers.append("oracle")
+    if not state.outcome_modeling_unlocked:
+        fit_layer1_blockers.append("outcome-modeling-unlock")
+    if state.steps[WorkflowCommand.FIT_LAYER1].status is StepStatus.COMPLETED:
+        fit_layer1_blockers.append("already-completed")
     payload = {
         "analysis_root": workspace.root.as_posix(),
         "status": "initialized",
@@ -347,6 +363,8 @@ def _show_status(root: Path, *, as_json: bool, output: TextIO) -> int:
             if state.outcome_modeling_unlocked_at is not None
             else None
         ),
+        "fit_layer1_runnable": not fit_layer1_blockers,
+        "fit_layer1_blockers": fit_layer1_blockers,
         "steps": steps,
     }
     if as_json:
@@ -361,6 +379,13 @@ def _show_status(root: Path, *, as_json: bool, output: TextIO) -> int:
             )
         unlocked = "yes" if state.outcome_modeling_unlocked else "no"
         print(f"Outcome modeling unlocked: {unlocked}", file=output)
+        runnable = "yes" if payload["fit_layer1_runnable"] else "no"
+        print(f"Fit Layer 1 runnable: {runnable}", file=output)
+        if fit_layer1_blockers:
+            print(
+                f"Fit Layer 1 blockers: {', '.join(fit_layer1_blockers)}",
+                file=output,
+            )
     return 0
 
 

@@ -153,6 +153,29 @@ def test_status_is_read_only_for_uninitialized_root(tmp_path: Path) -> None:
     assert not root.exists()
 
 
+def test_status_distinguishes_default_working_root_from_layer1_readiness(
+    tmp_path: Path,
+) -> None:
+    root = tmp_path / "analysis"
+    specification = _specification(tmp_path)
+    AnalysisWorkspace.initialize(root, specification)
+    output = StringIO()
+
+    exit_code = main(
+        ["--analysis-root", str(root), "status", "--json"],
+        stdout=output,
+    )
+
+    assert exit_code == 0
+    payload = json.loads(output.getvalue())
+    assert payload["fit_layer1_runnable"] is False
+    assert payload["fit_layer1_blockers"] == [
+        "validate-features",
+        "oracle",
+        "outcome-modeling-unlock",
+    ]
+
+
 def test_oracle_command_runs_offline_and_records_artifact(tmp_path: Path) -> None:
     root = tmp_path / "analysis"
     error_output = StringIO()

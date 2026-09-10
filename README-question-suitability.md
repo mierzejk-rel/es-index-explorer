@@ -5,7 +5,7 @@ The pipeline implements the analysis contract in
 existing MLflow snapshot CLI and writes only under:
 
 ```text
-artifacts/question_analysis/simplemode-v1-segment6-postaudit-final/
+artifacts/question_analysis/simplemode-v1-segment7/
 ├── manifest.json
 ├── state.json
 ├── tables/
@@ -22,9 +22,12 @@ Segment 3 run. `simplemode-v1-postreview`, `simplemode-v1-postreview-p2`, and
 `simplemode-v1-postreview-p3` are immutable post-review checkpoints retained for comparison;
 they are not resumed or rewritten. No artificial `simplemode-v1-postreview-p4` checkpoint
 exists. `simplemode-v1-postremediation-final` is the immutable canonical Stage 4 handoff.
-`simplemode-v1-segment5` is the immutable Stage 5 software handoff. Segment 6 executes in the
-locked `simplemode-v1-segment6-postaudit-final` root shown above; the human-gold gate remains
-pending. `simplemode-v1-segment6` is the immutable pre-remediation checkpoint, and
+`simplemode-v1-segment5` is the immutable Stage 5 software handoff.
+`simplemode-v1-segment6-postaudit-final` is the immutable Stage 6 handoff, while Segment 7
+uses the locked working root shown above. Making it the default records lineage and software
+readiness only: it does not imply that `fit-layer1` is runnable, and the human-gold gate
+remains pending. `status --json` exposes `fit_layer1_runnable` and
+`fit_layer1_blockers`. `simplemode-v1-segment6` is the immutable pre-remediation checkpoint, and
 `simplemode-v1-segment6-postremediation-final` is the immutable six-finding remediation
 checkpoint. Neither historical root is resumed or rewritten.
 
@@ -179,16 +182,29 @@ No model audit or outcome fit is part of this stage. The canonical Segment 6 roo
 oracle pass while `outcome_modeling_unlocked=false` until the separate human-gold workflow
 finishes.
 
+## Segment 7 Layer 1 empirical Bayes
+
+Segment 7 implements the arm-free hierarchy, FAIL-reference ALR, raw-count
+Dirichlet-multinomial likelihood, log-Cholesky covariance parameterization, nested Laplace
+MML, propagated `Pi_prop`, conditional `Pi_cond`, adaptive Monte Carlo control, and common
+rubric/variant tier decisions. Exact numerical rules and artifacts are documented in
+[`reports/22-segment-7-layer1-operations.md`](reports/22-segment-7-layer1-operations.md).
+
+The software is prepared without running a real outcome fit. The `fit-layer1` handler requires
+completed human validation, `outcome_modeling_unlocked=true`, and the Stage 6 oracle pass.
+Until then, `status` reports the blockers and `fit-layer1` exits with the locked prerequisite
+category.
+
 The existing `simplemode-v1-segment6` oracle artifact predates the two-layer CGM/PSD oracle
-schema and remains immutable audit evidence. The current root is rematerialized without model
-calls by migrating hash-verified annotation provenance from the prior remediation checkpoint:
+schema and remains immutable audit evidence. The Segment 7 working root is rematerialized
+without model calls by migrating hash-verified annotation provenance from the Stage 6 handoff:
 
 ```bash
 UV_NO_ENV_FILE=1 uv run --no-env-file question-suitability join
 UV_NO_ENV_FILE=1 uv run --no-env-file question-suitability features
 UV_NO_ENV_FILE=1 uv run --no-env-file question-suitability annotate-emit
 UV_NO_ENV_FILE=1 uv run --no-env-file question-suitability annotate-run \
-  --migrate-from-root artifacts/question_analysis/simplemode-v1-segment6-postremediation-final \
+  --migrate-from-root artifacts/question_analysis/simplemode-v1-segment6-postaudit-final \
   --resume-only
 UV_NO_ENV_FILE=1 uv run --no-env-file question-suitability annotate-ingest
 UV_NO_ENV_FILE=1 uv run --no-env-file question-suitability oracle

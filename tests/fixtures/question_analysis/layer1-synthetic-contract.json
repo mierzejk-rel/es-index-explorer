@@ -1,0 +1,34 @@
+{
+  "schema_version": 1,
+  "generation_child_stream": "diagnostic_resampling:layer1-synthetic-recovery",
+  "reference_probability_seed": 987654,
+  "rubric_count": 24,
+  "rubrics_per_dataset": 8,
+  "variant_count_per_rubric": 4,
+  "trace_count_per_variant": 28,
+  "expectation_count": 12,
+  "phi": 25.0,
+  "mu0": [0.4, -0.6],
+  "dataset_offsets": {
+    "emc2_set1": [0.0, 0.0],
+    "emc2_set2": [0.15, -0.1],
+    "mallinckrodt": [-0.2, 0.12]
+  },
+  "sigma_within": [[0.2, 0.03], [0.03, 0.18]],
+  "sigma_between": [[0.18, 0.02], [0.02, 0.14]],
+  "reference_dataset_event_probabilities": {
+    "minimum_ge_0_75": 0.004478,
+    "minimum_ge_0_60": 0.140852,
+    "minimum_ge_0_50": 0.458222,
+    "three_of_four_ge_0_75": 0.019848,
+    "three_of_four_ge_0_60": 0.317604,
+    "three_of_four_ge_0_50": 0.703052
+  },
+  "acceptance": {
+    "dataset_mean_alr_max_abs_error": 0.25,
+    "phi_relative_error": 0.35,
+    "covariance_relative_frobenius_error": 0.4,
+    "latent_mean_rmse": 0.35,
+    "decision_probability_max_abs_error": 0.05
+  }
+}

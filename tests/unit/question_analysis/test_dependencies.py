@@ -23,6 +23,7 @@ from es_index_explorer.question_analysis.contracts import (
     GOLD_SAMPLE_PER_STRATUM,
     GOLD_STRATIFYING_FEATURES,
     GOLD_VALIDATION_FEATURES,
+    OUTCOME_ARTIFACT_SCHEMAS,
     OUTCOME_FIELD_CONTRACT_VERSION,
     OUTCOME_FIELD_DENYLIST,
     QDMR_OPERATOR_INVENTORY,
@@ -442,7 +443,11 @@ def test_annotation_constants_match_locked_specification() -> None:
         "eligible",
     )
     assert ANNOTATION_RESPONSE_FIELD_DENYLIST == {
-        *(name.casefold() for name in TRACE_PFU_TABLE_COLUMNS),
+        *(
+            name.casefold()
+            for columns in OUTCOME_ARTIFACT_SCHEMAS.values()
+            for name in columns
+        ),
         *EXPLICIT_OUTCOME_FIELD_NAMES,
         *FROZEN_RECOMMENDATION_FIELD_NAMES,
     }

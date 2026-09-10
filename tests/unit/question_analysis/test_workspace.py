@@ -28,7 +28,7 @@ pytestmark = pytest.mark.unit
 
 
 def test_default_root_is_segment6_execution_root() -> None:
-    assert DEFAULT_ANALYSIS_ROOT.name == "simplemode-v1-segment6-postaudit-final"
+    assert DEFAULT_ANALYSIS_ROOT.name == "simplemode-v1-segment7"
 
 
 def _specification(tmp_path: Path) -> Path:
@@ -92,6 +92,13 @@ def test_manifest_round_trip_and_frozen_layout(tmp_path: Path) -> None:
         "segment6_stacked_scores_source",
         "segment6_statistical_oracle_source",
         "segment6_wild_bootstrap_source",
+        "segment7_decisions_source",
+        "segment7_laplace_source",
+        "segment7_model_source",
+        "segment7_operations",
+        "segment7_pipeline_source",
+        "segment7_propagation_source",
+        "segment7_synthetic_contract",
         "stanza_en_resource_manifest",
     }
     assert workspace.load_manifest() == manifest

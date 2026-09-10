@@ -52,3 +52,15 @@ class NonFiniteWaldStatisticError(NumericalError):
 
 class NonFiniteBootstrapReplicateError(NumericalError):
     """A bootstrap replicate produced a non-finite coefficient or statistic."""
+
+
+class Layer1ModeError(NumericalError):
+    """A Layer 1 conditional mode or curvature is non-computable."""
+
+
+class Layer1InitialiserSensitiveError(NumericalError):
+    """Layer 1 marginal fitting disagrees across the three frozen starts."""
+
+
+class Layer1ReplenishmentExhaustedError(NumericalError):
+    """Layer 1 propagation cannot attain its required retained draw count."""
