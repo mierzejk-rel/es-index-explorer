@@ -226,8 +226,9 @@ __marimo__/
 # macOS metadata
 .DS_Store
 
-# Ignore generated artifacts by default
+# Ignore generated artifacts and profile data by default
 /artifacts/*
+/TestResults/
 
 # Preserve the canonical, privacy-filtered MLflow snapshot
 !/artifacts/mlflow/
@@ -258,3 +259,7 @@ __marimo__/
 
 !/artifacts/question_analysis/simplemode-v1-segment6-postaudit-final/
 !/artifacts/question_analysis/simplemode-v1-segment6-postaudit-final/**
+
+!/artifacts/question_analysis/simplemode-v1-segment7/
+!/artifacts/question_analysis/simplemode-v1-segment7/**
+
