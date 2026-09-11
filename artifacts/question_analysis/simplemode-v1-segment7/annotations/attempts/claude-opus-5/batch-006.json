@@ -1,0 +1,21 @@
+{
+  "agent_id": "agent-294434ef-8c4c-4519-85f0-ad3aeff7e312",
+  "attempts": 1,
+  "batch_hash": "13b99bc33ff859c5eea8364eaa3a4d4c9620e1cb99633166855b2edfb8e503f4",
+  "batch_id": "batch-006",
+  "created_at": "2026-09-07T14:36:53.413Z",
+  "duration_ms": 94227,
+  "model_id": "claude-opus-5",
+  "response_sha256": "13ab13b7ed5530ddce1abd2fef1a2adb04eedd5a619dc50c0d3a0544d8fcdf32",
+  "run_id": "run-98d43486-d61f-4e8e-bf78-71b70fa46def",
+  "schema_version": 1,
+  "status": "finished",
+  "usage": {
+    "cache_read_tokens": 2254,
+    "cache_write_tokens": 4380,
+    "input_tokens": 6636,
+    "output_tokens": 9311,
+    "reasoning_tokens": null,
+    "total_tokens": 22581
+  }
+}
