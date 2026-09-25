@@ -14,8 +14,6 @@
 - **The proposed contract returns** a canonical flat, **best‑first `chunks[]` list with integer rank**,
   optional typed numeric score, transparent applied‑pipeline metadata, caller‑selected profile,
   finite caller‑selected chunk budget, and capability‑dependent top‑down continuation.
-- **[TODO: DELETE IT?]** Filter‑only results remain explicitly unranked but deterministic. Automatically attached
-  document‑opening or adjacent context chunks remain separate from ranked retrieval results.
 
 ## 1. Motivation
 
@@ -31,14 +29,10 @@ Explicit relevance information lets a consumer:
 - preserve evidence provenance for answer and memo generation;
 - evaluate ranked retrieval reproducibly.
 
-**[TODO: NO, earlier. Single-hop, single-retrieval, doc-grouped RAG converted from semantic -> lexical + metadata and first_chunk]** The existing contract dates approximately to the move from query‑rewrite RAG toward an agent with
-retrieval tools. This is an author's interpretation of the historical context, not documented
-provenance of the grouped response shape. The early transition experiment used a mock retrieval
-tool that returned no documents, so it cannot establish the production response contract
-([retrieval‑tools transition experiment](https://relativity-oda.atlassian.net/wiki/spaces/DV/pages/597230260/Experiment+1+Transition+from+QR+Rag+to+Agent+with+Retrieval+Tools)).
-The contract appears to have been shaped for returning top chunks from one retrieval setup. This
-write‑up revisits it because the consumer set and use cases have expanded, not because the
-original design was necessarily defective for its original purpose.
+The author's remembrance of the project history is that the core contract predates the current
+agentic usage and was shaped around a narrower retrieval setup. This write‑up revisits the contract
+because the consumer set and use cases have expanded, not because the original design was
+necessarily defective for its original purpose.
 
 ### 1.1 Consumers and design pressure
 
@@ -86,6 +80,14 @@ The response discloses neither an explicit chunk score / rank nor the effective 
 Consequently, callers cannot reliably interpret the relevance ordering that survives the service,
 even though they can constrain which documents are eligible.
 
+The planned MCP V4 work does not appear to change this picture. Its engineering plan is thorough
+on non‑functional requirements such as workspace isolation, security, performance,
+observability, cancellation, avoiding N+1 calls, parser compatibility, and rollout control. It
+does not appear to identify relevance, rank, or caller retrieval intent as explicit functional
+requirements, which leaves the retrieval capability itself narrower than the surrounding
+engineering suggests
+([MCP V4 engineering plan](https://relativity-oda.atlassian.net/wiki/spaces/DV/pages/1792245775/Engineering+Plan+MCP+V4+Clair+Search+Q+A+AA+V2)).
+
 ### 1.3 Evidence that one configuration is insufficient
 
 The case for caller‑aware retrieval is supported by several independent observations:
@@ -103,8 +105,8 @@ The case for caller‑aware retrieval is supported by several independent observ
    inconsistent effects from changing `mmr_lambda`. Increasing `results_sent_to_gpt` sometimes
    improved quality while increasing token usage. The study measured tokens, not retrieval latency
    ([MMR configuration study](https://relativity-oda.atlassian.net/wiki/spaces/DV/pages/1736540182/2026-07-14+Retrieval+Configuration+Study+MMR+Delta+Document+Count)).
-3. **Corpus shape changes vector trade‑offs.** **[TODO: dated?! It was this month...]** The dated Slack research reports that embedding
-   model and dimensionality effects reversed between long and short‑document corpora. This is
+3. **Corpus shape changes vector trade‑offs.** Slack research from early September 2026 reports
+   that embedding model and dimensionality effects reversed between long and short‑document corpora. This is
    research evidence, not a fleet‑wide production guarantee
    ([Slack discussion](https://kcura-pd.slack.com/archives/C05PKQYTZTM/p1788349409928209)).
 4. **Post‑retrieval needs differ.** Q&A, Simple Mode, Deep Research, and memo drafting may choose
@@ -136,12 +138,13 @@ and [Normalised Discounted Cumulative Gain (NDCG)](https://en.wikipedia.org/wiki
 combine system result positions with externally supplied relevance judgments. The tool's `_score`,
 similarity, or MMR score is not ground‑truth relevance, and retaining rank alone does not make
 an evaluation valid. However, stable chunk identity, actual returned rank, and the applied retrieval
-pipeline make evaluations reproducible and attributable
+pipeline support reproducible and attributable evaluation when the evaluated corpus/index
+generation and other relevant configuration are fixed
 ([Elasticsearch ranking evaluation](https://www.elastic.co/docs/reference/elasticsearch/rest-apis/search-rank-eval)).
 
-Chunk‑level judgments also depend on chunk lineage. Re‑chunking or replacing chunk identifiers
-invalidates existing judgments unless an explicit migration or lineage mechanism maps old chunks
-to new ones.
+Chunk‑level judgments also depend on chunk lineage. Chunk identifiers are stable only within one
+chunk/index generation, so re‑chunking or replacing them invalidates existing judgments unless an
+explicit migration or lineage mechanism maps old chunks to new ones.
 
 ## 2. Scope and terminology
 
@@ -158,8 +161,8 @@ Current implementation claims in this report are pinned to:
 - [PR #623](https://github.com/relativityone/air-assist-agent/pull/623) context at
   [`9491f0b6`](https://github.com/relativityone/air-assist-agent/tree/9491f0b6b6a1bf22f8d6dd158d8e4291543a0177).
 
-The local revisions may trail upstream **[TODO: local `main` == cloned and checked out by the author on the 17th of September 2026.]**. Implementation‑status statements are explicitly as of
-these revisions. In particular, `GetSearchCapabilities`, `SearchDocuments`, and MCP V4
+Here, "local `main`" means the `main` branch as cloned on 17 September 2026. Those revisions may
+trail upstream, and implementation‑status statements hold as of them. In particular, `GetSearchCapabilities`, `SearchDocuments`, and MCP V4
 `GetRelevantDocuments` are absent from the pinned `embedding-service` revision. They are treated as
 documented direction, not current implementation. No repository refresh or re‑pin was used.
 
@@ -187,7 +190,8 @@ have many chunks.
   depend on the algorithm.
 - **Similarity:** a numeric relationship between query and candidate representations, such as
   cosine similarity. It is not automatically a calibrated relevance probability.
-- **Rank:** an ordinal position within one result set. In the proposed contract, rank 1 is best.
+- **Rank:** an ordinal position within one logical result set. In the proposed contract, rank 1
+  is best, and ranks continue across continuation pages of the same result set.
 - **Ordering:** the sequence in which results are returned. It can represent relevance, an
   explicit field sort, or only a deterministic tie‑break.
 - **Fusion:** combination of outputs or scores from multiple retrievers, such as Reciprocal Rank
@@ -384,7 +388,7 @@ retrieval through that surface.
 ## 4. Current retrieval control plane: LaunchDarkly
 
 **Status: current behavior at the pinned `qna-service` and `embedding-service` revisions, except where
-marked as dated evidence or reasoned consequence.**
+marked as a point‑in‑time production snapshot or reasoned consequence.**
 
 The current qna MCP V2 / V3 `GetRelevantDocuments` method accepts `query`, `subsetId`, and optional
 `focusedDocumentIds`; the aiR Assist provider normally hides and injects trusted scope arguments.
@@ -418,11 +422,11 @@ The model key is resolved by both services under different service and targeting
 flags can be configured through LaunchDarkly selectors and predicates, but they do not form one
 per‑call control surface.
 
-### 4.2 Dated production snapshot **[TODO: DATED?!]**
+### 4.2 Production snapshot (September 2026)
 
 The linked [Slack thread](https://kcura-pd.slack.com/archives/C05PKQYTZTM/p1788349409928209)
-is the dated, author‑verified source for the production values as checked when the message was
-posted. It reported text‑search‑only indexing together with `Bm25SearchWithMmr`. This report
+records the production values as the author verified them when the message was posted in early
+September 2026. It reported text‑search‑only indexing together with `Bm25SearchWithMmr`. This report
 does not re‑verify those values or claim they are current now.
 
 That pair was internally coherent. BM25+MMR generates query and candidate embeddings on demand
@@ -464,7 +468,7 @@ The current search strategies could read `SearchResponse.Hits[].Score`, but inst
 ([base search strategy](https://github.com/relativityone/qna-service/blob/15ee362c9e4470db7a774a431f5a42e37e14d577/Source/Relativity.QnA.Infrastructure/ElasticSearch/Strategies/Base/BaseSearchStrategy.cs#L80-L108)).
 `MapDocumentsToChunks` preserves iteration order but creates `DocumentChunk` with only chunk ID,
 document ID, control number, and content. **Numeric `_score` and an explicit ordinal rank are
-deliberately not retained**
+not retained by the current mapping**
 ([mapping](https://github.com/relativityone/qna-service/blob/15ee362c9e4470db7a774a431f5a42e37e14d577/Source/Relativity.QnA.Infrastructure/ElasticSearch/Strategies/Base/BaseSearchStrategy.cs#L151-L166),
 [chunk model](https://github.com/relativityone/qna-service/blob/15ee362c9e4470db7a774a431f5a42e37e14d577/Source/Relativity.QnA.Application/Models/ElasticSearch/DocumentChunk.cs#L3-L11)).
 
@@ -656,17 +660,21 @@ For every available retrieval profile, discovery should report:
 - supported fusion and reranking behavior;
 - minimum, maximum, and default ranked chunk count;
 - whether non‑relevance field sorting is supported;
+- whether deterministic ranked output is guaranteed and the conditions under which that guarantee
+  holds;
+- tie semantics for ranked results;
 - required retrieval/index capabilities, such as compatible indexed vectors;
-- one opaque, versioned `vectorSpaceId` or equivalent encoder compatibility identifier for every
-  vector representation the profile requires;
+- `vectorSpaces[]`, with one entry per vector‑using retrieval arm, each carrying the arm role and
+  an opaque, versioned `vectorSpaceId` (encoder compatibility identifier);
 - continuation support and its semantics.
 
 This lets callers select only behavior the active workspace and backend can support. LaunchDarkly
 may gate profile availability or defaults, but it should not silently change the semantics of an
 accepted request.
 
-The compatibility identifier should be sufficient to establish that query and indexed vectors
-use the same model revision, dimensions, normalization, and dense or sparse representation.
+A list rather than a single identifier keeps hybrid profiles expressible, for example one dense and
+one sparse arm. Each `vectorSpaceId` should be sufficient to establish that query and indexed
+vectors use the same model revision, dimensions, normalization, and dense or sparse representation.
 Model name, version, dimensions, normalization, and encoder role can remain optional diagnostics
 rather than mandatory top‑level metadata.
 
@@ -741,12 +749,18 @@ When it does, the response should return:
 
 - an opaque continuation token;
 - `moreResults` with `true`, `false`, or `unknown` semantics;
-- the current page's first and last global rank; and
+- the first and last rank covered by the current page; and
 - an explicit exhaustion reason when the result is known to be complete.
 
 The token should bind the query, filters and trusted scope, profile, applied pipeline,
-`vectorSpaceId`, and index/chunk generation. Continuing must preserve global rank without
-returning earlier chunks again.
+`vectorSpaces[]`, and index/chunk generation. Each page is a contiguous slice of one logical
+ranking: with `maxChunks = 20`, the first page holds ranks 1 to 20 and the next page ranks 21 to 40,
+without returning earlier chunks again.
+
+The service must not silently use a token against a different corpus or chunk generation or treat
+it as a new logical result set. If the bound generation is no longer available or valid, the
+service should return a documented stale or invalid continuation condition. The caller can then
+issue a new initial request and receive a new logical ranking.
 
 Continuation cannot have identical semantics for every algorithm:
 
@@ -776,8 +790,7 @@ order. At minimum, it should report:
 - reranker type, such as no reranker or MMR;
 - parameters needed to interpret or reproduce the result, including candidate counts, fusion
   windows, MMR lambda, MMR depth, and applied final chunk limit;
-- the applied `vectorSpaceId` or encoder compatibility identifier when dense or sparse vectors
-  were involved;
+- the applied `vectorSpaces[]` when dense or sparse vectors were involved;
 - whether ordering is relevance‑based or a non‑relevance sort;
 - the sort actually applied;
 - score semantics, including score type, direction, range when bounded, and whether scores are
@@ -786,8 +799,8 @@ order. At minimum, it should report:
 Recognizable engine‑specific values are useful diagnostics. For example, reporting Elasticsearch
 `linear` distinguishes it from RRF. They do not make Elasticsearch a contract requirement.
 
-The compatibility identifier should let operators establish that query and indexed vectors belong
-to the same vector space. Optional diagnostics may expose model/version, dimensions,
+These identifiers let operators establish, for every arm, that query and indexed vectors belong to
+the same vector space. Optional diagnostics may expose model/version, dimensions,
 normalization, representation type, and query/document encoder roles when operationally useful.
 They should not expose secrets or backend connection details.
 
@@ -808,7 +821,8 @@ The canonical response should be a flat `chunks[]` collection. Each ranked chunk
 - optional chunk‑generation and index‑generation lineage.
 
 Parent document and stable chunk identity are required for deduplication, citations, caching,
-continuation, and IR evaluation. Display identifiers improve human‑readable citations and UI but
+continuation, and IR evaluation. `chunkId` is stable within one chunk/index generation; it is not
+guaranteed across re‑chunking or re‑indexing, where generation lineage relates old and new chunks. Display identifiers improve human‑readable citations and UI but
 do not affect relevance, so they are optional. The current qna chunk model already carries
 `controlNumber`
 ([current chunk model](https://github.com/relativityone/qna-service/blob/15ee362c9e4470db7a774a431f5a42e37e14d577/Source/Relativity.QnA.Application/Models/ElasticSearch/DocumentChunk.cs)).
@@ -816,10 +830,26 @@ Generation lineage is a separate optional field
 that prevents consumers from mixing ranks, caches, continuations, or relevance judgments across
 incompatible re‑chunking or re‑indexing events.
 
-The list is best‑first. Rank `1` is the first and best selected chunk. Rank is defined within one
-tool result, after fusion and reranking. A numeric score is ordered according to its declared
-direction. The contract does not pretend that BM25, cosine‑derived, RRF, additive hybrid, and MMR
-values share a common scale.
+The list is best‑first. Rank `1` is the first and best selected chunk. Rank is the one‑based
+position in the logical result set represented by the query and its continuation sequence, after
+fusion and reranking; each response page carries a contiguous slice of that ranking. A numeric
+score is ordered according to its declared direction.
+
+Determinism is an advertised profile capability, not a consequence of deterministic tie‑breaking
+alone. A profile may claim deterministic ranked output only when its entire pipeline produces a
+deterministic result under the advertised conditions. For such a profile, the guarantee is end to
+end within one chunk/index generation and covers candidate retrieval, fusion, reranking, and final
+ordering. When final scores are equal, the profile applies its advertised tie‑break, by default
+`documentId ASC, chunkId ASC`. Otherwise capability discovery must declare the weaker guarantee.
+
+For an MMR profile to advertise deterministic output, candidate ordering must itself be
+deterministic. The current selector prefers the lowest candidate index when MMR values are equal
+within a small tolerance
+([MMR selector](https://github.com/relativityone/qna-service/blob/15ee362c9e4470db7a774a431f5a42e37e14d577/Source/Relativity.QnA.Application/Services/MaximumMarginalRelevanceSelector.cs#L76-L83)).
+That resolves a selector‑level tie only for a fixed candidate list; the profile must also derive or
+normalize that list in a deterministic order to claim the end‑to‑end guarantee. Deterministic
+ranked output keeps pagination, caching, evaluation, and tests reproducible. The contract does
+not pretend that BM25, cosine‑derived, RRF, additive hybrid, and MMR values share a common scale.
 
 Final rank should be present for every relevance‑ranked response even when a meaningful numeric
 score is unavailable. This is particularly important for MMR, whose selection score changes as
@@ -894,7 +924,44 @@ LaunchDarkly can gate rollout, profile availability, defaults, and experiments. 
 silently change the semantics of an accepted request; any documented default or policy override
 must be reflected in `appliedRetrieval`.
 
-### 8.2 Agent v4 parser cleanup
+### 8.2 Retrieval quality and cost levers
+
+Several index‑side levers could improve retrieval quality or cost once callers can select and
+observe retrieval behavior. They are options for the owning teams, not prerequisites of the
+contract:
+
+1. **Language analyzers.** The current mapping declares `body` and `title` as text fields
+   without an explicit analyzer, so they use Elasticsearch's standard analyzer
+   ([index mapping](https://github.com/relativityone/embedding-service/blob/1e31013745d51969836163caf1156197a27e5ae5/Source/Relativity.Embedding.Infrastructure/Elasticsearch/ElasticsearchClientWrapper.cs#L105-L145)).
+   The `english` analyzer adds stop‑word removal and stemming at both index and query time. That
+   may improve lexical recall and reduce index size, at some cost to exact phrase and name
+   precision. Changing it requires re‑indexing, and a multilingual corpus needs per‑language
+   analyzers or fields
+   ([language analyzers](https://www.elastic.co/docs/reference/text-analysis/analysis-lang-analyzer)).
+2. **Dense and sparse vectors.** Populated dense or learned‑sparse vectors make `semantic` and
+   `hybrid` profiles meaningful. The trade‑off is index storage and indexing work versus
+   query‑time inference, as discussed in the
+   [Slack thread](https://kcura-pd.slack.com/archives/C05PKQYTZTM/p1788349409928209) and in
+   section 10.
+3. **Engine‑side inference endpoints.** Encoding both documents and queries through one engine
+   inference endpoint, backed by an Elastic model or a PyTorch model imported with Eland, gives
+   one model owner. That directly addresses the cross‑service model‑resolution risk in section 3.7
+   and simplifies `vectorSpaces[]`
+   ([inference API](https://www.elastic.co/docs/explore-analyze/elastic-inference/inference-api),
+   [importing models with Eland](https://www.elastic.co/docs/explore-analyze/machine-learning/nlp/ml-nlp-import-model)).
+   It requires machine‑learning node or managed inference capacity: an earlier cluster
+   investigation found the ELSER endpoint exposed but not deployable, because the cluster had no
+   ML nodes and the Elastic Inference Service was not connected
+   ([client‑side sparse vectors](https://github.com/mierzejk-rel/es-index-explorer/blob/76ed2dc57faa733670c2d4e42461db80b63f2e9a/reports/07-client-side-sparse-vectors.md#L19-L22)).
+4. **`semantic_text` and equivalents.** Field types that chunk and encode inside the engine
+   remove client‑side embedding code, but they also move chunk boundaries into the engine. That
+   affects `chunkId` stability and the generation lineage described in sections 1.4 and 7.7
+   ([`semantic_text`](https://www.elastic.co/docs/reference/elasticsearch/mapping-reference/semantic-text)).
+
+Each lever changes which profiles, score types, and vector spaces capability discovery can
+advertise. None of them changes the proposed contract.
+
+### 8.3 Agent v4 parser cleanup
 
 Current qna MCP V2 / V3 producers return grouped output, and the planned MCP V4 contract also
 specifies grouped output. **Agent v4's flat‑payload fallback therefore appears to be compatibility
@@ -943,7 +1010,10 @@ This cleanup does not block the new retrieval contract.
   optional capability?
 - What are the valid `maxChunks` range and validation / clamping semantics?
 - Which profiles support continuation, and what state or rerun semantics back their opaque tokens?
-- What stable format and ownership rules define `vectorSpaceId`?
+- What stable format and ownership rules define `vectorSpaceId` and its `vectorSpaces[]` entries?
+- Do owners confirm the proposed semantics that rank is global across continuation pages, ranked
+  ties are deterministic by an advertised rule, and `chunkId` is stable only within one
+  chunk/index generation?
 - Does the new contract coexist indefinitely with legacy tools, or eventually replace them?
 - Which service owns capability discovery if planned MCP V4 is not the implementation vehicle?
 - How is vector‑space compatibility represented and enforced across indexing and query services?
@@ -968,7 +1038,7 @@ candidate list into batches and bounds batch concurrency; it does not reuse vect
 
 Discarding the vectors is a classic storage‑versus‑computation trade‑off. It avoids persistent
 vector storage for MMR but **repeats model inference and is expected to add response latency when
-the same chunks recur** **[TODO: reoccur?]**. This report does not claim a measured latency delta.
+the same chunks recur**. This report does not claim a measured latency delta.
 
 The index mapping can store dense vectors, and normal indexing can populate them when the
 text‑search‑only switch is disabled
@@ -1021,7 +1091,7 @@ The following sources are grouped by role. Inline links near claims remain the p
 ### 11.2 Internal contracts, architecture, and research
 
 - [MCP V4 engineering plan](https://relativity-oda.atlassian.net/wiki/spaces/DV/pages/1792245775/Engineering+Plan+MCP+V4+Clair+Search+Q+A+AA+V2):
-  documented future architecture, BM25+MMR scope, and kNN deferral.
+  documented future architecture, non‑functional requirements, BM25+MMR scope, and kNN deferral.
 - [MCP V4 working contract](https://relativity-oda.atlassian.net/wiki/spaces/DV/pages/1780711469/ClaiR+MCP+Tools+AA+V2+Working+Contract):
   planned tool shapes, grouping, absence of scores, filters, scope, and sort behavior.
 - [ClaiR Search V3 mental model](https://relativity-oda.atlassian.net/wiki/spaces/~712020f52569fec67e4b74bfc314f9d70e4636/pages/1774420235/ClaiR+Search+V3+Tool+Design+Mental+Model):
@@ -1039,6 +1109,8 @@ The following sources are grouped by role. Inline links near claims remain the p
   relevance‑dependent round‑robin research design.
 - [Current retrieval analysis](https://github.com/mierzejk-rel/es-index-explorer/blob/3376afc32ab19218e2526571a8f5b094c6ac6b65/reports/03-retrieval-strategies.md):
   secondary consolidated analysis of `qna-service` retrieval paths.
+- [Client‑side sparse vectors](https://github.com/mierzejk-rel/es-index-explorer/blob/76ed2dc57faa733670c2d4e42461db80b63f2e9a/reports/07-client-side-sparse-vectors.md):
+  ELSER endpoint unavailability and missing ML‑node capacity on the experiment cluster.
 - [PR #623 relevance‑order review](https://github.com/relativityone/air-assist-agent/pull/623#issuecomment-5698164026):
   why grouped results without global rank could not support chunk‑level round‑robin.
 - [Interactive Memo Drafting integration](https://relativity-oda.atlassian.net/wiki/spaces/DV/pages/1002176513/Interactive+Memo+Drafting+Agent+-+aiR+Assist+Integration+Work),
@@ -1047,10 +1119,10 @@ The following sources are grouped by role. Inline links near claims remain the p
   and [memo viewer contract](https://relativity-oda.atlassian.net/wiki/spaces/DV/pages/1932198083/a4CS+Memo+Viewer+Contract+for+ClaiR+ADR):
   memo workflow and downstream product boundaries.
 
-### 11.3 Dated discussion **[TODO: dated?!]**
+### 11.3 Slack discussion (September 2026)
 
 - [Retrieval flags, embedding storage, and model research Slack thread](https://kcura-pd.slack.com/archives/C05PKQYTZTM/p1788349409928209):
-  dated production snapshot, embedding/storage trade‑off, and corpus‑dependent model findings.
+  production flag snapshot, embedding/storage trade‑off, and corpus‑dependent model findings.
 
 ### 11.4 Elasticsearch documentation
 
@@ -1064,5 +1136,9 @@ The following sources are grouped by role. Inline links near claims remain the p
 - [ESQL MMR](https://www.elastic.co/docs/reference/query-languages/esql/commands/mmr)
 - [Pagination](https://www.elastic.co/docs/reference/elasticsearch/rest-apis/paginate-search-results)
 - [Retriever API constraints](https://www.elastic.co/docs/reference/elasticsearch/rest-apis/retrievers)
+- [Language analyzers](https://www.elastic.co/docs/reference/text-analysis/analysis-lang-analyzer)
+- [Inference API](https://www.elastic.co/docs/explore-analyze/elastic-inference/inference-api)
+  and [importing models with Eland](https://www.elastic.co/docs/explore-analyze/machine-learning/nlp/ml-nlp-import-model)
+- [`semantic_text`](https://www.elastic.co/docs/reference/elasticsearch/mapping-reference/semantic-text)
 
 
