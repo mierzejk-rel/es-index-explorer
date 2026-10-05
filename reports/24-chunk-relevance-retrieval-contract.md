@@ -161,7 +161,7 @@ Current implementation claims in this report are pinned to:
 - [PR #623](https://github.com/relativityone/air-assist-agent/pull/623) context at
   [`9491f0b6`](https://github.com/relativityone/air-assist-agent/tree/9491f0b6b6a1bf22f8d6dd158d8e4291543a0177).
 
-Here, "local `main`" means the `main` branch as cloned on 17 September 2026. Those revisions may
+Here, "local `main`" means the `main` branch as cloned on the 17th of September 2026. Those revisions may
 trail upstream, and implementation‑status statements hold as of them. In particular, `GetSearchCapabilities`, `SearchDocuments`, and MCP V4
 `GetRelevantDocuments` are absent from the pinned `embedding-service` revision. They are treated as
 documented direction, not current implementation. No repository refresh or re‑pin was used.
