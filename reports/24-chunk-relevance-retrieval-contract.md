@@ -663,7 +663,7 @@ For every available retrieval profile, discovery should report:
 - whether deterministic ranked output is guaranteed and the conditions under which that guarantee
   holds;
 - tie semantics for ranked results;
-- required retrieval/index capabilities, such as compatible indexed vectors;
+- required retrieval / index capabilities, such as compatible indexed vectors;
 - `vectorSpaces[]`, with one entry per vector‑using retrieval arm, each carrying the arm role and
   an opaque, versioned `vectorSpaceId` (encoder compatibility identifier);
 - continuation support and its semantics.
