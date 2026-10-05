@@ -494,7 +494,7 @@ grouping
   document beyond the ranked retrieved‑chunk cap.
 
 Consequently, `results_sent_to_gpt = 25` does not guarantee exactly 25 text fragments in the MCP
-payload. The V3 tool description says "top 25 documents," but the query path actually caps ranked
+payload. The V3 tool description says "top 25 documents", but the query path actually caps ranked
 chunks before grouping
 ([V3 MCP tool](https://github.com/relativityone/qna-service/blob/15ee362c9e4470db7a774a431f5a42e37e14d577/Source/Relativity.QnA.API/Mcp/Tools/V3/DocumentProviderTool.cs#L35-L55)).
 
@@ -816,12 +816,12 @@ The canonical response should be a flat `chunks[]` collection. Each ranked chunk
 - optional score type and score direction;
 - optional component scores / ranks for fusion diagnostics;
 - optional reranker diagnostics such as query similarity or MMR score at selection;
-- optional human‑readable display/citation identifier, such as the currently available
+- optional human‑readable display / citation identifier, such as the currently available
   `controlNumber`;
 - optional chunk‑generation and index‑generation lineage.
 
 Parent document and stable chunk identity are required for deduplication, citations, caching,
-continuation, and IR evaluation. `chunkId` is stable within one chunk/index generation; it is not
+continuation, and IR evaluation. `chunkId` is stable within one chunk / index generation; it is not
 guaranteed across re‑chunking or re‑indexing, where generation lineage relates old and new chunks. Display identifiers improve human‑readable citations and UI but
 do not affect relevance, so they are optional. The current qna chunk model already carries
 `controlNumber`
@@ -916,7 +916,7 @@ write‑up does not select the owning service or mandate an in‑place migration
 ### 8.1 Validation and rollout
 
 Every implementation path should include contract and integration tests that exercise capability
-discovery, requested‑versus‑applied profile and limits, rank/score semantics, continuation,
+discovery, requested‑versus‑applied profile and limits, rank / score semantics, continuation,
 deterministic filter‑only ordering, and vector‑space compatibility. These tests validate the
 normative rules in section 7 rather than restating that contract.
 
@@ -1076,7 +1076,7 @@ The following sources are grouped by role. Inline links near claims remain the p
   [`LaunchDarklyContextBuilder.cs`](https://github.com/relativityone/qna-service/blob/15ee362c9e4470db7a774a431f5a42e37e14d577/Source/Relativity.QnA.Infrastructure/LaunchDarkly/LaunchDarklyContextBuilder.cs),
   and
   [`LaunchDarklyOpenAiRequestsKeys.cs`](https://github.com/relativityone/qna-service/blob/15ee362c9e4470db7a774a431f5a42e37e14d577/Source/Relativity.QnA.Infrastructure/Constants/LaunchDarklyOpenAiRequestsKeys.cs):
-  retrieval/model flag evaluation and targeting context.
+  retrieval / model flag evaluation and targeting context.
 - [`ConsumerActivities.cs`](https://github.com/relativityone/embedding-service/blob/1e31013745d51969836163caf1156197a27e5ae5/Source/Relativity.Embedding.Application/Temporalio/Activities/ConsumerActivities.cs)
   and
   [`LaunchDarklyClientWrapperSingleton.cs`](https://github.com/relativityone/embedding-service/blob/1e31013745d51969836163caf1156197a27e5ae5/Source/Relativity.Embedding.Infrastructure/LaunchDarkly/LaunchDarklyClientWrapperSingleton.cs):
