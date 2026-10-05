@@ -800,8 +800,8 @@ Recognizable engine‑specific values are useful diagnostics. For example, repor
 `linear` distinguishes it from RRF. They do not make Elasticsearch a contract requirement.
 
 These identifiers let operators establish, for every arm, that query and indexed vectors belong to
-the same vector space. Optional diagnostics may expose model/version, dimensions,
-normalization, representation type, and query/document encoder roles when operationally useful.
+the same vector space. Optional diagnostics may expose model / version, dimensions,
+normalization, representation type, and query / document encoder roles when operationally useful.
 They should not expose secrets or backend connection details.
 
 ### 7.7 Canonical flat chunk response
